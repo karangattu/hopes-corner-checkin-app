@@ -9,11 +9,6 @@ An app to manage guest check‑ins, services (meals, showers, laundry), donation
 - **Donations**: Record, consolidate, export
 - **Admin Dashboard**: Charts, metrics, exports
 
-## Tech Stack
-
-- React + Vite, Tailwind CSS
-- Chart.js + react-chartjs-2
-
 ## Getting Started
 
 ```bash
