@@ -8,7 +8,6 @@ An app to manage guest check‑ins, services (meals, showers, laundry), donation
 - **Services**: Meals tracking, showers booking, laundry scheduling
 - **Donations**: Record, consolidate, export
 - **Admin Dashboard**: Charts, metrics, exports
-- **Data**: Pacific Time, localStorage with optional Firestore sync
 
 ## Tech Stack
 
