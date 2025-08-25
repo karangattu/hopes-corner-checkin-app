@@ -21,7 +21,11 @@ import {
   Apple,
   Caravan,
   HeartHandshake,
-  SquarePlus
+  SquarePlus,
+  Shirt,
+  Bed,
+  Backpack,
+  Bike
 } from 'lucide-react';
 import { useAppContext } from '../../context/useAppContext';
 import ShowerBooking from '../../components/ShowerBooking';
@@ -37,12 +41,12 @@ const Services = () => {
     mealRecords,
     rvMealRecords,
     addRvMealRecord,
-  addUnitedEffortMealRecord,
-  unitedEffortMealRecords,
-  extraMealRecords,
-  addExtraMealRecord,
-  lunchBagRecords,
-  addLunchBagRecord,
+    addUnitedEffortMealRecord,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    addExtraMealRecord,
+    lunchBagRecords,
+    addLunchBagRecord,
     showerRecords,
     guests,
     showerPickerGuest,
@@ -50,23 +54,31 @@ const Services = () => {
     LAUNDRY_STATUS,
     updateLaundryStatus,
     setLaundryRecords,
+    setMealRecords,
     actionHistory,
     undoAction,
     clearActionHistory,
     allShowerSlots,
     cancelShowerRecord,
     rescheduleShower,
-  updateShowerStatus,
+    updateShowerStatus,
     cancelLaundryRecord,
     rescheduleLaundry,
     canGiveItem,
     getLastGivenItem,
-  giveItem,
-  getNextAvailabilityDate,
+    giveItem,
+    getNextAvailabilityDate,
+    bicycleRecords,
+    addBicycleRecord,
+    updateBicycleRecord,
+    deleteBicycleRecord,
+    setBicycleStatus,
+    moveBicycleRecord,
+    BICYCLE_REPAIR_STATUS,
   } = useAppContext();
-  
+
   const [activeSection, setActiveSection] = useState('overview');
-  
+
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState('');
   const [showUndoPanel, setShowUndoPanel] = useState(false);
@@ -92,22 +104,22 @@ const Services = () => {
   const [laundryTypeFilter, setLaundryTypeFilter] = useState('any');
   const [laundryStatusFilter, setLaundryStatusFilter] = useState('any');
   const [laundrySort, setLaundrySort] = useState('time-asc');
-  
+
   const todayMetrics = getTodayMetrics();
-  
+
   const todayShorthand = today;
-  
+
   const selectedDate = mealsDate || todayShorthand;
   const selectedGuestMealRecords = mealRecords.filter(
     record => pacificDateStringFrom(record.date || '') === selectedDate
   );
-  
+
   const todayShowerRecords = showerRecords.filter(
     record => pacificDateStringFrom(record.date) === todayShorthand
   );
   const todayWaitlisted = todayShowerRecords.filter(r => r.status === 'waitlisted');
   const todayBookedShowers = todayShowerRecords.filter(r => r.status !== 'waitlisted');
-  
+
   const todayLaundryWithGuests = getTodayLaundryWithGuests();
 
   const parseTimeToMinutes = (t) => {
@@ -181,24 +193,88 @@ const Services = () => {
   const showersTrail = useStagger((filteredShowers || []).length, true);
   const waitlistTrail = useStagger((todayWaitlisted || []).length, true);
   const laundryTrail = useStagger((filteredLaundry || []).length, true);
-  
+
   const selectedRvMealRecords = rvMealRecords.filter(
     record => pacificDateStringFrom(record.date || '') === selectedDate
   );
 
+  const repairTypes = [
+    'Flat Tire', 'Brake Adjustment', 'Gear Adjustment', 'Chain Replacement', 'Wheel Truing', 'Basic Tune Up', 'Drivetrain Cleaning', 'Cable Replacement', 'Headset Adjustment', 'New Bicycle', 'Other'
+  ];
+  const todayBicycleRepairs = (bicycleRecords || []).filter(r => (r.date || '').startsWith(today));
+  const sortedBicycleRepairs = [...todayBicycleRepairs].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  const renderBicycleRepairsSection = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Bike className="text-sky-600" size={20} /> <span>Today's Bicycle Repairs</span>
+          </h2>
+          <div className="flex items-center gap-2">
+            <span className="bg-sky-100 text-sky-800 text-xs font-medium px-3 py-1 rounded-full">{sortedBicycleRepairs.length} repairs</span>
+          </div>
+        </div>
+        {sortedBicycleRepairs.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-8">No bicycle repairs logged today. Use the Bicycle button when searching for a guest to add one.</p>
+        ) : (
+          <ul className="space-y-3">
+            {sortedBicycleRepairs.map((rec, idx) => {
+              const guest = guests.find(g => g.id === rec.guestId);
+              return (
+                <li key={rec.id} className="border rounded-md p-3 bg-white">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium text-sm">{guest?.name || 'Unknown Guest'}</div>
+                      <div className="text-xs text-gray-500">Priority {idx + 1}</div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => moveBicycleRecord(rec.id, 'up')} disabled={idx === 0} className="text-xs px-2 py-1 border rounded disabled:opacity-30">↑</button>
+                      <button onClick={() => moveBicycleRecord(rec.id, 'down')} disabled={idx === sortedBicycleRepairs.length - 1} className="text-xs px-2 py-1 border rounded disabled:opacity-30">↓</button>
+                      <button onClick={() => { deleteBicycleRecord(rec.id); toast.success('Deleted'); }} className="text-xs px-2 py-1 border rounded text-red-600">Delete</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Repair Type</label>
+                      <select value={rec.repairType} onChange={(e) => updateBicycleRecord(rec.id, { repairType: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">
+                        {repairTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Status</label>
+                      <select value={rec.status || BICYCLE_REPAIR_STATUS.PENDING} onChange={(e) => setBicycleStatus(rec.id, e.target.value)} className="w-full border rounded px-2 py-1 text-sm">
+                        <option value={BICYCLE_REPAIR_STATUS.PENDING}>Pending</option>
+                        <option value={BICYCLE_REPAIR_STATUS.IN_PROGRESS}>Being Worked On</option>
+                        <option value={BICYCLE_REPAIR_STATUS.DONE}>Done</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Notes {rec.repairType === 'Other' && '(specify)'}</label>
+                      <input value={rec.notes || ''} onChange={(e) => updateBicycleRecord(rec.id, { notes: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" placeholder="Optional notes" />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+
   const headerSpring = useFadeInUp();
   const modalSpring = useScaleIn([bagPromptOpen]);
-  
+
   const handleAddRvMeals = () => {
     if (!rvMealCount || isNaN(rvMealCount) || parseInt(rvMealCount) <= 0) {
       toast.error('Please enter a valid number of RV meals');
       return;
     }
-    
+
     setIsAddingRvMeals(true);
     try {
-  addRvMealRecord(rvMealCount, selectedDate);
-  toast.success(`Added ${rvMealCount} RV meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
+      addRvMealRecord(rvMealCount, selectedDate);
+      toast.success(`Added ${rvMealCount} RV meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
       setRvMealCount('');
     } catch (error) {
       toast.error(`Error adding RV meals: ${error.message}`);
@@ -215,8 +291,8 @@ const Services = () => {
 
     setIsAddingUeMeals(true);
     try {
-  addUnitedEffortMealRecord(ueMealCount, selectedDate);
-  toast.success(`Added ${ueMealCount} United Effort meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
+      addUnitedEffortMealRecord(ueMealCount, selectedDate);
+      toast.success(`Added ${ueMealCount} United Effort meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
       setUeMealCount('');
     } catch (error) {
       toast.error(`Error adding United Effort meals: ${error.message}`);
@@ -233,8 +309,8 @@ const Services = () => {
 
     setIsAddingExtraMeals(true);
     try {
-  addExtraMealRecord(extraMealCount, selectedDate);
-  toast.success(`Added ${extraMealCount} extra meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
+      addExtraMealRecord(extraMealCount, selectedDate);
+      toast.success(`Added ${extraMealCount} extra meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
       setExtraMealCount('');
     } catch (error) {
       toast.error(`Error adding extra meals: ${error.message}`);
@@ -242,7 +318,7 @@ const Services = () => {
       setIsAddingExtraMeals(false);
     }
   };
-  
+
   const getGuestName = (guestId) => {
     const guest = guests.find(g => g.id === guestId);
     if (!guest) return 'Unknown Guest';
@@ -250,100 +326,100 @@ const Services = () => {
   };
 
   const getLaundryStatusInfo = (status) => {
-    switch(status) {
+    switch (status) {
       case LAUNDRY_STATUS.WAITING:
-        return { 
-          icon: ShoppingBag, 
-          color: 'text-gray-500', 
+        return {
+          icon: ShoppingBag,
+          color: 'text-gray-500',
           bgColor: 'bg-gray-100',
           textColor: 'text-gray-800',
-          label: 'Waiting' 
+          label: 'Waiting'
         };
       case LAUNDRY_STATUS.WASHER:
-        return { 
-          icon: DropletIcon, 
-          color: 'text-blue-500', 
+        return {
+          icon: DropletIcon,
+          color: 'text-blue-500',
           bgColor: 'bg-blue-100',
           textColor: 'text-blue-800',
-          label: 'In Washer' 
+          label: 'In Washer'
         };
       case LAUNDRY_STATUS.DRYER:
-        return { 
-          icon: FanIcon, 
-          color: 'text-orange-500', 
+        return {
+          icon: FanIcon,
+          color: 'text-orange-500',
           bgColor: 'bg-orange-100',
           textColor: 'text-orange-800',
-          label: 'In Dryer' 
+          label: 'In Dryer'
         };
       case LAUNDRY_STATUS.DONE:
-        return { 
-          icon: CheckCircle2Icon, 
-          color: 'text-green-500', 
+        return {
+          icon: CheckCircle2Icon,
+          color: 'text-green-500',
           bgColor: 'bg-green-100',
           textColor: 'text-green-800',
-          label: 'Done' 
+          label: 'Done'
         };
       case LAUNDRY_STATUS.PICKED_UP:
-        return { 
-          icon: LogOutIcon, 
-          color: 'text-purple-500', 
+        return {
+          icon: LogOutIcon,
+          color: 'text-purple-500',
           bgColor: 'bg-purple-100',
           textColor: 'text-purple-800',
-          label: 'Picked Up' 
+          label: 'Picked Up'
         };
       case LAUNDRY_STATUS.PENDING:
-        return { 
-          icon: Clock, 
-          color: 'text-yellow-500', 
+        return {
+          icon: Clock,
+          color: 'text-yellow-500',
           bgColor: 'bg-yellow-100',
           textColor: 'text-yellow-800',
-          label: 'Waiting' 
+          label: 'Waiting'
         };
       case LAUNDRY_STATUS.TRANSPORTED:
-        return { 
-          icon: Truck, 
-          color: 'text-blue-500', 
+        return {
+          icon: Truck,
+          color: 'text-blue-500',
           bgColor: 'bg-blue-100',
           textColor: 'text-blue-800',
-          label: 'Transported' 
+          label: 'Transported'
         };
       case LAUNDRY_STATUS.RETURNED:
-        return { 
-          icon: CheckCircle2Icon, 
-          color: 'text-green-500', 
+        return {
+          icon: CheckCircle2Icon,
+          color: 'text-green-500',
           bgColor: 'bg-green-100',
           textColor: 'text-green-800',
-          label: 'Returned' 
+          label: 'Returned'
         };
       case LAUNDRY_STATUS.OFFSITE_PICKED_UP:
-        return { 
-          icon: LogOutIcon, 
-          color: 'text-purple-500', 
+        return {
+          icon: LogOutIcon,
+          color: 'text-purple-500',
           bgColor: 'bg-purple-100',
           textColor: 'text-purple-800',
-          label: 'Picked Up' 
+          label: 'Picked Up'
         };
       default:
-        return { 
-          icon: ShoppingBag, 
-          color: 'text-gray-500', 
+        return {
+          icon: ShoppingBag,
+          color: 'text-gray-500',
           bgColor: 'bg-gray-100',
           textColor: 'text-gray-800',
-          label: 'Unknown' 
+          label: 'Unknown'
         };
     }
   };
 
   const handleStatusChange = (recordId, newStatus) => {
     updateLaundryStatus(recordId, newStatus);
-  const info = getLaundryStatusInfo(newStatus);
-  toast.success(`Laundry status updated to ${info.label}`);
+    const info = getLaundryStatusInfo(newStatus);
+    toast.success(`Laundry status updated to ${info.label}`);
   };
-  
+
   const handleBagNumberUpdate = (recordId, bagNumber) => {
-    setLaundryRecords(prevRecords => 
-      prevRecords.map(record => 
-        record.id === recordId 
+    setLaundryRecords(prevRecords =>
+      prevRecords.map(record =>
+        record.id === recordId
           ? { ...record, bagNumber, lastUpdated: new Date().toISOString() }
           : record
       )
@@ -380,34 +456,35 @@ const Services = () => {
     setBagPromptNextStatus(null);
     setBagPromptValue('');
   };
-  
+
   const startEditingBagNumber = (recordId, currentBagNumber) => {
     setEditingBagNumber(recordId);
     setNewBagNumber(currentBagNumber || '');
   };
-  
+
   const handleUndoAction = (actionId) => {
     const success = undoAction(actionId);
     if (success) {
-  toast.success('Action undone');
+      toast.success('Action undone');
     }
   };
-  
+
   const todayActionHistory = actionHistory.filter(action => {
     const actionDate = new Date(action.timestamp);
     const today = todayPacificDateString();
     const actionPT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(actionDate);
     return actionPT === today;
   });
-  
+
   const sections = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'meals', label: 'Meals', icon: Utensils },
     { id: 'showers', label: 'Showers', icon: ShowerHead },
-    { id: 'laundry', label: 'Laundry', icon: WashingMachine }
+    { id: 'laundry', label: 'Laundry', icon: WashingMachine },
+    { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike }
   ];
 
-  
+
   const renderOverviewSection = () => {
     const tm = todayMetrics || { mealsServed: 0, showersBooked: 0, laundryLoads: 0 };
     return (
@@ -441,258 +518,277 @@ const Services = () => {
   };
 
   const renderMealsSection = () => {
-  const totalGuestMeals = selectedGuestMealRecords.reduce((sum, record) => sum + record.count, 0);
-  const totalRvMeals = selectedRvMealRecords.reduce((sum, record) => sum + record.count, 0);
-  const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
-  const totalUeMeals = selectedUeMealRecords.reduce((s,r)=>s+r.count,0);
-  const selectedExtraMealRecords = (extraMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
-  const totalExtraMeals = selectedExtraMealRecords.reduce((s,r)=>s+r.count,0);
-  const selectedLunchBagRecords = (lunchBagRecords || []).filter(r => (r.date || '').startsWith(selectedDate));
-  const totalLunchBags = selectedLunchBagRecords.reduce((s,r)=> s + (r.count || 0), 0);
+    const totalGuestMeals = selectedGuestMealRecords.reduce((sum, record) => sum + record.count, 0);
+    const totalRvMeals = selectedRvMealRecords.reduce((sum, record) => sum + record.count, 0);
+    const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
+    const totalUeMeals = selectedUeMealRecords.reduce((s, r) => s + r.count, 0);
+    const selectedExtraMealRecords = (extraMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
+    const totalExtraMeals = selectedExtraMealRecords.reduce((s, r) => s + r.count, 0);
+    const selectedLunchBagRecords = (lunchBagRecords || []).filter(r => (r.date || '').startsWith(selectedDate));
+    const totalLunchBags = selectedLunchBagRecords.reduce((s, r) => s + (r.count || 0), 0);
     const totalMeals = totalGuestMeals + totalRvMeals + totalUeMeals + totalExtraMeals;
-    
+
     return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-        <div className="text-sm text-gray-700 flex items-center gap-2">
-          <History size={16} className="text-gray-500" />
-          <span className="font-medium">Meals date</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={mealsDate}
-            onChange={(e) => setMealsDate(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
-            max={todayShorthand}
-          />
-          <span className="text-xs text-gray-500">New entries will be added to this date</span>
-        </div>
-      </div>
-      <div className="bg-orange-50 rounded-lg border border-orange-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-orange-800">
-            <Caravan className="text-orange-600" size={20} />
-            <span>RV Meals</span>
-          </h3>
-          <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full">
-            {totalRvMeals} RV meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 mb-3">
-          <input
-            type="number"
-            value={rvMealCount}
-            onChange={(e) => setRvMealCount(e.target.value)}
-            placeholder="Number of RV meals"
-            className="px-3 py-2 border border-orange-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            min="1"
-            disabled={isAddingRvMeals}
-          />
-          <button
-            onClick={handleAddRvMeals}
-            disabled={isAddingRvMeals || !rvMealCount}
-            className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            {isAddingRvMeals ? 'Adding...' : 'Add RV Meals'}
-          </button>
-        </div>
-        {selectedRvMealRecords.length > 0 && (
-          <div className="text-xs text-orange-700">
-            <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} RV meal records:</div>
-            <ul className="space-y-1">
-              {selectedRvMealRecords.map((record) => (
-                <li key={record.id} className="flex justify-between">
-                  <span>{new Date(record.date).toLocaleTimeString()}</span>
-                  <span className="font-medium">{record.count} meals</span>
-                </li>
-              ))}
-            </ul>
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
+          <div className="text-sm text-gray-700 flex items-center gap-2">
+            <History size={16} className="text-gray-500" />
+            <span className="font-medium">Meals date</span>
           </div>
-        )}
-      </div>
-
-      <div className="bg-sky-50 rounded-lg border border-sky-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-sky-800">
-            <HeartHandshake className="text-sky-600" size={20} />
-            <span>United Effort Meals</span>
-          </h3>
-          <span className="bg-sky-100 text-sky-800 text-xs font-medium px-3 py-1 rounded-full">
-            {totalUeMeals} UE meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 mb-3">
-          <input
-            type="number"
-            value={ueMealCount}
-            onChange={(e) => setUeMealCount(e.target.value)}
-            placeholder="Number of United Effort meals"
-            className="px-3 py-2 border border-sky-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-sky-500"
-            min="1"
-            disabled={isAddingUeMeals}
-          />
-          <button
-            onClick={handleAddUeMeals}
-            disabled={isAddingUeMeals || !ueMealCount}
-            className="bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            {isAddingUeMeals ? 'Adding...' : 'Add UE Meals'}
-          </button>
-        </div>
-        {selectedUeMealRecords.length > 0 && (
-          <div className="text-xs text-sky-700">
-            <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} United Effort meal records:</div>
-            <ul className="space-y-1">
-              {selectedUeMealRecords.map((record) => (
-                <li key={record.id} className="flex justify-between">
-                  <span>{new Date(record.date).toLocaleTimeString()}</span>
-                  <span className="font-medium">{record.count} meals</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-amber-50 rounded-lg border border-amber-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-amber-800">
-            <SquarePlus className="text-amber-600" size={20} />
-            <span>Extra Meals</span>
-          </h3>
-          <span className="bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
-            {totalExtraMeals} extra meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 mb-3">
-          <input
-            type="number"
-            value={extraMealCount}
-            onChange={(e) => setExtraMealCount(e.target.value)}
-            placeholder="Number of extra meals"
-            className="px-3 py-2 border border-amber-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            min="1"
-            disabled={isAddingExtraMeals}
-          />
-          <button
-            onClick={handleAddExtraMeals}
-            disabled={isAddingExtraMeals || !extraMealCount}
-            className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            {isAddingExtraMeals ? 'Adding...' : 'Add Extra Meals'}
-          </button>
-        </div>
-        {selectedExtraMealRecords.length > 0 && (
-          <div className="text-xs text-amber-700">
-            <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Extra meal records:</div>
-            <ul className="space-y-1">
-              {selectedExtraMealRecords.map((record) => (
-                <li key={record.id} className="flex justify-between">
-                  <span>{new Date(record.date).toLocaleTimeString()}</span>
-                  <span className="font-medium">{record.count} meals</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-lime-50 rounded-lg border border-lime-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-lime-800">
-            <Apple className="text-lime-600" size={20} />
-            <span>Lunch Bags</span>
-          </h3>
-          <span className="bg-lime-100 text-lime-800 text-xs font-medium px-3 py-1 rounded-full">
-            {totalLunchBags} lunch bags on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-          </span>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
-          <input
-            type="number"
-            value={lunchBagCount}
-            onChange={(e) => setLunchBagCount(e.target.value)}
-            placeholder="Number of lunch bags"
-            className="px-3 py-2 border border-lime-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-lime-500"
-            min="1"
-            disabled={isAddingLunchBags}
-          />
-          <button
-            onClick={() => {
-              if (!lunchBagCount || isNaN(lunchBagCount) || parseInt(lunchBagCount) <= 0) {
-                toast.error('Please enter a valid number of lunch bags');
-                return;
-              }
-              setIsAddingLunchBags(true);
-              try {
-                addLunchBagRecord(lunchBagCount, selectedDate);
-                toast.success(`Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount) > 1 ? 's' : ''} for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}`);
-                setLunchBagCount('');
-              } catch (error) {
-                toast.error(error.message || 'Error adding lunch bags');
-              } finally {
-                setIsAddingLunchBags(false);
-              }
-            }}
-            disabled={isAddingLunchBags || !lunchBagCount}
-            className="bg-lime-600 hover:bg-lime-700 disabled:bg-lime-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            {isAddingLunchBags ? 'Adding...' : 'Add Lunch Bags'}
-          </button>
-        </div>
-        {selectedLunchBagRecords.length > 0 && (
-          <div className="text-xs text-lime-700">
-            <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} lunch bag records:</div>
-            <ul className="space-y-1">
-              {selectedLunchBagRecords.map((record) => (
-                <li key={record.id} className="flex justify-between">
-                  <span>{new Date(record.date).toLocaleTimeString()}</span>
-                  <span className="font-medium">{record.count} bag{record.count > 1 ? 's' : ''}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-lg border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Utensils className="text-emerald-600" size={20} />
-            <span>Guest Meals</span>
-          </h2>
           <div className="flex items-center gap-2">
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalGuestMeals} guest meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalMeals} total meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
+            <input
+              type="date"
+              value={mealsDate}
+              onChange={(e) => setMealsDate(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
+              max={todayShorthand}
+            />
+            <span className="text-xs text-gray-500">New entries will be added to this date</span>
           </div>
         </div>
-        {selectedGuestMealRecords.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-8">No meals logged for this date</p>
-        ) : (
-          <ul className="divide-y">
-            {selectedGuestMealRecords.map((rec) => (
-              <li key={rec.id} className="py-2 flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{getGuestName(rec.guestId)}</div>
-                  <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
-                </div>
-                <div className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full">
-                  {rec.count} meal{rec.count > 1 ? 's' : ''}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="bg-orange-50 rounded-lg border border-orange-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-orange-800">
+              <Caravan className="text-orange-600" size={20} />
+              <span>RV Meals</span>
+            </h3>
+            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full">
+              {totalRvMeals} RV meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="number"
+              value={rvMealCount}
+              onChange={(e) => setRvMealCount(e.target.value)}
+              placeholder="Number of RV meals"
+              className="px-3 py-2 border border-orange-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              min="1"
+              disabled={isAddingRvMeals}
+            />
+            <button
+              onClick={handleAddRvMeals}
+              disabled={isAddingRvMeals || !rvMealCount}
+              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {isAddingRvMeals ? 'Adding...' : 'Add RV Meals'}
+            </button>
+          </div>
+          {selectedRvMealRecords.length > 0 && (
+            <div className="text-xs text-orange-700">
+              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} RV meal records:</div>
+              <ul className="space-y-1">
+                {selectedRvMealRecords.map((record) => (
+                  <li key={record.id} className="flex justify-between">
+                    <span>{new Date(record.date).toLocaleTimeString()}</span>
+                    <span className="font-medium">{record.count} meals</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-sky-50 rounded-lg border border-sky-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-sky-800">
+              <HeartHandshake className="text-sky-600" size={20} />
+              <span>United Effort Meals</span>
+            </h3>
+            <span className="bg-sky-100 text-sky-800 text-xs font-medium px-3 py-1 rounded-full">
+              {totalUeMeals} UE meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="number"
+              value={ueMealCount}
+              onChange={(e) => setUeMealCount(e.target.value)}
+              placeholder="Number of United Effort meals"
+              className="px-3 py-2 border border-sky-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              min="1"
+              disabled={isAddingUeMeals}
+            />
+            <button
+              onClick={handleAddUeMeals}
+              disabled={isAddingUeMeals || !ueMealCount}
+              className="bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {isAddingUeMeals ? 'Adding...' : 'Add UE Meals'}
+            </button>
+          </div>
+          {selectedUeMealRecords.length > 0 && (
+            <div className="text-xs text-sky-700">
+              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} United Effort meal records:</div>
+              <ul className="space-y-1">
+                {selectedUeMealRecords.map((record) => (
+                  <li key={record.id} className="flex justify-between">
+                    <span>{new Date(record.date).toLocaleTimeString()}</span>
+                    <span className="font-medium">{record.count} meals</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-amber-50 rounded-lg border border-amber-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-amber-800">
+              <SquarePlus className="text-amber-600" size={20} />
+              <span>Extra Meals</span>
+            </h3>
+            <span className="bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
+              {totalExtraMeals} extra meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="number"
+              value={extraMealCount}
+              onChange={(e) => setExtraMealCount(e.target.value)}
+              placeholder="Number of extra meals"
+              className="px-3 py-2 border border-amber-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              min="1"
+              disabled={isAddingExtraMeals}
+            />
+            <button
+              onClick={handleAddExtraMeals}
+              disabled={isAddingExtraMeals || !extraMealCount}
+              className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {isAddingExtraMeals ? 'Adding...' : 'Add Extra Meals'}
+            </button>
+          </div>
+          {selectedExtraMealRecords.length > 0 && (
+            <div className="text-xs text-amber-700">
+              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Extra meal records:</div>
+              <ul className="space-y-1">
+                {selectedExtraMealRecords.map((record) => (
+                  <li key={record.id} className="flex justify-between">
+                    <span>{new Date(record.date).toLocaleTimeString()}</span>
+                    <span className="font-medium">{record.count} meals</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-lime-50 rounded-lg border border-lime-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-lime-800">
+              <Apple className="text-lime-600" size={20} />
+              <span>Lunch Bags</span>
+            </h3>
+            <span className="bg-lime-100 text-lime-800 text-xs font-medium px-3 py-1 rounded-full">
+              {totalLunchBags} lunch bags on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
+            <input
+              type="number"
+              value={lunchBagCount}
+              onChange={(e) => setLunchBagCount(e.target.value)}
+              placeholder="Number of lunch bags"
+              className="px-3 py-2 border border-lime-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-lime-500"
+              min="1"
+              disabled={isAddingLunchBags}
+            />
+            <button
+              onClick={() => {
+                if (!lunchBagCount || isNaN(lunchBagCount) || parseInt(lunchBagCount) <= 0) {
+                  toast.error('Please enter a valid number of lunch bags');
+                  return;
+                }
+                setIsAddingLunchBags(true);
+                try {
+                  addLunchBagRecord(lunchBagCount, selectedDate);
+                  toast.success(`Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount) > 1 ? 's' : ''} for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}`);
+                  setLunchBagCount('');
+                } catch (error) {
+                  toast.error(error.message || 'Error adding lunch bags');
+                } finally {
+                  setIsAddingLunchBags(false);
+                }
+              }}
+              disabled={isAddingLunchBags || !lunchBagCount}
+              className="bg-lime-600 hover:bg-lime-700 disabled:bg-lime-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {isAddingLunchBags ? 'Adding...' : 'Add Lunch Bags'}
+            </button>
+          </div>
+          {selectedLunchBagRecords.length > 0 && (
+            <div className="text-xs text-lime-700">
+              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} lunch bag records:</div>
+              <ul className="space-y-1">
+                {selectedLunchBagRecords.map((record) => (
+                  <li key={record.id} className="flex justify-between">
+                    <span>{new Date(record.date).toLocaleTimeString()}</span>
+                    <span className="font-medium">{record.count} bag{record.count > 1 ? 's' : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-100 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Utensils className="text-emerald-600" size={20} />
+              <span>Guest Meals</span>
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full">
+                {totalGuestMeals} guest meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+              </span>
+              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                {totalMeals} total meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+          {selectedGuestMealRecords.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-8">No meals logged for this date</p>
+          ) : (
+            <ul className="divide-y">
+              {selectedGuestMealRecords.map((rec) => (
+                <li key={rec.id} className="py-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{getGuestName(rec.guestId)}</div>
+                    <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full">
+                      {rec.count} meal{rec.count > 1 ? 's' : ''}
+                    </span>
+                    <button
+                      className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
+                      title="Delete this entry"
+                      onClick={() => {
+                        // try to find matching action and undo it to keep history consistent
+                        const matching = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
+                        if (matching) {
+                          const ok = undoAction(matching.id);
+                          if (ok) { toast.success('Meal entry deleted'); return; }
+                        }
+                        // fallback: remove directly
+                        setMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                        toast.success('Meal entry deleted');
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
     );
   };
-  
+
   const renderSectionContent = () => {
     switch (activeSection) {
       case 'overview':
@@ -703,6 +799,8 @@ const Services = () => {
         return renderShowersSection();
       case 'laundry':
         return renderLaundrySection();
+      case 'bicycles':
+        return renderBicycleRepairsSection();
       default:
         return renderOverviewSection();
     }
@@ -713,7 +811,7 @@ const Services = () => {
       <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <ShowerHead className="text-blue-600" size={20} /> 
+            <ShowerHead className="text-blue-600" size={20} />
             <span>Today's Showers</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
@@ -722,17 +820,17 @@ const Services = () => {
             </span>
             <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Showing {filteredShowers.length}</span>
             <div className="flex flex-wrap items-center gap-2">
-              <select value={showerStatusFilter} onChange={(e)=>setShowerStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={showerStatusFilter} onChange={(e) => setShowerStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="all">Status: All</option>
                 <option value="awaiting">Status: Awaiting</option>
                 <option value="done">Status: Done</option>
               </select>
-              <select value={showerLaundryFilter} onChange={(e)=>setShowerLaundryFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={showerLaundryFilter} onChange={(e) => setShowerLaundryFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="any">Laundry: Any</option>
                 <option value="with">Laundry: With</option>
                 <option value="without">Laundry: Without</option>
               </select>
-              <select value={showerSort} onChange={(e)=>setShowerSort(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={showerSort} onChange={(e) => setShowerSort(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
                 <option value="status">Sort: Status</option>
@@ -741,8 +839,8 @@ const Services = () => {
             </div>
           </div>
         </div>
-        
-  <div className="overflow-y-auto max-h-[55vh] md:max-h-96">
+
+        <div className="overflow-y-auto max-h-[55vh] md:max-h-96">
           {todayShowerRecords.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-8">No shower bookings today</p>
           ) : (
@@ -782,7 +880,7 @@ const Services = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => {
-                              try { updateShowerStatus(record.id, isDone ? 'booked' : 'done'); toast.success(isDone ? 'Marked as awaiting' : 'Marked as done'); } catch(err) { toast.error(err.message); }
+                              try { updateShowerStatus(record.id, isDone ? 'booked' : 'done'); toast.success(isDone ? 'Marked as awaiting' : 'Marked as done'); } catch (err) { toast.error(err.message); }
                             }}
                             className={`text-xs px-2 py-1 rounded-full border ${isDone ? 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100' : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'}`}
                             title={isDone ? 'Mark as awaiting' : 'Mark as done'}
@@ -792,12 +890,12 @@ const Services = () => {
                           <Selectize
                             options={allShowerSlots}
                             value={record.time}
-                            onChange={(t) => { try { rescheduleShower(record.id, t); toast.success('Shower rescheduled'); } catch(err) { toast.error(err.message); } }}
+                            onChange={(t) => { try { rescheduleShower(record.id, t); toast.success('Shower rescheduled'); } catch (err) { toast.error(err.message); } }}
                             size="sm"
                             className="w-32 sm:w-36"
                           />
                           <button
-                            onClick={() => { try { cancelShowerRecord(record.id); toast.success('Shower cancelled'); } catch(err) { toast.error(err.message); } }}
+                            onClick={() => { try { cancelShowerRecord(record.id); toast.success('Shower cancelled'); } catch (err) { toast.error(err.message); } }}
                             className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
                             title="Cancel booking"
                           >
@@ -810,7 +908,7 @@ const Services = () => {
                           disabled={!canT}
                           onClick={() => {
                             if (!guest) return;
-                            try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch(e) { toast.error(e.message); }
+                            try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); }
                           }}
                           title={lastTGuest ? `T-Shirt last: ${new Date(lastTGuest.date).toLocaleDateString()}` : 'Give T-Shirt'}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
@@ -819,7 +917,7 @@ const Services = () => {
                           disabled={!canSB}
                           onClick={() => {
                             if (!guest) return;
-                            try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch(e) { toast.error(e.message); }
+                            try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); }
                           }}
                           title={lastSBGuest ? `Sleeping Bag last: ${new Date(lastSBGuest.date).toLocaleDateString()}` : 'Give Sleeping Bag'}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
@@ -828,7 +926,7 @@ const Services = () => {
                           disabled={!canBP}
                           onClick={() => {
                             if (!guest) return;
-                            try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch(e) { toast.error(e.message); }
+                            try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); }
                           }}
                           title={lastBPGuest ? `Backpack last: ${new Date(lastBPGuest.date).toLocaleDateString()}` : 'Give Backpack'}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
@@ -836,7 +934,10 @@ const Services = () => {
                       </div>
                       <div className="text-xs text-gray-600 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
                         <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1">T-Shirt (Weekly)</span>
+                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
+                            <Shirt size={14} className="text-blue-600" />
+                            T-Shirt (Weekly)
+                          </span>
                           <div className="text-gray-700">
                             {lastTGuest ? (
                               <div>
@@ -850,7 +951,10 @@ const Services = () => {
                           </div>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1">Sleeping Bag (Monthly)</span>
+                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
+                            <Bed size={14} className="text-blue-600" />
+                            Sleeping Bag (Monthly)
+                          </span>
                           <div className="text-gray-700">
                             {lastSBGuest ? (
                               <div>
@@ -864,7 +968,10 @@ const Services = () => {
                           </div>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1">Backpack (Monthly)</span>
+                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
+                            <Backpack size={14} className="text-blue-600" />
+                            Backpack (Monthly)
+                          </span>
                           <div className="text-gray-700">
                             {lastBPGuest ? (
                               <div>
@@ -887,7 +994,7 @@ const Services = () => {
         </div>
       </div>
       {todayWaitlisted.length > 0 && (
-  <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-md font-semibold">Waitlisted Guests</h3>
             <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-3 py-1 rounded-full">{todayWaitlisted.length} waitlisted</span>
@@ -914,15 +1021,15 @@ const Services = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => { try { cancelShowerRecord(record.id); toast.success('Waitlist entry cancelled'); } catch(err) { toast.error(err.message); } }}
+                          onClick={() => { try { cancelShowerRecord(record.id); toast.success('Waitlist entry cancelled'); } catch (err) { toast.error(err.message); } }}
                           className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
                         >Cancel</button>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button disabled={!canT} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch(e){ toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give T-Shirt</button>
-                      <button disabled={!canSB} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch(e){ toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Sleeping Bag</button>
-                      <button disabled={!canBP} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch(e){ toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Backpack</button>
+                      <button disabled={!canT} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give T-Shirt</button>
+                      <button disabled={!canSB} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Sleeping Bag</button>
+                      <button disabled={!canBP} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Backpack</button>
                     </div>
                   </div>
                 </Animated.li>
@@ -939,7 +1046,7 @@ const Services = () => {
       <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <WashingMachine className="text-purple-600" size={20} /> 
+            <WashingMachine className="text-purple-600" size={20} />
             <span>Today's Laundry</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
@@ -948,12 +1055,12 @@ const Services = () => {
             </span>
             <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Showing {filteredLaundry.length}</span>
             <div className="flex flex-wrap items-center gap-2">
-              <select value={laundryTypeFilter} onChange={(e)=>setLaundryTypeFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={laundryTypeFilter} onChange={(e) => setLaundryTypeFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="any">Type: Any</option>
                 <option value="onsite">Type: On-site</option>
                 <option value="offsite">Type: Off-site</option>
               </select>
-              <select value={laundryStatusFilter} onChange={(e)=>setLaundryStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={laundryStatusFilter} onChange={(e) => setLaundryStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="any">Status: Any</option>
                 <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
                 <option value={LAUNDRY_STATUS.WASHER}>In Washer</option>
@@ -965,7 +1072,7 @@ const Services = () => {
                 <option value={LAUNDRY_STATUS.RETURNED}>Offsite: Returned</option>
                 <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>Offsite: Picked Up</option>
               </select>
-              <select value={laundrySort} onChange={(e)=>setLaundrySort(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select value={laundrySort} onChange={(e) => setLaundrySort(e.target.value)} className="text-xs border rounded px-2 py-1">
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
                 <option value="status">Sort: Status</option>
@@ -983,7 +1090,7 @@ const Services = () => {
               if (!record) return null;
               const statusInfo = getLaundryStatusInfo(record.status);
               const StatusIcon = statusInfo.icon;
-              
+
               return (
                 <Animated.li key={record.id} style={style} className="py-3 will-change-transform">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -994,7 +1101,7 @@ const Services = () => {
                           <Clock size={12} /> {record.time}
                         </span>
                         <span className="flex items-center gap-1">
-                          <ShoppingBag size={12} /> 
+                          <ShoppingBag size={12} />
                           {editingBagNumber === record.id ? (
                             <div className="flex items-center gap-1">
                               <input
@@ -1013,7 +1120,7 @@ const Services = () => {
                               />
                             </div>
                           ) : (
-                            <span 
+                            <span
                               className="cursor-pointer hover:bg-gray-200 px-1 rounded flex items-center gap-1"
                               onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
                               title="Click to edit bag number"
@@ -1028,28 +1135,28 @@ const Services = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-1 text-sm rounded flex items-center gap-1 mt-1 sm:mt-0`}>
                       <StatusIcon size={14} />
                       <span>{statusInfo.label}</span>
                     </div>
                   </div>
-                  
+
                   <div className="mt-3 flex flex-wrap gap-2 items-center">
                     <div className="flex items-center gap-2">
-                        <Selectize
-                          options={[{ value: 'onsite', label: 'On-site' }, { value: 'offsite', label: 'Off-site' }]}
-                          value={record.laundryType}
-                          onChange={(opt) => { try { rescheduleLaundry(record.id, { newLaundryType: opt, newTime: record.time }); toast.success('Laundry updated'); } catch(err) { toast.error(err.message); } }}
-                          size="xs"
-                          className="w-28"
-                          displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
-                        />
+                      <Selectize
+                        options={[{ value: 'onsite', label: 'On-site' }, { value: 'offsite', label: 'Off-site' }]}
+                        value={record.laundryType}
+                        onChange={(opt) => { try { rescheduleLaundry(record.id, { newLaundryType: opt, newTime: record.time }); toast.success('Laundry updated'); } catch (err) { toast.error(err.message); } }}
+                        size="xs"
+                        className="w-28"
+                        displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
+                      />
                       {record.laundryType === 'onsite' && (
                         <Selectize
-                          options={['8:00 - 9:00','8:30 - 9:30','9:30 - 10:30','10:00 - 11:00','10:30 - 11:30']}
+                          options={['8:00 - 9:00', '8:30 - 9:30', '9:30 - 10:30', '10:00 - 11:00', '10:30 - 11:30']}
                           value={record.time}
-                          onChange={(t) => { try { rescheduleLaundry(record.id, { newTime: t }); toast.success('Laundry rescheduled'); } catch(err) { toast.error(err.message); } }}
+                          onChange={(t) => { try { rescheduleLaundry(record.id, { newTime: t }); toast.success('Laundry rescheduled'); } catch (err) { toast.error(err.message); } }}
                           size="xs"
                           className="w-36"
                         />
@@ -1068,59 +1175,54 @@ const Services = () => {
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WAITING)}
                           disabled={record.status === LAUNDRY_STATUS.WAITING}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.WAITING
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WAITING
                               ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                               : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                          }`}
+                            }`}
                         >
                           <ShoppingBag size={12} className="inline mr-1" /> Waiting
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WASHER)}
                           disabled={record.status === LAUNDRY_STATUS.WASHER}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.WASHER
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WASHER
                               ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
                               : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                          }`}
+                            }`}
                         >
                           <DropletIcon size={12} className="inline mr-1" /> In Washer
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DRYER)}
                           disabled={record.status === LAUNDRY_STATUS.DRYER}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.DRYER
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DRYER
                               ? 'bg-orange-100 text-orange-400 border-orange-200 cursor-not-allowed'
                               : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
-                          }`}
+                            }`}
                         >
                           <FanIcon size={12} className="inline mr-1" /> In Dryer
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DONE)}
                           disabled={record.status === LAUNDRY_STATUS.DONE}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.DONE
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DONE
                               ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
                               : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-                          }`}
+                            }`}
                         >
                           <CheckCircle2Icon size={12} className="inline mr-1" /> Done
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PICKED_UP)}
                           disabled={record.status === LAUNDRY_STATUS.PICKED_UP}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.PICKED_UP
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PICKED_UP
                               ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
                               : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                          }`}
+                            }`}
                         >
                           <LogOutIcon size={12} className="inline mr-1" /> Picked Up
                         </button>
@@ -1130,47 +1232,43 @@ const Services = () => {
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PENDING)}
                           disabled={record.status === LAUNDRY_STATUS.PENDING}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.PENDING
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PENDING
                               ? 'bg-yellow-100 text-yellow-400 border-yellow-200 cursor-not-allowed'
                               : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
-                          }`}
+                            }`}
                         >
                           <Clock size={12} className="inline mr-1" /> Waiting
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.TRANSPORTED)}
                           disabled={record.status === LAUNDRY_STATUS.TRANSPORTED}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.TRANSPORTED
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.TRANSPORTED
                               ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
                               : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                          }`}
+                            }`}
                         >
                           <Truck size={12} className="inline mr-1" /> Transported
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.RETURNED)}
                           disabled={record.status === LAUNDRY_STATUS.RETURNED}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.RETURNED
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.RETURNED
                               ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
                               : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-                          }`}
+                            }`}
                         >
                           <CheckCircle2Icon size={12} className="inline mr-1" /> Returned
                         </button>
-                        
+
                         <button
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.OFFSITE_PICKED_UP)}
                           disabled={record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP}
-                          className={`text-xs px-2 py-1 rounded-full border ${
-                            record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP
+                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP
                               ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
                               : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                          }`}
+                            }`}
                         >
                           <LogOutIcon size={12} className="inline mr-1" /> Picked Up
                         </button>
@@ -1185,10 +1283,10 @@ const Services = () => {
       </div>
     </div>
   );
-  
+
   return (
     <div className="space-y-4">
-  <Animated.div style={headerSpring} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <Animated.div style={headerSpring} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold mb-1 flex items-center gap-2 text-emerald-800">
             <ClipboardList /> Services Management
@@ -1206,7 +1304,7 @@ const Services = () => {
             Undo Actions ({todayActionHistory.length})
           </button>
         )}
-  </Animated.div>
+      </Animated.div>
 
       {showUndoPanel && todayActionHistory.length > 0 && (
         <div className="mt-2 bg-white border border-orange-200 rounded-lg p-3 sm:p-4">
@@ -1248,11 +1346,10 @@ const Services = () => {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeSection === section.id
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === section.id
                     ? 'bg-blue-100 text-blue-700 border border-blue-200'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 <SpringIcon>
                   <Icon size={16} />

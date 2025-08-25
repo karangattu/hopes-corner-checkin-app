@@ -14,7 +14,8 @@ const ensureDb = async () => {
 };
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
 import toast from 'react-hot-toast';
-import { HOUSING_STATUSES, AGE_GROUPS, GENDERS, LAUNDRY_STATUS, DONATION_TYPES } from './constants';
+import { HOUSING_STATUSES, AGE_GROUPS, GENDERS, LAUNDRY_STATUS, DONATION_TYPES, BICYCLE_REPAIR_STATUS } from './constants';
+
 import AppContext from './internalContext';
 
 const toTitleCase = (str) => {
@@ -59,6 +60,7 @@ export const AppProvider = ({ children }) => {
   const [activeTab, setActiveTab] = useState('check-in');
   const [showerPickerGuest, setShowerPickerGuest] = useState(null);
   const [laundryPickerGuest, setLaundryPickerGuest] = useState(null);
+  const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
 
   const migrateGuestData = (guestList) => {
@@ -355,18 +357,51 @@ export const AppProvider = ({ children }) => {
   };
 
   const isSameDay = (iso1, iso2) => iso1.split('T')[0] === iso2.split('T')[0];
-  const addBicycleRecord = (guestId) => {
+  const addBicycleRecord = (guestId, { repairType = 'Flat Tire', notes = '' } = {}) => {
     const now = new Date().toISOString();
-    const already = bicycleRecords.some(r => r.guestId === guestId && isSameDay(r.date, now));
-    if (already) {
-      toast.error('Bicycle already logged today');
-      return null;
-    }
-    const record = { id: Date.now(), guestId, date: now, type: 'bicycle' };
+    // Allow multiple repairs per day; no uniqueness constraint.
+    const record = {
+      id: Date.now(),
+      guestId,
+      date: now,
+      type: 'bicycle',
+      repairType,
+      notes,
+      status: BICYCLE_REPAIR_STATUS.PENDING,
+      priority: (bicycleRecords[0]?.priority || 0) + 1 // higher number = higher priority
+    };
     setBicycleRecords(prev => [record, ...prev]);
-    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: 'Logged bicycle service' }, ...prev.slice(0, 49)]);
-    toast.success('Bicycle logged');
+    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: `Logged bicycle repair (${repairType})` }, ...prev.slice(0, 49)]);
+    toast.success('Bicycle repair added');
     return record;
+  };
+
+  const updateBicycleRecord = (recordId, updates) => {
+    setBicycleRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...updates } : r));
+  };
+
+  const deleteBicycleRecord = (recordId) => {
+    setBicycleRecords(prev => prev.filter(r => r.id !== recordId));
+  };
+
+  const setBicycleStatus = (recordId, status) => {
+    if (!Object.values(BICYCLE_REPAIR_STATUS).includes(status)) return;
+    updateBicycleRecord(recordId, { status, doneAt: status === BICYCLE_REPAIR_STATUS.DONE ? new Date().toISOString() : undefined });
+  };
+
+  const moveBicycleRecord = (recordId, direction) => {
+    setBicycleRecords(prev => {
+      const list = [...prev];
+      const idx = list.findIndex(r => r.id === recordId);
+      if (idx === -1) return prev;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= list.length) return prev;
+      [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
+      // Recalculate priorities (descending)
+      const total = list.length;
+      list.forEach((r, i) => r.priority = total - i);
+      return list;
+    });
   };
   const addHolidayRecord = (guestId) => {
     const now = new Date().toISOString();
@@ -802,6 +837,9 @@ export const AppProvider = ({ children }) => {
     const todayMeals = mealRecords.filter(
       (r) => pacificDateStringFrom(r.date) === today
     );
+    const todayRvMeals = rvMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
+    const todayUeMeals = unitedEffortMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
+    const todayExtraMeals = extraMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
 
     const todayShowers = showerRecords.filter(
       (r) => pacificDateStringFrom(r.date) === today
@@ -823,11 +861,14 @@ export const AppProvider = ({ children }) => {
       (r) => pacificDateStringFrom(r.date) === today
     );
     const todayBicycles = bicycleRecords.filter(
-      (r) => pacificDateStringFrom(r.date) === today
+      (r) => pacificDateStringFrom(r.date) === today && (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true)
     );
 
     return {
-      mealsServed: todayMeals.reduce((sum, record) => sum + record.count, 0),
+      mealsServed: todayMeals.reduce((sum, record) => sum + record.count, 0)
+        + todayRvMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + todayUeMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + todayExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: todayDoneShowers.length,
       laundryLoads: todayLaundry.reduce((sum, r) => sum + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: todayHaircuts.length,
@@ -843,11 +884,14 @@ export const AppProvider = ({ children }) => {
     };
 
     const periodMeals = mealRecords.filter((r) => inRange(r.date));
+    const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
+    const periodUeMeals = unitedEffortMealRecords.filter((r) => inRange(r.date));
+    const periodExtraMeals = extraMealRecords.filter((r) => inRange(r.date));
     const periodShowers = showerRecords.filter((r) => inRange(r.date));
     const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
     const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
     const periodHolidays = holidayRecords.filter((r) => inRange(r.date));
-    const periodBicycles = bicycleRecords.filter((r) => inRange(r.date));
+    const periodBicycles = bicycleRecords.filter((r) => inRange(r.date) && (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true));
 
     const dailyMetrics = {};
 
@@ -858,7 +902,7 @@ export const AppProvider = ({ children }) => {
       return true;
     };
 
-    [...periodMeals, ...periodShowers, ...periodLaundry].forEach((record) => {
+    [...periodMeals, ...periodRvMeals, ...periodUeMeals, ...periodExtraMeals, ...periodShowers, ...periodLaundry].forEach((record) => {
       const date = pacificDateStringFrom(record.date);
       if (!dailyMetrics[date]) {
         dailyMetrics[date] = { meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0, bicycles: 0 };
@@ -893,7 +937,10 @@ export const AppProvider = ({ children }) => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
-      mealsServed: periodMeals.reduce((sum, record) => sum + record.count, 0),
+      mealsServed: periodMeals.reduce((sum, record) => sum + record.count, 0)
+        + periodRvMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + periodUeMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: periodShowers.length,
       laundryLoads: periodLaundry.reduce((sum, r) => sum + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: periodHaircuts.length,
@@ -1034,6 +1081,14 @@ export const AppProvider = ({ children }) => {
           setRvMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
           break;
 
+        case 'UNITED_EFFORT_MEALS_ADDED':
+          setUnitedEffortMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+          break;
+
+        case 'EXTRA_MEALS_ADDED':
+          setExtraMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+          break;
+
         case 'SHOWER_BOOKED':
           setShowerRecords(prev => prev.filter(r => r.id !== action.data.recordId));
           setShowerSlots(prev => prev.filter(s =>
@@ -1122,6 +1177,7 @@ export const AppProvider = ({ children }) => {
     activeTab,
     showerPickerGuest,
     laundryPickerGuest,
+    bicyclePickerGuest,
     settings,
 
     LAUNDRY_STATUS,
@@ -1129,6 +1185,7 @@ export const AppProvider = ({ children }) => {
     AGE_GROUPS,
     GENDERS,
     DONATION_TYPES,
+    BICYCLE_REPAIR_STATUS,
 
     allShowerSlots,
     allLaundrySlots,
@@ -1136,7 +1193,9 @@ export const AppProvider = ({ children }) => {
     setActiveTab,
     setShowerPickerGuest,
     setLaundryPickerGuest,
+    setBicyclePickerGuest,
     setLaundryRecords,
+    setMealRecords,
     setItemGivenRecords,
     setDonationRecords,
     updateSettings: (partial) => setSettings(prev => ({ ...prev, ...partial })),
@@ -1155,6 +1214,10 @@ export const AppProvider = ({ children }) => {
     addLaundryRecord,
     updateLaundryStatus,
     addBicycleRecord,
+    updateBicycleRecord,
+    deleteBicycleRecord,
+    setBicycleStatus,
+    moveBicycleRecord,
     addHolidayRecord,
     addHaircutRecord,
     giveItem,

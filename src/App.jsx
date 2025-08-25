@@ -8,6 +8,7 @@ import Services from "./pages/guest/Services";
 import Dashboard from "./pages/admin/Dashboard";
 import ShowerBooking from "./components/ShowerBooking";
 import LaundryBooking from "./components/LaundryBooking";
+import BicycleRepairBooking from "./components/BicycleRepairBooking";
 import { Settings } from "lucide-react";
 import Login from "./pages/Login";
 
@@ -134,15 +135,15 @@ const SettingsPage = () => {
 };
 
 const AppContent = () => {
-  const { activeTab, showerPickerGuest, laundryPickerGuest } = useAppContext();
+  const { activeTab, showerPickerGuest, laundryPickerGuest, bicyclePickerGuest } = useAppContext();
   const { user } = useAuth();
 
   if (!user) {
     return <Login />;
   }
-  
+
   const renderPage = () => {
-  switch (activeTab) {
+    switch (activeTab) {
       case 'check-in':
         return <CheckIn />;
       case 'services':
@@ -155,13 +156,14 @@ const AppContent = () => {
         return <CheckIn />;
     }
   };
-  
+
   return (
     <MainLayout>
       {renderPage()}
-      
+
       {showerPickerGuest && <ShowerBooking />}
       {laundryPickerGuest && <LaundryBooking />}
+      {bicyclePickerGuest && <BicycleRepairBooking />}
     </MainLayout>
   );
 };

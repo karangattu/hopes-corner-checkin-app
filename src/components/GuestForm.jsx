@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Home, MapPin, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import Selectize from './Selectize';
 import { useAppContext } from '../context/useAppContext';
 
 const GuestForm = () => {
@@ -14,6 +15,30 @@ const GuestForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const BAY_AREA_CITIES = [
+    'Antioch',
+    'Berkeley',
+    'Concord',
+    'Daly City',
+    'Fremont',
+    'Hayward',
+    'Livermore',
+    'Mountain View',
+    'Oakland',
+    'Palo Alto',
+    'Redwood City',
+    'Richmond',
+    'San Francisco',
+    'San Jose',
+    'San Leandro',
+    'San Mateo',
+    'Santa Clara',
+    'Santa Rosa',
+    'Sunnyvale',
+    'Vallejo',
+    'Walnut Creek',
+  ];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -25,14 +50,14 @@ const GuestForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!formData.name.trim()) {
       setError('Please enter a guest name');
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       addGuest(formData);
       setFormData({
@@ -41,7 +66,7 @@ const GuestForm = () => {
         location: '',
         notes: ''
       });
-      
+
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
@@ -59,14 +84,14 @@ const GuestForm = () => {
           <span className="text-green-800 font-medium">Guest registered successfully!</span>
         </div>
       )}
-      
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
           <AlertCircle size={20} className="text-red-600" />
           <span className="text-red-800">{error}</span>
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-gray-700">
@@ -88,7 +113,7 @@ const GuestForm = () => {
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-gray-700">
             Housing Status
@@ -112,7 +137,7 @@ const GuestForm = () => {
             </select>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-gray-700">
             Location
@@ -121,18 +146,22 @@ const GuestForm = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MapPin size={18} className="text-gray-400" />
             </div>
-            <input
-              type="text"
-              name="location"
+            <Selectize
+              options={[
+                ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
+                { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
+              ]}
               value={formData.location}
-              onChange={handleChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-              placeholder="Last known location"
-              disabled={isSubmitting}
+              onChange={(val) => setFormData({ ...formData, location: val })}
+              placeholder="Select location"
+              size="sm"
+              className="w-full"
+              buttonClassName="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-left"
+              searchable
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-gray-700">
             Notes
@@ -147,7 +176,7 @@ const GuestForm = () => {
             disabled={isSubmitting}
           ></textarea>
         </div>
-        
+
         <button
           type="submit"
           disabled={isSubmitting}

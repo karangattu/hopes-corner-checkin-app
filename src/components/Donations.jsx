@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
 import { PackagePlus, History, Save, List, Download } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
@@ -12,6 +13,7 @@ const Donations = () => {
     donationRecords,
     actionHistory,
     undoAction,
+    setDonationRecords,
   } = useAppContext();
 
   const [form, setForm] = useState({ type: 'Protein', itemName: '', trays: '', weightLbs: '', donor: '' });
@@ -27,7 +29,9 @@ const Donations = () => {
   });
 
   const suggestions = useMemo(() => getRecentDonations(8), [getRecentDonations]);
-  
+  const [editingId, setEditingId] = useState(null);
+  const [editRow, setEditRow] = useState({ type: 'Protein', itemName: '', trays: 0, weightLbs: 0, donor: '' });
+
   const dayRecords = useMemo(() => {
     return (donationRecords || []).filter(r => pacificDateStringFrom(r.date || '') === selectedDate);
   }, [donationRecords, selectedDate]);
@@ -41,7 +45,7 @@ const Donations = () => {
       entry.trays += Number(r.trays) || 0;
       entry.weightLbs += Number(r.weightLbs) || 0;
     }
-    return Array.from(map.values()).sort((a,b)=>a.itemName.localeCompare(b.itemName));
+    return Array.from(map.values()).sort((a, b) => a.itemName.localeCompare(b.itemName));
   }, [dayRecords]);
 
   const typeTotals = useMemo(() => {
@@ -81,14 +85,14 @@ const Donations = () => {
   };
 
   const recentWithUndo = useMemo(() => {
-    const recs = [...dayRecords].sort((a,b)=>b.date.localeCompare(a.date)).slice(0, 10);
+    const recs = [...dayRecords].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
     const findActionId = (recordId) => (actionHistory || []).find(a => a.type === 'DONATION_ADDED' && a.data?.recordId === recordId)?.id;
     return recs.map(r => ({ ...r, actionId: findActionId(r.id) }));
   }, [dayRecords, actionHistory]);
 
   const exportDonationsRange = () => {
-  const startISO = new Date(`${range.start}T00:00:00-08:00`).toISOString();
-  const endISO = new Date(`${range.end}T23:59:59.999-08:00`).toISOString();
+    const startISO = new Date(`${range.start}T00:00:00-08:00`).toISOString();
+    const endISO = new Date(`${range.end}T23:59:59.999-08:00`).toISOString();
     const rows = (donationRecords || []).filter(r => r.date >= startISO && r.date <= endISO).map(r => ({
       Date: new Date(r.date).toLocaleDateString(),
       Type: r.type,
@@ -111,7 +115,7 @@ const Donations = () => {
         <div className="flex flex-wrap items-end gap-3 mb-3">
           <div>
             <label className="block text-sm text-gray-600 mb-1">View date</label>
-            <input type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="border rounded px-3 py-2 text-sm" />
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -197,7 +201,7 @@ const Donations = () => {
       {/* Suggestions */}
       {suggestions.length > 0 && (
         <div className="mt-4">
-          <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><History size={16}/> Recent items</div>
+          <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><History size={16} /> Recent items</div>
           <div className="flex flex-wrap gap-2">
             {suggestions.map((s, idx) => (
               <button key={idx} onClick={() => applySuggestion(s)} className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border">
@@ -210,7 +214,7 @@ const Donations = () => {
 
       {/* Consolidated by item+donor for selected date */}
       <div className="mt-6">
-        <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><List size={16}/> Donations on {new Date(selectedDate).toLocaleDateString()} (consolidated)</div>
+        <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2"><List size={16} /> Donations on {new Date(selectedDate).toLocaleDateString()} (consolidated)</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -262,19 +266,115 @@ const Donations = () => {
               )}
               {recentWithUndo.map(r => (
                 <tr key={r.id} className="border-b">
-                  <td className="px-3 py-2">{new Date(r.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td className="px-3 py-2">{r.itemName}</td>
-                  <td className="px-3 py-2">{r.donor}</td>
-                  <td className="px-3 py-2">{r.type}</td>
-                  <td className="px-3 py-2 text-right">{r.trays}</td>
-                  <td className="px-3 py-2 text-right">{Number(r.weightLbs || 0).toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">
-                    <button
-                      disabled={!r.actionId}
-                      onClick={() => r.actionId && undoAction(r.actionId)}
-                      className="px-3 py-1 text-xs rounded border disabled:opacity-60"
-                    >Undo</button>
-                  </td>
+                  <td className="px-3 py-2 align-top">{new Date(r.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  {editingId === r.id ? (
+                    <>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={editRow.itemName}
+                          onChange={e => setEditRow(prev => ({ ...prev, itemName: e.target.value }))}
+                          className="w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="text"
+                          value={editRow.donor}
+                          onChange={e => setEditRow(prev => ({ ...prev, donor: e.target.value }))}
+                          className="w-full border rounded px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={editRow.type}
+                          onChange={e => setEditRow(prev => ({ ...prev, type: e.target.value }))}
+                          className="w-full border rounded px-2 py-1 text-sm"
+                        >
+                          {DONATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <input
+                          type="number"
+                          min="0"
+                          value={editRow.trays}
+                          onChange={e => setEditRow(prev => ({ ...prev, trays: e.target.value }))}
+                          className="w-24 border rounded px-2 py-1 text-sm text-right"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editRow.weightLbs}
+                          onChange={e => setEditRow(prev => ({ ...prev, weightLbs: e.target.value }))}
+                          className="w-24 border rounded px-2 py-1 text-sm text-right"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="px-3 py-1 text-xs rounded border bg-blue-600 text-white"
+                            onClick={() => {
+                              const clean = {
+                                itemName: (editRow.itemName || '').trim(),
+                                donor: (editRow.donor || '').trim(),
+                                type: editRow.type,
+                                trays: Number(editRow.trays || 0),
+                                weightLbs: Number(editRow.weightLbs || 0),
+                              };
+                              if (!clean.itemName) { toast.error('Item is required'); return; }
+                              if (!clean.donor) { toast.error('Donor is required'); return; }
+                              if (!DONATION_TYPES.includes(clean.type)) { toast.error('Invalid type'); return; }
+                              if (clean.trays < 0 || clean.weightLbs < 0 || Number.isNaN(clean.trays) || Number.isNaN(clean.weightLbs)) { toast.error('Invalid numbers'); return; }
+                              setDonationRecords(prev => prev.map(d => d.id === r.id ? { ...d, ...clean, lastUpdated: new Date().toISOString() } : d));
+                              toast.success('Donation updated');
+                              setEditingId(null);
+                            }}
+                          >Save</button>
+                          <button className="px-3 py-1 text-xs rounded border" onClick={() => setEditingId(null)}>Cancel</button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-3 py-2">{r.itemName}</td>
+                      <td className="px-3 py-2">{r.donor}</td>
+                      <td className="px-3 py-2">{r.type}</td>
+                      <td className="px-3 py-2 text-right">{r.trays}</td>
+                      <td className="px-3 py-2 text-right">{Number(r.weightLbs || 0).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="px-3 py-1 text-xs rounded border"
+                            onClick={() => {
+                              setEditingId(r.id);
+                              setEditRow({ type: r.type, itemName: r.itemName, trays: r.trays, weightLbs: r.weightLbs, donor: r.donor });
+                            }}
+                          >Edit</button>
+                          <button
+                            className="px-3 py-1 text-xs rounded border border-red-300 text-red-700"
+                            onClick={() => {
+                              if (!confirm('Delete this donation entry?')) return;
+                              if (r.actionId) {
+                                const ok = undoAction(r.actionId);
+                                if (ok) { toast.success('Donation deleted'); return; }
+                              }
+                              setDonationRecords(prev => prev.filter(d => d.id !== r.id));
+                              toast.success('Donation deleted');
+                            }}
+                          >Delete</button>
+                          <button
+                            disabled={!r.actionId}
+                            onClick={() => r.actionId && undoAction(r.actionId)}
+                            className="px-3 py-1 text-xs rounded border disabled:opacity-60"
+                          >Undo</button>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -288,14 +388,14 @@ const Donations = () => {
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-sm text-gray-600 mb-1">Start</label>
-            <input type="date" value={range.start} onChange={e=>setRange(r=>({...r, start: e.target.value}))} className="border rounded px-3 py-2 text-sm" />
+            <input type="date" value={range.start} onChange={e => setRange(r => ({ ...r, start: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">End</label>
-            <input type="date" value={range.end} onChange={e=>setRange(r=>({...r, end: e.target.value}))} className="border rounded px-3 py-2 text-sm" />
+            <input type="date" value={range.end} onChange={e => setRange(r => ({ ...r, end: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
           </div>
           <button onClick={exportDonationsRange} className="flex items-center gap-2 bg-pink-600 text-white px-4 py-2 rounded text-sm">
-            <Download size={16}/> Export
+            <Download size={16} /> Export
           </button>
         </div>
       </div>

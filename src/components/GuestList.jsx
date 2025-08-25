@@ -23,10 +23,12 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '../context/constants';
+import Selectize from './Selectize';
 
 const GuestList = () => {
-  const { guests, mealRecords, setShowerPickerGuest, setLaundryPickerGuest, addMealRecord, addGuest } = useAppContext();
-  const { addHaircutRecord, addHolidayRecord, addBicycleRecord } = useAppContext();
+  const { guests, mealRecords, setShowerPickerGuest, setLaundryPickerGuest, addMealRecord, addGuest, setBicyclePickerGuest } = useAppContext();
+  const { addHaircutRecord, addHolidayRecord } = useAppContext();
+  const { updateGuest, removeGuest } = useAppContext();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedGuest, setExpandedGuest] = useState(null);
@@ -43,6 +45,41 @@ const GuestList = () => {
     notes: '',
   });
 
+  const [editingGuestId, setEditingGuestId] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    housingStatus: 'Unhoused',
+    location: '',
+    age: '',
+    gender: '',
+    notes: '',
+  });
+
+  const BAY_AREA_CITIES = [
+    'Antioch',
+    'Berkeley',
+    'Concord',
+    'Daly City',
+    'Fremont',
+    'Hayward',
+    'Livermore',
+    'Mountain View',
+    'Palo Alto',
+    'Oakland',
+    'Redwood City',
+    'Richmond',
+    'San Francisco',
+    'San Jose',
+    'San Leandro',
+    'San Mateo',
+    'Santa Clara',
+    'Santa Rosa',
+    'Sunnyvale',
+    'Vallejo',
+    'Walnut Creek',
+  ];
+
   const guestsList = useMemo(() => guests || [], [guests]);
 
   const searchInputRef = useRef(null);
@@ -52,7 +89,7 @@ const GuestList = () => {
     if (!queryRaw) {
       return [];
     }
-    
+
     const normalize = (s) => s.toLowerCase().trim().replace(/\s+/g, ' ');
     const query = normalize(queryRaw);
     const qTokens = query.split(' ').filter(Boolean);
@@ -77,8 +114,8 @@ const GuestList = () => {
         if (firstName.startsWith(firstQuery) && lastName.startsWith(lastQuery)) {
           return { guest: g, rank: 1, name: fullName };
         }
-        if (firstQuery.length >= 3 && lastQuery.length >= 3 && 
-            firstName.includes(firstQuery) && lastName.includes(lastQuery)) {
+        if (firstQuery.length >= 3 && lastQuery.length >= 3 &&
+          firstName.includes(firstQuery) && lastName.includes(lastQuery)) {
           return { guest: g, rank: 2, name: fullName };
         }
         return { guest: g, rank: 99, name: fullName };
@@ -88,26 +125,26 @@ const GuestList = () => {
       if (!singleQuery || !firstName || !lastName) {
         return { guest: g, rank: 99, name: fullName };
       }
-      
+
       if (firstName === singleQuery || lastName === singleQuery) {
         return { guest: g, rank: 0, name: fullName };
       }
-      
+
       if (firstName.startsWith(singleQuery) || lastName.startsWith(singleQuery)) {
         return { guest: g, rank: 1, name: fullName };
       }
-      
+
       if (singleQuery.length >= 3 && (firstName.includes(singleQuery) || lastName.includes(singleQuery))) {
         return { guest: g, rank: 2, name: fullName };
       }
 
       return { guest: g, rank: 99, name: fullName };
     })
-    .filter(item => item.rank < 99)
-    .sort((a, b) => {
-      if (a.rank !== b.rank) return a.rank - b.rank;
-      return a.name.localeCompare(b.name);
-    });
+      .filter(item => item.rank < 99)
+      .sort((a, b) => {
+        if (a.rank !== b.rank) return a.rank - b.rank;
+        return a.name.localeCompare(b.name);
+      });
 
     return scored.map(s => s.guest);
   }, [guestsList, searchTerm]);
@@ -126,12 +163,12 @@ const GuestList = () => {
     const alreadyHasMeal = mealRecords.some(
       record => record.guestId === guestId && record.date.startsWith(today)
     );
-    
+
     if (alreadyHasMeal) {
       toast.error('Guest already received meals today. Only one meal per day is allowed.');
       return;
     }
-    
+
     try {
       addMealRecord(guestId, count);
       toast.success(`${count} meal${count > 1 ? 's' : ''} logged for guest!`);
@@ -154,12 +191,12 @@ const GuestList = () => {
     const { name, value } = e.target;
     setCreateFormData((prev) => ({ ...prev, [name]: value }));
   };
-  
+
   const handleNameBlur = (e) => {
     const { name, value } = e.target;
     if ((name === 'firstName' || name === 'lastName') && value.trim()) {
-      setCreateFormData((prev) => ({ 
-        ...prev, 
+      setCreateFormData((prev) => ({
+        ...prev,
         [name]: toTitleCase(value.trim())
       }));
     }
@@ -203,12 +240,12 @@ const GuestList = () => {
   };
 
   const handleShowCreateForm = () => {
-  const searchParts = searchTerm.trim().split(/\s+/);
+    const searchParts = searchTerm.trim().split(/\s+/);
     const firstName = searchParts[0] || '';
     const lastName = searchParts.slice(1).join(' ') || '';
-    
-    setCreateFormData((prev) => ({ 
-      ...prev, 
+
+    setCreateFormData((prev) => ({
+      ...prev,
       firstName: firstName,
       lastName: lastName
     }));
@@ -218,11 +255,65 @@ const GuestList = () => {
 
   const handleCancelCreate = () => {
     setShowCreateForm(false);
-  setCreateFormData({ firstName: '', lastName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
+    setCreateFormData({ firstName: '', lastName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
     setCreateError('');
   };
 
-  
+  const startEditingGuest = (guest) => {
+    setEditingGuestId(guest.id);
+    setEditFormData({
+      firstName: guest.firstName || '',
+      lastName: guest.lastName || '',
+      housingStatus: guest.housingStatus || 'Unhoused',
+      location: guest.location || '',
+      age: guest.age || '',
+      gender: guest.gender || '',
+      notes: guest.notes || '',
+    });
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditNameBlur = (e) => {
+    const { name, value } = e.target;
+    if ((name === 'firstName' || name === 'lastName') && value.trim()) {
+      setEditFormData((prev) => ({ ...prev, [name]: toTitleCase(value.trim()) }));
+    }
+  };
+
+  const saveEditedGuest = () => {
+    if (!editFormData.firstName.trim() || !editFormData.lastName.trim()) {
+      toast.error('Please enter both first and last name');
+      return;
+    }
+    if (!editFormData.age || !editFormData.gender) {
+      toast.error('Please select age and gender');
+      return;
+    }
+    const updates = {
+      ...editFormData,
+      firstName: toTitleCase(editFormData.firstName.trim()),
+      lastName: toTitleCase(editFormData.lastName.trim()),
+      name: `${toTitleCase(editFormData.firstName.trim())} ${toTitleCase(editFormData.lastName.trim())}`.trim(),
+    };
+    updateGuest(editingGuestId, updates);
+    toast.success('Guest updated');
+    setEditingGuestId(null);
+  };
+
+  const cancelEditing = () => setEditingGuestId(null);
+
+  const deleteGuest = (guest) => {
+    const confirmed = window.confirm(`Delete ${guest.name}? This cannot be undone.`);
+    if (!confirmed) return;
+    removeGuest(guest.id);
+    toast.success('Guest deleted');
+    if (expandedGuest === guest.id) setExpandedGuest(null);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -231,32 +322,32 @@ const GuestList = () => {
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search size={20} className="text-gray-400" />
           </div>
-            <input
-              type="text"
-              placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              ref={searchInputRef}
-              className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => { setSearchTerm(''); searchInputRef.current && searchInputRef.current.focus(); }}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
-                aria-label="Clear search"
-                title="Clear"
-              >
-                <SpringIcon>
-                  <Eraser size={18} />
-                </SpringIcon>
-              </button>
-            )}
-  </div>
+          <input
+            type="text"
+            placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            ref={searchInputRef}
+            className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => { setSearchTerm(''); searchInputRef.current && searchInputRef.current.focus(); }}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+              title="Clear"
+            >
+              <SpringIcon>
+                <Eraser size={18} />
+              </SpringIcon>
+            </button>
+          )}
+        </div>
       </div>
- 
 
-      
+
+
       {shouldShowCreateOption && !showCreateForm && (
         <div className="bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl p-6 text-center">
           <div className="flex flex-col items-center gap-4">
@@ -277,7 +368,7 @@ const GuestList = () => {
         </div>
       )}
 
-      
+
       {showCreateForm && (
         <div className="bg-white border-2 border-blue-200 rounded-xl p-6">
           <div className="flex justify-between items-center mb-6">
@@ -371,15 +462,24 @@ const GuestList = () => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Location*</label>
-              <input
-                type="text"
-                name="location"
-                value={createFormData.location}
-                onChange={handleCreateFormChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="City / location"
-                disabled={isCreating}
-              />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MapPin size={18} className="text-gray-400" />
+                </div>
+                <Selectize
+                  options={[
+                    ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
+                    { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
+                  ]}
+                  value={createFormData.location}
+                  onChange={(val) => setCreateFormData(prev => ({ ...prev, location: val }))}
+                  placeholder="Select location"
+                  size="sm"
+                  className="w-full"
+                  buttonClassName="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-left"
+                  searchable
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
@@ -414,7 +514,7 @@ const GuestList = () => {
         </div>
       )}
 
-      
+
       {!showCreateForm && (
         <>
           {searchTerm.trim().length === 0 ? (
@@ -485,6 +585,19 @@ const GuestList = () => {
                   </div>
                   {expandedGuest === guest.id && (
                     <div className="border-t p-4 bg-gray-50">
+                      <div className="flex justify-end gap-2 mb-3">
+                        {editingGuestId === guest.id ? (
+                          <>
+                            <button onClick={saveEditedGuest} className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm">Save</button>
+                            <button onClick={cancelEditing} className="px-3 py-2 border rounded-md text-sm">Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => startEditingGuest(guest)} className="px-3 py-2 border rounded-md text-sm">Edit</button>
+                            <button onClick={() => deleteGuest(guest)} className="px-3 py-2 border rounded-md text-sm text-red-600 border-red-300">Delete</button>
+                          </>
+                        )}
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         {guest.phone && (
                           <div className="flex items-center gap-2 text-sm">
@@ -499,7 +612,43 @@ const GuestList = () => {
                           </div>
                         )}
                       </div>
-                      {guest.notes && (
+                      {editingGuestId === guest.id && (
+                        <div className="mb-4 bg-white p-3 rounded border">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            <input type="text" name="firstName" value={editFormData.firstName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="First name" />
+                            <input type="text" name="lastName" value={editFormData.lastName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="Last name" />
+                            <select name="housingStatus" value={editFormData.housingStatus} onChange={handleEditChange} className="px-3 py-2 border rounded">
+                              {HOUSING_STATUSES.map(h => <option key={h} value={h}>{h}</option>)}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                            <select name="age" value={editFormData.age} onChange={handleEditChange} className="px-3 py-2 border rounded">
+                              <option value="">Select age group</option>
+                              {AGE_GROUPS.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                            <select name="gender" value={editFormData.gender} onChange={handleEditChange} className="px-3 py-2 border rounded">
+                              <option value="">Select gender</option>
+                              {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                            <Selectize
+                              options={[
+                                ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
+                                { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
+                              ]}
+                              value={editFormData.location}
+                              onChange={(val) => setEditFormData(prev => ({ ...prev, location: val }))}
+                              placeholder="Select location"
+                              size="sm"
+                              className="w-full"
+                              buttonClassName="w-full px-3 py-2 border rounded text-left"
+                              searchable
+                              displayValue={editFormData.location}
+                            />
+                          </div>
+                          <textarea name="notes" value={editFormData.notes} onChange={handleEditChange} className="w-full px-3 py-2 border rounded resize-none" rows="3" placeholder="Notes (optional)" />
+                        </div>
+                      )}
+                      {guest.notes && editingGuestId !== guest.id && (
                         <div className="mb-4">
                           <h4 className="text-sm font-medium mb-1">Notes:</h4>
                           <p className="text-sm bg-white p-2 rounded border">{guest.notes}</p>
@@ -512,17 +661,16 @@ const GuestList = () => {
                             const alreadyHasMeal = mealRecords.some(
                               record => record.guestId === guest.id && record.date.startsWith(today)
                             );
-                            
+
                             return [1, 2, 3].map((count) => (
                               <button
                                 key={count}
                                 onClick={() => handleMealSelection(guest.id, count)}
                                 disabled={alreadyHasMeal}
-                                className={`px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors ${
-                                  alreadyHasMeal 
-                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50' 
+                                className={`px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors ${alreadyHasMeal
+                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
                                     : 'bg-green-100 hover:bg-green-200 text-green-800'
-                                }`}
+                                  }`}
                                 title={alreadyHasMeal ? 'Guest already received meals today' : `Give ${count} meal${count > 1 ? 's' : ''}`}
                               >
                                 <SpringIcon>
@@ -554,14 +702,11 @@ const GuestList = () => {
                           Holiday
                         </button>
                         <button
-                          onClick={() => {
-                            const rec = addBicycleRecord(guest.id);
-                            if (rec) toast.success('Bicycle logged');
-                          }}
+                          onClick={() => setBicyclePickerGuest(guest)}
                           className="bg-sky-100 hover:bg-sky-200 text-sky-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
-                          title="Log bicycle service for today"
+                          title="Log bicycle repair for today"
                         >
-                          Bicycle
+                          Bicycle Repair
                         </button>
                         <button
                           onClick={() => setShowerPickerGuest(guest)}
