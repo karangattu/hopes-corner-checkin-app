@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { animated as Animated } from '@react-spring/web';
 import { useScaleIn, useFadeInUp, SpringIcon } from '../utils/animations';
 import { LogIn, User, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
+import { useAppContext } from '../context/useAppContext';
 
 const Login = () => {
   const { login, resetPassword, useFirebase } = useAuth();
+  const { mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords } = useAppContext();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -34,6 +36,11 @@ const Login = () => {
     }
   };
 
+  const totalMealsServed = useMemo(() => {
+    const sum = (arr) => (arr || []).reduce((s, r) => s + (r.count || 0), 0);
+    return sum(mealRecords) + sum(rvMealRecords) + sum(unitedEffortMealRecords) + sum(extraMealRecords);
+  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords]);
+
   return (
   <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-12 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.12),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(16,185,129,0.12),transparent_40%)]">
       <div className="absolute inset-0 pointer-events-none opacity-90 bg-gradient-to-b from-white/80 via-white to-emerald-50" />
@@ -47,6 +54,13 @@ const Login = () => {
             <p className="text-sm text-emerald-600">Staff & guest check-in portal</p>
           </div>
         </header>
+
+        <div className="mb-6">
+          <div className="text-xs uppercase tracking-wider text-emerald-700 font-medium mb-1">Meals Served this Year</div>
+          <div className="font-mono text-3xl font-semibold tracking-widest text-emerald-800">
+            {totalMealsServed.toLocaleString()}
+          </div>
+        </div>
 
 
         {error && (
