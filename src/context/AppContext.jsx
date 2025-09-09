@@ -45,6 +45,7 @@ export const AppProvider = ({ children }) => {
   const [rvMealRecords, setRvMealRecords] = useState([]);
   const [unitedEffortMealRecords, setUnitedEffortMealRecords] = useState([]);
   const [extraMealRecords, setExtraMealRecords] = useState([]);
+  const [dayWorkerMealRecords, setDayWorkerMealRecords] = useState([]);
   const [lunchBagRecords, setLunchBagRecords] = useState([]);
   const [showerRecords, setShowerRecords] = useState([]);
   const [laundryRecords, setLaundryRecords] = useState([]);
@@ -121,6 +122,7 @@ export const AppProvider = ({ children }) => {
       const savedRvMealRecords = localStorage.getItem('hopes-corner-rv-meal-records');
       const savedUnitedEffortMealRecords = localStorage.getItem('hopes-corner-united-effort-meal-records');
       const savedExtraMealRecords = localStorage.getItem('hopes-corner-extra-meal-records');
+      const savedDayWorkerMealRecords = localStorage.getItem('hopes-corner-day-worker-meal-records');
       const savedShowerRecords = localStorage.getItem('hopes-corner-shower-records');
       const savedLaundryRecords = localStorage.getItem('hopes-corner-laundry-records');
       const savedBicycleRecords = localStorage.getItem('hopes-corner-bicycle-records');
@@ -144,6 +146,7 @@ export const AppProvider = ({ children }) => {
       if (savedRvMealRecords) setRvMealRecords(JSON.parse(savedRvMealRecords));
       if (savedUnitedEffortMealRecords) setUnitedEffortMealRecords(JSON.parse(savedUnitedEffortMealRecords));
       if (savedExtraMealRecords) setExtraMealRecords(JSON.parse(savedExtraMealRecords));
+      if (savedDayWorkerMealRecords) setDayWorkerMealRecords(JSON.parse(savedDayWorkerMealRecords));
       if (savedShowerRecords) setShowerRecords(JSON.parse(savedShowerRecords));
       if (savedLaundryRecords) setLaundryRecords(JSON.parse(savedLaundryRecords));
       if (savedBicycleRecords) setBicycleRecords(JSON.parse(savedBicycleRecords));
@@ -178,6 +181,7 @@ export const AppProvider = ({ children }) => {
       localStorage.setItem('hopes-corner-rv-meal-records', JSON.stringify(rvMealRecords));
       localStorage.setItem('hopes-corner-united-effort-meal-records', JSON.stringify(unitedEffortMealRecords));
       localStorage.setItem('hopes-corner-extra-meal-records', JSON.stringify(extraMealRecords));
+      localStorage.setItem('hopes-corner-day-worker-meal-records', JSON.stringify(dayWorkerMealRecords));
       localStorage.setItem('hopes-corner-shower-records', JSON.stringify(showerRecords));
       localStorage.setItem('hopes-corner-laundry-records', JSON.stringify(laundryRecords));
       localStorage.setItem('hopes-corner-bicycle-records', JSON.stringify(bicycleRecords));
@@ -190,29 +194,63 @@ export const AppProvider = ({ children }) => {
     } catch (error) {
       console.error('Error saving data to localStorage:', error);
     }
-  }, [guests, mealRecords, rvMealRecords, showerRecords, laundryRecords, bicycleRecords, holidayRecords, haircutRecords, itemGivenRecords, donationRecords, unitedEffortMealRecords, extraMealRecords, lunchBagRecords, settings]);
+  }, [guests, mealRecords, rvMealRecords, showerRecords, laundryRecords, bicycleRecords, holidayRecords, haircutRecords, itemGivenRecords, donationRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, settings]);
 
 
   const generateShowerSlots = () => {
-    const start = 9 * 60;
-    const end = 12 * 60;
-    const slots = [];
-    for (let t = start; t < end; t += 15) {
-      const hours = Math.floor(t / 60);
-      const minutes = t % 60;
-      slots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+
+    // Monday and Wednesday (day 1 or day 3) or any day that's not Saturday
+    if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek !== 6) {
+      const start = 7.5 * 60; // 07:30 AM
+      const end = 12.5 * 60;  // 12:30 PM
+      const slots = [];
+      for (let t = start; t < end; t += 30) { // 30 minute slots
+        const hours = Math.floor(t / 60);
+        const minutes = t % 60;
+        slots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
+      }
+      return slots;
     }
-    return slots;
+    // Saturday (day 6)
+    else {
+      const start = 8.5 * 60; // 08:30 AM
+      const end = 13.5 * 60; // 01:30 PM
+      const slots = [];
+      for (let t = start; t < end; t += 30) { // 30 minute slots
+        const hours = Math.floor(t / 60);
+        const minutes = t % 60;
+        slots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
+      }
+      return slots;
+    }
   };
 
   const generateLaundrySlots = () => {
-    return [
-      '8:00 - 9:00',
-      '8:30 - 9:30',
-      '9:30 - 10:30',
-      '10:00 - 11:00',
-      '10:30 - 11:30'
-    ];
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+
+    // Monday and Wednesday (day 1 or day 3) or any day that's not Saturday
+    if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek !== 6) {
+      return [
+        '07:30 - 08:30',
+        '08:00 - 09:00',
+        '08:30 - 09:45',
+        '09:00 - 10:15',
+        '09:30 - 11:45'
+      ];
+    }
+    // Saturday (day 6)
+    else {
+      return [
+        '08:30 - 10:00',
+        '09:00 - 10:30',
+        '09:30 - 11:00',
+        '10:00 - 11:30',
+        '10:30 - 12:00'
+      ];
+    }
   };
 
   const allShowerSlots = generateShowerSlots();
@@ -485,13 +523,11 @@ export const AppProvider = ({ children }) => {
   };
 
   const addMealRecord = (guestId, count) => {
-    const record = {
-      id: Date.now(),
-      guestId,
-      count,
-      date: new Date().toISOString(),
-    };
-    setMealRecords([...mealRecords, record]);
+    const today = pacificDateStringFrom(new Date());
+    const already = mealRecords.some(r => r.guestId === guestId && pacificDateStringFrom(r.date) === today);
+    if (already) return null;
+    const record = { id: Date.now(), guestId, count, date: new Date().toISOString() };
+    setMealRecords(prev => [...prev, record]);
 
     const action = {
       id: Date.now() + Math.random(),
@@ -551,11 +587,17 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addExtraMealRecord = (count, dateOverride = null) => {
+  const addExtraMealRecord = (guestId, count, dateOverride = null) => {
+    if (typeof count === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(count) && (dateOverride == null)) {
+      dateOverride = count;
+      count = guestId;
+      guestId = null;
+    }
     const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
     const record = {
       id: Date.now(),
+      guestId,
       count: parseInt(count),
       date: iso,
       type: 'extra_meals'
@@ -566,11 +608,21 @@ export const AppProvider = ({ children }) => {
       id: Date.now() + Math.random(),
       type: 'EXTRA_MEALS_ADDED',
       timestamp: new Date().toISOString(),
-      data: { recordId: record.id, count: parseInt(count) },
-      description: `Added ${count} extra meals`
+      data: { recordId: record.id, guestId, count: parseInt(count) },
+      description: `Added ${count} extra meal${count > 1 ? 's' : ''}${guestId ? ' for guest' : ''}`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
 
+    return record;
+  };
+
+  const addDayWorkerMealRecord = (count, dateOverride = null) => {
+    const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
+    const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
+    const record = { id: Date.now(), count: parseInt(count), date: iso, type: 'day_worker_meals' };
+    setDayWorkerMealRecords(prev => [...prev, record]);
+    const action = { id: Date.now() + Math.random(), type: 'DAY_WORKER_MEALS_ADDED', timestamp: new Date().toISOString(), data: { recordId: record.id, count: parseInt(count) }, description: `Added ${count} day worker meals` };
+    setActionHistory(prev => [action, ...prev.slice(0, 49)]);
     return record;
   };
 
@@ -840,6 +892,7 @@ export const AppProvider = ({ children }) => {
     const todayRvMeals = rvMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
     const todayUeMeals = unitedEffortMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
     const todayExtraMeals = extraMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
+    const todayDayWorkerMeals = dayWorkerMealRecords.filter((r) => pacificDateStringFrom(r.date) === today);
 
     const todayShowers = showerRecords.filter(
       (r) => pacificDateStringFrom(r.date) === today
@@ -868,7 +921,8 @@ export const AppProvider = ({ children }) => {
       mealsServed: todayMeals.reduce((sum, record) => sum + record.count, 0)
         + todayRvMeals.reduce((s, r) => s + (r.count || 0), 0)
         + todayUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + todayExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
+        + todayExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + todayDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: todayDoneShowers.length,
       laundryLoads: todayLaundry.reduce((sum, r) => sum + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: todayHaircuts.length,
@@ -887,6 +941,7 @@ export const AppProvider = ({ children }) => {
     const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
     const periodUeMeals = unitedEffortMealRecords.filter((r) => inRange(r.date));
     const periodExtraMeals = extraMealRecords.filter((r) => inRange(r.date));
+    const periodDayWorkerMeals = dayWorkerMealRecords.filter((r) => inRange(r.date));
     const periodShowers = showerRecords.filter((r) => inRange(r.date));
     const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
     const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
@@ -902,7 +957,7 @@ export const AppProvider = ({ children }) => {
       return true;
     };
 
-    [...periodMeals, ...periodRvMeals, ...periodUeMeals, ...periodExtraMeals, ...periodShowers, ...periodLaundry].forEach((record) => {
+    [...periodMeals, ...periodRvMeals, ...periodUeMeals, ...periodExtraMeals, ...periodDayWorkerMeals, ...periodShowers, ...periodLaundry].forEach((record) => {
       const date = pacificDateStringFrom(record.date);
       if (!dailyMetrics[date]) {
         dailyMetrics[date] = { meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0, bicycles: 0 };
@@ -940,7 +995,8 @@ export const AppProvider = ({ children }) => {
       mealsServed: periodMeals.reduce((sum, record) => sum + record.count, 0)
         + periodRvMeals.reduce((s, r) => s + (r.count || 0), 0)
         + periodUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
+        + periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + periodDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: periodShowers.length,
       laundryLoads: periodLaundry.reduce((sum, r) => sum + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: periodHaircuts.length,
@@ -1088,6 +1144,9 @@ export const AppProvider = ({ children }) => {
         case 'EXTRA_MEALS_ADDED':
           setExtraMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
           break;
+        case 'DAY_WORKER_MEALS_ADDED':
+          setDayWorkerMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+          break;
 
         case 'SHOWER_BOOKED':
           setShowerRecords(prev => prev.filter(r => r.id !== action.data.recordId));
@@ -1173,6 +1232,7 @@ export const AppProvider = ({ children }) => {
     donationRecords,
     unitedEffortMealRecords,
     extraMealRecords,
+    dayWorkerMealRecords,
     lunchBagRecords,
     activeTab,
     showerPickerGuest,
@@ -1208,6 +1268,7 @@ export const AppProvider = ({ children }) => {
     addRvMealRecord,
     addUnitedEffortMealRecord,
     addExtraMealRecord,
+    addDayWorkerMealRecord,
     addLunchBagRecord,
     addShowerRecord,
     addShowerWaitlist,

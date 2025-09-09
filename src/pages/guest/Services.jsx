@@ -45,8 +45,11 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     addExtraMealRecord,
+    dayWorkerMealRecords,
+    addDayWorkerMealRecord,
     lunchBagRecords,
     addLunchBagRecord,
+    setExtraMealRecords,
     showerRecords,
     guests,
     showerPickerGuest,
@@ -69,7 +72,6 @@ const Services = () => {
     giveItem,
     getNextAvailabilityDate,
     bicycleRecords,
-    addBicycleRecord,
     updateBicycleRecord,
     deleteBicycleRecord,
     setBicycleStatus,
@@ -94,6 +96,8 @@ const Services = () => {
   const [isAddingExtraMeals, setIsAddingExtraMeals] = useState(false);
   const [lunchBagCount, setLunchBagCount] = useState('');
   const [isAddingLunchBags, setIsAddingLunchBags] = useState(false);
+  const [dayWorkerMealCount, setDayWorkerMealCount] = useState('');
+  const [isAddingDayWorkerMeals, setIsAddingDayWorkerMeals] = useState(false);
   const today = todayPacificDateString();
   const [mealsDate, setMealsDate] = useState(today);
 
@@ -113,6 +117,7 @@ const Services = () => {
   const selectedGuestMealRecords = mealRecords.filter(
     record => pacificDateStringFrom(record.date || '') === selectedDate
   );
+  const selectedGuestExtraMealRecords = (extraMealRecords || []).filter(r => r.guestId && pacificDateStringFrom(r.date || '') === selectedDate);
 
   const todayShowerRecords = showerRecords.filter(
     record => pacificDateStringFrom(record.date) === todayShorthand
@@ -309,8 +314,8 @@ const Services = () => {
 
     setIsAddingExtraMeals(true);
     try {
-      addExtraMealRecord(extraMealCount, selectedDate);
-      toast.success(`Added ${extraMealCount} extra meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
+      addExtraMealRecord(null, extraMealCount, selectedDate);
+      toast.success(`Added ${extraMealCount} extra meal${parseInt(extraMealCount, 10) > 1 ? 's' : ''} for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`);
       setExtraMealCount('');
     } catch (error) {
       toast.error(`Error adding extra meals: ${error.message}`);
@@ -518,15 +523,19 @@ const Services = () => {
   };
 
   const renderMealsSection = () => {
-    const totalGuestMeals = selectedGuestMealRecords.reduce((sum, record) => sum + record.count, 0);
+    // Merge base guest meal records and guest extra meal records (guestId present in extra meals) for display
+    const mergedGuestMeals = [...selectedGuestMealRecords, ...selectedGuestExtraMealRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const totalGuestMeals = mergedGuestMeals.reduce((sum, record) => sum + record.count, 0);
     const totalRvMeals = selectedRvMealRecords.reduce((sum, record) => sum + record.count, 0);
-    const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
+    const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(record => pacificDateStringFrom(record.date || '') === selectedDate);
     const totalUeMeals = selectedUeMealRecords.reduce((s, r) => s + r.count, 0);
-    const selectedExtraMealRecords = (extraMealRecords || []).filter(record => (record.date || '').startsWith(selectedDate));
-    const totalExtraMeals = selectedExtraMealRecords.reduce((s, r) => s + r.count, 0);
+    const selectedGlobalExtraMealRecords = (extraMealRecords || []).filter(record => !record.guestId && pacificDateStringFrom(record.date || '') === selectedDate);
+    const totalExtraMeals = selectedGlobalExtraMealRecords.reduce((s, r) => s + r.count, 0);
+    const selectedDayWorkerMealRecords = (dayWorkerMealRecords || []).filter(record => pacificDateStringFrom(record.date || '') === selectedDate);
+    const totalDayWorkerMeals = selectedDayWorkerMealRecords.reduce((s, r) => s + r.count, 0);
     const selectedLunchBagRecords = (lunchBagRecords || []).filter(r => (r.date || '').startsWith(selectedDate));
     const totalLunchBags = selectedLunchBagRecords.reduce((s, r) => s + (r.count || 0), 0);
-    const totalMeals = totalGuestMeals + totalRvMeals + totalUeMeals + totalExtraMeals;
+    const totalMeals = totalGuestMeals + totalRvMeals + totalUeMeals + totalExtraMeals + totalDayWorkerMeals;
 
     return (
       <div className="space-y-4">
@@ -545,6 +554,52 @@ const Services = () => {
             />
             <span className="text-xs text-gray-500">New entries will be added to this date</span>
           </div>
+        </div>
+        <div className="bg-indigo-50 rounded-lg border border-indigo-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2 text-indigo-800">
+              <SquarePlus className="text-indigo-600" size={20} />
+              <span>Day Worker Center Meals</span>
+            </h3>
+            <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full">
+              {totalDayWorkerMeals} DW meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="number"
+              value={dayWorkerMealCount}
+              onChange={(e) => setDayWorkerMealCount(e.target.value)}
+              placeholder="Number of day worker meals"
+              className="px-3 py-2 border border-indigo-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              min="1"
+              disabled={isAddingDayWorkerMeals}
+            />
+            <button
+              onClick={() => {
+                if (!dayWorkerMealCount || isNaN(dayWorkerMealCount) || parseInt(dayWorkerMealCount) <= 0) { toast.error('Enter valid number'); return; }
+                setIsAddingDayWorkerMeals(true);
+                try { addDayWorkerMealRecord(dayWorkerMealCount, selectedDate); toast.success(`Added ${dayWorkerMealCount} day worker meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`); setDayWorkerMealCount(''); } catch (e) { toast.error(`Error: ${e.message}`); } finally { setIsAddingDayWorkerMeals(false); }
+              }}
+              disabled={isAddingDayWorkerMeals || !dayWorkerMealCount}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              {isAddingDayWorkerMeals ? 'Adding...' : 'Add DW Meals'}
+            </button>
+          </div>
+          {selectedDayWorkerMealRecords.length > 0 && (
+            <div className="text-xs text-indigo-700">
+              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Day Worker meal records:</div>
+              <ul className="space-y-1">
+                {selectedDayWorkerMealRecords.map(r => (
+                  <li key={r.id} className="flex justify-between">
+                    <span>{new Date(r.date).toLocaleTimeString()}</span>
+                    <span className="font-medium">{r.count} meals</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <div className="bg-orange-50 rounded-lg border border-orange-200 p-4">
           <div className="flex items-center justify-between mb-3">
@@ -660,11 +715,11 @@ const Services = () => {
               {isAddingExtraMeals ? 'Adding...' : 'Add Extra Meals'}
             </button>
           </div>
-          {selectedExtraMealRecords.length > 0 && (
+          {selectedGlobalExtraMealRecords.length > 0 && (
             <div className="text-xs text-amber-700">
               <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Extra meal records:</div>
               <ul className="space-y-1">
-                {selectedExtraMealRecords.map((record) => (
+                {selectedGlobalExtraMealRecords.map((record) => (
                   <li key={record.id} className="flex justify-between">
                     <span>{new Date(record.date).toLocaleTimeString()}</span>
                     <span className="font-medium">{record.count} meals</span>
@@ -748,40 +803,52 @@ const Services = () => {
               </span>
             </div>
           </div>
-          {selectedGuestMealRecords.length === 0 ? (
+          {mergedGuestMeals.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-8">No meals logged for this date</p>
           ) : (
             <ul className="divide-y">
-              {selectedGuestMealRecords.map((rec) => (
-                <li key={rec.id} className="py-2 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{getGuestName(rec.guestId)}</div>
-                    <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full">
-                      {rec.count} meal{rec.count > 1 ? 's' : ''}
-                    </span>
-                    <button
-                      className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
-                      title="Delete this entry"
-                      onClick={() => {
-                        // try to find matching action and undo it to keep history consistent
-                        const matching = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
-                        if (matching) {
-                          const ok = undoAction(matching.id);
-                          if (ok) { toast.success('Meal entry deleted'); return; }
-                        }
-                        // fallback: remove directly
-                        setMealRecords(prev => prev.filter(r => r.id !== rec.id));
-                        toast.success('Meal entry deleted');
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {mergedGuestMeals.map((rec) => {
+                const isExtraGuestMeal = !!(rec.guestId && extraMealRecords.some(er => er.id === rec.id));
+                return (
+                  <li key={rec.id} className="py-2 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{getGuestName(rec.guestId)}</div>
+                      <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full">
+                        {rec.count} meal{rec.count > 1 ? 's' : ''}
+                      </span>
+                      {isExtraGuestMeal && (
+                        <span className="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">Extra</span>
+                      )}
+                      <button
+                        className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
+                        title="Delete this entry"
+                        onClick={() => {
+                          // try to find matching action and undo it to keep history consistent
+                          const matchingMeal = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
+                          const matchingExtra = actionHistory.find(a => a.type === 'EXTRA_MEALS_ADDED' && a.data?.recordId === rec.id);
+                          if (matchingMeal) {
+                            if (undoAction(matchingMeal.id)) { toast.success('Meal entry deleted'); return; }
+                          } else if (matchingExtra) {
+                            if (undoAction(matchingExtra.id)) { toast.success('Extra meal entry deleted'); return; }
+                          }
+                          // fallback: remove directly from the correct collection
+                          if (isExtraGuestMeal) {
+                            setExtraMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                          } else {
+                            setMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                          }
+                          toast.success(isExtraGuestMeal ? 'Extra meal entry deleted' : 'Meal entry deleted');
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -841,7 +908,7 @@ const Services = () => {
         </div>
 
         <div className="overflow-y-auto max-h-[55vh] md:max-h-96">
-          {todayShowerRecords.length === 0 ? (
+          {filteredShowers.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-8">No shower bookings today</p>
           ) : (
             <ul className="divide-y">
@@ -1176,8 +1243,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WAITING)}
                           disabled={record.status === LAUNDRY_STATUS.WAITING}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WAITING
-                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                              : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
                             }`}
                         >
                           <ShoppingBag size={12} className="inline mr-1" /> Waiting
@@ -1187,8 +1254,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WASHER)}
                           disabled={record.status === LAUNDRY_STATUS.WASHER}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WASHER
-                              ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
-                              : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                            ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
                             }`}
                         >
                           <DropletIcon size={12} className="inline mr-1" /> In Washer
@@ -1198,8 +1265,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DRYER)}
                           disabled={record.status === LAUNDRY_STATUS.DRYER}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DRYER
-                              ? 'bg-orange-100 text-orange-400 border-orange-200 cursor-not-allowed'
-                              : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
+                            ? 'bg-orange-100 text-orange-400 border-orange-200 cursor-not-allowed'
+                            : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
                             }`}
                         >
                           <FanIcon size={12} className="inline mr-1" /> In Dryer
@@ -1209,8 +1276,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DONE)}
                           disabled={record.status === LAUNDRY_STATUS.DONE}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DONE
-                              ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
-                              : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                            ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
+                            : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
                             }`}
                         >
                           <CheckCircle2Icon size={12} className="inline mr-1" /> Done
@@ -1220,8 +1287,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PICKED_UP)}
                           disabled={record.status === LAUNDRY_STATUS.PICKED_UP}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PICKED_UP
-                              ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
-                              : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                            ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
+                            : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
                             }`}
                         >
                           <LogOutIcon size={12} className="inline mr-1" /> Picked Up
@@ -1233,8 +1300,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PENDING)}
                           disabled={record.status === LAUNDRY_STATUS.PENDING}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PENDING
-                              ? 'bg-yellow-100 text-yellow-400 border-yellow-200 cursor-not-allowed'
-                              : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
+                            ? 'bg-yellow-100 text-yellow-400 border-yellow-200 cursor-not-allowed'
+                            : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
                             }`}
                         >
                           <Clock size={12} className="inline mr-1" /> Waiting
@@ -1244,8 +1311,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.TRANSPORTED)}
                           disabled={record.status === LAUNDRY_STATUS.TRANSPORTED}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.TRANSPORTED
-                              ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
-                              : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
+                            ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
                             }`}
                         >
                           <Truck size={12} className="inline mr-1" /> Transported
@@ -1255,8 +1322,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.RETURNED)}
                           disabled={record.status === LAUNDRY_STATUS.RETURNED}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.RETURNED
-                              ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
-                              : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                            ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
+                            : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
                             }`}
                         >
                           <CheckCircle2Icon size={12} className="inline mr-1" /> Returned
@@ -1266,8 +1333,8 @@ const Services = () => {
                           onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.OFFSITE_PICKED_UP)}
                           disabled={record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP}
                           className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP
-                              ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
-                              : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                            ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
+                            : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
                             }`}
                         >
                           <LogOutIcon size={12} className="inline mr-1" /> Picked Up
@@ -1347,8 +1414,8 @@ const Services = () => {
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === section.id
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
               >
                 <SpringIcon>

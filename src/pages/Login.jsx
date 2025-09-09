@@ -7,14 +7,14 @@ import { useAppContext } from '../context/useAppContext';
 
 const Login = () => {
   const { login, resetPassword, useFirebase } = useAuth();
-  const { mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords } = useAppContext();
+  const { mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords } = useAppContext();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [mode, setMode] = useState('login'); 
+  const [mode, setMode] = useState('login');
   const cardAnim = useScaleIn();
   const ctaAnim = useFadeInUp();
 
@@ -38,13 +38,14 @@ const Login = () => {
 
   const totalMealsServed = useMemo(() => {
     const sum = (arr) => (arr || []).reduce((s, r) => s + (r.count || 0), 0);
-    return sum(mealRecords) + sum(rvMealRecords) + sum(unitedEffortMealRecords) + sum(extraMealRecords);
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords]);
+    const mealsArrays = [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords];
+    return mealsArrays.reduce((total, arr) => total + sum(arr), 0);
+  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords]);
 
   return (
-  <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-12 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.12),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(16,185,129,0.12),transparent_40%)]">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-12 bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.12),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(16,185,129,0.12),transparent_40%)]">
       <div className="absolute inset-0 pointer-events-none opacity-90 bg-gradient-to-b from-white/80 via-white to-emerald-50" />
-  <Animated.div style={cardAnim} className="relative w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-emerald-100 p-8">
+      <Animated.div style={cardAnim} className="relative w-full max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-emerald-100 p-8">
         <header className="flex items-center gap-4 mb-6">
           <SpringIcon className="flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-tr from-emerald-500 via-emerald-600 to-blue-600 text-white font-bold text-xl shadow-lg">
             HC
@@ -86,7 +87,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 pl-12 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-        placeholder={useFirebase ? 'you@hope.org' : 'username'}
+                placeholder={useFirebase ? 'you@hope.org' : 'username'}
                 autoComplete="username"
                 aria-label="username"
                 required
@@ -94,7 +95,7 @@ const Login = () => {
             </div>
           </div>
 
-      <div>
+          <div>
             <label className="block text-sm font-medium mb-1">Password</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 w-10 flex items-center justify-center pointer-events-none text-emerald-500">
@@ -155,7 +156,7 @@ const Login = () => {
         <footer className="mt-6 text-center text-xs text-emerald-700">
           <div>© {new Date().getFullYear()} Hope's Corner — Internal use only</div>
         </footer>
-  </Animated.div>
+      </Animated.div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { todayPacificDateString } from '../utils/date';
+import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
 import { animated as Animated } from '@react-spring/web';
 import { useStagger, SpringIcon } from '../utils/animations';
 import toast from 'react-hot-toast';
@@ -19,6 +19,7 @@ import {
   X,
   AlertCircle,
   Plus,
+  PlusCircle,
   Eraser,
 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
@@ -26,7 +27,7 @@ import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '../context/constants';
 import Selectize from './Selectize';
 
 const GuestList = () => {
-  const { guests, mealRecords, setShowerPickerGuest, setLaundryPickerGuest, addMealRecord, addGuest, setBicyclePickerGuest } = useAppContext();
+  const { guests, mealRecords, setShowerPickerGuest, setLaundryPickerGuest, addMealRecord, addExtraMealRecord, addGuest, setBicyclePickerGuest } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
 
@@ -158,11 +159,12 @@ const GuestList = () => {
     setExpandedGuest(expandedGuest === guestId ? null : guestId);
   };
 
+  const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
+
   const handleMealSelection = (guestId, count) => {
+    if (pendingMealGuests.has(guestId)) return;
     const today = todayPacificDateString();
-    const alreadyHasMeal = mealRecords.some(
-      record => record.guestId === guestId && record.date.startsWith(today)
-    );
+    const alreadyHasMeal = mealRecords.some(record => record.guestId === guestId && pacificDateStringFrom(record.date) === today);
 
     if (alreadyHasMeal) {
       toast.error('Guest already received meals today. Only one meal per day is allowed.');
@@ -170,10 +172,24 @@ const GuestList = () => {
     }
 
     try {
-      addMealRecord(guestId, count);
-      toast.success(`${count} meal${count > 1 ? 's' : ''} logged for guest!`);
+      setPendingMealGuests(prev => {
+        const next = new Set(prev);
+        next.add(guestId);
+        return next;
+      });
+      const rec = addMealRecord(guestId, count);
+      if (rec) toast.success(`${count} meal${count > 1 ? 's' : ''} logged for guest!`);
     } catch (error) {
       toast.error(`Error logging meals: ${error.message}`);
+    }
+  };
+
+  const handleAddExtraMeals = (guestId, count) => {
+    try {
+      addExtraMealRecord(guestId, count);
+      toast.success(`${count} extra meal${count > 1 ? 's' : ''} added!`);
+    } catch (error) {
+      toast.error(`Error adding extra meals: ${error.message}`);
     }
   };
 
@@ -655,30 +671,52 @@ const GuestList = () => {
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
-                        <div className="space-x-1 relative">
+                        <div>
                           {(() => {
                             const today = todayPacificDateString();
-                            const alreadyHasMeal = mealRecords.some(
-                              record => record.guestId === guest.id && record.date.startsWith(today)
-                            );
+                            const alreadyHasMeal = pendingMealGuests.has(guest.id) || mealRecords.some(record => record.guestId === guest.id && pacificDateStringFrom(record.date) === today);
 
-                            return [1, 2, 3].map((count) => (
-                              <button
-                                key={count}
-                                onClick={() => handleMealSelection(guest.id, count)}
-                                disabled={alreadyHasMeal}
-                                className={`px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors ${alreadyHasMeal
-                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
-                                    : 'bg-green-100 hover:bg-green-200 text-green-800'
-                                  }`}
-                                title={alreadyHasMeal ? 'Guest already received meals today' : `Give ${count} meal${count > 1 ? 's' : ''}`}
-                              >
-                                <SpringIcon>
-                                  <Utensils size={16} />
-                                </SpringIcon>
-                                {count} Meal{count > 1 ? 's' : ''}
-                              </button>
-                            ));
+                            return (
+                              <div className="flex flex-wrap gap-2">
+                                <div className="space-x-1 relative">
+                                  {[1, 2, 3].map((count) => (
+                                    <button
+                                      key={count}
+                                      onClick={() => handleMealSelection(guest.id, count)}
+                                      disabled={alreadyHasMeal}
+                                      className={`px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors ${alreadyHasMeal
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-50'
+                                        : 'bg-green-100 hover:bg-green-200 text-green-800'
+                                        }`}
+                                      title={alreadyHasMeal ? 'Guest already received meals today' : `Give ${count} meal${count > 1 ? 's' : ''}`}
+                                    >
+                                      <SpringIcon>
+                                        <Utensils size={16} />
+                                      </SpringIcon>
+                                      {count} Meal{count > 1 ? 's' : ''}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {alreadyHasMeal && (
+                                  <div className="space-x-1 relative">
+                                    {[1, 2, 3].map((count) => (
+                                      <button
+                                        key={`extra-${count}`}
+                                        onClick={() => handleAddExtraMeals(guest.id, count)}
+                                        className="px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors bg-green-100 hover:bg-green-200 text-green-800"
+                                        title={`Add ${count} extra meal${count > 1 ? 's' : ''}`}
+                                      >
+                                        <SpringIcon>
+                                          <PlusCircle size={16} />
+                                        </SpringIcon>
+                                        {count} Extra
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
                           })()}
                         </div>
                         <button

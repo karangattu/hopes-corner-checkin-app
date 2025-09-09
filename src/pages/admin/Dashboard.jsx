@@ -32,6 +32,7 @@ const Dashboard = () => {
     rvMealRecords,
     unitedEffortMealRecords,
     extraMealRecords,
+    dayWorkerMealRecords,
     showerRecords,
     laundryRecords,
     itemGivenRecords,
@@ -87,6 +88,15 @@ const Dashboard = () => {
         Service: 'Meal',
         'Guest ID': record.guestId,
         'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Quantity: record.count,
+        'Laundry Type': '-',
+        'Time Slot': '-'
+      })),
+      ...dayWorkerMealRecords.map(record => ({
+        Date: new Date(record.date).toLocaleDateString(),
+        Service: 'Day Worker Meal',
+        'Guest ID': '-',
+        'Guest Name': '-',
         Quantity: record.count,
         'Laundry Type': '-',
         'Time Slot': '-'
@@ -220,6 +230,7 @@ const Dashboard = () => {
     const monthRvMeals = (rvMealRecords || []).filter(r => inMonth(r.date));
     const monthUeMeals = (unitedEffortMealRecords || []).filter(r => inMonth(r.date));
     const monthExtraMeals = (extraMealRecords || []).filter(r => inMonth(r.date));
+    const monthDayWorkerMeals = (dayWorkerMealRecords || []).filter(r => inMonth(r.date));
     const monthShowers = showerRecords.filter(r => inMonth(r.date));
     const monthLaundry = laundryRecords.filter(r => inMonth(r.date));
     const monthHaircuts = (haircutRecords || []).filter(r => inMonth(r.date));
@@ -230,14 +241,15 @@ const Dashboard = () => {
       mealsServed: monthMeals.reduce((s, r) => s + r.count, 0)
         + monthRvMeals.reduce((s, r) => s + (r.count || 0), 0)
         + monthUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + monthExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
+        + monthExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + monthDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: monthShowers.filter(r => r.status === 'done').length,
       laundryLoads: monthLaundry.reduce((s, r) => s + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: monthHaircuts.length,
       holidays: monthHolidays.length,
       bicycles: monthBicycles.length,
     };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
+  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
 
   const yearMetrics = useMemo(() => {
     const now = new Date();
@@ -247,6 +259,7 @@ const Dashboard = () => {
     const yearRvMeals = (rvMealRecords || []).filter(r => inYear(r.date));
     const yearUeMeals = (unitedEffortMealRecords || []).filter(r => inYear(r.date));
     const yearExtraMeals = (extraMealRecords || []).filter(r => inYear(r.date));
+    const yearDayWorkerMeals = (dayWorkerMealRecords || []).filter(r => inYear(r.date));
     const yearShowers = showerRecords.filter(r => inYear(r.date));
     const yearLaundry = laundryRecords.filter(r => inYear(r.date));
     const yearHaircuts = (haircutRecords || []).filter(r => inYear(r.date));
@@ -257,14 +270,15 @@ const Dashboard = () => {
       mealsServed: yearMeals.reduce((s, r) => s + r.count, 0)
         + yearRvMeals.reduce((s, r) => s + (r.count || 0), 0)
         + yearUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + yearExtraMeals.reduce((s, r) => s + (r.count || 0), 0),
+        + yearExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
+        + yearDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
       showersBooked: yearShowers.filter(r => r.status === 'done').length,
       laundryLoads: yearLaundry.reduce((s, r) => s + (countsAsLaundryLoad(r) ? 1 : 0), 0),
       haircuts: yearHaircuts.length,
       holidays: yearHolidays.length,
       bicycles: yearBicycles.length,
     };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
+  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
 
   const sections = [
     { id: 'overview', label: 'Overview', icon: Home },
@@ -645,8 +659,8 @@ const Dashboard = () => {
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === section.id
-                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
               >
                 <SpringIcon>
