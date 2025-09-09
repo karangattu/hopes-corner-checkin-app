@@ -6,7 +6,6 @@ import {
   ClipboardList, 
   BarChart3,
   UserPlus, 
-  Settings,
   Menu,
   X
 } from 'lucide-react';
@@ -20,12 +19,11 @@ const MainLayout = ({ children }) => {
     { id: 'check-in', label: 'Check In', icon: UserPlus },
     { id: 'services', label: 'Services', icon: ClipboardList },
     { id: 'admin', label: 'Admin Dashboard', icon: BarChart3 },
-    { id: 'settings', label: 'Settings', icon: Settings },
   ];
   const role = user?.role || 'checkin';
   const navItems = navItemsAll.filter(item => {
     if (role === 'admin') return true;
-    if (role === 'staff') return item.id !== 'admin' && item.id !== 'settings';
+  if (role === 'staff') return item.id !== 'admin';
     if (role === 'checkin') return item.id === 'check-in';
     return false;
   });
@@ -82,7 +80,8 @@ const MainLayout = ({ children }) => {
       </main>
 
   <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 18px)' }}>
-  <div className="grid grid-cols-4 gap-1 px-2 pt-3">
+    {/** Dynamic columns based on nav item count */}
+  <div className={`grid gap-1 px-2 pt-3 ${navItems.length === 1 ? 'grid-cols-1' : navItems.length === 2 ? 'grid-cols-2' : navItems.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.id;

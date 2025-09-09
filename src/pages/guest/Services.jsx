@@ -920,9 +920,13 @@ const Services = () => {
                 const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
                 const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
                 const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
+                const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
+                const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
                 const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
                 const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
                 const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
+                const lastTentGuest = guest ? getLastGivenItem(guest.id, 'tent') : null;
+                const lastFFGuest = guest ? getLastGivenItem(guest.id, 'flip_flops') : null;
                 const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
                 const isDone = record.status === 'done';
                 return (
@@ -998,6 +1002,24 @@ const Services = () => {
                           title={lastBPGuest ? `Backpack last: ${new Date(lastBPGuest.date).toLocaleDateString()}` : 'Give Backpack'}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
                         >Give Backpack</button>
+                        <button
+                          disabled={!canTent}
+                          onClick={() => {
+                            if (!guest) return;
+                            try { giveItem(guest.id, 'tent'); toast.success('Tent given'); } catch (e) { toast.error(e.message); }
+                          }}
+                          title={lastTentGuest ? `Tent last: ${new Date(lastTentGuest.date).toLocaleDateString()}` : 'Give Tent'}
+                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
+                        >Give Tent</button>
+                        <button
+                          disabled={!canFF}
+                          onClick={() => {
+                            if (!guest) return;
+                            try { giveItem(guest.id, 'flip_flops'); toast.success('Flip Flops given'); } catch (e) { toast.error(e.message); }
+                          }}
+                          title={lastFFGuest ? `Flip Flops last: ${new Date(lastFFGuest.date).toLocaleDateString()}` : 'Give Flip Flops'}
+                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
+                        >Give Flip Flops</button>
                       </div>
                       <div className="text-xs text-gray-600 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
                         <div className="flex flex-col">
@@ -1045,6 +1067,42 @@ const Services = () => {
                                 <div>Last: {new Date(lastBPGuest.date).toLocaleDateString()}</div>
                                 {!canBP && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('backpack', lastBPGuest.date)?.toLocaleDateString()}</div>}
                                 {canBP && <div className="text-green-600 font-medium">✓ Available now</div>}
+                              </div>
+                            ) : (
+                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
+                            {/* Reusing Backpack icon for tent for now */}
+                            <Backpack size={14} className="text-blue-600" />
+                            Tent (Monthly)
+                          </span>
+                          <div className="text-gray-700">
+                            {lastTentGuest ? (
+                              <div>
+                                <div>Last: {new Date(lastTentGuest.date).toLocaleDateString()}</div>
+                                {!canTent && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tent', lastTentGuest.date)?.toLocaleDateString()}</div>}
+                                {canTent && <div className="text-green-600 font-medium">✓ Available now</div>}
+                              </div>
+                            ) : (
+                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
+                            {/* Reusing Shirt icon for flip flops */}
+                            <Shirt size={14} className="text-blue-600" />
+                            Flip Flops (Monthly)
+                          </span>
+                          <div className="text-gray-700">
+                            {lastFFGuest ? (
+                              <div>
+                                <div>Last: {new Date(lastFFGuest.date).toLocaleDateString()}</div>
+                                {!canFF && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('flip_flops', lastFFGuest.date)?.toLocaleDateString()}</div>}
+                                {canFF && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
                               <div className="text-green-600 font-medium">✓ Never given - Available</div>

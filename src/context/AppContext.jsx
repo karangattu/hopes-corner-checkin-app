@@ -485,7 +485,7 @@ export const AppProvider = ({ children }) => {
       next.setDate(last.getDate() + daysUntilNextMon);
       return next;
     }
-    if (item === 'sleeping_bag' || item === 'backpack') {
+  if (item === 'sleeping_bag' || item === 'backpack' || item === 'tent' || item === 'flip_flops') {
       const next = new Date(last);
       next.setMonth(last.getMonth() + 1);
       next.setDate(1);
