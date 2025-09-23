@@ -318,11 +318,8 @@ export const AppProvider = ({ children }) => {
       ensureDb().then(async (db) => {
         try {
           if (!db) return;
-          const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-          await addDoc(collection(db, 'guests'), {
-            ...newGuest,
-            createdAt: serverTimestamp(),
-          });
+          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+          await setDoc(doc(db, 'guests', String(newGuest.id)), { ...newGuest, createdAt: serverTimestamp() });
         } catch {
           // ignore
         }
@@ -409,17 +406,52 @@ export const AppProvider = ({ children }) => {
       priority: (bicycleRecords[0]?.priority || 0) + 1 // higher number = higher priority
     };
     setBicycleRecords(prev => [record, ...prev]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, 'bicycles', String(record.id)), record);
+        } catch {
+          // ignore
+        }
+      });
+    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: `Logged bicycle repair (${repairType})` }, ...prev.slice(0, 49)]);
     toast.success('Bicycle repair added');
     return record;
   };
 
   const updateBicycleRecord = (recordId, updates) => {
-    setBicycleRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...updates } : r));
+    const mergedUpdates = { ...updates };
+    if (!mergedUpdates.lastUpdated) mergedUpdates.lastUpdated = new Date().toISOString();
+    setBicycleRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...mergedUpdates } : r));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, updateDoc } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'bicycles', String(recordId)), { ...mergedUpdates });
+        } catch {
+          // ignore
+        }
+      });
+    }
   };
 
   const deleteBicycleRecord = (recordId) => {
     setBicycleRecords(prev => prev.filter(r => r.id !== recordId));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, deleteDoc } = await import('firebase/firestore');
+          await deleteDoc(doc(db, 'bicycles', String(recordId)));
+        } catch {
+          // ignore
+        }
+      });
+    }
   };
 
   const setBicycleStatus = (recordId, status) => {
@@ -450,6 +482,15 @@ export const AppProvider = ({ children }) => {
     }
     const record = { id: Date.now(), guestId, date: now, type: 'holiday' };
     setHolidayRecords(prev => [record, ...prev]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, 'holidays', String(record.id)), record);
+        } catch { /* ignore */ }
+      });
+    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HOLIDAY_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: 'Logged holiday service' }, ...prev.slice(0, 49)]);
     toast.success('Holiday logged');
     return record;
@@ -463,6 +504,15 @@ export const AppProvider = ({ children }) => {
     }
     const record = { id: Date.now(), guestId, date: now, type: 'haircut' };
     setHaircutRecords(prev => [record, ...prev]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, 'haircuts', String(record.id)), record);
+        } catch { /* ignore */ }
+      });
+    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HAIRCUT_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: 'Logged haircut service' }, ...prev.slice(0, 49)]);
     toast.success('Haircut logged');
     return record;
@@ -520,18 +570,53 @@ export const AppProvider = ({ children }) => {
     }
     const record = { id: Date.now(), guestId, item, date: new Date().toISOString() };
     setItemGivenRecords(prev => [record, ...prev]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, setDoc } = await import('firebase/firestore');
+          await setDoc(doc(db, 'itemsGiven', String(record.id)), record);
+        } catch { /* ignore */ }
+      });
+    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'ITEM_GIVEN', timestamp: new Date().toISOString(), data: { recordId: record.id, guestId, item }, description: `Gave ${item.replace('_', ' ')}` }, ...prev.slice(0, 49)]);
     return record;
   };
 
   const updateGuest = (id, updates) => {
+    const target = guests.find(g => g.id === id);
     setGuests(
       guests.map((guest) => (guest.id === id ? { ...guest, ...updates } : guest))
     );
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const docId = target?.docId ? target.docId : String(id);
+          const { doc, updateDoc } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'guests', docId), { ...updates });
+        } catch {
+          // ignore
+        }
+      });
+    }
   };
 
   const removeGuest = (id) => {
+    const target = guests.find(g => g.id === id);
     setGuests(guests.filter((guest) => guest.id !== id));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const docId = target?.docId ? target.docId : String(id);
+          const { doc, deleteDoc } = await import('firebase/firestore');
+          await deleteDoc(doc(db, 'guests', docId));
+        } catch {
+          // ignore
+        }
+      });
+    }
   };
 
   const addMealRecord = (guestId, count) => {
@@ -540,6 +625,11 @@ export const AppProvider = ({ children }) => {
     if (already) return null;
     const record = { id: Date.now(), guestId, count, date: new Date().toISOString() };
     setMealRecords(prev => [...prev, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'meals', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -563,6 +653,11 @@ export const AppProvider = ({ children }) => {
       type: 'rv_meals'
     };
     setRvMealRecords([...rvMealRecords, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'rvMeals', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -586,6 +681,11 @@ export const AppProvider = ({ children }) => {
       type: 'united_effort_meals'
     };
     setUnitedEffortMealRecords([...unitedEffortMealRecords, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'unitedEffortMeals', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -615,6 +715,11 @@ export const AppProvider = ({ children }) => {
       type: 'extra_meals'
     };
     setExtraMealRecords([...extraMealRecords, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'extraMeals', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -633,6 +738,11 @@ export const AppProvider = ({ children }) => {
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
     const record = { id: Date.now(), count: parseInt(count), date: iso, type: 'day_worker_meals' };
     setDayWorkerMealRecords(prev => [...prev, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'dayWorkerMeals', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
     const action = { id: Date.now() + Math.random(), type: 'DAY_WORKER_MEALS_ADDED', timestamp: new Date().toISOString(), data: { recordId: record.id, count: parseInt(count) }, description: `Added ${count} day worker meals` };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
     return record;
@@ -652,6 +762,11 @@ export const AppProvider = ({ children }) => {
     };
     if (!record.count || record.count <= 0) throw new Error('Invalid lunch bag count');
     setLunchBagRecords(prev => [...prev, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'lunchBags', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
     const action = {
       id: Date.now() + Math.random(),
       type: 'LUNCH_BAGS_ADDED',
@@ -688,6 +803,11 @@ export const AppProvider = ({ children }) => {
 
     setShowerRecords([...showerRecords, record]);
     setShowerSlots([...showerSlots, { guestId, time }]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'showers', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -715,6 +835,11 @@ export const AppProvider = ({ children }) => {
       status: 'waitlisted',
     };
     setShowerRecords(prev => [...prev, record]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'showers', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_WAITLISTED',
@@ -731,6 +856,11 @@ export const AppProvider = ({ children }) => {
     if (!record) return false;
     setShowerRecords(prev => prev.filter(r => r.id !== recordId));
     setShowerSlots(prev => prev.filter(s => !(s.guestId === record.guestId && s.time === record.time)));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'showers', String(recordId))); } catch { /* ignore */ }
+      });
+    }
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_CANCELLED',
@@ -748,11 +878,16 @@ export const AppProvider = ({ children }) => {
     if (record.time === newTime) return record;
     const countAtNew = showerSlots.filter(s => s.time === newTime && s.guestId !== record.guestId).length;
     if (countAtNew >= 2) throw new Error('That time slot is full.');
-    setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, time: newTime } : r));
+  setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, time: newTime } : r));
     setShowerSlots(prev => {
       const filtered = prev.filter(s => !(s.guestId === record.guestId && s.time === record.time));
       return [...filtered, { guestId: record.guestId, time: newTime }];
     });
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'showers', String(recordId)), { time: newTime, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
+      });
+    }
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_RESCHEDULED',
@@ -766,6 +901,11 @@ export const AppProvider = ({ children }) => {
 
   const updateShowerStatus = (recordId, newStatus) => {
     setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, status: newStatus, lastUpdated: new Date().toISOString() } : r));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'showers', String(recordId)), { status: newStatus, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
+      });
+    }
   };
 
   const addLaundryRecord = (guestId, time, laundryType, bagNumber = '') => {
@@ -804,6 +944,11 @@ export const AppProvider = ({ children }) => {
     if (laundryType === 'onsite') {
       setLaundrySlots([...laundrySlots, { guestId, time, laundryType, bagNumber, status: record.status }]);
     }
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'laundry', String(record.id)), record); } catch { /* ignore */ }
+      });
+    }
 
     const action = {
       id: Date.now() + Math.random(),
@@ -823,6 +968,11 @@ export const AppProvider = ({ children }) => {
     setLaundryRecords(prev => prev.filter(r => r.id !== recordId));
     if (record.laundryType === 'onsite') {
       setLaundrySlots(prev => prev.filter(s => !(s.guestId === record.guestId && s.time === record.time)));
+    }
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'laundry', String(recordId))); } catch { /* ignore */ }
+      });
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -866,6 +1016,11 @@ export const AppProvider = ({ children }) => {
       return next;
     });
 
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'laundry', String(recordId)), { laundryType: targetType, time: targetTime, status: targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
+      });
+    }
     const action = {
       id: Date.now() + Math.random(),
       type: 'LAUNDRY_RESCHEDULED',
@@ -893,6 +1048,11 @@ export const AppProvider = ({ children }) => {
       }
       return slot;
     }));
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'laundry', String(recordId)), { status: newStatus, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
+      });
+    }
   };
 
   const getTodayMetrics = () => {
@@ -1082,6 +1242,11 @@ export const AppProvider = ({ children }) => {
     if (!clean.itemName) throw new Error('Donation item name is required');
     if (!clean.donor) throw new Error('Donation source (donor) is required');
     setDonationRecords(prev => [clean, ...prev]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'donations', String(clean.id)), clean); } catch { /* ignore */ }
+      });
+    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'DONATION_ADDED', timestamp: now, data: { recordId: clean.id }, description: `Donation: ${clean.itemName} (${clean.type})` }, ...prev.slice(0, 49)]);
     toast.success('Donation recorded');
     return clean;
@@ -1227,6 +1392,142 @@ export const AppProvider = ({ children }) => {
   const clearActionHistory = () => {
     setActionHistory([]);
   };
+
+  // Background sync: merge remote changes into local state for multi-admin use
+  useEffect(() => {
+    if (!firestoreEnabled) return;
+    let unsubscribers = [];
+    let mounted = true;
+
+    const mergeByNewest = (localArr, remoteArr, { idKey = 'id', timeKeys = ['lastUpdated', 'date'] } = {}) => {
+      try {
+        const map = new Map();
+        const ts = (obj) => {
+          for (const k of timeKeys) {
+            const v = obj && obj[k];
+            if (v) return new Date(v).getTime();
+          }
+          return 0;
+        };
+        for (const r of localArr || []) map.set(r[idKey], r);
+        for (const r of remoteArr || []) {
+          const id = r[idKey];
+          if (!map.has(id)) {
+            map.set(id, r);
+          } else {
+            const curr = map.get(id);
+            map.set(id, ts(r) >= ts(curr) ? { ...curr, ...r } : curr);
+          }
+        }
+        return Array.from(map.values());
+      } catch {
+        return localArr || [];
+      }
+    };
+
+    const subscribe = async () => {
+      const db = await ensureDb();
+      if (!db) return;
+      const { collection, onSnapshot, query, orderBy, limit } = await import('firebase/firestore');
+
+      const addHandler = (q, apply) => {
+        const unsub = onSnapshot(q, (snap) => {
+          if (!mounted) return;
+          const remote = snap.docs.map(d => d.data());
+          apply(remote);
+        }, () => { /* ignore */ });
+        unsubscribers.push(unsub);
+      };
+
+      // Helper to recompute today's shower/laundry slots from records
+      const recomputeTodaySlots = (nextShowerRecords, nextLaundryRecords) => {
+        try {
+          const today = todayPacificDateString();
+          // Showers
+          const showerSlotsToday = (nextShowerRecords || [])
+            .filter(r => r.time && pacificDateStringFrom(r.date) === today)
+            .map(r => ({ guestId: r.guestId, time: r.time }));
+          setShowerSlots(showerSlotsToday);
+          // Laundry (onsite only)
+          const laundrySlotsToday = (nextLaundryRecords || [])
+            .filter(r => r.laundryType === 'onsite' && r.time && pacificDateStringFrom(r.date) === today)
+            .map(r => ({ guestId: r.guestId, time: r.time, laundryType: 'onsite', bagNumber: r.bagNumber, status: r.status }));
+          setLaundrySlots(laundrySlotsToday);
+        } catch {
+          // ignore
+        }
+      };
+
+      // Meals and counts (append-only)
+      addHandler(query(collection(db, 'meals'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setMealRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'rvMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setRvMealRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'unitedEffortMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setUnitedEffortMealRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'extraMeals'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setExtraMealRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'dayWorkerMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setDayWorkerMealRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'lunchBags'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setLunchBagRecords(prev => mergeByNewest(prev, remote));
+      });
+
+      // Items Given, Donations (append-only)
+      addHandler(query(collection(db, 'itemsGiven'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setItemGivenRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'donations'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setDonationRecords(prev => mergeByNewest(prev, remote));
+      });
+
+      // Holidays and Haircuts (append-only)
+      addHandler(query(collection(db, 'holidays'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setHolidayRecords(prev => mergeByNewest(prev, remote));
+      });
+      addHandler(query(collection(db, 'haircuts'), orderBy('date', 'desc'), limit(200)), (remote) => {
+        setHaircutRecords(prev => mergeByNewest(prev, remote));
+      });
+
+      // Showers (updates use lastUpdated)
+      addHandler(query(collection(db, 'showers'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setShowerRecords(prev => {
+          const merged = mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] });
+          // recompute slots based on merged showers and current laundry records
+          recomputeTodaySlots(merged, laundryRecords);
+          return merged;
+        });
+      });
+
+      // Laundry (updates use lastUpdated)
+      addHandler(query(collection(db, 'laundry'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setLaundryRecords(prev => {
+          const merged = mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] });
+          recomputeTodaySlots(showerRecords, merged);
+          return merged;
+        });
+      });
+
+      // Bicycles (may have updates; prefer lastUpdated)
+      addHandler(query(collection(db, 'bicycles'), orderBy('date', 'desc'), limit(500)), (remote) => {
+        setBicycleRecords(prev => mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] }));
+      });
+    };
+
+    subscribe();
+    return () => {
+      mounted = false;
+      for (const u of unsubscribers) {
+        try { u(); } catch { /* ignore */ }
+      }
+      unsubscribers = [];
+    };
+  }, [laundryRecords, showerRecords]);
 
   const resetAllData = async (options = { local: true, firestore: false, keepGuests: false }) => {
     try {
