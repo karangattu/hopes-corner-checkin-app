@@ -502,6 +502,18 @@ export const AppProvider = ({ children }) => {
     now.setHours(0, 0, 0, 0);
     return now >= next;
   };
+
+  const getDaysUntilAvailable = (guestId, item) => {
+    const last = getLastGivenItem(guestId, item);
+    if (!last) return 0;
+    const next = getNextAvailabilityDate(item, last.date);
+    if (!next) return 0;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diffMs = next.getTime() - now.getTime();
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
+  };
   const giveItem = (guestId, item) => {
     if (!canGiveItem(guestId, item)) {
       throw new Error('Limit reached for this item based on last given date.');
@@ -1216,6 +1228,90 @@ export const AppProvider = ({ children }) => {
     setActionHistory([]);
   };
 
+  const resetAllData = async (options = { local: true, firestore: false, keepGuests: false }) => {
+    try {
+      const { local = true, firestore = false, keepGuests = false } = options || {};
+
+      if (local) {
+        // Clear in-memory state
+        if (!keepGuests) setGuests([]);
+        setMealRecords([]);
+        setRvMealRecords([]);
+        setUnitedEffortMealRecords([]);
+        setExtraMealRecords([]);
+        setDayWorkerMealRecords([]);
+        setLunchBagRecords([]);
+        setShowerRecords([]);
+        setLaundryRecords([]);
+        setBicycleRecords([]);
+        setHolidayRecords([]);
+        setHaircutRecords([]);
+        setItemGivenRecords([]);
+        setDonationRecords([]);
+        setShowerSlots([]);
+        setLaundrySlots([]);
+        setActionHistory([]);
+
+        // Clear localStorage keys
+        if (!keepGuests) localStorage.removeItem('hopes-corner-guests');
+        localStorage.removeItem('hopes-corner-meal-records');
+        localStorage.removeItem('hopes-corner-rv-meal-records');
+        localStorage.removeItem('hopes-corner-united-effort-meal-records');
+        localStorage.removeItem('hopes-corner-extra-meal-records');
+        localStorage.removeItem('hopes-corner-day-worker-meal-records');
+        localStorage.removeItem('hopes-corner-shower-records');
+        localStorage.removeItem('hopes-corner-laundry-records');
+        localStorage.removeItem('hopes-corner-bicycle-records');
+        localStorage.removeItem('hopes-corner-holiday-records');
+        localStorage.removeItem('hopes-corner-haircut-records');
+        localStorage.removeItem('hopes-corner-item-records');
+        localStorage.removeItem('hopes-corner-donation-records');
+        localStorage.removeItem('hopes-corner-lunch-bag-records');
+        // keep settings by default
+      }
+
+      if (firestore && firestoreEnabled) {
+        try {
+          const db = await ensureDb();
+          if (db) {
+            const { collection, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+            const colls = [
+              { name: 'guests', keep: keepGuests },
+              { name: 'meals' },
+              { name: 'rvMeals' },
+              { name: 'unitedEffortMeals' },
+              { name: 'extraMeals' },
+              { name: 'dayWorkerMeals' },
+              { name: 'showers' },
+              { name: 'laundry' },
+              { name: 'bicycles' },
+              { name: 'holidays' },
+              { name: 'haircuts' },
+              { name: 'itemsGiven' },
+              { name: 'donations' },
+              { name: 'lunchBags' },
+            ];
+            for (const c of colls) {
+              if (c.keep) continue;
+              const snap = await getDocs(collection(db, c.name));
+              const promises = snap.docs.map(d => deleteDoc(doc(db, c.name, d.id)));
+              await Promise.all(promises);
+            }
+          }
+        } catch (err) {
+          console.warn('Firestore reset failed:', err);
+        }
+      }
+
+      toast.success('Data reset complete');
+      return true;
+    } catch (e) {
+      console.error('Error resetting data:', e);
+      toast.error('Failed to reset data');
+      return false;
+    }
+  };
+
   const value = {
     // State
     guests,
@@ -1285,6 +1381,7 @@ export const AppProvider = ({ children }) => {
     canGiveItem,
     getLastGivenItem,
     getNextAvailabilityDate,
+  getDaysUntilAvailable,
     addDonation,
     getRecentDonations,
     getTodayDonationsConsolidated,
@@ -1301,6 +1398,7 @@ export const AppProvider = ({ children }) => {
     actionHistory,
     undoAction,
     clearActionHistory
+    ,resetAllData
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

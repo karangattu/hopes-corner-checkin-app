@@ -25,7 +25,9 @@ import {
   Shirt,
   Bed,
   Backpack,
-  Bike
+  Bike,
+  TentTree,
+  Footprints
 } from 'lucide-react';
 import { useAppContext } from '../../context/useAppContext';
 import ShowerBooking from '../../components/ShowerBooking';
@@ -71,6 +73,7 @@ const Services = () => {
     getLastGivenItem,
     giveItem,
     getNextAvailabilityDate,
+  getDaysUntilAvailable,
     bicycleRecords,
     updateBicycleRecord,
     deleteBicycleRecord,
@@ -948,6 +951,11 @@ const Services = () => {
                 const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
                 const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
                 const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
+                const daysT = guest ? getDaysUntilAvailable(guest.id, 'tshirt') : 0;
+                const daysSB = guest ? getDaysUntilAvailable(guest.id, 'sleeping_bag') : 0;
+                const daysBP = guest ? getDaysUntilAvailable(guest.id, 'backpack') : 0;
+                const daysTent = guest ? getDaysUntilAvailable(guest.id, 'tent') : 0;
+                const daysFF = guest ? getDaysUntilAvailable(guest.id, 'flip_flops') : 0;
                 const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
                 const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
                 const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
@@ -1007,45 +1015,80 @@ const Services = () => {
                             if (!guest) return;
                             try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); }
                           }}
-                          title={lastTGuest ? `T-Shirt last: ${new Date(lastTGuest.date).toLocaleDateString()}` : 'Give T-Shirt'}
+                          title={canT ? 'Give T-Shirt' : `Available on ${getNextAvailabilityDate('tshirt', lastTGuest?.date)?.toLocaleDateString('en-CA')} (${daysT} day${daysT===1?'':'s'})`}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >Give T-Shirt</button>
+                        >
+                          <span>Give T-Shirt</span>
+                          {!canT && daysT > 0 && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              {daysT}d
+                            </span>
+                          )}
+                        </button>
                         <button
                           disabled={!canSB}
                           onClick={() => {
                             if (!guest) return;
                             try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); }
                           }}
-                          title={lastSBGuest ? `Sleeping Bag last: ${new Date(lastSBGuest.date).toLocaleDateString()}` : 'Give Sleeping Bag'}
+                          title={canSB ? 'Give Sleeping Bag' : `Available on ${getNextAvailabilityDate('sleeping_bag', lastSBGuest?.date)?.toLocaleDateString('en-CA')} (${daysSB} day${daysSB===1?'':'s'})`}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >Give Sleeping Bag</button>
+                        >
+                          <span>Give Sleeping Bag</span>
+                          {!canSB && daysSB > 0 && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              {daysSB}d
+                            </span>
+                          )}
+                        </button>
                         <button
                           disabled={!canBP}
                           onClick={() => {
                             if (!guest) return;
                             try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); }
                           }}
-                          title={lastBPGuest ? `Backpack last: ${new Date(lastBPGuest.date).toLocaleDateString()}` : 'Give Backpack'}
+                          title={canBP ? 'Give Backpack' : `Available on ${getNextAvailabilityDate('backpack', lastBPGuest?.date)?.toLocaleDateString('en-CA')} (${daysBP} day${daysBP===1?'':'s'})`}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >Give Backpack</button>
+                        >
+                          <span>Give Backpack</span>
+                          {!canBP && daysBP > 0 && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              {daysBP}d
+                            </span>
+                          )}
+                        </button>
                         <button
                           disabled={!canTent}
                           onClick={() => {
                             if (!guest) return;
                             try { giveItem(guest.id, 'tent'); toast.success('Tent given'); } catch (e) { toast.error(e.message); }
                           }}
-                          title={lastTentGuest ? `Tent last: ${new Date(lastTentGuest.date).toLocaleDateString()}` : 'Give Tent'}
+                          title={canTent ? 'Give Tent' : `Available on ${getNextAvailabilityDate('tent', lastTentGuest?.date)?.toLocaleDateString('en-CA')} (${daysTent} day${daysTent===1?'':'s'})`}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >Give Tent</button>
+                        >
+                          <span>Give Tent</span>
+                          {!canTent && daysTent > 0 && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              {daysTent}d
+                            </span>
+                          )}
+                        </button>
                         <button
                           disabled={!canFF}
                           onClick={() => {
                             if (!guest) return;
                             try { giveItem(guest.id, 'flip_flops'); toast.success('Flip Flops given'); } catch (e) { toast.error(e.message); }
                           }}
-                          title={lastFFGuest ? `Flip Flops last: ${new Date(lastFFGuest.date).toLocaleDateString()}` : 'Give Flip Flops'}
+                          title={canFF ? 'Give Flip Flops' : `Available on ${getNextAvailabilityDate('flip_flops', lastFFGuest?.date)?.toLocaleDateString('en-CA')} (${daysFF} day${daysFF===1?'':'s'})`}
                           className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >Give Flip Flops</button>
+                        >
+                          <span>Give Flip Flops</span>
+                          {!canFF && daysFF > 0 && (
+                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                              {daysFF}d
+                            </span>
+                          )}
+                        </button>
                       </div>
                       <div className="text-xs text-gray-600 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
                         <div className="flex flex-col">
@@ -1057,7 +1100,7 @@ const Services = () => {
                             {lastTGuest ? (
                               <div>
                                 <div>Last: {new Date(lastTGuest.date).toLocaleDateString()}</div>
-                                {!canT && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tshirt', lastTGuest.date)?.toLocaleDateString()}</div>}
+                                {!canT && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tshirt', lastTGuest.date)?.toLocaleDateString('en-CA')} ({daysT}d)</div>}
                                 {canT && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
@@ -1074,7 +1117,7 @@ const Services = () => {
                             {lastSBGuest ? (
                               <div>
                                 <div>Last: {new Date(lastSBGuest.date).toLocaleDateString()}</div>
-                                {!canSB && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('sleeping_bag', lastSBGuest.date)?.toLocaleDateString()}</div>}
+                                {!canSB && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('sleeping_bag', lastSBGuest.date)?.toLocaleDateString('en-CA')} ({daysSB}d)</div>}
                                 {canSB && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
@@ -1091,7 +1134,7 @@ const Services = () => {
                             {lastBPGuest ? (
                               <div>
                                 <div>Last: {new Date(lastBPGuest.date).toLocaleDateString()}</div>
-                                {!canBP && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('backpack', lastBPGuest.date)?.toLocaleDateString()}</div>}
+                                {!canBP && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('backpack', lastBPGuest.date)?.toLocaleDateString('en-CA')} ({daysBP}d)</div>}
                                 {canBP && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
@@ -1101,15 +1144,14 @@ const Services = () => {
                         </div>
                         <div className="flex flex-col">
                           <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            {/* Reusing Backpack icon for tent for now */}
-                            <Backpack size={14} className="text-blue-600" />
+                            <TentTree size={14} className="text-blue-600" />
                             Tent (Monthly)
                           </span>
                           <div className="text-gray-700">
                             {lastTentGuest ? (
                               <div>
                                 <div>Last: {new Date(lastTentGuest.date).toLocaleDateString()}</div>
-                                {!canTent && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tent', lastTentGuest.date)?.toLocaleDateString()}</div>}
+                                {!canTent && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tent', lastTentGuest.date)?.toLocaleDateString('en-CA')} ({daysTent}d)</div>}
                                 {canTent && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
@@ -1119,15 +1161,14 @@ const Services = () => {
                         </div>
                         <div className="flex flex-col">
                           <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            {/* Reusing Shirt icon for flip flops */}
-                            <Shirt size={14} className="text-blue-600" />
+                            <Footprints size={14} className="text-blue-600" />
                             Flip Flops (Monthly)
                           </span>
                           <div className="text-gray-700">
                             {lastFFGuest ? (
                               <div>
                                 <div>Last: {new Date(lastFFGuest.date).toLocaleDateString()}</div>
-                                {!canFF && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('flip_flops', lastFFGuest.date)?.toLocaleDateString()}</div>}
+                                {!canFF && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('flip_flops', lastFFGuest.date)?.toLocaleDateString('en-CA')} ({daysFF}d)</div>}
                                 {canFF && <div className="text-green-600 font-medium">✓ Available now</div>}
                               </div>
                             ) : (
@@ -1178,9 +1219,45 @@ const Services = () => {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button disabled={!canT} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give T-Shirt</button>
-                      <button disabled={!canSB} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Sleeping Bag</button>
-                      <button disabled={!canBP} onClick={() => { if (!guest) return; try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); } }} className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50">Give Backpack</button>
+                      <button
+                        disabled={!canT}
+                        title={canT ? 'Give T-Shirt' : `Available on ${getNextAvailabilityDate('tshirt', getLastGivenItem(guest?.id,'tshirt')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'tshirt')}d)`}
+                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); } }}
+                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
+                      >
+                        <span>Give T-Shirt</span>
+                        {!canT && getDaysUntilAvailable(guest?.id,'tshirt') > 0 && (
+                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                            {getDaysUntilAvailable(guest?.id,'tshirt')}d
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        disabled={!canSB}
+                        title={canSB ? 'Give Sleeping Bag' : `Available on ${getNextAvailabilityDate('sleeping_bag', getLastGivenItem(guest?.id,'sleeping_bag')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'sleeping_bag')}d)`}
+                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); } }}
+                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
+                      >
+                        <span>Give Sleeping Bag</span>
+                        {!canSB && getDaysUntilAvailable(guest?.id,'sleeping_bag') > 0 && (
+                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                            {getDaysUntilAvailable(guest?.id,'sleeping_bag')}d
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        disabled={!canBP}
+                        title={canBP ? 'Give Backpack' : `Available on ${getNextAvailabilityDate('backpack', getLastGivenItem(guest?.id,'backpack')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'backpack')}d)`}
+                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); } }}
+                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
+                      >
+                        <span>Give Backpack</span>
+                        {!canBP && getDaysUntilAvailable(guest?.id,'backpack') > 0 && (
+                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                            {getDaysUntilAvailable(guest?.id,'backpack')}d
+                          </span>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </Animated.li>

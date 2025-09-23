@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import {
   BarChart3,
   Utensils,
@@ -11,7 +12,7 @@ import {
   FileText,
   Upload
 } from 'lucide-react';
-import { Scissors, Gift, Bike } from 'lucide-react';
+import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert } from 'lucide-react';
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
@@ -39,7 +40,8 @@ const Dashboard = () => {
     haircutRecords,
     holidayRecords,
     bicycleRecords,
-    donationRecords
+    donationRecords,
+    resetAllData
   } = useAppContext();
 
   const [activeSection, setActiveSection] = useState('overview');
@@ -285,7 +287,8 @@ const Dashboard = () => {
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'batch-upload', label: 'Batch Upload', icon: Upload },
     { id: 'donations', label: 'Donations', icon: FileText },
-    { id: 'export', label: 'Data Export', icon: Download }
+    { id: 'export', label: 'Data Export', icon: Download },
+    { id: 'system', label: 'System', icon: ShieldAlert }
   ];
 
   const renderSectionContent = () => {
@@ -300,6 +303,8 @@ const Dashboard = () => {
         return renderExportSection();
       case 'donations':
         return renderDonationsSection();
+      case 'system':
+        return renderSystemSection();
       default:
         return renderOverviewSection();
     }
@@ -636,6 +641,61 @@ const Dashboard = () => {
   const renderDonationsSection = () => (
     <div className="space-y-6">
       <Donations />
+    </div>
+  );
+
+  const [resetOptions, setResetOptions] = useState({ local: true, firestore: false, keepGuests: false });
+  const [isResetting, setIsResetting] = useState(false);
+  const renderSystemSection = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm border p-4">
+        <h2 className="text-lg font-medium mb-2 flex items-center gap-2 text-red-700">
+          <ShieldAlert size={18} /> System Utilities
+        </h2>
+        <p className="text-sm text-gray-600 mb-4">Tools for testing and maintenance. Use with caution.</p>
+
+        <div className="border rounded p-3 bg-red-50 border-red-200">
+          <div className="flex items-center gap-2 text-red-800 font-semibold mb-2">
+            <AlertTriangle size={16} /> Reset Database
+          </div>
+          <p className="text-sm text-red-900 mb-3">Clears records from this device's storage. If connected to Firestore and enabled, can also clear cloud collections.</p>
+
+          <div className="flex flex-col sm:flex-row gap-3 mb-3">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={resetOptions.local} onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))} />
+              <span>Clear local data (this device)</span>
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={resetOptions.firestore} onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked }))} />
+              <span>Also clear Firestore data</span>
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={resetOptions.keepGuests} onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))} />
+              <span>Keep guest list</span>
+            </label>
+          </div>
+
+          <button
+            disabled={isResetting || (!resetOptions.local && !resetOptions.firestore)}
+            onClick={async () => {
+              const proceed = window.confirm('Are you sure? This will permanently delete data based on selected options.');
+              if (!proceed) return;
+              setIsResetting(true);
+              try {
+                await resetAllData(resetOptions);
+                toast.success('Database reset complete');
+              } catch (e) {
+                toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
+              } finally {
+                setIsResetting(false);
+              }
+            }}
+            className={`px-4 py-2 rounded text-sm font-medium ${isResetting ? 'bg-red-300 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+          >
+            {isResetting ? 'Resetting…' : 'Reset Selected Data'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 
