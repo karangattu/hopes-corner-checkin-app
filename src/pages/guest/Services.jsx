@@ -489,6 +489,32 @@ const Services = () => {
     { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike }
   ];
 
+  const currentSectionMeta = sections.find(s => s.id === activeSection) || sections[0];
+
+  const Breadcrumbs = () => {
+    return (
+      <nav aria-label="Breadcrumb" className="text-xs sm:text-sm mb-4 flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setActiveSection('overview')}
+          className={`hover:underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded px-1 ${activeSection === 'overview' ? 'font-semibold text-blue-700' : 'text-gray-600'}`}
+        >Dashboard</button>
+        <span className="text-gray-400">/</span>
+        {activeSection !== 'overview' ? (
+          <>
+            <button
+              onClick={() => setActiveSection(currentSectionMeta.id)}
+              className="font-semibold text-gray-900 flex items-center gap-1 px-1 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded"
+            >
+              <currentSectionMeta.icon size={14} /> {currentSectionMeta.label}
+            </button>
+          </>
+        ) : (
+          <span className="text-gray-500">Home</span>
+        )}
+      </nav>
+    );
+  };
+
 
   const renderOverviewSection = () => {
     const tm = todayMetrics || { mealsServed: 0, showersBooked: 0, laundryLoads: 0 };
@@ -1464,6 +1490,7 @@ const Services = () => {
       )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-4 md:mb-6 sticky top-0 z-10">
+  <div className="mb-2 px-1"><Breadcrumbs /></div>
         <nav className="flex flex-wrap gap-1">
           {sections.map((section) => {
             const Icon = section.icon;
