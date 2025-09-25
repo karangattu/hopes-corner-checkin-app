@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import {
   ClipboardList,
@@ -34,13 +34,16 @@ import {
   Backpack,
   Bike,
   TentTree,
-  Footprints
+  Footprints,
+  TrendingUp,
+  Download
 } from 'lucide-react';
 import { useAppContext } from '../../context/useAppContext';
 import ShowerBooking from '../../components/ShowerBooking';
 import LaundryBooking from '../../components/LaundryBooking';
 import Selectize from '../../components/Selectize';
 import DonutCard from '../../components/charts/DonutCard';
+import TrendLine from '../../components/charts/TrendLine';
 import { useFadeInUp, useScaleIn, useStagger, animated as Animated, SpringIcon } from '../../utils/animations';
 import { todayPacificDateString, pacificDateStringFrom } from '../../utils/date';
 
@@ -244,13 +247,223 @@ const Services = () => {
   const activeShowers = filteredShowers.filter(record => record.status !== 'done');
   const completedShowers = filteredShowers.filter(record => record.status === 'done');
 
-  const completedLaundryStatuses = new Set([
+  const completedLaundryStatuses = useMemo(() => new Set([
     LAUNDRY_STATUS?.DONE,
     LAUNDRY_STATUS?.PICKED_UP,
     LAUNDRY_STATUS?.RETURNED,
     LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+  ]), [LAUNDRY_STATUS]);
+  const isLaundryCompleted = useCallback((status) => completedLaundryStatuses.has(status), [completedLaundryStatuses]);
+
+  const isCompletedBicycleStatus = useCallback((status) => {
+    const normalized = (status || '').toString().toLowerCase();
+    return !status || normalized === 'done' || normalized === 'completed' || normalized === 'ready' || normalized === 'finished';
+  }, []);
+
+  const toCountValue = useCallback((value) => (typeof value === 'number' ? value : Number(value) || 0), []);
+
+  const monthAggregates = useMemo(() => {
+    const now = new Date();
+    const monthStartPT = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(now.getFullYear(), now.getMonth(), 1));
+
+    const inMonth = (iso) => {
+      if (!iso) return false;
+      const formatted = pacificDateStringFrom(iso);
+      return formatted ? formatted >= monthStartPT : false;
+    };
+
+    const sumCount = (records = []) => records.reduce((sum, record) => sum + toCountValue(record?.count), 0);
+
+    const mealTotal =
+      sumCount((mealRecords || []).filter(r => inMonth(r.date))) +
+      sumCount((rvMealRecords || []).filter(r => inMonth(r.date))) +
+      sumCount((unitedEffortMealRecords || []).filter(r => inMonth(r.date))) +
+      sumCount((extraMealRecords || []).filter(r => inMonth(r.date))) +
+      sumCount((dayWorkerMealRecords || []).filter(r => inMonth(r.date))) +
+      sumCount((lunchBagRecords || []).filter(r => inMonth(r.date)));
+
+    return {
+      mealsServed: mealTotal,
+      showersBooked: (showerRecords || []).filter(r => inMonth(r.date) && r.status === 'done').length,
+      laundryLoads: (laundryRecords || []).filter(r => inMonth(r.date) && isLaundryCompleted(r.status)).length,
+      haircuts: (haircutRecords || []).filter(r => inMonth(r.date)).length,
+      holidays: (holidayRecords || []).filter(r => inMonth(r.date)).length,
+      bicycles: (bicycleRecords || []).filter(r => inMonth(r.date) && isCompletedBicycleStatus(r.status)).length,
+    };
+  }, [
+    mealRecords,
+    rvMealRecords,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+    showerRecords,
+    laundryRecords,
+    haircutRecords,
+    holidayRecords,
+    bicycleRecords,
+    isLaundryCompleted,
+    isCompletedBicycleStatus,
+    toCountValue,
   ]);
-  const isLaundryCompleted = (status) => completedLaundryStatuses.has(status);
+
+  const yearAggregates = useMemo(() => {
+    const now = new Date();
+    const yearStartPT = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(now.getFullYear(), 0, 1));
+
+    const inYear = (iso) => {
+      if (!iso) return false;
+      const formatted = pacificDateStringFrom(iso);
+      return formatted ? formatted >= yearStartPT : false;
+    };
+
+    const sumCount = (records = []) => records.reduce((sum, record) => sum + toCountValue(record?.count), 0);
+
+    const mealTotal =
+      sumCount((mealRecords || []).filter(r => inYear(r.date))) +
+      sumCount((rvMealRecords || []).filter(r => inYear(r.date))) +
+      sumCount((unitedEffortMealRecords || []).filter(r => inYear(r.date))) +
+      sumCount((extraMealRecords || []).filter(r => inYear(r.date))) +
+      sumCount((dayWorkerMealRecords || []).filter(r => inYear(r.date))) +
+      sumCount((lunchBagRecords || []).filter(r => inYear(r.date)));
+
+    return {
+      mealsServed: mealTotal,
+      showersBooked: (showerRecords || []).filter(r => inYear(r.date) && r.status === 'done').length,
+      laundryLoads: (laundryRecords || []).filter(r => inYear(r.date) && isLaundryCompleted(r.status)).length,
+      haircuts: (haircutRecords || []).filter(r => inYear(r.date)).length,
+      holidays: (holidayRecords || []).filter(r => inYear(r.date)).length,
+      bicycles: (bicycleRecords || []).filter(r => inYear(r.date) && isCompletedBicycleStatus(r.status)).length,
+    };
+  }, [
+    mealRecords,
+    rvMealRecords,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+    showerRecords,
+    laundryRecords,
+    haircutRecords,
+    holidayRecords,
+    bicycleRecords,
+    isLaundryCompleted,
+    isCompletedBicycleStatus,
+    toCountValue,
+  ]);
+
+  const dailyServiceTotals = useMemo(() => {
+    const entries = new Map();
+    const ensureEntry = (day) => {
+      if (!day) return null;
+      if (!entries.has(day)) {
+        entries.set(day, {
+          date: day,
+          meals: 0,
+          showers: 0,
+          laundry: 0,
+          haircuts: 0,
+          holidays: 0,
+          bicycles: 0,
+        });
+      }
+      return entries.get(day);
+    };
+
+    const addValue = (dateInput, key, amount = 1) => {
+      if (amount === 0 || amount === undefined || amount === null) return;
+      const day = pacificDateStringFrom(dateInput);
+      if (!day) return;
+      const entry = ensureEntry(day);
+      if (entry) {
+        entry[key] += amount;
+      }
+    };
+
+    (mealRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+    (rvMealRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+    (unitedEffortMealRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+    (extraMealRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+    (dayWorkerMealRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+    (lunchBagRecords || []).forEach(record => addValue(record?.date, 'meals', toCountValue(record?.count)));
+
+    (showerRecords || []).forEach(record => {
+      if (record?.status === 'done') {
+        addValue(record?.date, 'showers', 1);
+      }
+    });
+
+    (laundryRecords || []).forEach(record => {
+      if (isLaundryCompleted(record?.status)) {
+        addValue(record?.date, 'laundry', 1);
+      }
+    });
+
+    (haircutRecords || []).forEach(record => addValue(record?.date, 'haircuts', 1));
+    (holidayRecords || []).forEach(record => addValue(record?.date, 'holidays', 1));
+    (bicycleRecords || []).forEach(record => {
+      if (isCompletedBicycleStatus(record?.status)) {
+        addValue(record?.date, 'bicycles', 1);
+      }
+    });
+
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    const today = new Date();
+    const windowDays = 30;
+    const timeline = [];
+    for (let offset = windowDays - 1; offset >= 0; offset -= 1) {
+      const ref = new Date(today);
+      ref.setDate(ref.getDate() - offset);
+      const key = formatter.format(ref);
+      const existing = entries.get(key);
+      if (existing) {
+        timeline.push({ ...existing });
+      } else {
+        timeline.push({
+          date: key,
+          meals: 0,
+          showers: 0,
+          laundry: 0,
+          haircuts: 0,
+          holidays: 0,
+          bicycles: 0,
+        });
+      }
+    }
+
+    return timeline;
+  }, [
+    mealRecords,
+    rvMealRecords,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+    showerRecords,
+    laundryRecords,
+    haircutRecords,
+    holidayRecords,
+    bicycleRecords,
+    isLaundryCompleted,
+    isCompletedBicycleStatus,
+    toCountValue,
+  ]);
 
   const activeLaundry = filteredLaundry.filter(record => !isLaundryCompleted(record.status));
   const completedLaundry = filteredLaundry.filter(record => isLaundryCompleted(record.status));
@@ -609,7 +822,9 @@ const Services = () => {
     { id: 'meals', label: 'Meals', icon: Utensils },
     { id: 'showers', label: 'Showers', icon: ShowerHead },
     { id: 'laundry', label: 'Laundry', icon: WashingMachine },
-    { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike }
+    { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike },
+    { id: 'reports', label: 'Insights & data', icon: TrendingUp },
+    { id: 'export', label: 'Data export', icon: Download }
   ];
 
   const currentSectionMeta = sections.find(s => s.id === activeSection) || sections[0];
@@ -653,54 +868,21 @@ const Services = () => {
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {});
-    const now = new Date();
-    const isInMonth = (iso) => {
-      if (!iso) return false;
-      const date = new Date(iso);
-      if (Number.isNaN(date.getTime())) return false;
-      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    const monthMetrics = monthAggregates ?? {
+      mealsServed: 0,
+      showersBooked: 0,
+      laundryLoads: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
     };
-    const isInYear = (iso) => {
-      if (!iso) return false;
-      const date = new Date(iso);
-      if (Number.isNaN(date.getTime())) return false;
-      return date.getFullYear() === now.getFullYear();
-    };
-    const toCount = (value) => (typeof value === 'number' ? value : Number(value) || 0);
-    const sumCount = (records = []) => records.reduce((sum, record) => sum + toCount(record?.count), 0);
-    const monthMealsCount =
-      sumCount((mealRecords || []).filter(r => isInMonth(r.date))) +
-      sumCount((rvMealRecords || []).filter(r => isInMonth(r.date))) +
-      sumCount((unitedEffortMealRecords || []).filter(r => isInMonth(r.date))) +
-      sumCount((extraMealRecords || []).filter(r => isInMonth(r.date))) +
-      sumCount((dayWorkerMealRecords || []).filter(r => isInMonth(r.date))) +
-      sumCount((lunchBagRecords || []).filter(r => isInMonth(r.date)));
-    const monthShowersCompleted = (showerRecords || []).filter(r => isInMonth(r.date) && r.status === 'done').length;
-    const monthLaundryLoads = (laundryRecords || []).filter(r => isInMonth(r.date) && isLaundryCompleted(r.status)).length;
-    const monthMetrics = {
-      mealsServed: monthMealsCount,
-      showersBooked: monthShowersCompleted,
-      laundryLoads: monthLaundryLoads,
-      haircuts: (haircutRecords || []).filter(r => isInMonth(r.date)).length,
-      holidays: (holidayRecords || []).filter(r => isInMonth(r.date)).length,
-      bicycles: (bicycleRecords || []).filter(r => isInMonth(r.date)).length,
-    };
-    const yearMealsCount =
-      sumCount((mealRecords || []).filter(r => isInYear(r.date))) +
-      sumCount((rvMealRecords || []).filter(r => isInYear(r.date))) +
-      sumCount((unitedEffortMealRecords || []).filter(r => isInYear(r.date))) +
-      sumCount((extraMealRecords || []).filter(r => isInYear(r.date))) +
-      sumCount((dayWorkerMealRecords || []).filter(r => isInYear(r.date))) +
-      sumCount((lunchBagRecords || []).filter(r => isInYear(r.date)));
-    const yearShowersCompleted = (showerRecords || []).filter(r => isInYear(r.date) && r.status === 'done').length;
-    const yearLaundryLoads = (laundryRecords || []).filter(r => isInYear(r.date) && isLaundryCompleted(r.status)).length;
-    const yearMetrics = {
-      mealsServed: yearMealsCount,
-      showersBooked: yearShowersCompleted,
-      laundryLoads: yearLaundryLoads,
-      haircuts: (haircutRecords || []).filter(r => isInYear(r.date)).length,
-      holidays: (holidayRecords || []).filter(r => isInYear(r.date)).length,
-      bicycles: (bicycleRecords || []).filter(r => isInYear(r.date)).length,
+    const yearMetrics = yearAggregates ?? {
+      mealsServed: 0,
+      showersBooked: 0,
+      laundryLoads: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
     };
     const showersCompletedToday = todayShowerRecords.filter(record => record.status === 'done').length;
     const activeShowersCount = activeShowers.length;
@@ -990,6 +1172,341 @@ const Services = () => {
             );
           })}
         </Animated.div>
+      </div>
+    );
+  };
+
+  const renderReportsSection = () => {
+    const tm = {
+      mealsServed: todayMetrics?.mealsServed ?? 0,
+      showersBooked: todayMetrics?.showersBooked ?? 0,
+      laundryLoads: todayMetrics?.laundryLoads ?? 0,
+      haircuts: todayMetrics?.haircuts ?? 0,
+      holidays: todayMetrics?.holidays ?? 0,
+      bicycles: todayMetrics?.bicycles ?? 0,
+    };
+
+    const monthMetrics = monthAggregates ?? {
+      mealsServed: 0,
+      showersBooked: 0,
+      laundryLoads: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
+    };
+    const yearMetrics = yearAggregates ?? {
+      mealsServed: 0,
+      showersBooked: 0,
+      laundryLoads: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
+    };
+
+    const today = new Date();
+    const monthDaysElapsed = Math.max(1, today.getDate());
+    const oneDayMs = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.max(1, Math.floor((today - new Date(today.getFullYear(), 0, 0)) / oneDayMs));
+    const lastSevenWindow = dailyServiceTotals.slice(-7);
+    const lastSevenTotals = lastSevenWindow.reduce((acc, day) => ({
+      meals: acc.meals + (day?.meals ?? 0),
+      showers: acc.showers + (day?.showers ?? 0),
+      laundry: acc.laundry + (day?.laundry ?? 0),
+      haircuts: acc.haircuts + (day?.haircuts ?? 0),
+      holidays: acc.holidays + (day?.holidays ?? 0),
+      bicycles: acc.bicycles + (day?.bicycles ?? 0),
+    }), { meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0, bicycles: 0 });
+
+    const metricCards = [
+      {
+        id: 'meals',
+        label: 'Meals served',
+        icon: Utensils,
+        iconBg: 'bg-emerald-100',
+        iconColor: 'text-emerald-600',
+        monthTotal: monthMetrics.mealsServed,
+        monthAvg: Math.round(monthMetrics.mealsServed / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.mealsServed,
+        yearAvg: Math.round(yearMetrics.mealsServed / dayOfYear) || 0,
+        todayTotal: tm.mealsServed,
+        weekTotal: lastSevenTotals.meals,
+      },
+      {
+        id: 'showers',
+        label: 'Showers completed',
+        icon: ShowerHead,
+        iconBg: 'bg-sky-100',
+        iconColor: 'text-sky-600',
+        monthTotal: monthMetrics.showersBooked,
+        monthAvg: Math.round(monthMetrics.showersBooked / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.showersBooked,
+        yearAvg: Math.round(yearMetrics.showersBooked / dayOfYear) || 0,
+        todayTotal: tm.showersBooked,
+        weekTotal: lastSevenTotals.showers,
+      },
+      {
+        id: 'laundry',
+        label: 'Laundry loads',
+        icon: WashingMachine,
+        iconBg: 'bg-purple-100',
+        iconColor: 'text-purple-600',
+        monthTotal: monthMetrics.laundryLoads,
+        monthAvg: Math.round(monthMetrics.laundryLoads / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.laundryLoads,
+        yearAvg: Math.round(yearMetrics.laundryLoads / dayOfYear) || 0,
+        todayTotal: tm.laundryLoads,
+        weekTotal: lastSevenTotals.laundry,
+      },
+      {
+        id: 'haircuts',
+        label: 'Haircuts',
+        icon: Scissors,
+        iconBg: 'bg-pink-100',
+        iconColor: 'text-pink-600',
+        monthTotal: monthMetrics.haircuts,
+        monthAvg: Math.round(monthMetrics.haircuts / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.haircuts,
+        yearAvg: Math.round(yearMetrics.haircuts / dayOfYear) || 0,
+        todayTotal: tm.haircuts,
+        weekTotal: lastSevenTotals.haircuts,
+      },
+      {
+        id: 'holidays',
+        label: 'Holiday support',
+        icon: Gift,
+        iconBg: 'bg-amber-100',
+        iconColor: 'text-amber-600',
+        monthTotal: monthMetrics.holidays,
+        monthAvg: Math.round(monthMetrics.holidays / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.holidays,
+        yearAvg: Math.round(yearMetrics.holidays / dayOfYear) || 0,
+        todayTotal: tm.holidays,
+        weekTotal: lastSevenTotals.holidays,
+      },
+      {
+        id: 'bicycles',
+        label: 'Bicycle repairs',
+        icon: Bike,
+        iconBg: 'bg-sky-100',
+        iconColor: 'text-sky-600',
+        monthTotal: monthMetrics.bicycles,
+        monthAvg: Math.round(monthMetrics.bicycles / monthDaysElapsed) || 0,
+        yearTotal: yearMetrics.bicycles,
+        yearAvg: Math.round(yearMetrics.bicycles / dayOfYear) || 0,
+        todayTotal: tm.bicycles,
+        weekTotal: lastSevenTotals.bicycles,
+      },
+    ];
+
+    const chartHasData = dailyServiceTotals.some(day => (day?.meals || day?.showers || day?.laundry || day?.haircuts || day?.holidays || day?.bicycles));
+    const laundryMealRatio = monthMetrics.mealsServed ? Math.round((monthMetrics.laundryLoads / Math.max(1, monthMetrics.mealsServed)) * 100) : 0;
+    const weeklyLaundryAvg = Math.round(lastSevenTotals.laundry / Math.max(1, lastSevenWindow.length)) || 0;
+    const weeklyShowersAvg = Math.round(lastSevenTotals.showers / Math.max(1, lastSevenWindow.length)) || 0;
+
+    const insightCards = [
+      {
+        id: 'meals-insight',
+        title: 'Meals momentum',
+        stat: `${monthMetrics.mealsServed.toLocaleString()} meals MTD`,
+        description: `Averaging ${Math.round(monthMetrics.mealsServed / monthDaysElapsed).toLocaleString()} per day with ${lastSevenTotals.meals.toLocaleString()} served over the last seven days.`,
+      },
+      {
+        id: 'laundry-insight',
+        title: 'Laundry throughput',
+        stat: `${monthMetrics.laundryLoads.toLocaleString()} loads`,
+        description: `${laundryMealRatio}% of meal visits included laundry this month. Roughly ${weeklyLaundryAvg.toLocaleString()} loads per day over the last week.`,
+      },
+      {
+        id: 'showers-insight',
+        title: 'Shower coverage',
+        stat: `${monthMetrics.showersBooked.toLocaleString()} showers`,
+        description: `Completing about ${weeklyShowersAvg.toLocaleString()} showers per day this week. Year to date you have supported ${yearMetrics.showersBooked.toLocaleString()} showers.`,
+      },
+      {
+        id: 'bicycle-insight',
+        title: 'Bike shop impact',
+        stat: `${monthMetrics.bicycles.toLocaleString()} repairs`,
+        description: `${lastSevenTotals.bicycles.toLocaleString()} bicycles were finished this week. Keep statuses updated so the queue stays accurate.`,
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <TrendingUp className="text-blue-600" size={20} />
+                Service insights & trends
+              </h2>
+              <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+                Monitor momentum across every service. Use these numbers when planning volunteer staffing or reporting out to the board.
+              </p>
+            </div>
+            <span className="text-xs font-semibold bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100">
+              Updated {today.toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {metricCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${card.iconBg}`}>
+                    <Icon size={20} className={card.iconColor} />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-500">{card.label}</p>
+                    <p className="text-2xl font-semibold text-gray-900">{card.monthTotal.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  MTD avg {card.monthAvg.toLocaleString()} / day · Today {card.todayTotal.toLocaleString()}
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase">7-day total</p>
+                    <p className="text-lg font-semibold text-gray-900">{card.weekTotal.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase">Year to date</p>
+                    <p className="text-lg font-semibold text-gray-900">{card.yearTotal.toLocaleString()}</p>
+                    <p className="text-[11px] text-gray-500">Avg {card.yearAvg.toLocaleString()} / day</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 flex items-center gap-2">
+                <History size={14} /> 30-day activity trend
+              </h3>
+              <span className="text-xs text-gray-400">Rolling daily totals</span>
+            </div>
+            {chartHasData ? (
+              <TrendLine days={dailyServiceTotals} metrics={['meals', 'showers', 'laundry']} />
+            ) : (
+              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">
+                No chart data recorded yet. Log services to build a 30-day view.
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 flex items-center gap-2">
+              <Sparkles size={14} className="text-amber-500" /> Key insights
+            </h3>
+            <ul className="space-y-4">
+              {insightCards.map((insight) => (
+                <li key={insight.id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-4 space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{insight.title}</div>
+                  <div className="text-lg font-semibold text-gray-900">{insight.stat}</div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{insight.description}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Need a CSV?</p>
+              <p className="text-sm text-blue-700 mt-1">Jump to the data export tab to download roster and template files.</p>
+              <button
+                type="button"
+                onClick={() => setActiveSection('export')}
+                className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500"
+              >
+                <Download size={14} /> Open data exports
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExportSection = () => {
+    const exportCards = [
+      {
+        id: 'guest-roster',
+        title: 'Guest roster (.csv)',
+        description: 'Download the latest roster with preferred names for offline check-in or reporting.',
+        icon: Users,
+        href: '/guest_list.csv',
+        meta: `${guests.length.toLocaleString()} guests currently in the system`,
+      },
+      {
+        id: 'guest-template',
+        title: 'Guest import template',
+        description: 'Start new batch uploads with the official column headers and sample formatting.',
+        icon: SquarePlus,
+        href: '/guest_template.csv',
+        meta: 'CSV includes notes for email/phone columns',
+      },
+    ];
+
+    const bestPractices = [
+      'Add the date to exported filenames, e.g., "services-2025-03-15.csv" for easier retrieval later.',
+      'Store downloads in a secure shared drive (Google Drive, SharePoint, etc.) so the whole team can access the history.',
+      'Capture exports before clearing queues or using the System Utilities reset to keep an audit trail.',
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col gap-2">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <Download className="text-slate-600" size={20} /> Data exports & backups
+          </h2>
+          <p className="text-sm text-gray-500 max-w-2xl">
+            Keep reliable offsite copies of your records. The links below pull the same files used throughout the dashboard so you can archive them or share with partners.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {exportCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <a
+                key={card.id}
+                href={card.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="group bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all p-5 flex flex-col gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Icon size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 group-hover:text-blue-700">{card.title}</h3>
+                    <p className="text-xs text-blue-600 font-semibold">Opens in a new tab</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{card.description}</p>
+                <span className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-full px-3 py-1 self-start">{card.meta}</span>
+              </a>
+            );
+          })}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 flex items-center gap-2">
+            <ClipboardList size={14} /> Record keeping best practices
+          </h3>
+          <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
+            {bestPractices.map((tip, index) => (
+              <li key={index}>{tip}</li>
+            ))}
+          </ul>
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-600">
+            Looking for richer analytics? Visit the Admin Dashboard &rarr; Reports tab to export combined meal, laundry, and shower summaries by date range.
+          </div>
+        </div>
       </div>
     );
   };
@@ -1340,6 +1857,10 @@ const Services = () => {
         return renderLaundrySection();
       case 'bicycles':
         return renderBicycleRepairsSection();
+      case 'reports':
+        return renderReportsSection();
+      case 'export':
+        return renderExportSection();
       default:
         return renderOverviewSection();
     }
