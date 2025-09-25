@@ -71,6 +71,7 @@ const Dashboard = () => {
       'Guest_ID': guest.guestId,
       'First Name': guest.firstName || '',
       'Last Name': guest.lastName || '',
+      'Preferred Name': guest.preferredName || '',
       Name: guest.name,
       'Housing Status': guest.housingStatus,
       Location: guest.location || '',

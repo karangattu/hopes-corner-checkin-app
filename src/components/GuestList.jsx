@@ -57,6 +57,7 @@ const GuestList = () => {
   const [createFormData, setCreateFormData] = useState({
     firstName: '',
     lastName: '',
+    preferredName: '',
     housingStatus: 'Unhoused',
     location: '',
     age: '',
@@ -68,6 +69,7 @@ const GuestList = () => {
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
+    preferredName: '',
     housingStatus: 'Unhoused',
     location: '',
     age: '',
@@ -114,50 +116,76 @@ const GuestList = () => {
     const qTokens = query.split(' ').filter(Boolean);
 
     const scored = guestsList.map((g) => {
-      if (!g.firstName || !g.lastName) {
-        return { guest: g, rank: 99, name: g.name || 'Unknown' };
+      const firstName = normalize(g.firstName || '');
+      const lastName = normalize(g.lastName || '');
+      const fullName = normalize(`${g.firstName || ''} ${g.lastName || ''}`.trim()) || normalize(g.name || '');
+      const preferredName = normalize(g.preferredName || '');
+
+      let rank = 99;
+      let label = g.preferredName || g.name || fullName || 'Unknown';
+
+      const updateRank = (candidateRank, candidateLabel) => {
+        if (candidateRank < rank) {
+          rank = candidateRank;
+          if (candidateLabel) {
+            label = candidateLabel;
+          }
+        }
+      };
+
+      if (preferredName) {
+        if (preferredName === query) {
+          updateRank(-1, g.preferredName);
+        }
+        if (qTokens.length === 1) {
+          const token = qTokens[0];
+          if (token) {
+            if (preferredName === token) updateRank(0, g.preferredName);
+            else if (preferredName.startsWith(token)) updateRank(1, g.preferredName);
+            else if (token.length >= 3 && preferredName.includes(token)) updateRank(2, g.preferredName);
+          }
+        } else if (qTokens.length >= 2) {
+          const joined = qTokens.join(' ');
+          if (joined && preferredName.includes(joined)) {
+            updateRank(2, g.preferredName);
+          }
+        }
       }
 
-      const firstName = normalize(g.firstName);
-      const lastName = normalize(g.lastName);
-      const fullName = normalize(`${g.firstName} ${g.lastName}`);
-
-      if (qTokens.length >= 2) {
+      if (firstName && lastName && qTokens.length >= 2) {
         const [firstQuery, lastQuery] = qTokens;
-        if (!firstQuery || !lastQuery || !firstName || !lastName) {
-          return { guest: g, rank: 99, name: fullName };
+        if (firstQuery && lastQuery) {
+          if (firstName === firstQuery && lastName === lastQuery) {
+            updateRank(0, g.name || fullName);
+          } else if (firstName.startsWith(firstQuery) && lastName.startsWith(lastQuery)) {
+            updateRank(1, g.name || fullName);
+          } else if (
+            firstQuery.length >= 3 && lastQuery.length >= 3 &&
+            firstName.includes(firstQuery) && lastName.includes(lastQuery)
+          ) {
+            updateRank(2, g.name || fullName);
+          }
         }
-        if (firstName === firstQuery && lastName === lastQuery) {
-          return { guest: g, rank: 0, name: fullName };
+      } else if (qTokens.length >= 1) {
+        const singleQuery = qTokens[0];
+        if (singleQuery) {
+          if (firstName === singleQuery || lastName === singleQuery) {
+            updateRank(0, g.name || fullName);
+          } else if (firstName.startsWith(singleQuery) || lastName.startsWith(singleQuery)) {
+            updateRank(1, g.name || fullName);
+          } else if (singleQuery.length >= 3 && (firstName.includes(singleQuery) || lastName.includes(singleQuery))) {
+            updateRank(2, g.name || fullName);
+          }
         }
-        if (firstName.startsWith(firstQuery) && lastName.startsWith(lastQuery)) {
-          return { guest: g, rank: 1, name: fullName };
-        }
-        if (firstQuery.length >= 3 && lastQuery.length >= 3 &&
-          firstName.includes(firstQuery) && lastName.includes(lastQuery)) {
-          return { guest: g, rank: 2, name: fullName };
-        }
-        return { guest: g, rank: 99, name: fullName };
       }
 
-      const singleQuery = qTokens[0];
-      if (!singleQuery || !firstName || !lastName) {
-        return { guest: g, rank: 99, name: fullName };
+      if ((!firstName || !lastName) && fullName) {
+        if (fullName === query) updateRank(1, g.name || fullName);
+        else if (fullName.startsWith(query)) updateRank(2, g.name || fullName);
+        else if (query.length >= 3 && fullName.includes(query)) updateRank(3, g.name || fullName);
       }
 
-      if (firstName === singleQuery || lastName === singleQuery) {
-        return { guest: g, rank: 0, name: fullName };
-      }
-
-      if (firstName.startsWith(singleQuery) || lastName.startsWith(singleQuery)) {
-        return { guest: g, rank: 1, name: fullName };
-      }
-
-      if (singleQuery.length >= 3 && (firstName.includes(singleQuery) || lastName.includes(singleQuery))) {
-        return { guest: g, rank: 2, name: fullName };
-      }
-
-      return { guest: g, rank: 99, name: fullName };
+      return { guest: g, rank, name: label };
     })
       .filter(item => item.rank < 99)
       .sort((a, b) => {
@@ -360,12 +388,13 @@ const GuestList = () => {
     try {
       const guestData = {
         ...createFormData,
+        preferredName: createFormData.preferredName?.trim() || '',
         name: `${createFormData.firstName.trim()} ${createFormData.lastName.trim()}`
       };
       const newGuest = addGuest(guestData);
-      setCreateFormData({ firstName: '', lastName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
+      setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
       setShowCreateForm(false);
-      setSearchTerm(newGuest.name || `${guestData.firstName} ${guestData.lastName}`.trim());
+      setSearchTerm(newGuest.preferredName || newGuest.name || `${guestData.firstName} ${guestData.lastName}`.trim());
       setExpandedGuest(newGuest.id);
     } catch (err) {
       setCreateError(`Error creating guest: ${err.message}`);
@@ -382,7 +411,8 @@ const GuestList = () => {
     setCreateFormData((prev) => ({
       ...prev,
       firstName: firstName,
-      lastName: lastName
+      lastName: lastName,
+      preferredName: firstName
     }));
     setShowCreateForm(true);
     setCreateError('');
@@ -390,7 +420,7 @@ const GuestList = () => {
 
   const handleCancelCreate = () => {
     setShowCreateForm(false);
-    setCreateFormData({ firstName: '', lastName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
+    setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
     setCreateError('');
   };
 
@@ -399,6 +429,7 @@ const GuestList = () => {
     setEditFormData({
       firstName: guest.firstName || '',
       lastName: guest.lastName || '',
+      preferredName: guest.preferredName || '',
       housingStatus: guest.housingStatus || 'Unhoused',
       location: guest.location || '',
       age: guest.age || '',
@@ -432,6 +463,7 @@ const GuestList = () => {
       ...editFormData,
       firstName: toTitleCase(editFormData.firstName.trim()),
       lastName: toTitleCase(editFormData.lastName.trim()),
+      preferredName: editFormData.preferredName?.trim() || '',
       name: `${toTitleCase(editFormData.firstName.trim())} ${toTitleCase(editFormData.lastName.trim())}`.trim(),
     };
     updateGuest(editingGuestId, updates);
@@ -462,6 +494,12 @@ const GuestList = () => {
             placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && shouldShowCreateOption && !showCreateForm) {
+                e.preventDefault();
+                handleShowCreateForm();
+              }
+            }}
             ref={searchInputRef}
             className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           />
@@ -521,7 +559,7 @@ const GuestList = () => {
             </div>
           )}
           <form onSubmit={handleCreateGuest} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">First Name*</label>
                 <input
@@ -549,6 +587,19 @@ const GuestList = () => {
                   required
                   disabled={isCreating}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Preferred Name</label>
+                <input
+                  type="text"
+                  name="preferredName"
+                  value={createFormData.preferredName}
+                  onChange={handleCreateFormChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="What should we call them?"
+                  disabled={isCreating}
+                />
+                <p className="mt-1 text-xs text-gray-500">Shown with the legal name for staff awareness.</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Housing Status</label>
@@ -699,7 +750,20 @@ const GuestList = () => {
                           <User size={24} className="text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="font-medium">{guest.name}</h3>
+                          <h3 className="font-semibold text-gray-900">
+                            {guest.preferredName ? (
+                              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                <span className="text-lg font-semibold text-gray-900">{guest.preferredName}</span>
+                                <span className="text-sm text-gray-500">({guest.name})</span>
+                                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Preferred</span>
+                              </span>
+                            ) : (
+                              guest.name
+                            )}
+                          </h3>
+                          {guest.preferredName && (
+                            <p className="text-xs text-gray-500 mt-1">Use their preferred name when greeting; legal name is shown in parentheses.</p>
+                          )}
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Home size={14} />
                             <span>{guest.housingStatus}</span>
@@ -774,11 +838,21 @@ const GuestList = () => {
                           </div>
                         )}
                       </div>
+                      {guest.preferredName && editingGuestId !== guest.id && (
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
+                          <User size={16} className="text-blue-500" />
+                          <span className="font-medium">Preferred:</span>
+                          <span className="text-blue-900 font-semibold">{guest.preferredName}</span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-gray-600">Legal: {guest.name}</span>
+                        </div>
+                      )}
                       {editingGuestId === guest.id && (
                         <div className="mb-4 bg-white p-3 rounded border">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                             <input type="text" name="firstName" value={editFormData.firstName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="First name" />
                             <input type="text" name="lastName" value={editFormData.lastName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="Last name" />
+                            <input type="text" name="preferredName" value={editFormData.preferredName} onChange={handleEditChange} className="px-3 py-2 border rounded" placeholder="Preferred name (optional)" />
                             <select name="housingStatus" value={editFormData.housingStatus} onChange={handleEditChange} className="px-3 py-2 border rounded">
                               {HOUSING_STATUSES.map(h => <option key={h} value={h}>{h}</option>)}
                             </select>

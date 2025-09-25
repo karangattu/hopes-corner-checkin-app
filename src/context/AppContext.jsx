@@ -28,6 +28,11 @@ const toTitleCase = (str) => {
     .trim();
 };
 
+const normalizePreferredName = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim();
+};
+
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
   const [settings, setSettings] = useState({
@@ -71,7 +76,8 @@ export const AppProvider = ({ children }) => {
           ...guest,
           firstName: toTitleCase(guest.firstName),
           lastName: toTitleCase(guest.lastName),
-          name: toTitleCase(guest.name || `${guest.firstName} ${guest.lastName}`)
+          name: toTitleCase(guest.name || `${guest.firstName} ${guest.lastName}`),
+          preferredName: normalizePreferredName(guest.preferredName),
         };
       }
 
@@ -83,7 +89,8 @@ export const AppProvider = ({ children }) => {
         ...guest,
         firstName,
         lastName,
-        name: toTitleCase(guest.name || '')
+        name: toTitleCase(guest.name || ''),
+        preferredName: normalizePreferredName(guest.preferredName),
       };
     });
   };
@@ -301,6 +308,9 @@ export const AppProvider = ({ children }) => {
       throw new Error('Invalid gender');
     }
 
+    const preferredName = normalizePreferredName(guest.preferredName);
+    const legalName = `${firstName} ${lastName}`.trim();
+
     const takenIds = new Set(guests.map(g => g.guestId));
     const finalGuestId = generateUniqueGuestId(guest.guestId, takenIds);
 
@@ -310,7 +320,8 @@ export const AppProvider = ({ children }) => {
       ...guest,
       firstName,
       lastName,
-      name: `${firstName} ${lastName}`.trim(),
+      name: legalName,
+      preferredName,
       createdAt: new Date().toISOString(),
     };
     setGuests([...guests, newGuest]);
@@ -382,6 +393,7 @@ export const AppProvider = ({ children }) => {
         age,
         gender,
         location,
+        preferredName: normalizePreferredName(row.preferred_name || row.preferredName),
         notes: (row.notes || '').trim(),
         createdAt: new Date().toISOString(),
       };
@@ -1198,10 +1210,18 @@ export const AppProvider = ({ children }) => {
     );
 
     return todayLaundry.map(record => {
-      const guest = guests.find(g => g.id === record.guestId) || { name: 'Unknown Guest' };
+      const guest = guests.find(g => g.id === record.guestId) || null;
+      const legalName = guest?.name || `${toTitleCase(guest?.firstName || '')} ${toTitleCase(guest?.lastName || '')}`.trim() || 'Unknown Guest';
+      const preferredName = normalizePreferredName(guest?.preferredName);
+      const hasPreferred = Boolean(preferredName) && preferredName.toLowerCase() !== legalName.toLowerCase();
+      const displayName = hasPreferred ? `${preferredName} (${legalName})` : legalName;
       return {
         ...record,
-        guestName: guest.name
+        guestName: displayName,
+        guestLegalName: legalName,
+        guestPreferredName: preferredName,
+        guestHasPreferred: hasPreferred,
+        guestSortKey: legalName.toLowerCase(),
       };
     });
   };
