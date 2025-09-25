@@ -1512,334 +1512,511 @@ const Services = () => {
   };
 
   const renderMealsSection = () => {
-    // Merge base guest meal records and guest extra meal records (guestId present in extra meals) for display
     const mergedGuestMeals = [...selectedGuestMealRecords, ...selectedGuestExtraMealRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
     const totalGuestMeals = mergedGuestMeals.reduce((sum, record) => sum + record.count, 0);
+    const totalGuestExtraMeals = selectedGuestExtraMealRecords.reduce((sum, record) => sum + record.count, 0);
     const totalRvMeals = selectedRvMealRecords.reduce((sum, record) => sum + record.count, 0);
     const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(record => pacificDateStringFrom(record.date || '') === selectedDate);
-    const totalUeMeals = selectedUeMealRecords.reduce((s, r) => s + r.count, 0);
+    const totalUeMeals = selectedUeMealRecords.reduce((sum, record) => sum + record.count, 0);
     const selectedGlobalExtraMealRecords = (extraMealRecords || []).filter(record => !record.guestId && pacificDateStringFrom(record.date || '') === selectedDate);
-    const totalExtraMeals = selectedGlobalExtraMealRecords.reduce((s, r) => s + r.count, 0);
+    const totalExtraMeals = selectedGlobalExtraMealRecords.reduce((sum, record) => sum + record.count, 0);
+    const totalCombinedExtras = totalExtraMeals + totalGuestExtraMeals;
     const selectedDayWorkerMealRecords = (dayWorkerMealRecords || []).filter(record => pacificDateStringFrom(record.date || '') === selectedDate);
-    const totalDayWorkerMeals = selectedDayWorkerMealRecords.reduce((s, r) => s + r.count, 0);
+    const totalDayWorkerMeals = selectedDayWorkerMealRecords.reduce((sum, record) => sum + record.count, 0);
     const selectedLunchBagRecords = (lunchBagRecords || []).filter(r => (r.date || '').startsWith(selectedDate));
-    const totalLunchBags = selectedLunchBagRecords.reduce((s, r) => s + (r.count || 0), 0);
+    const totalLunchBags = selectedLunchBagRecords.reduce((sum, record) => sum + (record.count || 0), 0);
     const totalMeals = totalGuestMeals + totalRvMeals + totalUeMeals + totalExtraMeals + totalDayWorkerMeals;
+    const totalMealsExcludingLunch = totalMeals;
+    const selectedDateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+    const highlightStats = [
+      {
+        id: 'core-total',
+        title: 'Total meals (excl. lunch bags)',
+        value: totalMealsExcludingLunch,
+        Icon: Utensils,
+        description: `Guest, partner, and extra meals logged for ${selectedDateLabel}.`,
+      },
+      {
+        id: 'lunch-bags',
+        title: 'Lunch bags packed',
+        value: totalLunchBags,
+        Icon: Apple,
+        description: `Ready-to-go outreach lunches recorded on ${selectedDateLabel}.`,
+      },
+    ];
+
+    const mealCategoryCards = [
+      {
+        id: 'guest-meals',
+        title: 'Guest meals',
+        value: totalGuestMeals,
+        Icon: Users,
+        chip: `${mergedGuestMeals.length} entries`,
+        tone: 'bg-emerald-100 text-emerald-700',
+      },
+      {
+        id: 'day-worker',
+        title: 'Day Worker Center',
+        value: totalDayWorkerMeals,
+        Icon: SquarePlus,
+        chip: `${selectedDayWorkerMealRecords.length} records`,
+        tone: 'bg-indigo-100 text-indigo-700',
+      },
+      {
+        id: 'rv-meals',
+        title: 'RV meals',
+        value: totalRvMeals,
+        Icon: Caravan,
+        chip: `${selectedRvMealRecords.length} logs`,
+        tone: 'bg-orange-100 text-orange-700',
+      },
+      {
+        id: 'united-effort',
+        title: 'United Effort',
+        value: totalUeMeals,
+        Icon: HeartHandshake,
+        chip: `${selectedUeMealRecords.length} logs`,
+        tone: 'bg-sky-100 text-sky-700',
+      },
+      {
+        id: 'extra-meals',
+        title: 'Extra meals',
+        value: totalCombinedExtras,
+        Icon: Sparkles,
+        chip: `Guest extras ${totalGuestExtraMeals.toLocaleString()} • Global extras ${totalExtraMeals.toLocaleString()}`,
+        tone: 'bg-amber-100 text-amber-700',
+      },
+    ];
 
     return (
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg border border-gray-100 p-3 sm:p-4 flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-          <div className="text-sm text-gray-700 flex items-center gap-2">
-            <History size={16} className="text-gray-500" />
-            <span className="font-medium">Meals date</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={mealsDate}
-              onChange={(e) => setMealsDate(e.target.value)}
-              className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
-              max={todayShorthand}
-            />
-            <span className="text-xs text-gray-500">New entries will be added to this date</span>
-          </div>
-        </div>
-        <div className="bg-indigo-50 rounded-lg border border-indigo-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-indigo-800">
-              <SquarePlus className="text-indigo-600" size={20} />
-              <span>Day Worker Center Meals</span>
-            </h3>
-            <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalDayWorkerMeals} DW meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="number"
-              value={dayWorkerMealCount}
-              onChange={(e) => setDayWorkerMealCount(e.target.value)}
-              placeholder="Number of day worker meals"
-              className="px-3 py-2 border border-indigo-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              min="1"
-              disabled={isAddingDayWorkerMeals}
-            />
-            <button
-              onClick={() => {
-                if (!dayWorkerMealCount || isNaN(dayWorkerMealCount) || parseInt(dayWorkerMealCount) <= 0) { toast.error('Enter valid number'); return; }
-                setIsAddingDayWorkerMeals(true);
-                try { addDayWorkerMealRecord(dayWorkerMealCount, selectedDate); toast.success(`Added ${dayWorkerMealCount} day worker meals for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}!`); setDayWorkerMealCount(''); } catch (e) { toast.error(`Error: ${e.message}`); } finally { setIsAddingDayWorkerMeals(false); }
-              }}
-              disabled={isAddingDayWorkerMeals || !dayWorkerMealCount}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {isAddingDayWorkerMeals ? 'Adding...' : 'Add DW Meals'}
-            </button>
-          </div>
-          {selectedDayWorkerMealRecords.length > 0 && (
-            <div className="text-xs text-indigo-700">
-              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Day Worker meal records:</div>
-              <ul className="space-y-1">
-                {selectedDayWorkerMealRecords.map(r => (
-                  <li key={r.id} className="flex justify-between">
-                    <span>{new Date(r.date).toLocaleTimeString()}</span>
-                    <span className="font-medium">{r.count} meals</span>
-                  </li>
-                ))}
-              </ul>
+      <div className="space-y-6">
+        <div className="rounded-3xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-sky-500 text-white shadow-sm p-6 lg:p-8 space-y-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl space-y-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">Meals tracker</p>
+              <h2 className="text-2xl font-semibold">Daily meal operations</h2>
+              <p className="text-sm text-white/80">
+                Pick a date to log partner meals, walk-up extras, and lunch bag prep. Totals refresh instantly so shifts and reports stay in sync.
+              </p>
             </div>
-          )}
-        </div>
-        <div className="bg-orange-50 rounded-lg border border-orange-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-orange-800">
-              <Caravan className="text-orange-600" size={20} />
-              <span>RV Meals</span>
-            </h3>
-            <span className="bg-orange-100 text-orange-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalRvMeals} RV meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="number"
-              value={rvMealCount}
-              onChange={(e) => setRvMealCount(e.target.value)}
-              placeholder="Number of RV meals"
-              className="px-3 py-2 border border-orange-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              min="1"
-              disabled={isAddingRvMeals}
-            />
-            <button
-              onClick={handleAddRvMeals}
-              disabled={isAddingRvMeals || !rvMealCount}
-              className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {isAddingRvMeals ? 'Adding...' : 'Add RV Meals'}
-            </button>
-          </div>
-          {selectedRvMealRecords.length > 0 && (
-            <div className="text-xs text-orange-700">
-              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} RV meal records:</div>
-              <ul className="space-y-1">
-                {selectedRvMealRecords.map((record) => (
-                  <li key={record.id} className="flex justify-between">
-                    <span>{new Date(record.date).toLocaleTimeString()}</span>
-                    <span className="font-medium">{record.count} meals</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-sky-50 rounded-lg border border-sky-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-sky-800">
-              <HeartHandshake className="text-sky-600" size={20} />
-              <span>United Effort Meals</span>
-            </h3>
-            <span className="bg-sky-100 text-sky-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalUeMeals} UE meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="number"
-              value={ueMealCount}
-              onChange={(e) => setUeMealCount(e.target.value)}
-              placeholder="Number of United Effort meals"
-              className="px-3 py-2 border border-sky-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              min="1"
-              disabled={isAddingUeMeals}
-            />
-            <button
-              onClick={handleAddUeMeals}
-              disabled={isAddingUeMeals || !ueMealCount}
-              className="bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {isAddingUeMeals ? 'Adding...' : 'Add UE Meals'}
-            </button>
-          </div>
-          {selectedUeMealRecords.length > 0 && (
-            <div className="text-xs text-sky-700">
-              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} United Effort meal records:</div>
-              <ul className="space-y-1">
-                {selectedUeMealRecords.map((record) => (
-                  <li key={record.id} className="flex justify-between">
-                    <span>{new Date(record.date).toLocaleTimeString()}</span>
-                    <span className="font-medium">{record.count} meals</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-amber-50 rounded-lg border border-amber-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-amber-800">
-              <SquarePlus className="text-amber-600" size={20} />
-              <span>Extra Meals</span>
-            </h3>
-            <span className="bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalExtraMeals} extra meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="number"
-              value={extraMealCount}
-              onChange={(e) => setExtraMealCount(e.target.value)}
-              placeholder="Number of extra meals"
-              className="px-3 py-2 border border-amber-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              min="1"
-              disabled={isAddingExtraMeals}
-            />
-            <button
-              onClick={handleAddExtraMeals}
-              disabled={isAddingExtraMeals || !extraMealCount}
-              className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {isAddingExtraMeals ? 'Adding...' : 'Add Extra Meals'}
-            </button>
-          </div>
-          {selectedGlobalExtraMealRecords.length > 0 && (
-            <div className="text-xs text-amber-700">
-              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} Extra meal records:</div>
-              <ul className="space-y-1">
-                {selectedGlobalExtraMealRecords.map((record) => (
-                  <li key={record.id} className="flex justify-between">
-                    <span>{new Date(record.date).toLocaleTimeString()}</span>
-                    <span className="font-medium">{record.count} meals</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-lime-50 rounded-lg border border-lime-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold flex items-center gap-2 text-lime-800">
-              <Apple className="text-lime-600" size={20} />
-              <span>Lunch Bags</span>
-            </h3>
-            <span className="bg-lime-100 text-lime-800 text-xs font-medium px-3 py-1 rounded-full">
-              {totalLunchBags} lunch bags on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-3">
-            <input
-              type="number"
-              value={lunchBagCount}
-              onChange={(e) => setLunchBagCount(e.target.value)}
-              placeholder="Number of lunch bags"
-              className="px-3 py-2 border border-lime-300 rounded-md text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-lime-500"
-              min="1"
-              disabled={isAddingLunchBags}
-            />
-            <button
-              onClick={() => {
-                if (!lunchBagCount || isNaN(lunchBagCount) || parseInt(lunchBagCount) <= 0) {
-                  toast.error('Please enter a valid number of lunch bags');
-                  return;
-                }
-                setIsAddingLunchBags(true);
-                try {
-                  addLunchBagRecord(lunchBagCount, selectedDate);
-                  toast.success(`Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount) > 1 ? 's' : ''} for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString()}`);
-                  setLunchBagCount('');
-                } catch (error) {
-                  toast.error(error.message || 'Error adding lunch bags');
-                } finally {
-                  setIsAddingLunchBags(false);
-                }
-              }}
-              disabled={isAddingLunchBags || !lunchBagCount}
-              className="bg-lime-600 hover:bg-lime-700 disabled:bg-lime-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              {isAddingLunchBags ? 'Adding...' : 'Add Lunch Bags'}
-            </button>
-          </div>
-          {selectedLunchBagRecords.length > 0 && (
-            <div className="text-xs text-lime-700">
-              <div className="font-medium mb-1">{new Date(selectedDate + 'T00:00:00').toLocaleDateString()} lunch bag records:</div>
-              <ul className="space-y-1">
-                {selectedLunchBagRecords.map((record) => (
-                  <li key={record.id} className="flex justify-between">
-                    <span>{new Date(record.date).toLocaleTimeString()}</span>
-                    <span className="font-medium">{record.count} bag{record.count > 1 ? 's' : ''}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-100 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Utensils className="text-emerald-600" size={20} />
-              <span>Guest Meals</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full">
-                {totalGuestMeals} guest meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-              </span>
-              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-                {totalMeals} total meals on {new Date(selectedDate + 'T00:00:00').toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-          {mergedGuestMeals.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-8">No meals logged for this date</p>
-          ) : (
-            <ul className="divide-y">
-              {mergedGuestMeals.map((rec) => {
-                const isExtraGuestMeal = !!(rec.guestId && extraMealRecords.some(er => er.id === rec.id));
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-[220px]">
+              {highlightStats.map((stat) => {
+                const Icon = stat.Icon;
                 return (
-                  <li key={rec.id} className="py-2 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{getGuestName(rec.guestId)}</div>
-                      <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
+                  <div key={stat.id} className="bg-white/15 border border-white/20 rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2 text-white/80 text-xs uppercase tracking-wide font-semibold">
+                      <Icon size={14} className="text-white" />
+                      {stat.title}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full">
-                        {rec.count} meal{rec.count > 1 ? 's' : ''}
-                      </span>
-                      {isExtraGuestMeal && (
-                        <span className="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">Extra</span>
-                      )}
-                      <button
-                        className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
-                        title="Delete this entry"
-                        onClick={() => {
-                          // try to find matching action and undo it to keep history consistent
-                          const matchingMeal = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
-                          const matchingExtra = actionHistory.find(a => a.type === 'EXTRA_MEALS_ADDED' && a.data?.recordId === rec.id);
-                          if (matchingMeal) {
-                            if (undoAction(matchingMeal.id)) { toast.success('Meal entry deleted'); return; }
-                          } else if (matchingExtra) {
-                            if (undoAction(matchingExtra.id)) { toast.success('Extra meal entry deleted'); return; }
-                          }
-                          // fallback: remove directly from the correct collection
-                          if (isExtraGuestMeal) {
-                            setExtraMealRecords(prev => prev.filter(r => r.id !== rec.id));
-                          } else {
-                            setMealRecords(prev => prev.filter(r => r.id !== rec.id));
-                          }
-                          toast.success(isExtraGuestMeal ? 'Extra meal entry deleted' : 'Meal entry deleted');
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
+                    <p className="text-2xl font-semibold mt-2">{stat.value.toLocaleString()}</p>
+                    <p className="text-xs text-white/70 mt-1 leading-relaxed">{stat.description}</p>
+                  </div>
                 );
               })}
-            </ul>
-          )}
+            </div>
+          </div>
+
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold uppercase tracking-wide text-white/80">Meals date</label>
+              <div className="text-sm text-white/80">Entries will be logged for <span className="font-semibold text-white">{selectedDateLabel}</span>.</div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <input
+                type="date"
+                value={mealsDate}
+                onChange={(event) => setMealsDate(event.target.value)}
+                className="px-3 py-2 rounded-md text-sm bg-white text-gray-900 border border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                max={todayShorthand}
+              />
+              <span className="text-xs text-white/70">Tip: adjust to backfill or correct earlier days.</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {mealCategoryCards.map((card) => {
+            const Icon = card.Icon;
+            return (
+              <div key={card.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Icon size={20} className="text-gray-700" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-500">{card.title}</p>
+                      <p className="text-xl font-semibold text-gray-900">{card.value.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {card.chip && <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${card.tone}`}>{card.chip}</span>}
+                </div>
+                <p className="text-xs text-gray-500">Captured for {selectedDateLabel}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <SquarePlus size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-indigo-900">Day Worker Center</h3>
+                    <p className="text-xs text-indigo-600">Partner drop-off meals</p>
+                  </div>
+                </div>
+                <span className="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  {totalDayWorkerMeals.toLocaleString()} today
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="number"
+                  value={dayWorkerMealCount}
+                  onChange={(event) => setDayWorkerMealCount(event.target.value)}
+                  placeholder="Number of meals delivered"
+                  className="flex-1 px-3 py-2 border border-indigo-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  min="1"
+                  disabled={isAddingDayWorkerMeals}
+                />
+                <button
+                  onClick={() => {
+                    if (!dayWorkerMealCount || isNaN(dayWorkerMealCount) || parseInt(dayWorkerMealCount, 10) <= 0) {
+                      toast.error('Enter a valid number of meals');
+                      return;
+                    }
+                    setIsAddingDayWorkerMeals(true);
+                    try {
+                      addDayWorkerMealRecord(dayWorkerMealCount, selectedDate);
+                      toast.success(`Added ${dayWorkerMealCount} day worker meals for ${selectedDateLabel}!`);
+                      setDayWorkerMealCount('');
+                    } catch (error) {
+                      toast.error(`Error: ${error.message}`);
+                    } finally {
+                      setIsAddingDayWorkerMeals(false);
+                    }
+                  }}
+                  disabled={isAddingDayWorkerMeals || !dayWorkerMealCount}
+                  className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:bg-indigo-300"
+                >
+                  {isAddingDayWorkerMeals ? 'Saving…' : 'Add DW meals'}
+                </button>
+              </div>
+              {selectedDayWorkerMealRecords.length > 0 ? (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700 space-y-1">
+                  <div className="font-semibold text-indigo-800">Entries for {selectedDateLabel}</div>
+                  <ul className="space-y-1">
+                    {selectedDayWorkerMealRecords.map((record) => (
+                      <li key={record.id} className="flex justify-between">
+                        <span>{new Date(record.date).toLocaleTimeString()}</span>
+                        <span className="font-semibold">{record.count} meals</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-xs text-indigo-500">No day worker meals logged yet for this date.</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
+                      <Caravan size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-orange-900">RV meals</h3>
+                      <p className="text-xs text-orange-600">Outreach delivery</p>
+                    </div>
+                  </div>
+                  <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    {totalRvMeals.toLocaleString()} today
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="number"
+                    value={rvMealCount}
+                    onChange={(event) => setRvMealCount(event.target.value)}
+                    placeholder="Number of RV meals"
+                    className="flex-1 px-3 py-2 border border-orange-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    min="1"
+                    disabled={isAddingRvMeals}
+                  />
+                  <button
+                    onClick={handleAddRvMeals}
+                    disabled={isAddingRvMeals || !rvMealCount}
+                    className="px-4 py-2 rounded-md bg-orange-600 text-white text-sm font-semibold hover:bg-orange-500 disabled:bg-orange-300"
+                  >
+                    {isAddingRvMeals ? 'Saving…' : 'Add RV meals'}
+                  </button>
+                </div>
+                {selectedRvMealRecords.length > 0 ? (
+                  <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 text-xs text-orange-700 space-y-1">
+                    <div className="font-semibold text-orange-800">Entries for {selectedDateLabel}</div>
+                    <ul className="space-y-1">
+                      {selectedRvMealRecords.map((record) => (
+                        <li key={record.id} className="flex justify-between">
+                          <span>{new Date(record.date).toLocaleTimeString()}</span>
+                          <span className="font-semibold">{record.count} meals</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-orange-500">No RV meals logged yet for this date.</p>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center">
+                      <HeartHandshake size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-sky-900">United Effort meals</h3>
+                      <p className="text-xs text-sky-600">Partner pickup</p>
+                    </div>
+                  </div>
+                  <span className="bg-sky-100 text-sky-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    {totalUeMeals.toLocaleString()} today
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="number"
+                    value={ueMealCount}
+                    onChange={(event) => setUeMealCount(event.target.value)}
+                    placeholder="Number of United Effort meals"
+                    className="flex-1 px-3 py-2 border border-sky-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    min="1"
+                    disabled={isAddingUeMeals}
+                  />
+                  <button
+                    onClick={handleAddUeMeals}
+                    disabled={isAddingUeMeals || !ueMealCount}
+                    className="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-semibold hover:bg-sky-500 disabled:bg-sky-300"
+                  >
+                    {isAddingUeMeals ? 'Saving…' : 'Add UE meals'}
+                  </button>
+                </div>
+                {selectedUeMealRecords.length > 0 ? (
+                  <div className="bg-sky-50 border border-sky-100 rounded-lg p-3 text-xs text-sky-700 space-y-1">
+                    <div className="font-semibold text-sky-800">Entries for {selectedDateLabel}</div>
+                    <ul className="space-y-1">
+                      {selectedUeMealRecords.map((record) => (
+                        <li key={record.id} className="flex justify-between">
+                          <span>{new Date(record.date).toLocaleTimeString()}</span>
+                          <span className="font-semibold">{record.count} meals</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-sky-500">No United Effort meals logged yet for this date.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-amber-900">Extra meals</h3>
+                    <p className="text-xs text-amber-600">Walk-ups without guest record</p>
+                  </div>
+                </div>
+                <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  {totalExtraMeals.toLocaleString()} today
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="number"
+                  value={extraMealCount}
+                  onChange={(event) => setExtraMealCount(event.target.value)}
+                  placeholder="Number of extra meals"
+                  className="flex-1 px-3 py-2 border border-amber-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  min="1"
+                  disabled={isAddingExtraMeals}
+                />
+                <button
+                  onClick={handleAddExtraMeals}
+                  disabled={isAddingExtraMeals || !extraMealCount}
+                  className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-semibold hover:bg-amber-500 disabled:bg-amber-300"
+                >
+                  {isAddingExtraMeals ? 'Saving…' : 'Add extra meals'}
+                </button>
+              </div>
+              {selectedGlobalExtraMealRecords.length > 0 ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-700 space-y-1">
+                  <div className="font-semibold text-amber-800">Entries for {selectedDateLabel}</div>
+                  <ul className="space-y-1">
+                    {selectedGlobalExtraMealRecords.map((record) => (
+                      <li key={record.id} className="flex justify-between">
+                        <span>{new Date(record.date).toLocaleTimeString()}</span>
+                        <span className="font-semibold">{record.count} meals</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-500">No unassigned extra meals logged yet for this date.</p>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl border border-lime-100 shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-lime-50 text-lime-600 flex items-center justify-center">
+                    <Apple size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-lime-900">Lunch bags</h3>
+                    <p className="text-xs text-lime-600">For takeout purposes</p>
+                  </div>
+                </div>
+                <span className="bg-lime-100 text-lime-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  {totalLunchBags.toLocaleString()} today
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="number"
+                  value={lunchBagCount}
+                  onChange={(event) => setLunchBagCount(event.target.value)}
+                  placeholder="Number of lunch bags"
+                  className="flex-1 px-3 py-2 border border-lime-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+                  min="1"
+                  disabled={isAddingLunchBags}
+                />
+                <button
+                  onClick={() => {
+                    if (!lunchBagCount || isNaN(lunchBagCount) || parseInt(lunchBagCount, 10) <= 0) {
+                      toast.error('Enter a valid number of lunch bags');
+                      return;
+                    }
+                    setIsAddingLunchBags(true);
+                    try {
+                      addLunchBagRecord(lunchBagCount, selectedDate);
+                      toast.success(`Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount, 10) > 1 ? 's' : ''} for ${selectedDateLabel}`);
+                      setLunchBagCount('');
+                    } catch (error) {
+                      toast.error(error.message || 'Error adding lunch bags');
+                    } finally {
+                      setIsAddingLunchBags(false);
+                    }
+                  }}
+                  disabled={isAddingLunchBags || !lunchBagCount}
+                  className="px-4 py-2 rounded-md bg-lime-600 text-white text-sm font-semibold hover:bg-lime-500 disabled:bg-lime-300"
+                >
+                  {isAddingLunchBags ? 'Saving…' : 'Add lunch bags'}
+                </button>
+              </div>
+              {selectedLunchBagRecords.length > 0 ? (
+                <div className="bg-lime-50 border border-lime-100 rounded-lg p-3 text-xs text-lime-700 space-y-1">
+                  <div className="font-semibold text-lime-800">Entries for {selectedDateLabel}</div>
+                  <ul className="space-y-1">
+                    {selectedLunchBagRecords.map((record) => (
+                      <li key={record.id} className="flex justify-between">
+                        <span>{new Date(record.date).toLocaleTimeString()}</span>
+                        <span className="font-semibold">{record.count} bag{record.count > 1 ? 's' : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-xs text-lime-500">No lunch bags logged yet for this date.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Utensils className="text-emerald-600" size={22} />
+                  Guest meal log
+                </h2>
+                <p className="text-sm text-gray-500">Includes guest-specific meals and guest extras for {selectedDateLabel}.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  {totalGuestMeals.toLocaleString()} guest meals
+                </span>
+                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
+                  {totalMealsExcludingLunch.toLocaleString()} meals excl. lunch bags
+                </span>
+              </div>
+            </div>
+
+            {mergedGuestMeals.length === 0 ? (
+              <div className="border border-dashed border-emerald-200 rounded-xl text-center py-12 text-sm text-emerald-600 bg-emerald-50">
+                No guest meals logged for this date yet.
+              </div>
+            ) : (
+              <div className="border border-gray-100 rounded-xl divide-y">
+                {mergedGuestMeals.map((rec) => {
+                  const isExtraGuestMeal = !!(rec.guestId && extraMealRecords.some(er => er.id === rec.id));
+                  return (
+                    <div key={rec.id} className="p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 truncate">{getGuestName(rec.guestId)}</div>
+                        <div className="text-xs text-gray-500">{new Date(rec.date).toLocaleTimeString()}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                          {rec.count} meal{rec.count > 1 ? 's' : ''}
+                        </span>
+                        {isExtraGuestMeal && (
+                          <span className="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">Extra</span>
+                        )}
+                        <button
+                          className="text-xs font-medium px-2.5 py-1 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                          title="Delete this entry"
+                          onClick={() => {
+                            const matchingMeal = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
+                            const matchingExtra = actionHistory.find(a => a.type === 'EXTRA_MEALS_ADDED' && a.data?.recordId === rec.id);
+                            if (matchingMeal) {
+                              if (undoAction(matchingMeal.id)) {
+                                toast.success('Meal entry deleted');
+                                return;
+                              }
+                            } else if (matchingExtra) {
+                              if (undoAction(matchingExtra.id)) {
+                                toast.success('Extra meal entry deleted');
+                                return;
+                              }
+                            }
+                            if (isExtraGuestMeal) {
+                              setExtraMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                            } else {
+                              setMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                            }
+                            toast.success(isExtraGuestMeal ? 'Extra meal entry deleted' : 'Meal entry deleted');
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
