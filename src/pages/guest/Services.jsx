@@ -18,6 +18,7 @@ import {
   History,
   BarChart3,
   Circle,
+  Sparkles,
   Apple,
   Caravan,
   HeartHandshake,
@@ -64,6 +65,7 @@ const Services = () => {
     undoAction,
     clearActionHistory,
     allShowerSlots,
+  allLaundrySlots,
     cancelShowerRecord,
     rescheduleShower,
     updateShowerStatus,
@@ -79,6 +81,7 @@ const Services = () => {
     deleteBicycleRecord,
     setBicycleStatus,
     moveBicycleRecord,
+    settings,
     BICYCLE_REPAIR_STATUS,
   } = useAppContext();
 
@@ -143,6 +146,34 @@ const Services = () => {
     const [start] = String(range).split(' - ');
     return parseTimeToMinutes(start);
   };
+
+  const formatTimeLabel = (timeStr) => {
+    if (!timeStr) return '';
+    const [hoursStr, minutesStr] = String(timeStr).split(':');
+    const hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes, 0, 0);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const formatLaundryRangeLabel = (range) => {
+    if (!range) return 'Off-site (no slot)';
+    const [start, end] = String(range).split(' - ');
+    const formattedStart = formatTimeLabel(start);
+    const formattedEnd = end ? formatTimeLabel(end) : '';
+    if (!formattedEnd) return formattedStart;
+    const [startTime, startPeriod] = formattedStart.split(' ');
+    const [endTime, endPeriod] = formattedEnd.split(' ');
+    if (startPeriod && endPeriod && startPeriod === endPeriod) {
+      return `${startTime} - ${endTime} ${startPeriod}`;
+    }
+    return `${formattedStart} - ${formattedEnd}`;
+  };
+
+  const formatShowerSlotLabel = (slotTime) => formatTimeLabel(slotTime) || slotTime;
 
   const laundryGuestIdsSet = new Set((todayLaundryWithGuests || []).map(l => l.guestId));
   const filteredShowers = [...(todayBookedShowers || [])]
@@ -331,6 +362,43 @@ const Services = () => {
     const guest = guests.find(g => g.id === guestId);
     if (!guest) return 'Unknown Guest';
     return guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Unknown Guest';
+  };
+
+  const getShowerStatusInfo = (status) => {
+    switch (status) {
+      case 'done':
+        return {
+          label: 'Completed',
+          icon: CheckCircle2Icon,
+          iconClass: 'text-emerald-600',
+          chipClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+          badgeClass: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+        };
+      case 'awaiting':
+        return {
+          label: 'Awaiting',
+          icon: Circle,
+          iconClass: 'fill-blue-300 text-blue-400',
+          chipClass: 'bg-blue-50 text-blue-700 border border-blue-200',
+          badgeClass: 'bg-blue-100 text-blue-700 border border-blue-200',
+        };
+      case 'waitlisted':
+        return {
+          label: 'Waitlisted',
+          icon: Clock,
+          iconClass: 'text-amber-500',
+          chipClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+          badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200',
+        };
+      default:
+        return {
+          label: 'Scheduled',
+          icon: ShowerHead,
+          iconClass: 'text-slate-500',
+          chipClass: 'bg-slate-50 text-slate-700 border border-slate-200',
+          badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200',
+        };
+    }
   };
 
   const getLaundryStatusInfo = (status) => {
@@ -902,615 +970,848 @@ const Services = () => {
     }
   };
 
-  const renderShowersSection = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <ShowerHead className="text-blue-600" size={20} />
-            <span>Today's Showers</span>
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-              {todayShowerRecords.length} booked
-            </span>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Showing {filteredShowers.length}</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={showerStatusFilter} onChange={(e) => setShowerStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+  const renderShowersSection = () => {
+    const slotDetails = allShowerSlots.map((slotTime) => {
+      const bookings = todayBookedShowers.filter(record => record.time === slotTime);
+      const completed = bookings.filter(record => record.status === 'done').length;
+      return {
+        slotTime,
+        label: formatShowerSlotLabel(slotTime),
+        count: bookings.length,
+        completed,
+        isFull: bookings.length >= 2,
+      };
+    });
+
+    const totalCapacity = allShowerSlots.length * 2;
+    const occupied = todayBookedShowers.length;
+    const doneCount = todayBookedShowers.filter(record => record.status === 'done').length;
+    const capacityProgress = totalCapacity ? Math.min((occupied / totalCapacity) * 100, 100) : 0;
+    const nextAvailable = slotDetails.find(detail => detail.count < 2);
+    const nextSlotLabel = nextAvailable ? nextAvailable.label : 'Waitlist only';
+    const nextSlotCapacity = nextAvailable ? 2 - nextAvailable.count : 0;
+    const nearlyFull = slotDetails.filter(detail => detail.count === 1).length;
+    const fullSlots = slotDetails.filter(detail => detail.isFull).length;
+    const showerSlotOptions = (allShowerSlots || []).map(slot => ({
+      value: slot,
+      label: formatShowerSlotLabel(slot),
+    }));
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
+              <Sparkles size={16} className="text-blue-500" />
+              <span>Next availability</span>
+            </div>
+            <p className="mt-3 text-xl font-semibold text-blue-900">{nextSlotLabel}</p>
+            <p className="mt-2 text-xs text-blue-700">
+              {nextAvailable
+                ? `${nextSlotCapacity} spot${nextSlotCapacity === 1 ? '' : 's'} remaining in this slot.`
+                : 'No open slots left today — add guests to the waitlist.'}
+            </p>
+            {nearlyFull > 0 && (
+              <p className="mt-3 text-[11px] text-blue-500">{nearlyFull} slot{nearlyFull === 1 ? '' : 's'} nearly full</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sky-600 text-xs font-semibold uppercase tracking-wide">
+              <BarChart3 size={16} className="text-sky-500" />
+              <span>Capacity today</span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-2xl font-semibold text-sky-900">{occupied}</span>
+              <span className="text-sm text-sky-600">of {totalCapacity} spots</span>
+            </div>
+            <div className="mt-3 h-2 w-full bg-sky-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-sky-500 transition-all duration-500"
+                style={{ width: `${capacityProgress}%` }}
+              />
+            </div>
+            <p className="mt-3 text-xs text-sky-700">{doneCount} completed shower{doneCount === 1 ? '' : 's'} so far</p>
+          </div>
+
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-amber-700 text-xs font-semibold uppercase tracking-wide">
+              <History size={16} className="text-amber-600" />
+              <span>Waitlist today</span>
+            </div>
+            <div className="mt-3 text-2xl font-semibold text-amber-900">{todayWaitlisted.length}</div>
+            <p className="mt-2 text-xs text-amber-700">
+              We’ll notify guests as soon as a slot opens up. {fullSlots} slot{fullSlots === 1 ? '' : 's'} currently full.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-4 lg:p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <ShowerHead className="text-blue-600" size={20} />
+                  <span>Today's Showers</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">Manage the flow of guests, update statuses, and keep essentials stocked.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                <span className="bg-blue-100 text-blue-700 font-medium px-3 py-1 rounded-full">
+                  {todayShowerRecords.length} total bookings
+                </span>
+                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                  Showing {filteredShowers.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-wrap gap-2">
+              <select
+                value={showerStatusFilter}
+                onChange={(event) => setShowerStatusFilter(event.target.value)}
+                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
                 <option value="all">Status: All</option>
                 <option value="awaiting">Status: Awaiting</option>
                 <option value="done">Status: Done</option>
               </select>
-              <select value={showerLaundryFilter} onChange={(e) => setShowerLaundryFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select
+                value={showerLaundryFilter}
+                onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
                 <option value="any">Laundry: Any</option>
                 <option value="with">Laundry: With</option>
                 <option value="without">Laundry: Without</option>
               </select>
-              <select value={showerSort} onChange={(e) => setShowerSort(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select
+                value={showerSort}
+                onChange={(event) => setShowerSort(event.target.value)}
+                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
                 <option value="status">Sort: Status</option>
                 <option value="name">Sort: Name</option>
               </select>
             </div>
+
+            {filteredShowers.length === 0 ? (
+              <div className="border border-dashed border-blue-200 rounded-lg text-center py-12 text-sm text-blue-700 bg-blue-50">
+                No shower bookings match your filters.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {showersTrail.map((style, idx) => {
+                  const record = filteredShowers[idx];
+                  if (!record) return null;
+                  const guest = guests.find(g => g.id === record.guestId);
+                  const guestName = guest?.name || getGuestName(record.guestId);
+                  const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
+                  const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
+                  const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
+                  const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
+                  const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
+                  const daysT = guest ? getDaysUntilAvailable(guest.id, 'tshirt') : 0;
+                  const daysSB = guest ? getDaysUntilAvailable(guest.id, 'sleeping_bag') : 0;
+                  const daysBP = guest ? getDaysUntilAvailable(guest.id, 'backpack') : 0;
+                  const daysTent = guest ? getDaysUntilAvailable(guest.id, 'tent') : 0;
+                  const daysFF = guest ? getDaysUntilAvailable(guest.id, 'flip_flops') : 0;
+                  const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
+                  const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
+                  const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
+                  const lastTentGuest = guest ? getLastGivenItem(guest.id, 'tent') : null;
+                  const lastFFGuest = guest ? getLastGivenItem(guest.id, 'flip_flops') : null;
+                  const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
+                  const isDone = record.status === 'done';
+                  const slotLabel = formatShowerSlotLabel(record.time);
+                  const bookedLabel = new Date(record.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                  const statusInfo = getShowerStatusInfo(record.status);
+                  const StatusIcon = statusInfo.icon;
+                  const statusIconSize = statusInfo.icon === Circle ? 10 : 12;
+                  const badgeIconSize = statusInfo.icon === Circle ? 12 : 14;
+                  const toggleStatusLabel = isDone ? 'Reopen shower' : 'Mark as complete';
+                  const toggleStatusClass = isDone
+                    ? 'bg-white border border-blue-200 text-blue-700 hover:bg-blue-50'
+                    : 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-500';
+
+                  const essentialsConfig = guest ? [
+                    {
+                      key: 'tshirt',
+                      label: 'T-Shirt (Weekly)',
+                      buttonLabel: 'Give T-Shirt',
+                      icon: Shirt,
+                      canGive: canT,
+                      lastRecord: lastTGuest,
+                      daysRemaining: daysT,
+                      successMessage: 'T-Shirt given',
+                    },
+                    {
+                      key: 'sleeping_bag',
+                      label: 'Sleeping Bag (Monthly)',
+                      buttonLabel: 'Give Sleeping Bag',
+                      icon: Bed,
+                      canGive: canSB,
+                      lastRecord: lastSBGuest,
+                      daysRemaining: daysSB,
+                      successMessage: 'Sleeping bag given',
+                    },
+                    {
+                      key: 'backpack',
+                      label: 'Backpack (Monthly)',
+                      buttonLabel: 'Give Backpack',
+                      icon: Backpack,
+                      canGive: canBP,
+                      lastRecord: lastBPGuest,
+                      daysRemaining: daysBP,
+                      successMessage: 'Backpack given',
+                    },
+                    {
+                      key: 'tent',
+                      label: 'Tent (Monthly)',
+                      buttonLabel: 'Give Tent',
+                      icon: TentTree,
+                      canGive: canTent,
+                      lastRecord: lastTentGuest,
+                      daysRemaining: daysTent,
+                      successMessage: 'Tent given',
+                    },
+                    {
+                      key: 'flip_flops',
+                      label: 'Flip Flops (Monthly)',
+                      buttonLabel: 'Give Flip Flops',
+                      icon: Footprints,
+                      canGive: canFF,
+                      lastRecord: lastFFGuest,
+                      daysRemaining: daysFF,
+                      successMessage: 'Flip Flops given',
+                    },
+                  ] : [];
+
+                  const handleGiveItem = (itemKey, successMessage) => {
+                    if (!guest) return;
+                    try {
+                      giveItem(guest.id, itemKey);
+                      toast.success(successMessage);
+                    } catch (error) {
+                      toast.error(error.message);
+                    }
+                  };
+
+                  return (
+                    <Animated.div
+                      key={record.id}
+                      style={style}
+                      className="will-change-transform bg-white border border-blue-100 rounded-xl shadow-sm p-4"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-start">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-base font-semibold text-gray-900">{guestName}</span>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 ${statusInfo.chipClass}`}>
+                                <StatusIcon size={statusIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
+                                {statusInfo.label}
+                              </span>
+                              {hasLaundryToday && (
+                                <span className="text-[11px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+                                  Laundry today
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock size={12} /> Slot {slotLabel}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <LogOutIcon size={12} className="rotate-180" /> Booked {bookedLabel}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={`${statusInfo.badgeClass} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}>
+                            <StatusIcon size={badgeIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
+                            <span>{statusInfo.label}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col lg:flex-row gap-3">
+                          <div className="flex flex-wrap items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                            <span className="font-semibold text-blue-900 uppercase tracking-wide flex items-center gap-1">
+                              <Clock size={12} className="text-blue-500" />
+                              Slot
+                            </span>
+                            <Selectize
+                              options={showerSlotOptions}
+                              value={record.time || ''}
+                              onChange={(time) => {
+                                try {
+                                  rescheduleShower(record.id, time);
+                                  if (record.status === 'waitlisted') {
+                                    updateShowerStatus(record.id, 'awaiting');
+                                  }
+                                  const friendly = formatShowerSlotLabel(time);
+                                  toast.success(`Shower moved to ${friendly || 'new slot'}`);
+                                } catch (error) {
+                                  toast.error(error.message);
+                                }
+                              }}
+                              size="xs"
+                              className="w-40"
+                              placeholder="Select slot"
+                              displayValue={record.time ? formatShowerSlotLabel(record.time) : 'Select slot'}
+                            />
+                            <span className="text-[11px] text-blue-600">2 guests max per slot</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                try {
+                                  const nextStatus = isDone ? 'awaiting' : 'done';
+                                  updateShowerStatus(record.id, nextStatus);
+                                  toast.success(nextStatus === 'done' ? 'Marked as completed' : 'Reopened shower');
+                                } catch (error) {
+                                  toast.error(error.message);
+                                }
+                              }}
+                              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${toggleStatusClass}`}
+                            >
+                              {toggleStatusLabel}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                try {
+                                  cancelShowerRecord(record.id);
+                                  toast.success('Shower booking cancelled');
+                                } catch (error) {
+                                  toast.error(error.message);
+                                }
+                              }}
+                              className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                            >
+                              Cancel booking
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3">
+                            <Sparkles size={14} className="text-blue-500" />
+                            <span>Guest essentials kit</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {essentialsConfig.map((item) => {
+                              const Icon = item.icon;
+                              const nextDate = item.lastRecord ? getNextAvailabilityDate(item.key, item.lastRecord.date) : null;
+                              const nextDateLabel = nextDate ? nextDate.toLocaleDateString('en-CA') : null;
+                              return (
+                                <div key={item.key} className="bg-white border border-blue-100 rounded-md p-3 shadow-sm">
+                                  <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
+                                    <Icon size={16} className="text-blue-600" />
+                                    <span>{item.label}</span>
+                                  </div>
+                                  <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                    {item.lastRecord ? (
+                                      <>
+                                        <div>Last given: {new Date(item.lastRecord.date).toLocaleDateString()}</div>
+                                        {item.canGive ? (
+                                          <div className="text-green-600 font-semibold">Available now</div>
+                                        ) : (
+                                          <div className="text-orange-600 font-semibold">
+                                            Next: {nextDateLabel} ({item.daysRemaining}d)
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <div className="text-green-600 font-semibold">Never given — available now</div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={!item.canGive}
+                                    onClick={() => handleGiveItem(item.key, item.successMessage)}
+                                    className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={item.canGive ? item.buttonLabel : nextDateLabel ? `Available ${nextDateLabel}` : 'Not yet available'}
+                                  >
+                                    {item.buttonLabel}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </Animated.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[55vh] md:max-h-96">
-          {filteredShowers.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-8">No shower bookings today</p>
-          ) : (
-            <ul className="divide-y">
-              {showersTrail.map((style, idx) => {
-                const record = filteredShowers[idx];
+        {todayWaitlisted.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                <Clock size={18} className="text-amber-600" />
+                <span>Waitlisted Guests</span>
+              </h3>
+              <span className="bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
+                {todayWaitlisted.length} waitlisted
+              </span>
+            </div>
+            <div className="space-y-3">
+              {waitlistTrail.map((style, idx) => {
+                const record = todayWaitlisted[idx];
                 if (!record) return null;
                 const guest = guests.find(g => g.id === record.guestId);
                 const guestName = guest?.name || getGuestName(record.guestId);
                 const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
                 const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
                 const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
-                const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
-                const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
-                const daysT = guest ? getDaysUntilAvailable(guest.id, 'tshirt') : 0;
-                const daysSB = guest ? getDaysUntilAvailable(guest.id, 'sleeping_bag') : 0;
-                const daysBP = guest ? getDaysUntilAvailable(guest.id, 'backpack') : 0;
-                const daysTent = guest ? getDaysUntilAvailable(guest.id, 'tent') : 0;
-                const daysFF = guest ? getDaysUntilAvailable(guest.id, 'flip_flops') : 0;
-                const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
-                const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
-                const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
-                const lastTentGuest = guest ? getLastGivenItem(guest.id, 'tent') : null;
-                const lastFFGuest = guest ? getLastGivenItem(guest.id, 'flip_flops') : null;
-                const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
-                const isDone = record.status === 'done';
+
+                const waitlistActions = guest ? [
+                  {
+                    key: 'tshirt',
+                    label: 'Give T-Shirt',
+                    canGive: canT,
+                    successMessage: 'T-Shirt given',
+                    days: getDaysUntilAvailable(guest.id, 'tshirt'),
+                    nextDate: getNextAvailabilityDate('tshirt', getLastGivenItem(guest.id, 'tshirt')?.date),
+                  },
+                  {
+                    key: 'sleeping_bag',
+                    label: 'Give Sleeping Bag',
+                    canGive: canSB,
+                    successMessage: 'Sleeping bag given',
+                    days: getDaysUntilAvailable(guest.id, 'sleeping_bag'),
+                    nextDate: getNextAvailabilityDate('sleeping_bag', getLastGivenItem(guest.id, 'sleeping_bag')?.date),
+                  },
+                  {
+                    key: 'backpack',
+                    label: 'Give Backpack',
+                    canGive: canBP,
+                    successMessage: 'Backpack given',
+                    days: getDaysUntilAvailable(guest.id, 'backpack'),
+                    nextDate: getNextAvailabilityDate('backpack', getLastGivenItem(guest.id, 'backpack')?.date),
+                  },
+                ] : [];
+
                 return (
-                  <Animated.li key={record.id} style={style} className="py-2 will-change-transform">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-col sm:flex-row justify-between gap-2 sm:items-center">
+                  <Animated.div
+                    key={record.id}
+                    style={style}
+                    className="will-change-transform bg-amber-50 border border-amber-100 rounded-lg p-4"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {guestName}
-                            <span className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${isDone ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-                              {isDone ? <CheckCircle2Icon size={12} /> : <Circle size={10} className="fill-gray-400 text-gray-400" />}
-                              {isDone ? 'Done' : 'Awaiting'}
-                            </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-gray-900">{guestName}</span>
+                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">Waitlisted</span>
                           </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-2">
-                            <span>Booked at {new Date(record.date).toLocaleTimeString()}</span>
-                            {hasLaundryToday && (
-                              <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">Laundry today</span>
-                            )}
-                          </div>
+                          <div className="text-xs text-amber-700 mt-1">Added at {new Date(record.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => {
-                              try { updateShowerStatus(record.id, isDone ? 'booked' : 'done'); toast.success(isDone ? 'Marked as awaiting' : 'Marked as done'); } catch (err) { toast.error(err.message); }
-                            }}
-                            className={`text-xs px-2 py-1 rounded-full border ${isDone ? 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100' : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'}`}
-                            title={isDone ? 'Mark as awaiting' : 'Mark as done'}
-                          >
-                            {isDone ? 'Set Awaiting' : 'Mark Done'}
-                          </button>
-                          <Selectize
-                            options={allShowerSlots}
-                            value={record.time}
-                            onChange={(t) => { try { rescheduleShower(record.id, t); toast.success('Shower rescheduled'); } catch (err) { toast.error(err.message); } }}
-                            size="sm"
-                            className="w-32 sm:w-36"
-                          />
-                          <button
-                            onClick={() => { try { cancelShowerRecord(record.id); toast.success('Shower cancelled'); } catch (err) { toast.error(err.message); } }}
-                            className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
-                            title="Cancel booking"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => {
+                            try {
+                              cancelShowerRecord(record.id);
+                              toast.success('Waitlist entry cancelled');
+                            } catch (err) {
+                              toast.error(err.message);
+                            }
+                          }}
+                          className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                        >
+                          Cancel
+                        </button>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          disabled={!canT}
-                          onClick={() => {
-                            if (!guest) return;
-                            try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); }
-                          }}
-                          title={canT ? 'Give T-Shirt' : `Available on ${getNextAvailabilityDate('tshirt', lastTGuest?.date)?.toLocaleDateString('en-CA')} (${daysT} day${daysT===1?'':'s'})`}
-                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >
-                          <span>Give T-Shirt</span>
-                          {!canT && daysT > 0 && (
-                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                              {daysT}d
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          disabled={!canSB}
-                          onClick={() => {
-                            if (!guest) return;
-                            try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); }
-                          }}
-                          title={canSB ? 'Give Sleeping Bag' : `Available on ${getNextAvailabilityDate('sleeping_bag', lastSBGuest?.date)?.toLocaleDateString('en-CA')} (${daysSB} day${daysSB===1?'':'s'})`}
-                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >
-                          <span>Give Sleeping Bag</span>
-                          {!canSB && daysSB > 0 && (
-                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                              {daysSB}d
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          disabled={!canBP}
-                          onClick={() => {
-                            if (!guest) return;
-                            try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); }
-                          }}
-                          title={canBP ? 'Give Backpack' : `Available on ${getNextAvailabilityDate('backpack', lastBPGuest?.date)?.toLocaleDateString('en-CA')} (${daysBP} day${daysBP===1?'':'s'})`}
-                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >
-                          <span>Give Backpack</span>
-                          {!canBP && daysBP > 0 && (
-                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                              {daysBP}d
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          disabled={!canTent}
-                          onClick={() => {
-                            if (!guest) return;
-                            try { giveItem(guest.id, 'tent'); toast.success('Tent given'); } catch (e) { toast.error(e.message); }
-                          }}
-                          title={canTent ? 'Give Tent' : `Available on ${getNextAvailabilityDate('tent', lastTentGuest?.date)?.toLocaleDateString('en-CA')} (${daysTent} day${daysTent===1?'':'s'})`}
-                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >
-                          <span>Give Tent</span>
-                          {!canTent && daysTent > 0 && (
-                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                              {daysTent}d
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          disabled={!canFF}
-                          onClick={() => {
-                            if (!guest) return;
-                            try { giveItem(guest.id, 'flip_flops'); toast.success('Flip Flops given'); } catch (e) { toast.error(e.message); }
-                          }}
-                          title={canFF ? 'Give Flip Flops' : `Available on ${getNextAvailabilityDate('flip_flops', lastFFGuest?.date)?.toLocaleDateString('en-CA')} (${daysFF} day${daysFF===1?'':'s'})`}
-                          className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                        >
-                          <span>Give Flip Flops</span>
-                          {!canFF && daysFF > 0 && (
-                            <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                              {daysFF}d
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-600 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-blue-50 border border-blue-200 rounded p-2 sm:p-3">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            <Shirt size={14} className="text-blue-600" />
-                            T-Shirt (Weekly)
-                          </span>
-                          <div className="text-gray-700">
-                            {lastTGuest ? (
-                              <div>
-                                <div>Last: {new Date(lastTGuest.date).toLocaleDateString()}</div>
-                                {!canT && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tshirt', lastTGuest.date)?.toLocaleDateString('en-CA')} ({daysT}d)</div>}
-                                {canT && <div className="text-green-600 font-medium">✓ Available now</div>}
-                              </div>
-                            ) : (
-                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            <Bed size={14} className="text-blue-600" />
-                            Sleeping Bag (Monthly)
-                          </span>
-                          <div className="text-gray-700">
-                            {lastSBGuest ? (
-                              <div>
-                                <div>Last: {new Date(lastSBGuest.date).toLocaleDateString()}</div>
-                                {!canSB && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('sleeping_bag', lastSBGuest.date)?.toLocaleDateString('en-CA')} ({daysSB}d)</div>}
-                                {canSB && <div className="text-green-600 font-medium">✓ Available now</div>}
-                              </div>
-                            ) : (
-                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            <Backpack size={14} className="text-blue-600" />
-                            Backpack (Monthly)
-                          </span>
-                          <div className="text-gray-700">
-                            {lastBPGuest ? (
-                              <div>
-                                <div>Last: {new Date(lastBPGuest.date).toLocaleDateString()}</div>
-                                {!canBP && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('backpack', lastBPGuest.date)?.toLocaleDateString('en-CA')} ({daysBP}d)</div>}
-                                {canBP && <div className="text-green-600 font-medium">✓ Available now</div>}
-                              </div>
-                            ) : (
-                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            <TentTree size={14} className="text-blue-600" />
-                            Tent (Monthly)
-                          </span>
-                          <div className="text-gray-700">
-                            {lastTentGuest ? (
-                              <div>
-                                <div>Last: {new Date(lastTentGuest.date).toLocaleDateString()}</div>
-                                {!canTent && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('tent', lastTentGuest.date)?.toLocaleDateString('en-CA')} ({daysTent}d)</div>}
-                                {canTent && <div className="text-green-600 font-medium">✓ Available now</div>}
-                              </div>
-                            ) : (
-                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-blue-800 mb-1 inline-flex items-center gap-1">
-                            <Footprints size={14} className="text-blue-600" />
-                            Flip Flops (Monthly)
-                          </span>
-                          <div className="text-gray-700">
-                            {lastFFGuest ? (
-                              <div>
-                                <div>Last: {new Date(lastFFGuest.date).toLocaleDateString()}</div>
-                                {!canFF && <div className="text-orange-600 font-medium">Next: {getNextAvailabilityDate('flip_flops', lastFFGuest.date)?.toLocaleDateString('en-CA')} ({daysFF}d)</div>}
-                                {canFF && <div className="text-green-600 font-medium">✓ Available now</div>}
-                              </div>
-                            ) : (
-                              <div className="text-green-600 font-medium">✓ Never given - Available</div>
-                            )}
-                          </div>
-                        </div>
+                        {waitlistActions.map((action) => {
+                          const nextDateLabel = action.nextDate ? action.nextDate.toLocaleDateString('en-CA') : null;
+                          return (
+                            <button
+                              key={action.key}
+                              disabled={!action.canGive}
+                              onClick={() => {
+                                if (!guest) return;
+                                try {
+                                  giveItem(guest.id, action.key);
+                                  toast.success(action.successMessage);
+                                } catch (e) {
+                                  toast.error(e.message);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={action.canGive ? action.label : nextDateLabel ? `Available ${nextDateLabel}` : 'Not yet available'}
+                            >
+                              {action.label}
+                              {!action.canGive && action.days > 0 && (
+                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                                  {action.days}d
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  </Animated.li>
+                  </Animated.div>
                 );
               })}
-            </ul>
-          )}
-        </div>
-      </div>
-      {todayWaitlisted.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-md font-semibold">Waitlisted Guests</h3>
-            <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-3 py-1 rounded-full">{todayWaitlisted.length} waitlisted</span>
+            </div>
           </div>
-          <ul className="divide-y">
-            {waitlistTrail.map((style, idx) => {
-              const record = todayWaitlisted[idx];
-              if (!record) return null;
-              const guest = guests.find(g => g.id === record.guestId);
-              const guestName = guest?.name || getGuestName(record.guestId);
-              const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
-              const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
-              const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
-              return (
-                <Animated.li key={record.id} style={style} className="py-2 will-change-transform">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium flex items-center gap-2">
-                          {guestName}
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Waitlisted</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Added at {new Date(record.date).toLocaleTimeString()}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { try { cancelShowerRecord(record.id); toast.success('Waitlist entry cancelled'); } catch (err) { toast.error(err.message); } }}
-                          className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
-                        >Cancel</button>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        disabled={!canT}
-                        title={canT ? 'Give T-Shirt' : `Available on ${getNextAvailabilityDate('tshirt', getLastGivenItem(guest?.id,'tshirt')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'tshirt')}d)`}
-                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'tshirt'); toast.success('T-Shirt given'); } catch (e) { toast.error(e.message); } }}
-                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                      >
-                        <span>Give T-Shirt</span>
-                        {!canT && getDaysUntilAvailable(guest?.id,'tshirt') > 0 && (
-                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                            {getDaysUntilAvailable(guest?.id,'tshirt')}d
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        disabled={!canSB}
-                        title={canSB ? 'Give Sleeping Bag' : `Available on ${getNextAvailabilityDate('sleeping_bag', getLastGivenItem(guest?.id,'sleeping_bag')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'sleeping_bag')}d)`}
-                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'sleeping_bag'); toast.success('Sleeping bag given'); } catch (e) { toast.error(e.message); } }}
-                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                      >
-                        <span>Give Sleeping Bag</span>
-                        {!canSB && getDaysUntilAvailable(guest?.id,'sleeping_bag') > 0 && (
-                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                            {getDaysUntilAvailable(guest?.id,'sleeping_bag')}d
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        disabled={!canBP}
-                        title={canBP ? 'Give Backpack' : `Available on ${getNextAvailabilityDate('backpack', getLastGivenItem(guest?.id,'backpack')?.date)?.toLocaleDateString()} (${getDaysUntilAvailable(guest?.id,'backpack')}d)`}
-                        onClick={() => { if (!guest) return; try { giveItem(guest.id, 'backpack'); toast.success('Backpack given'); } catch (e) { toast.error(e.message); } }}
-                        className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 disabled:opacity-50"
-                      >
-                        <span>Give Backpack</span>
-                        {!canBP && getDaysUntilAvailable(guest?.id,'backpack') > 0 && (
-                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                            {getDaysUntilAvailable(guest?.id,'backpack')}d
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </Animated.li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
-  const renderLaundrySection = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <WashingMachine className="text-purple-600" size={20} />
-            <span>Today's Laundry</span>
-          </h2>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <span className="bg-purple-100 text-purple-800 text-xs font-medium px-3 py-1 rounded-full">
-              {todayLaundryWithGuests.length} records
-            </span>
-            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Showing {filteredLaundry.length}</span>
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={laundryTypeFilter} onChange={(e) => setLaundryTypeFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+  const renderLaundrySection = () => {
+    const onsiteCapacity = settings?.maxOnsiteLaundrySlots ?? 5;
+    const onsiteLoads = todayLaundryWithGuests.filter(record => record.laundryType === 'onsite');
+    const offsiteLoads = todayLaundryWithGuests.filter(record => record.laundryType === 'offsite');
+    const onsiteUsed = onsiteLoads.length;
+    const onsiteAvailable = Math.max(onsiteCapacity - onsiteUsed, 0);
+    const onsiteProgress = onsiteCapacity ? Math.min((onsiteUsed / Math.max(onsiteCapacity, 1)) * 100, 100) : 0;
+    const washerLoads = onsiteLoads.filter(record => record.status === LAUNDRY_STATUS.WASHER).length;
+    const dryerLoads = onsiteLoads.filter(record => record.status === LAUNDRY_STATUS.DRYER).length;
+    const pendingOffsite = offsiteLoads.filter(record => record.status === LAUNDRY_STATUS.PENDING).length;
+    const transportedOffsite = offsiteLoads.filter(record => record.status === LAUNDRY_STATUS.TRANSPORTED).length;
+    const readyForPickupCount = todayLaundryWithGuests.filter(record =>
+      (record.laundryType === 'onsite' && record.status === LAUNDRY_STATUS.DONE) ||
+      (record.laundryType === 'offsite' && record.status === LAUNDRY_STATUS.RETURNED)
+    ).length;
+    const baglessLoads = onsiteLoads.filter(record => !record.bagNumber || `${record.bagNumber}`.trim() === '').length;
+
+    const typeOptions = [
+      { value: 'onsite', label: 'On-site' },
+      { value: 'offsite', label: 'Off-site' },
+    ];
+
+    const laundrySlotOptions = (allLaundrySlots || []).map(slot => ({
+      value: slot,
+      label: formatLaundryRangeLabel(slot),
+    }));
+
+    const onsiteStatusButtons = [
+      {
+        value: LAUNDRY_STATUS.WAITING,
+        label: 'Waiting',
+        icon: ShoppingBag,
+        activeClass: 'bg-gray-200 text-gray-500 border-gray-300 cursor-default',
+        idleClass: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100',
+      },
+      {
+        value: LAUNDRY_STATUS.WASHER,
+        label: 'In Washer',
+        icon: DropletIcon,
+        activeClass: 'bg-blue-100 text-blue-500 border-blue-200 cursor-default',
+        idleClass: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+      },
+      {
+        value: LAUNDRY_STATUS.DRYER,
+        label: 'In Dryer',
+        icon: FanIcon,
+        activeClass: 'bg-orange-100 text-orange-500 border-orange-200 cursor-default',
+        idleClass: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
+      },
+      {
+        value: LAUNDRY_STATUS.DONE,
+        label: 'Done',
+        icon: CheckCircle2Icon,
+        activeClass: 'bg-emerald-100 text-emerald-500 border-emerald-200 cursor-default',
+        idleClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+      },
+      {
+        value: LAUNDRY_STATUS.PICKED_UP,
+        label: 'Picked Up',
+        icon: LogOutIcon,
+        activeClass: 'bg-purple-100 text-purple-500 border-purple-200 cursor-default',
+        idleClass: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+      },
+    ];
+
+    const offsiteStatusButtons = [
+      {
+        value: LAUNDRY_STATUS.PENDING,
+        label: 'Waiting',
+        icon: Clock,
+        activeClass: 'bg-yellow-100 text-yellow-500 border-yellow-200 cursor-default',
+        idleClass: 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100',
+      },
+      {
+        value: LAUNDRY_STATUS.TRANSPORTED,
+        label: 'Transported',
+        icon: Truck,
+        activeClass: 'bg-blue-100 text-blue-500 border-blue-200 cursor-default',
+        idleClass: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+      },
+      {
+        value: LAUNDRY_STATUS.RETURNED,
+        label: 'Returned',
+        icon: CheckCircle2Icon,
+        activeClass: 'bg-emerald-100 text-emerald-500 border-emerald-200 cursor-default',
+        idleClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+      },
+      {
+        value: LAUNDRY_STATUS.OFFSITE_PICKED_UP,
+        label: 'Picked Up',
+        icon: LogOutIcon,
+        activeClass: 'bg-purple-100 text-purple-500 border-purple-200 cursor-default',
+        idleClass: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-100 p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-purple-600 text-xs font-semibold uppercase tracking-wide">
+              <WashingMachine size={16} className="text-purple-500" />
+              <span>On-site loads</span>
+            </div>
+            <div className="mt-3 text-xl font-semibold text-purple-900">{onsiteUsed} / {onsiteCapacity}</div>
+            <div className="mt-3 h-2 w-full bg-purple-100 rounded-full overflow-hidden">
+              <div className="h-full bg-purple-500 transition-all duration-500" style={{ width: `${onsiteProgress}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-purple-700">{onsiteAvailable} slot{onsiteAvailable === 1 ? '' : 's'} remaining today</p>
+            <p className="mt-3 text-[11px] text-purple-600">{washerLoads} washer • {dryerLoads} dryer</p>
+          </div>
+
+          <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
+              <Truck size={16} className="text-blue-500" />
+              <span>Off-site pipeline</span>
+            </div>
+            <div className="mt-3 text-xl font-semibold text-blue-900">{offsiteLoads.length} bag{offsiteLoads.length === 1 ? '' : 's'}</div>
+            <p className="mt-2 text-xs text-blue-700">{pendingOffsite} waiting • {transportedOffsite} in transit</p>
+            <p className="mt-3 text-[11px] text-blue-500">Keep bag numbers handy for quick updates.</p>
+          </div>
+
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-emerald-700 text-xs font-semibold uppercase tracking-wide">
+              <CheckCircle2Icon size={16} className="text-emerald-600" />
+              <span>Ready for pickup</span>
+            </div>
+            <div className="mt-3 text-xl font-semibold text-emerald-900">{readyForPickupCount}</div>
+            <p className="mt-2 text-xs text-emerald-700">Bagless loads: {baglessLoads}</p>
+            <p className="mt-3 text-[11px] text-emerald-600">Confirm bag numbers before changing status.</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-4 lg:p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <WashingMachine className="text-purple-600" size={20} />
+                  <span>Today's Laundry</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">Monitor bag progress, adjust slots, and update statuses in one place.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                <span className="bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
+                  {todayLaundryWithGuests.length} records
+                </span>
+                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                  Showing {filteredLaundry.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 flex flex-wrap gap-2">
+              <select
+                value={laundryTypeFilter}
+                onChange={(event) => setLaundryTypeFilter(event.target.value)}
+                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              >
                 <option value="any">Type: Any</option>
                 <option value="onsite">Type: On-site</option>
                 <option value="offsite">Type: Off-site</option>
               </select>
-              <select value={laundryStatusFilter} onChange={(e) => setLaundryStatusFilter(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select
+                value={laundryStatusFilter}
+                onChange={(event) => setLaundryStatusFilter(event.target.value)}
+                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              >
                 <option value="any">Status: Any</option>
                 <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
                 <option value={LAUNDRY_STATUS.WASHER}>In Washer</option>
                 <option value={LAUNDRY_STATUS.DRYER}>In Dryer</option>
                 <option value={LAUNDRY_STATUS.DONE}>Done</option>
                 <option value={LAUNDRY_STATUS.PICKED_UP}>Picked Up</option>
-                <option value={LAUNDRY_STATUS.PENDING}>Offsite: Waiting</option>
-                <option value={LAUNDRY_STATUS.TRANSPORTED}>Offsite: Transported</option>
-                <option value={LAUNDRY_STATUS.RETURNED}>Offsite: Returned</option>
-                <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>Offsite: Picked Up</option>
+                <option value={LAUNDRY_STATUS.PENDING}>Off-site Waiting</option>
+                <option value={LAUNDRY_STATUS.TRANSPORTED}>Transported</option>
+                <option value={LAUNDRY_STATUS.RETURNED}>Returned</option>
+                <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>Off-site Picked Up</option>
               </select>
-              <select value={laundrySort} onChange={(e) => setLaundrySort(e.target.value)} className="text-xs border rounded px-2 py-1">
+              <select
+                value={laundrySort}
+                onChange={(event) => setLaundrySort(event.target.value)}
+                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              >
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
                 <option value="status">Sort: Status</option>
                 <option value="name">Sort: Name</option>
               </select>
             </div>
+
+            {filteredLaundry.length === 0 ? (
+              <div className="border border-dashed border-purple-200 rounded-lg text-center py-12 text-sm text-purple-700 bg-purple-50">
+                No laundry bookings match your filters.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {laundryTrail.map((style, idx) => {
+                  const record = filteredLaundry[idx];
+                  if (!record) return null;
+                  const statusInfo = getLaundryStatusInfo(record.status);
+                  const StatusIcon = statusInfo.icon;
+                  const isOnsite = record.laundryType === 'onsite';
+                  const isEditingBag = editingBagNumber === record.id;
+
+                  return (
+                    <Animated.div
+                      key={record.id}
+                      style={style}
+                      className="will-change-transform bg-white border border-purple-100 rounded-xl shadow-sm p-4"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-base font-semibold text-gray-900">{record.guestName}</span>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isOnsite ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                                {isOnsite ? 'On-site' : 'Off-site'}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock size={12} /> {isOnsite ? formatLaundryRangeLabel(record.time) : 'Courier-managed window'}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <ShoppingBag size={12} />
+                                {isEditingBag ? (
+                                  <input
+                                    type="text"
+                                    value={newBagNumber}
+                                    onChange={(event) => setNewBagNumber(event.target.value)}
+                                    className="px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                    placeholder="Bag #"
+                                    onBlur={() => handleBagNumberUpdate(record.id, newBagNumber)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter') {
+                                        handleBagNumberUpdate(record.id, newBagNumber);
+                                      }
+                                      if (event.key === 'Escape') {
+                                        setEditingBagNumber(null);
+                                        setNewBagNumber('');
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
+                                    className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full hover:bg-purple-100"
+                                  >
+                                    Bag #{record.bagNumber || 'Add'}
+                                    <Edit3 size={10} className="opacity-60" />
+                                  </button>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1 border border-white/60`}>
+                            <StatusIcon size={14} />
+                            <span>{statusInfo.label}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Selectize
+                            options={typeOptions}
+                            value={record.laundryType}
+                            onChange={(value) => {
+                              try {
+                                rescheduleLaundry(record.id, {
+                                  newLaundryType: value,
+                                  newTime: value === 'onsite' ? (record.time || laundrySlotOptions[0]?.value || null) : null,
+                                });
+                                toast.success('Laundry type updated');
+                              } catch (err) {
+                                toast.error(err.message);
+                              }
+                            }}
+                            size="xs"
+                            className="w-32"
+                            displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
+                          />
+                          {isOnsite && (
+                            <Selectize
+                              options={laundrySlotOptions}
+                              value={record.time || laundrySlotOptions[0]?.value || ''}
+                              onChange={(time) => {
+                                try {
+                                  rescheduleLaundry(record.id, { newTime: time });
+                                  toast.success('Laundry slot updated');
+                                } catch (err) {
+                                  toast.error(err.message);
+                                }
+                              }}
+                              size="xs"
+                              className="w-44"
+                              placeholder="Select slot"
+                              displayValue={record.time ? formatLaundryRangeLabel(record.time) : 'Select slot'}
+                            />
+                          )}
+                          <button
+                            onClick={() => {
+                              try {
+                                cancelLaundryRecord(record.id);
+                                toast.success('Laundry booking cancelled');
+                              } catch (err) {
+                                toast.error(err.message);
+                              }
+                            }}
+                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {(isOnsite ? onsiteStatusButtons : offsiteStatusButtons).map((buttonConfig) => {
+                            const Icon = buttonConfig.icon;
+                            const isActive = record.status === buttonConfig.value;
+                            return (
+                              <button
+                                key={buttonConfig.value}
+                                onClick={() => attemptLaundryStatusChange(record, buttonConfig.value)}
+                                disabled={isActive}
+                                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${isActive ? buttonConfig.activeClass : buttonConfig.idleClass}`}
+                              >
+                                <Icon size={12} className="inline mr-1" />
+                                {buttonConfig.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </Animated.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-        {todayLaundryWithGuests.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-8">No laundry bookings today</p>
-        ) : (
-          <ul className="divide-y">
-            {laundryTrail.map((style, idx) => {
-              const record = filteredLaundry[idx];
-              if (!record) return null;
-              const statusInfo = getLaundryStatusInfo(record.status);
-              const StatusIcon = statusInfo.icon;
-
-              return (
-                <Animated.li key={record.id} style={style} className="py-3 will-change-transform">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div>
-                      <div className="font-medium">{record.guestName}</div>
-                      <div className="flex flex-wrap text-xs text-gray-500 gap-2 mt-1">
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} /> {record.time}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <ShoppingBag size={12} />
-                          {editingBagNumber === record.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={newBagNumber}
-                                onChange={(e) => setNewBagNumber(e.target.value)}
-                                className="w-16 px-1 py-0 text-xs border rounded"
-                                placeholder="Bag #"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    handleBagNumberUpdate(record.id, newBagNumber);
-                                  }
-                                }}
-                                onBlur={() => handleBagNumberUpdate(record.id, newBagNumber)}
-                                autoFocus
-                              />
-                            </div>
-                          ) : (
-                            <span
-                              className="cursor-pointer hover:bg-gray-200 px-1 rounded flex items-center gap-1"
-                              onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
-                              title="Click to edit bag number"
-                            >
-                              Bag #{record.bagNumber || 'N/A'}
-                              <Edit3 size={10} className="text-gray-400" />
-                            </span>
-                          )}
-                        </span>
-                        <span>
-                          {record.laundryType || 'Normal'} load
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-1 text-sm rounded flex items-center gap-1 mt-1 sm:mt-0`}>
-                      <StatusIcon size={14} />
-                      <span>{statusInfo.label}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2 items-center">
-                    <div className="flex items-center gap-2">
-                      <Selectize
-                        options={[{ value: 'onsite', label: 'On-site' }, { value: 'offsite', label: 'Off-site' }]}
-                        value={record.laundryType}
-                        onChange={(opt) => { try { rescheduleLaundry(record.id, { newLaundryType: opt, newTime: record.time }); toast.success('Laundry updated'); } catch (err) { toast.error(err.message); } }}
-                        size="xs"
-                        className="w-28"
-                        displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
-                      />
-                      {record.laundryType === 'onsite' && (
-                        <Selectize
-                          options={['8:00 - 9:00', '8:30 - 9:30', '9:30 - 10:30', '10:00 - 11:00', '10:30 - 11:30']}
-                          value={record.time}
-                          onChange={(t) => { try { rescheduleLaundry(record.id, { newTime: t }); toast.success('Laundry rescheduled'); } catch (err) { toast.error(err.message); } }}
-                          size="xs"
-                          className="w-36"
-                        />
-                      )}
-                      <button
-                        onClick={() => { try { cancelLaundryRecord(record.id); toast.success('Laundry cancelled'); } catch (e) { toast.error(e.message); } }}
-                        className="text-xs px-2 py-1 rounded border border-red-300 text-red-700 hover:bg-red-50"
-                        title="Cancel laundry"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-
-                    {record.laundryType === 'onsite' ? (
-                      <>
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WAITING)}
-                          disabled={record.status === LAUNDRY_STATUS.WAITING}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WAITING
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                            }`}
-                        >
-                          <ShoppingBag size={12} className="inline mr-1" /> Waiting
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.WASHER)}
-                          disabled={record.status === LAUNDRY_STATUS.WASHER}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.WASHER
-                            ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
-                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                            }`}
-                        >
-                          <DropletIcon size={12} className="inline mr-1" /> In Washer
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DRYER)}
-                          disabled={record.status === LAUNDRY_STATUS.DRYER}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DRYER
-                            ? 'bg-orange-100 text-orange-400 border-orange-200 cursor-not-allowed'
-                            : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
-                            }`}
-                        >
-                          <FanIcon size={12} className="inline mr-1" /> In Dryer
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.DONE)}
-                          disabled={record.status === LAUNDRY_STATUS.DONE}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.DONE
-                            ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
-                            : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-                            }`}
-                        >
-                          <CheckCircle2Icon size={12} className="inline mr-1" /> Done
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PICKED_UP)}
-                          disabled={record.status === LAUNDRY_STATUS.PICKED_UP}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PICKED_UP
-                            ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
-                            : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                            }`}
-                        >
-                          <LogOutIcon size={12} className="inline mr-1" /> Picked Up
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.PENDING)}
-                          disabled={record.status === LAUNDRY_STATUS.PENDING}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.PENDING
-                            ? 'bg-yellow-100 text-yellow-400 border-yellow-200 cursor-not-allowed'
-                            : 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100'
-                            }`}
-                        >
-                          <Clock size={12} className="inline mr-1" /> Waiting
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.TRANSPORTED)}
-                          disabled={record.status === LAUNDRY_STATUS.TRANSPORTED}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.TRANSPORTED
-                            ? 'bg-blue-100 text-blue-400 border-blue-200 cursor-not-allowed'
-                            : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                            }`}
-                        >
-                          <Truck size={12} className="inline mr-1" /> Transported
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.RETURNED)}
-                          disabled={record.status === LAUNDRY_STATUS.RETURNED}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.RETURNED
-                            ? 'bg-green-100 text-green-400 border-green-200 cursor-not-allowed'
-                            : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
-                            }`}
-                        >
-                          <CheckCircle2Icon size={12} className="inline mr-1" /> Returned
-                        </button>
-
-                        <button
-                          onClick={() => attemptLaundryStatusChange(record, LAUNDRY_STATUS.OFFSITE_PICKED_UP)}
-                          disabled={record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP}
-                          className={`text-xs px-2 py-1 rounded-full border ${record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP
-                            ? 'bg-purple-100 text-purple-400 border-purple-200 cursor-not-allowed'
-                            : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
-                            }`}
-                        >
-                          <LogOutIcon size={12} className="inline mr-1" /> Picked Up
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </Animated.li>
-              );
-            })}
-          </ul>
-        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -1601,7 +1902,7 @@ const Services = () => {
           <Animated.div style={modalSpring} className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <h3 className="text-lg font-semibold mb-1">Bag number required</h3>
             <p className="text-sm text-gray-600 mb-3">Please enter a bag number before changing laundry status. This helps track a guest's laundry.</p>
-            <div className="flex items-center gap-2 mb-4">
+                       <div className="flex items-center gap-2 mb-4">
               <input
                 type="text"
                 value={bagPromptValue}
