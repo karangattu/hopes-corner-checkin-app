@@ -193,7 +193,7 @@ const Donations = () => {
               <PackagePlus size={18} className="text-white" />
               Donations log
             </div>
-            <h2 className="text-2xl font-semibold mt-2">Track pantry and meal contributions</h2>
+            <h2 className="text-2xl font-semibold mt-2">Track pantry and food donations</h2>
             <p className="text-sm text-emerald-50 mt-3 max-w-2xl">
               Capture deliveries, keep an audit trail, and export totals in seconds. Select a date to review and add entries without changing your workflow.
             </p>

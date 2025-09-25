@@ -12,7 +12,7 @@ import {
   FileText,
   Upload
 } from 'lucide-react';
-import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert, Cloud, HardDrive } from 'lucide-react';
+import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2 } from 'lucide-react';
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
@@ -668,133 +668,298 @@ const Dashboard = () => {
     bicycles: bicycleRecords?.length || 0,
     donations: donationRecords?.length || 0,
   }), [guests, mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, showerRecords, laundryRecords, itemGivenRecords, haircutRecords, holidayRecords, bicycleRecords, donationRecords]);
-  const renderSystemSection = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border p-4">
-        <h2 className="text-lg font-medium mb-2 flex items-center gap-2 text-red-700">
-          <ShieldAlert size={18} /> System Utilities
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">Tools for testing and maintenance. Use with caution.</p>
+  const renderSystemSection = () => {
+    const scopeParts = [];
+    if (resetOptions.local) scopeParts.push('local data');
+    if (resetOptions.firestore) scopeParts.push('cloud data');
+    const scopeSummary = scopeParts.length > 0 ? scopeParts.join(' + ') : 'No data sets selected';
+    const guestSummary = resetOptions.keepGuests ? 'Guest directory will be preserved.' : 'Guest directory will be cleared as well.';
+    const resetDisabled = isResetting || (!resetOptions.local && !resetOptions.firestore);
 
-        <div className="border rounded p-3 bg-red-50 border-red-200">
-          <div className="flex items-center gap-2 text-red-800 font-semibold mb-2">
-            <AlertTriangle size={16} /> Reset Database
-          </div>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-            <p className="text-sm text-red-900">Clears records from this device's storage. If connected to Firestore and enabled, can also clear cloud collections.</p>
-            <div className={`inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-medium ${useFirebase ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
-              <Cloud size={14} /> Cloud Sync: {useFirebase ? 'Enabled' : 'Disabled'}
+    const impactList = [
+      { label: 'Meals', value: localCounts.meals },
+      { label: 'RV Meals', value: localCounts.rvMeals },
+      { label: 'United Effort Meals', value: localCounts.ueMeals },
+      { label: 'Extra Meals', value: localCounts.extraMeals },
+      { label: 'Day Worker Meals', value: localCounts.dayWorkerMeals },
+      { label: 'Lunch Bags', value: localCounts.lunchBags },
+      { label: 'Showers', value: localCounts.showers },
+      { label: 'Laundry', value: localCounts.laundry },
+      { label: 'Items Given', value: localCounts.items },
+      { label: 'Haircuts', value: localCounts.haircuts },
+      { label: 'Holidays', value: localCounts.holidays },
+      { label: 'Bicycles', value: localCounts.bicycles },
+      { label: 'Donations', value: localCounts.donations },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
+                <ShieldAlert size={16} className="text-white" /> High-impact admin
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold">Reset database</h2>
+                <p className="text-sm text-rose-50 mt-2 max-w-2xl">
+                  Clear out demo or stale records in one action. Choose the scope below, review what will be deleted, and confirm with the safety prompt. This cannot be undone.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide">
+                <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
+                  <Cloud size={14} className="text-white" /> Cloud sync: {useFirebase ? 'enabled' : 'disabled'}
+                </span>
+                <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
+                  <Database size={14} className="text-white" /> Scope: {scopeSummary}
+                </span>
+                <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
+                  <ClipboardList size={14} className="text-white" /> {guestSummary}
+                </span>
+              </div>
+            </div>
+            <div className="min-w-[220px] bg-white/10 border border-white/25 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <HardDrive size={18} className="text-white" /> Local totals
+              </div>
+              <div className="text-3xl font-bold leading-none">{localCounts.guests}{resetOptions.keepGuests ? '' : '+'}</div>
+              <p className="text-xs text-white/80 leading-relaxed">
+                {resetOptions.keepGuests ? 'Guests stay in the system; services reset to zero.' : 'Guests and related service history will be removed.'}
+              </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-            <label className="flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none">
-              <input className="h-4 w-4" type="checkbox" checked={resetOptions.local} onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))} />
-              <span className="leading-none">Clear local data (this device)</span>
-            </label>
-            <label className={`flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none ${!useFirebase ? 'opacity-60 cursor-not-allowed' : ''}`}
-                   title={!useFirebase ? 'Enable Firebase to clear cloud data' : ''}>
-              <input className="h-4 w-4" type="checkbox" disabled={!useFirebase} checked={resetOptions.firestore && useFirebase} onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked && useFirebase }))} />
-              <span className="leading-none">Also clear Firestore data</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none">
-              <input className="h-4 w-4" type="checkbox" checked={resetOptions.keepGuests} onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))} />
-              <span className="leading-none">Keep guest list</span>
-            </label>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="text-xs text-gray-600">Presets:</span>
-            <button onClick={() => setResetOptions({ local: true, firestore: false, keepGuests: false })}
-                    className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">Local only</button>
-            <button onClick={() => setResetOptions({ local: false, firestore: true, keepGuests: false })}
-                    disabled={!useFirebase}
-                    className={`text-xs px-2 py-1 rounded ${useFirebase ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400'}`}>Cloud only</button>
-            <button onClick={() => setResetOptions({ local: true, firestore: true, keepGuests: true })}
-                    disabled={!useFirebase}
-                    className={`text-xs px-2 py-1 rounded ${useFirebase ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400'}`}>Everything (keep guests)</button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between">
-              <div className="flex items-center gap-2 text-gray-700"><HardDrive size={14} /> Local Guests</div>
-              <div className="font-semibold">{localCounts.guests}{resetOptions.keepGuests ? ' (kept)' : ''}</div>
-            </div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Meals</div><div className="font-semibold">{localCounts.meals}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">RV Meals</div><div className="font-semibold">{localCounts.rvMeals}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">United Effort Meals</div><div className="font-semibold">{localCounts.ueMeals}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Extra Meals</div><div className="font-semibold">{localCounts.extraMeals}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Day Worker Meals</div><div className="font-semibold">{localCounts.dayWorkerMeals}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Lunch Bags</div><div className="font-semibold">{localCounts.lunchBags}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Showers</div><div className="font-semibold">{localCounts.showers}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Laundry</div><div className="font-semibold">{localCounts.laundry}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Items Given</div><div className="font-semibold">{localCounts.items}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Haircuts</div><div className="font-semibold">{localCounts.haircuts}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Holidays</div><div className="font-semibold">{localCounts.holidays}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Bicycles</div><div className="font-semibold">{localCounts.bicycles}</div></div>
-            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Donations</div><div className="font-semibold">{localCounts.donations}</div></div>
-          </div>
-
-          <button
-            disabled={isResetting || (!resetOptions.local && !resetOptions.firestore)}
-            onClick={() => setIsConfirmOpen(true)}
-            className={`px-4 py-2 rounded text-sm font-medium ${isResetting ? 'bg-red-300 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-          >
-            {isResetting ? 'Resetting…' : 'Reset Selected Data'}
-          </button>
         </div>
-      </div>
 
-      {isConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => !isResetting && setIsConfirmOpen(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl border w-[95%] max-w-md p-4">
-            <div className="flex items-center gap-2 text-red-700 font-semibold mb-2">
-              <AlertTriangle size={18} /> Confirm Reset
+        <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <AlertTriangle size={18} className="text-rose-500" /> Step 1 · Choose what to reset
+                  </h3>
+                  <p className="text-sm text-gray-500">Tick the areas you want to clear. Cloud data is only available when Firestore sync is enabled.</p>
+                </div>
+                <div className="inline-flex items-center gap-2 text-xs rounded-full px-3 py-1 bg-rose-50 text-rose-600">
+                  <RefreshCcw size={14} /> Pending scope
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.local ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition`}> 
+                  <input
+                    className="mt-1 h-4 w-4 text-rose-500 focus:ring-rose-500"
+                    type="checkbox"
+                    checked={resetOptions.local}
+                    onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))}
+                  />
+                  <div className="text-sm">
+                    <p className="font-semibold text-gray-900">Local storage</p>
+                    <p className="text-xs text-gray-500">Clears data saved on this device, including services, donations, and queue info.</p>
+                  </div>
+                </label>
+
+                <label
+                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.firestore && useFirebase ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition ${!useFirebase ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={!useFirebase ? 'Enable Firebase in settings to reset cloud collections' : ''}
+                >
+                  <input
+                    className="mt-1 h-4 w-4 text-rose-500 focus:ring-rose-500"
+                    type="checkbox"
+                    disabled={!useFirebase}
+                    checked={resetOptions.firestore && useFirebase}
+                    onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked && useFirebase }))}
+                  />
+                  <div className="text-sm">
+                    <p className="font-semibold text-gray-900">Firestore collections</p>
+                    <p className="text-xs text-gray-500">Deletes synced records in the cloud to match this reset.</p>
+                  </div>
+                </label>
+
+                <label className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.keepGuests ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition`}>
+                  <input
+                    className="mt-1 h-4 w-4 text-emerald-500 focus:ring-emerald-500"
+                    type="checkbox"
+                    checked={resetOptions.keepGuests}
+                    onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))}
+                  />
+                  <div className="text-sm">
+                    <p className="font-semibold text-gray-900">Keep guest profiles</p>
+                    <p className="text-xs text-gray-500">Preserve names and contact info while clearing service history.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-xs uppercase tracking-wide text-gray-500">Quick presets</div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResetOptions({ local: true, firestore: false, keepGuests: false })}
+                    className="px-3 py-2 text-xs font-semibold rounded-full border border-gray-200 hover:border-rose-300 hover:text-rose-600 transition"
+                  >
+                    Local only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetOptions({ local: false, firestore: true, keepGuests: false })}
+                    disabled={!useFirebase}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${useFirebase ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                  >
+                    Cloud only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetOptions({ local: true, firestore: true, keepGuests: true })}
+                    disabled={!useFirebase}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${useFirebase ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                  >
+                    Everything · keep guests
+                  </button>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-gray-700 mb-3">
-              This will permanently delete
-              {resetOptions.local && ' local data'}
-              {resetOptions.local && resetOptions.firestore ? ' and' : ''}
-              {resetOptions.firestore && ' Firestore data'}
-              {resetOptions.keepGuests ? ' (guests will be kept)' : ''}.
-            </p>
-            <div className="bg-gray-50 border rounded p-2 text-xs mb-3">
-              <div className="font-medium mb-1">Summary</div>
-              <ul className="list-disc ml-4 space-y-1">
-                {resetOptions.local && <li>Clear local storage for services, donations, supplies, slots{resetOptions.keepGuests ? ', keeping guests' : ', and guests'}</li>}
-                {resetOptions.firestore && <li>Delete documents from Firestore collections (guests {resetOptions.keepGuests ? 'kept' : 'deleted'}, meals, rvMeals, unitedEffortMeals, extraMeals, dayWorkerMeals, lunchBags, showers, laundry, bicycles, holidays, haircuts, itemsGiven, donations)</li>}
+
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ClipboardList size={18} className="text-rose-500" /> Step 2 · Review impact
+                  </h3>
+                  <p className="text-sm text-gray-500">Once you confirm, these counts reset to zero for the selected scope.</p>
+                </div>
+                <span className="text-xs uppercase tracking-wide text-gray-400">Snapshot only</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 flex flex-col">
+                  <span className="text-xs uppercase tracking-wide text-gray-500">Guests on device</span>
+                  <span className="text-2xl font-semibold text-gray-900">{localCounts.guests}</span>
+                  <span className="text-xs text-gray-500">{guestSummary}</span>
+                </div>
+                {impactList.map(({ label, value }) => (
+                  <div key={label} className="rounded-xl border border-gray-100 bg-white p-3">
+                    <div className="text-sm font-medium text-gray-700">{label}</div>
+                    <div className="text-xl font-semibold text-gray-900">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-100 pt-4">
+                <p className="text-sm text-gray-600">
+                  Double-check you have exported any reports you want to keep. Resets affect both web and kiosk experiences.
+                </p>
+                <button
+                  type="button"
+                  disabled={resetDisabled}
+                  onClick={() => setIsConfirmOpen(true)}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${resetDisabled ? 'bg-rose-200 text-white cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white'}`}
+                >
+                  <AlertTriangle size={16} /> {isResetting ? 'Resetting…' : 'Proceed to confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-emerald-500" /> Safety checklist
+              </h3>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">1</span>
+                  Export required CSVs or reports for bookkeeping.
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">2</span>
+                  Confirm all staff are informed—service queues will be cleared instantly.
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">3</span>
+                  If Firestore is enabled, double-check you truly want to wipe the cloud backup.
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">4</span>
+                  Prepare to re-import guests if you plan to start fresh from a CSV template.
+                </li>
               </ul>
             </div>
-            <label className="text-sm text-gray-700">Type <span className="font-mono font-semibold">RESET</span> to confirm</label>
-            <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="RESET" className="w-full border rounded px-3 py-2 text-sm mt-1 mb-3" />
-            <div className="flex justify-end gap-2">
-              <button disabled={isResetting} onClick={() => setIsConfirmOpen(false)} className="px-3 py-2 text-sm rounded border">Cancel</button>
-              <button
-                disabled={isResetting || confirmText !== 'RESET'}
-                onClick={async () => {
-                  setIsResetting(true);
-                  try {
-                    await resetAllData(resetOptions);
-                    toast.success('Database reset complete');
-                    setIsConfirmOpen(false);
-                    setConfirmText('');
-                  } catch (e) {
-                    toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
-                  } finally {
-                    setIsResetting(false);
-                  }
-                }}
-                className={`px-4 py-2 rounded text-sm font-medium ${isResetting || confirmText !== 'RESET' ? 'bg-red-300 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-              >
-                {isResetting ? 'Resetting…' : 'Confirm Reset'}
-              </button>
+
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <RefreshCcw size={18} className="text-blue-500" /> After the reset
+              </h3>
+              <p className="text-sm text-gray-600">
+                You can begin logging new data immediately. Reconnect kiosks or satellite devices so they sync with the cleared database. Consider adding a reminder to export fresh baseline reports once operations resume.
+              </p>
             </div>
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        {isConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => !isResetting && setIsConfirmOpen(false)} />
+            <div className="relative bg-white rounded-2xl shadow-xl border border-rose-100 w-[95%] max-w-lg p-6 space-y-4">
+              <div className="flex items-center gap-3 text-rose-600">
+                <AlertTriangle size={20} />
+                <div>
+                  <h4 className="text-lg font-semibold">Type RESET to finalize</h4>
+                  <p className="text-sm text-gray-600">This action removes the selected records immediately. There is no undo.</p>
+                </div>
+              </div>
+              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-sm text-rose-900 space-y-2">
+                <div className="font-semibold uppercase tracking-wide text-xs">What will happen</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {resetOptions.local && <li>Local storage on this device will be cleared for services, donations, supplies, and schedules{resetOptions.keepGuests ? ', keeping guest profiles' : ', including guest profiles'}.</li>}
+                  {resetOptions.firestore && <li>Firestore collections (meals, showers, laundry, donations, supplies, bicycles, holidays, haircuts, and extras) will be deleted to match.</li>}
+                  {!resetOptions.local && !resetOptions.firestore && <li>No data sets selected. Close to adjust your options.</li>}
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Safety phrase</label>
+                <input
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder="RESET"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300"
+                />
+              </div>
+              <div className="flex flex-wrap justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={isResetting}
+                  onClick={() => setIsConfirmOpen(false)}
+                  className="px-4 py-2 text-sm font-semibold rounded-full border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isResetting || confirmText !== 'RESET'}
+                  onClick={async () => {
+                    setIsResetting(true);
+                    try {
+                      await resetAllData(resetOptions);
+                      toast.success('Database reset complete');
+                      setIsConfirmOpen(false);
+                      setConfirmText('');
+                    } catch (e) {
+                      toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
+                    } finally {
+                      setIsResetting(false);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${isResetting || confirmText !== 'RESET' ? 'bg-rose-200 text-white cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white'}`}
+                >
+                  <AlertTriangle size={16} /> {isResetting ? 'Resetting…' : 'Confirm reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
