@@ -442,7 +442,7 @@ export const AppProvider = ({ children }) => {
       });
     }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: `Logged bicycle repair (${repairType})` }, ...prev.slice(0, 49)]);
-    toast.success('Bicycle repair added');
+  toast.success('Bicycle repair logged');
     return record;
   };
 

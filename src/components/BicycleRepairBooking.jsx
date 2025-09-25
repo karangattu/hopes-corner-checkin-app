@@ -20,7 +20,6 @@ const BicycleRepairBooking = () => {
         try {
             setSubmitting(true);
             addBicycleRecord(bicyclePickerGuest.id, { repairType, notes });
-            toast.success('Bicycle repair logged');
             setBicyclePickerGuest(null);
         } catch (e) {
             toast.error(e.message || 'Failed to add repair');

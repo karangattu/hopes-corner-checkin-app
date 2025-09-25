@@ -481,7 +481,7 @@ const Services = () => {
   const repairTypes = [
     'Flat Tire', 'Brake Adjustment', 'Gear Adjustment', 'Chain Replacement', 'Wheel Truing', 'Basic Tune Up', 'Drivetrain Cleaning', 'Cable Replacement', 'Headset Adjustment', 'New Bicycle', 'Other'
   ];
-  const todayBicycleRepairs = (bicycleRecords || []).filter(r => (r.date || '').startsWith(today));
+  const todayBicycleRepairs = (bicycleRecords || []).filter(r => pacificDateStringFrom(r.date || '') === today);
   const sortedBicycleRepairs = [...todayBicycleRepairs].sort((a, b) => (b.priority || 0) - (a.priority || 0));
   const renderBicycleRepairsSection = () => (
     <div className="space-y-6">
