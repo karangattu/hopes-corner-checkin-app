@@ -21,13 +21,31 @@ import {
   Plus,
   PlusCircle,
   Eraser,
+  Scissors,
+  Gift,
+  Bike,
 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '../context/constants';
 import Selectize from './Selectize';
 
 const GuestList = () => {
-  const { guests, mealRecords, setShowerPickerGuest, setLaundryPickerGuest, addMealRecord, addExtraMealRecord, addGuest, setBicyclePickerGuest } = useAppContext();
+  const {
+    guests,
+    mealRecords,
+    extraMealRecords,
+    showerRecords,
+    laundryRecords,
+    holidayRecords,
+    haircutRecords,
+    bicycleRecords,
+    setShowerPickerGuest,
+    setLaundryPickerGuest,
+    addMealRecord,
+    addExtraMealRecord,
+    addGuest,
+    setBicyclePickerGuest,
+  } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
 
@@ -202,6 +220,107 @@ const GuestList = () => {
       .join(' ')
       .trim();
   };
+
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      }),
+    []
+  );
+
+  const formatStatusLabel = (value) => {
+    if (!value) return '';
+    return value
+      .toString()
+      .replace(/[_-]+/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
+  const formatRelativeTime = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    const diffMs = Date.now() - date.getTime();
+    if (diffMs < 60 * 1000) return 'just now';
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 5) return `${weeks} wk${weeks === 1 ? '' : 's'} ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} mo${months === 1 ? '' : 's'} ago`;
+    const years = Math.floor(days / 365);
+    return `${years} yr${years === 1 ? '' : 's'} ago`;
+  };
+
+  const latestServiceByGuest = useMemo(() => {
+    const map = new Map();
+    const addCandidate = (guestId, dateValue, summary, icon, iconClass = '') => {
+      if (!guestId || !dateValue) return;
+      const resolvedDate = dateValue instanceof Date ? dateValue : new Date(dateValue);
+      if (Number.isNaN(resolvedDate.getTime())) return;
+      const key = String(guestId);
+      const existing = map.get(key);
+      if (!existing || resolvedDate > existing.date) {
+        map.set(key, { summary, icon, iconClass, date: resolvedDate });
+      }
+    };
+
+    mealRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      const summary = `Meal${record.count > 1 ? `s (${record.count})` : ''}`;
+      addCandidate(record.guestId, record.date, summary, Utensils, 'text-green-600');
+    });
+
+    extraMealRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      const summary = `Extra meals${record.count ? ` (${record.count})` : ''}`;
+      addCandidate(record.guestId, record.date, summary, Utensils, 'text-green-500');
+    });
+
+    showerRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      const statusLabel = formatStatusLabel(record.status);
+      const summary = statusLabel ? `Shower (${statusLabel})` : 'Shower';
+      addCandidate(record.guestId, record.date, summary, ShowerHead, 'text-emerald-600');
+    });
+
+    laundryRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      const typeLabel = record.laundryType === 'offsite' ? 'Off-site' : 'On-site';
+      const statusLabel = formatStatusLabel(record.status);
+      const detailText = [typeLabel, statusLabel].filter(Boolean).join(' · ');
+      const summary = detailText ? `Laundry (${detailText})` : 'Laundry';
+      addCandidate(record.guestId, record.date, summary, WashingMachine, 'text-emerald-700');
+    });
+
+    holidayRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      addCandidate(record.guestId, record.date, 'Holiday service', Gift, 'text-amber-500');
+    });
+
+    haircutRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      addCandidate(record.guestId, record.date, 'Haircut', Scissors, 'text-pink-500');
+    });
+
+    bicycleRecords.forEach((record) => {
+      if (!record?.guestId) return;
+      const summary = record.repairType ? `Bicycle repair (${record.repairType})` : 'Bicycle repair';
+      addCandidate(record.guestId, record.date, summary, Bike, 'text-sky-500');
+    });
+
+    return map;
+  }, [mealRecords, extraMealRecords, showerRecords, laundryRecords, holidayRecords, haircutRecords, bicycleRecords]);
 
   const handleCreateFormChange = (e) => {
     const { name, value } = e.target;
@@ -558,35 +677,62 @@ const GuestList = () => {
                   Found {filteredGuests.length} guest{filteredGuests.length !== 1 ? 's' : ''} matching "{searchTerm}"
                 </div>
               )}
-              {filteredGuests.map((guest, i) => (
-                <Animated.div
-                  style={trail[i]}
-                  key={`guest-${guest.id}-${searchTerm}`}
-                  className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
-                >
-                  <div
-                    className="p-4 cursor-pointer flex justify-between items-center"
-                    onClick={() => toggleExpanded(guest.id)}
+              {filteredGuests.map((guest, i) => {
+                const lastService = latestServiceByGuest.get(String(guest.id));
+                const ServiceIcon = lastService?.icon;
+                const formattedDate = lastService ? dateTimeFormatter.format(lastService.date) : '';
+                const fullDateTooltip = lastService ? lastService.date.toLocaleString() : '';
+                const relativeLabel = lastService ? formatRelativeTime(lastService.date) : '';
+
+                return (
+                  <Animated.div
+                    style={trail[i]}
+                    key={`guest-${guest.id}-${searchTerm}`}
+                    className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="bg-blue-100 p-2 rounded-full">
-                        <User size={24} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{guest.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Home size={14} />
-                          <span>{guest.housingStatus}</span>
-                          {guest.location && (
-                            <>
-                              <span className="text-gray-300">•</span>
-                              <MapPin size={14} />
-                              <span>{guest.location}</span>
-                            </>
+                    <div
+                      className="p-4 cursor-pointer flex justify-between items-center"
+                      onClick={() => toggleExpanded(guest.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-full">
+                          <User size={24} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{guest.name}</h3>
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Home size={14} />
+                            <span>{guest.housingStatus}</span>
+                            {guest.location && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <MapPin size={14} />
+                                <span>{guest.location}</span>
+                              </>
+                            )}
+                          </div>
+                          {lastService && ServiceIcon && (
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                              <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                                <ServiceIcon size={14} className={`${lastService.iconClass || 'text-blue-500'}`} />
+                                <span>{lastService.summary}</span>
+                              </span>
+                              {formattedDate && (
+                                <>
+                                  <span className="text-gray-300">•</span>
+                                  <span title={fullDateTooltip}>{formattedDate}</span>
+                                </>
+                              )}
+                              {relativeLabel && (
+                                <>
+                                  <span className="text-gray-300">•</span>
+                                  <span className="text-gray-400">{relativeLabel}</span>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
-                    </div>
                     <div className="flex items-center gap-1">
                       {expandedGuest === guest.id ? (
                         <SpringIcon>
@@ -767,8 +913,9 @@ const GuestList = () => {
                       </div>
                     </div>
                   )}
-                </Animated.div>
-              ))}
+                  </Animated.div>
+                );
+              })}
             </div>
           )}
         </>
