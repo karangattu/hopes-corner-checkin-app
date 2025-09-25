@@ -388,6 +388,18 @@ export const AppProvider = ({ children }) => {
     });
 
     setGuests([...guests, ...newGuests]);
+    if (firestoreEnabled) {
+      ensureDb().then(async (db) => {
+        try {
+          if (!db) return;
+          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+          const writes = newGuests.map(g => setDoc(doc(db, 'guests', String(g.id)), { ...g, createdAt: serverTimestamp() }));
+          await Promise.allSettled(writes);
+        } catch {
+          // ignore cloud write failures
+        }
+      });
+    }
     return newGuests;
   };
 

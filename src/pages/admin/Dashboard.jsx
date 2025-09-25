@@ -12,7 +12,7 @@ import {
   FileText,
   Upload
 } from 'lucide-react';
-import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert, Cloud, HardDrive } from 'lucide-react';
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
@@ -34,6 +34,7 @@ const Dashboard = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
+    lunchBagRecords,
     showerRecords,
     laundryRecords,
     itemGivenRecords,
@@ -646,6 +647,26 @@ const Dashboard = () => {
 
   const [resetOptions, setResetOptions] = useState({ local: true, firestore: false, keepGuests: false });
   const [isResetting, setIsResetting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const useFirebase = import.meta.env.VITE_USE_FIREBASE === 'true';
+
+  const localCounts = useMemo(() => ({
+    guests: guests?.length || 0,
+    meals: mealRecords?.length || 0,
+    rvMeals: rvMealRecords?.length || 0,
+    ueMeals: unitedEffortMealRecords?.length || 0,
+    extraMeals: extraMealRecords?.length || 0,
+    dayWorkerMeals: dayWorkerMealRecords?.length || 0,
+    lunchBags: lunchBagRecords?.length || 0,
+    showers: showerRecords?.length || 0,
+    laundry: laundryRecords?.length || 0,
+    items: itemGivenRecords?.length || 0,
+    haircuts: haircutRecords?.length || 0,
+    holidays: holidayRecords?.length || 0,
+    bicycles: bicycleRecords?.length || 0,
+    donations: donationRecords?.length || 0,
+  }), [guests, mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, showerRecords, laundryRecords, itemGivenRecords, haircutRecords, holidayRecords, bicycleRecords, donationRecords]);
   const renderSystemSection = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -658,44 +679,119 @@ const Dashboard = () => {
           <div className="flex items-center gap-2 text-red-800 font-semibold mb-2">
             <AlertTriangle size={16} /> Reset Database
           </div>
-          <p className="text-sm text-red-900 mb-3">Clears records from this device's storage. If connected to Firestore and enabled, can also clear cloud collections.</p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+            <p className="text-sm text-red-900">Clears records from this device's storage. If connected to Firestore and enabled, can also clear cloud collections.</p>
+            <div className={`inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-medium ${useFirebase ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+              <Cloud size={14} /> Cloud Sync: {useFirebase ? 'Enabled' : 'Disabled'}
+            </div>
+          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-3">
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={resetOptions.local} onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))} />
-              <span>Clear local data (this device)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+            <label className="flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none">
+              <input className="h-4 w-4" type="checkbox" checked={resetOptions.local} onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))} />
+              <span className="leading-none">Clear local data (this device)</span>
             </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={resetOptions.firestore} onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked }))} />
-              <span>Also clear Firestore data</span>
+            <label className={`flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none ${!useFirebase ? 'opacity-60 cursor-not-allowed' : ''}`}
+                   title={!useFirebase ? 'Enable Firebase to clear cloud data' : ''}>
+              <input className="h-4 w-4" type="checkbox" disabled={!useFirebase} checked={resetOptions.firestore && useFirebase} onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked && useFirebase }))} />
+              <span className="leading-none">Also clear Firestore data</span>
             </label>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={resetOptions.keepGuests} onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))} />
-              <span>Keep guest list</span>
+            <label className="flex items-center gap-2 text-sm bg-white border rounded px-3 py-2 select-none">
+              <input className="h-4 w-4" type="checkbox" checked={resetOptions.keepGuests} onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))} />
+              <span className="leading-none">Keep guest list</span>
             </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-xs text-gray-600">Presets:</span>
+            <button onClick={() => setResetOptions({ local: true, firestore: false, keepGuests: false })}
+                    className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">Local only</button>
+            <button onClick={() => setResetOptions({ local: false, firestore: true, keepGuests: false })}
+                    disabled={!useFirebase}
+                    className={`text-xs px-2 py-1 rounded ${useFirebase ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400'}`}>Cloud only</button>
+            <button onClick={() => setResetOptions({ local: true, firestore: true, keepGuests: true })}
+                    disabled={!useFirebase}
+                    className={`text-xs px-2 py-1 rounded ${useFirebase ? 'bg-gray-200 hover:bg-gray-300' : 'bg-gray-100 text-gray-400'}`}>Everything (keep guests)</button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gray-700"><HardDrive size={14} /> Local Guests</div>
+              <div className="font-semibold">{localCounts.guests}{resetOptions.keepGuests ? ' (kept)' : ''}</div>
+            </div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Meals</div><div className="font-semibold">{localCounts.meals}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">RV Meals</div><div className="font-semibold">{localCounts.rvMeals}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">United Effort Meals</div><div className="font-semibold">{localCounts.ueMeals}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Extra Meals</div><div className="font-semibold">{localCounts.extraMeals}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Day Worker Meals</div><div className="font-semibold">{localCounts.dayWorkerMeals}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Lunch Bags</div><div className="font-semibold">{localCounts.lunchBags}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Showers</div><div className="font-semibold">{localCounts.showers}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Laundry</div><div className="font-semibold">{localCounts.laundry}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Items Given</div><div className="font-semibold">{localCounts.items}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Haircuts</div><div className="font-semibold">{localCounts.haircuts}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Holidays</div><div className="font-semibold">{localCounts.holidays}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Bicycles</div><div className="font-semibold">{localCounts.bicycles}</div></div>
+            <div className="bg-white border rounded p-2 text-sm flex items-center justify-between"><div className="text-gray-700">Donations</div><div className="font-semibold">{localCounts.donations}</div></div>
           </div>
 
           <button
             disabled={isResetting || (!resetOptions.local && !resetOptions.firestore)}
-            onClick={async () => {
-              const proceed = window.confirm('Are you sure? This will permanently delete data based on selected options.');
-              if (!proceed) return;
-              setIsResetting(true);
-              try {
-                await resetAllData(resetOptions);
-                toast.success('Database reset complete');
-              } catch (e) {
-                toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
-              } finally {
-                setIsResetting(false);
-              }
-            }}
+            onClick={() => setIsConfirmOpen(true)}
             className={`px-4 py-2 rounded text-sm font-medium ${isResetting ? 'bg-red-300 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
           >
             {isResetting ? 'Resetting…' : 'Reset Selected Data'}
           </button>
         </div>
       </div>
+
+      {isConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => !isResetting && setIsConfirmOpen(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl border w-[95%] max-w-md p-4">
+            <div className="flex items-center gap-2 text-red-700 font-semibold mb-2">
+              <AlertTriangle size={18} /> Confirm Reset
+            </div>
+            <p className="text-sm text-gray-700 mb-3">
+              This will permanently delete
+              {resetOptions.local && ' local data'}
+              {resetOptions.local && resetOptions.firestore ? ' and' : ''}
+              {resetOptions.firestore && ' Firestore data'}
+              {resetOptions.keepGuests ? ' (guests will be kept)' : ''}.
+            </p>
+            <div className="bg-gray-50 border rounded p-2 text-xs mb-3">
+              <div className="font-medium mb-1">Summary</div>
+              <ul className="list-disc ml-4 space-y-1">
+                {resetOptions.local && <li>Clear local storage for services, donations, supplies, slots{resetOptions.keepGuests ? ', keeping guests' : ', and guests'}</li>}
+                {resetOptions.firestore && <li>Delete documents from Firestore collections (guests {resetOptions.keepGuests ? 'kept' : 'deleted'}, meals, rvMeals, unitedEffortMeals, extraMeals, dayWorkerMeals, lunchBags, showers, laundry, bicycles, holidays, haircuts, itemsGiven, donations)</li>}
+              </ul>
+            </div>
+            <label className="text-sm text-gray-700">Type <span className="font-mono font-semibold">RESET</span> to confirm</label>
+            <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="RESET" className="w-full border rounded px-3 py-2 text-sm mt-1 mb-3" />
+            <div className="flex justify-end gap-2">
+              <button disabled={isResetting} onClick={() => setIsConfirmOpen(false)} className="px-3 py-2 text-sm rounded border">Cancel</button>
+              <button
+                disabled={isResetting || confirmText !== 'RESET'}
+                onClick={async () => {
+                  setIsResetting(true);
+                  try {
+                    await resetAllData(resetOptions);
+                    toast.success('Database reset complete');
+                    setIsConfirmOpen(false);
+                    setConfirmText('');
+                  } catch (e) {
+                    toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
+                  } finally {
+                    setIsResetting(false);
+                  }
+                }}
+                className={`px-4 py-2 rounded text-sm font-medium ${isResetting || confirmText !== 'RESET' ? 'bg-red-300 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+              >
+                {isResetting ? 'Resetting…' : 'Confirm Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
