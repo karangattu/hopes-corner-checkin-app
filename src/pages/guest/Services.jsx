@@ -47,6 +47,40 @@ import TrendLine from '../../components/charts/TrendLine';
 import { useFadeInUp, useScaleIn, useStagger, animated as Animated, SpringIcon } from '../../utils/animations';
 import { todayPacificDateString, pacificDateStringFrom } from '../../utils/date';
 
+const MEAL_REPORT_TYPE_ORDER = ['guest', 'dayWorker', 'rv', 'unitedEffort', 'extras', 'lunchBags'];
+
+const MEAL_REPORT_TYPE_LABELS = {
+  guest: 'Guest meals',
+  dayWorker: 'Day Worker Center meals',
+  rv: 'RV meals',
+  unitedEffort: 'United Effort meals',
+  extras: 'Extra meals',
+  lunchBags: 'Lunch bags',
+};
+
+const createDefaultMealReportTypes = () => ({
+  guest: true,
+  dayWorker: true,
+  rv: true,
+  unitedEffort: true,
+  extras: true,
+  lunchBags: false,
+});
+
+const createEmptyMealTotals = () =>
+  MEAL_REPORT_TYPE_ORDER.reduce((acc, type) => {
+    acc[type] = 0;
+    return acc;
+  }, {});
+
+const toCsvValue = (value) => {
+  const stringValue = String(value ?? '');
+  if (/[",\n]/u.test(stringValue)) {
+    return `"${stringValue.replace(/"/gu, '""')}"`;
+  }
+  return stringValue;
+};
+
 const Services = () => {
   const {
     getTodayMetrics,
@@ -119,6 +153,13 @@ const Services = () => {
   const [isAddingDayWorkerMeals, setIsAddingDayWorkerMeals] = useState(false);
   const today = todayPacificDateString();
   const [mealsDate, setMealsDate] = useState(today);
+
+  const [mealReportStart, setMealReportStart] = useState(() => {
+    const now = new Date();
+    return pacificDateStringFrom(new Date(now.getFullYear(), now.getMonth(), 1));
+  });
+  const [mealReportEnd, setMealReportEnd] = useState(today);
+  const [mealReportTypes, setMealReportTypes] = useState(() => createDefaultMealReportTypes());
 
   const [showerStatusFilter, setShowerStatusFilter] = useState('all');
   const [showerLaundryFilter, setShowerLaundryFilter] = useState('any');
@@ -1429,7 +1470,181 @@ const Services = () => {
     );
   };
 
+  const resetMealReportTypes = useCallback(() => {
+    setMealReportTypes(createDefaultMealReportTypes());
+  }, [setMealReportTypes]);
+
+  const selectAllMealReportTypes = useCallback(() => {
+    const allSelected = MEAL_REPORT_TYPE_ORDER.reduce((acc, type) => {
+      acc[type] = true;
+      return acc;
+    }, {});
+    setMealReportTypes(allSelected);
+  }, [setMealReportTypes]);
+
+  const toggleMealReportType = useCallback((type) => {
+    setMealReportTypes(prev => ({
+      ...prev,
+      [type]: !prev[type],
+    }));
+  }, [setMealReportTypes]);
+
+  const handleDownloadMealReport = useCallback(() => {
+    if (!mealReportStart || !mealReportEnd) {
+      toast.error('Select a start and end date before downloading.');
+      return;
+    }
+
+    if (mealReportStart > mealReportEnd) {
+      toast.error('The start date must be before the end date.');
+      return;
+    }
+
+    const selectedTypes = MEAL_REPORT_TYPE_ORDER.filter(type => mealReportTypes[type]);
+
+    if (!selectedTypes.length) {
+      toast.error('Pick at least one meal type to include.');
+      return;
+    }
+
+    const totals = createEmptyMealTotals();
+    const dailyTotals = new Map();
+
+    const ensureDayEntry = (day) => {
+      if (!dailyTotals.has(day)) {
+        dailyTotals.set(day, createEmptyMealTotals());
+      }
+      return dailyTotals.get(day);
+    };
+
+    const addRecord = (recordDate, type, rawCount) => {
+      const day = pacificDateStringFrom(recordDate || '');
+      if (!day) return;
+      if (day < mealReportStart || day > mealReportEnd) return;
+      if (!MEAL_REPORT_TYPE_ORDER.includes(type)) return;
+      const count = toCountValue(rawCount);
+      if (!count) return;
+
+      const entry = ensureDayEntry(day);
+      entry[type] += count;
+      totals[type] += count;
+    };
+
+    (mealRecords || []).forEach(record => addRecord(record?.date, 'guest', record?.count));
+    (dayWorkerMealRecords || []).forEach(record => addRecord(record?.date, 'dayWorker', record?.count));
+    (rvMealRecords || []).forEach(record => addRecord(record?.date, 'rv', record?.count));
+    (unitedEffortMealRecords || []).forEach(record => addRecord(record?.date, 'unitedEffort', record?.count));
+    (extraMealRecords || []).forEach(record => addRecord(record?.date, 'extras', record?.count));
+    (lunchBagRecords || []).forEach(record => addRecord(record?.date, 'lunchBags', record?.count));
+
+    const sortedDays = Array.from(dailyTotals.keys()).sort();
+    const rows = [];
+
+    sortedDays.forEach(day => {
+      const entry = dailyTotals.get(day) || createEmptyMealTotals();
+      const values = selectedTypes.map(type => entry[type] || 0);
+      const rowTotal = values.reduce((sum, value) => sum + value, 0);
+
+      if (rowTotal === 0) {
+        return;
+      }
+
+      rows.push([day, ...values, rowTotal]);
+    });
+
+    if (!rows.length) {
+      toast.error('No meals matched those filters.');
+      return;
+    }
+
+    const header = ['Date', ...selectedTypes.map(type => MEAL_REPORT_TYPE_LABELS[type]), 'Daily total'];
+    const grandTotal = selectedTypes.reduce((sum, type) => sum + (totals[type] || 0), 0);
+    const totalsRow = ['Total', ...selectedTypes.map(type => totals[type] || 0), grandTotal];
+
+    const csvLines = [
+      header.map(toCsvValue).join(','),
+      ...rows.map(row => row.map(toCsvValue).join(',')),
+      totalsRow.map(toCsvValue).join(','),
+    ];
+
+    const csvContent = csvLines.join('\n');
+    const fileName = `meal-report_${mealReportStart}_to_${mealReportEnd}.csv`;
+
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      toast.success('Meal report downloaded.');
+    } catch (error) {
+      console.error('Failed to download meal report', error);
+      toast.error('Something went wrong exporting the meal report.');
+    }
+  }, [
+    dayWorkerMealRecords,
+    extraMealRecords,
+    lunchBagRecords,
+    mealRecords,
+    mealReportEnd,
+    mealReportStart,
+    mealReportTypes,
+    rvMealRecords,
+    toCountValue,
+    unitedEffortMealRecords,
+  ]);
+
   const renderExportSection = () => {
+    const mealReportTypeOptions = [
+      {
+        id: 'guest',
+        label: 'Guest meals',
+        description: 'Meals given to registered guests.',
+      },
+      {
+        id: 'dayWorker',
+        label: 'Day Worker Center meals',
+        description: 'Partner deliveries to the Day Worker Center.',
+      },
+      {
+        id: 'rv',
+        label: 'RV meals',
+        description: 'Outreach meals served to RV communities.',
+      },
+      {
+        id: 'unitedEffort',
+        label: 'United Effort meals',
+        description: 'Meals prepared for United Effort partners.',
+      },
+      {
+        id: 'extras',
+        label: 'Extra meals',
+        description: 'Guest extras and unassigned walk-up meals.',
+      },
+      {
+        id: 'lunchBags',
+        label: 'Lunch bags',
+        description: 'Bagged lunches prepared for outreach.',
+      },
+    ];
+
+    const activeMealTypeCount = mealReportTypeOptions.filter(option => mealReportTypes[option.id]).length;
+    const mealReportRangeInvalid = Boolean(
+      mealReportStart &&
+      mealReportEnd &&
+      mealReportStart > mealReportEnd
+    );
+    const canDownloadMealReport = Boolean(
+      mealReportStart &&
+      mealReportEnd &&
+      !mealReportRangeInvalid &&
+      activeMealTypeCount > 0
+    );
+
     const exportCards = [
       {
         id: 'guest-roster',
@@ -1464,6 +1679,108 @@ const Services = () => {
           <p className="text-sm text-gray-500 max-w-2xl">
             Keep reliable offsite copies of your records. The links below pull the same files used throughout the dashboard so you can archive them or share with partners.
           </p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 space-y-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Utensils size={18} className="text-blue-600" /> Custom meal summary (.csv)
+            </h3>
+            <p className="text-sm text-gray-600">
+              Pick a date range, choose which meal programs to include, and download a daily breakdown. Lunch bags stay out of the total by default—turn them on if you need the outreach count.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col text-sm text-gray-700 gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Start date</span>
+              <input
+                type="date"
+                value={mealReportStart || ''}
+                onChange={(event) => setMealReportStart(event.target.value)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <label className="flex flex-col text-sm text-gray-700 gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">End date</span>
+              <input
+                type="date"
+                value={mealReportEnd || ''}
+                onChange={(event) => setMealReportEnd(event.target.value)}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+          </div>
+
+          {mealReportRangeInvalid && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+              <Circle size={14} className="text-red-500" /> Start date must be on or before the end date.
+            </div>
+          )}
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Meal types</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {mealReportTypeOptions.map((option) => {
+                const isActive = Boolean(mealReportTypes[option.id]);
+                return (
+                  <label
+                    key={option.id}
+                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
+                      isActive
+                        ? 'border-blue-200 bg-blue-50/80 shadow-sm'
+                        : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/60'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={() => toggleMealReportType(option.id)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="flex flex-col text-sm text-gray-700">
+                      <span className="font-semibold text-gray-900">{option.label}</span>
+                      <span className="text-xs text-gray-500">{option.description}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-xs font-medium text-gray-500">
+              {activeMealTypeCount} of {mealReportTypeOptions.length} meal types selected
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={selectAllMealReportTypes}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
+              >
+                <Circle size={12} /> Select all
+              </button>
+              <button
+                type="button"
+                onClick={resetMealReportTypes}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
+              >
+                <RotateCcw size={12} /> Reset defaults
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadMealReport}
+                disabled={!canDownloadMealReport}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${
+                  canDownloadMealReport
+                    ? 'bg-blue-600 hover:bg-blue-500'
+                    : 'cursor-not-allowed bg-gray-300'
+                }`}
+              >
+                <Download size={12} /> Download CSV
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
