@@ -11,6 +11,8 @@ import {
   CheckCircle2Icon,
   LogOutIcon,
   Clock,
+  ChevronDown,
+  ChevronUp,
   Truck,
   Edit3,
   RotateCcw,
@@ -110,10 +112,12 @@ const Services = () => {
   const [showerStatusFilter, setShowerStatusFilter] = useState('all');
   const [showerLaundryFilter, setShowerLaundryFilter] = useState('any');
   const [showerSort, setShowerSort] = useState('time-asc');
+  const [showCompletedShowers, setShowCompletedShowers] = useState(false);
 
   const [laundryTypeFilter, setLaundryTypeFilter] = useState('any');
   const [laundryStatusFilter, setLaundryStatusFilter] = useState('any');
   const [laundrySort, setLaundrySort] = useState('time-asc');
+  const [showCompletedLaundry, setShowCompletedLaundry] = useState(false);
 
   const todayMetrics = getTodayMetrics();
 
@@ -229,9 +233,25 @@ const Services = () => {
       return parseLaundryStartToMinutes(a.time) - parseLaundryStartToMinutes(b.time);
     });
 
-  const showersTrail = useStagger((filteredShowers || []).length, true);
+  const activeShowers = filteredShowers.filter(record => record.status !== 'done');
+  const completedShowers = filteredShowers.filter(record => record.status === 'done');
+
+  const completedLaundryStatuses = new Set([
+    LAUNDRY_STATUS?.DONE,
+    LAUNDRY_STATUS?.PICKED_UP,
+    LAUNDRY_STATUS?.RETURNED,
+    LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+  ]);
+  const isLaundryCompleted = (status) => completedLaundryStatuses.has(status);
+
+  const activeLaundry = filteredLaundry.filter(record => !isLaundryCompleted(record.status));
+  const completedLaundry = filteredLaundry.filter(record => isLaundryCompleted(record.status));
+
+  const activeShowersTrail = useStagger((activeShowers || []).length, true);
+  const completedShowersTrail = useStagger((completedShowers || []).length, true);
   const waitlistTrail = useStagger((todayWaitlisted || []).length, true);
-  const laundryTrail = useStagger((filteredLaundry || []).length, true);
+  const activeLaundryTrail = useStagger((activeLaundry || []).length, true);
+  const completedLaundryTrail = useStagger((completedLaundry || []).length, true);
 
   const selectedRvMealRecords = rvMealRecords.filter(
     record => pacificDateStringFrom(record.date || '') === selectedDate
@@ -997,6 +1017,251 @@ const Services = () => {
       label: formatShowerSlotLabel(slot),
     }));
 
+    const renderShowerCard = (record, animationStyle) => {
+      if (!record) return null;
+      const guest = guests.find(g => g.id === record.guestId);
+      const guestName = guest?.name || getGuestName(record.guestId);
+      const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
+      const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
+      const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
+      const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
+      const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
+      const daysT = guest ? getDaysUntilAvailable(guest.id, 'tshirt') : 0;
+      const daysSB = guest ? getDaysUntilAvailable(guest.id, 'sleeping_bag') : 0;
+      const daysBP = guest ? getDaysUntilAvailable(guest.id, 'backpack') : 0;
+      const daysTent = guest ? getDaysUntilAvailable(guest.id, 'tent') : 0;
+      const daysFF = guest ? getDaysUntilAvailable(guest.id, 'flip_flops') : 0;
+      const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
+      const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
+      const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
+      const lastTentGuest = guest ? getLastGivenItem(guest.id, 'tent') : null;
+      const lastFFGuest = guest ? getLastGivenItem(guest.id, 'flip_flops') : null;
+      const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
+      const isDone = record.status === 'done';
+      const slotLabel = formatShowerSlotLabel(record.time);
+      const bookedLabel = new Date(record.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const statusInfo = getShowerStatusInfo(record.status);
+      const StatusIcon = statusInfo.icon;
+      const statusIconSize = statusInfo.icon === Circle ? 10 : 12;
+      const badgeIconSize = statusInfo.icon === Circle ? 12 : 14;
+      const toggleStatusLabel = isDone ? 'Reopen shower' : 'Mark as complete';
+      const toggleStatusClass = isDone
+        ? 'bg-white border border-blue-200 text-blue-700 hover:bg-blue-50'
+        : 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-500';
+
+      const essentialsConfig = guest ? [
+        {
+          key: 'tshirt',
+          label: 'T-Shirt (Weekly)',
+          buttonLabel: 'Give T-Shirt',
+          icon: Shirt,
+          canGive: canT,
+          lastRecord: lastTGuest,
+          daysRemaining: daysT,
+          successMessage: 'T-Shirt given',
+        },
+        {
+          key: 'sleeping_bag',
+          label: 'Sleeping Bag (Monthly)',
+          buttonLabel: 'Give Sleeping Bag',
+          icon: Bed,
+          canGive: canSB,
+          lastRecord: lastSBGuest,
+          daysRemaining: daysSB,
+          successMessage: 'Sleeping bag given',
+        },
+        {
+          key: 'backpack',
+          label: 'Backpack (Monthly)',
+          buttonLabel: 'Give Backpack',
+          icon: Backpack,
+          canGive: canBP,
+          lastRecord: lastBPGuest,
+          daysRemaining: daysBP,
+          successMessage: 'Backpack given',
+        },
+        {
+          key: 'tent',
+          label: 'Tent (Monthly)',
+          buttonLabel: 'Give Tent',
+          icon: TentTree,
+          canGive: canTent,
+          lastRecord: lastTentGuest,
+          daysRemaining: daysTent,
+          successMessage: 'Tent given',
+        },
+        {
+          key: 'flip_flops',
+          label: 'Flip Flops (Monthly)',
+          buttonLabel: 'Give Flip Flops',
+          icon: Footprints,
+          canGive: canFF,
+          lastRecord: lastFFGuest,
+          daysRemaining: daysFF,
+          successMessage: 'Flip Flops given',
+        },
+      ] : [];
+
+      const handleGiveItem = (itemKey, successMessage) => {
+        if (!guest) return;
+        try {
+          giveItem(guest.id, itemKey);
+          toast.success(successMessage);
+        } catch (error) {
+          toast.error(error.message);
+        }
+      };
+
+      return (
+        <Animated.div
+          key={record.id}
+          style={animationStyle}
+          className="will-change-transform bg-white border border-blue-100 rounded-xl shadow-sm p-4"
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base font-semibold text-gray-900">{guestName}</span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 ${statusInfo.chipClass}`}>
+                    <StatusIcon size={statusIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
+                    {statusInfo.label}
+                  </span>
+                  {hasLaundryToday && (
+                    <span className="text-[11px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+                      Laundry today
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock size={12} /> Slot {slotLabel}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <LogOutIcon size={12} className="rotate-180" /> Booked {bookedLabel}
+                  </span>
+                </div>
+              </div>
+              <div className={`${statusInfo.badgeClass} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}>
+                <StatusIcon size={badgeIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
+                <span>{statusInfo.label}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                <span className="font-semibold text-blue-900 uppercase tracking-wide flex items-center gap-1">
+                  <Clock size={12} className="text-blue-500" />
+                  Slot
+                </span>
+                <Selectize
+                  options={showerSlotOptions}
+                  value={record.time || ''}
+                  onChange={(time) => {
+                    try {
+                      rescheduleShower(record.id, time);
+                      if (record.status === 'waitlisted') {
+                        updateShowerStatus(record.id, 'awaiting');
+                      }
+                      const friendly = formatShowerSlotLabel(time);
+                      toast.success(`Shower moved to ${friendly || 'new slot'}`);
+                    } catch (error) {
+                      toast.error(error.message);
+                    }
+                  }}
+                  size="xs"
+                  className="w-40"
+                  placeholder="Select slot"
+                  displayValue={record.time ? formatShowerSlotLabel(record.time) : 'Select slot'}
+                />
+                <span className="text-[11px] text-blue-600">2 guests max per slot</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const nextStatus = isDone ? 'awaiting' : 'done';
+                      updateShowerStatus(record.id, nextStatus);
+                      toast.success(nextStatus === 'done' ? 'Marked as completed' : 'Reopened shower');
+                    } catch (error) {
+                      toast.error(error.message);
+                    }
+                  }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${toggleStatusClass}`}
+                >
+                  {toggleStatusLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      cancelShowerRecord(record.id);
+                      toast.success('Shower booking cancelled');
+                    } catch (error) {
+                      toast.error(error.message);
+                    }
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  Cancel booking
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3">
+                <Sparkles size={14} className="text-blue-500" />
+                <span>Guest essentials kit</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {essentialsConfig.map((item) => {
+                  const Icon = item.icon;
+                  const nextDate = item.lastRecord ? getNextAvailabilityDate(item.key, item.lastRecord.date) : null;
+                  const nextDateLabel = nextDate ? nextDate.toLocaleDateString('en-CA') : null;
+                  return (
+                    <div key={item.key} className="bg-white border border-blue-100 rounded-md p-3 shadow-sm">
+                      <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
+                        <Icon size={16} className="text-blue-600" />
+                        <span>{item.label}</span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600 space-y-1">
+                        {item.lastRecord ? (
+                          <>
+                            <div>Last given: {new Date(item.lastRecord.date).toLocaleDateString()}</div>
+                            {item.canGive ? (
+                              <div className="text-green-600 font-semibold">Available now</div>
+                            ) : (
+                              <div className="text-orange-600 font-semibold">
+                                Next: {nextDateLabel} ({item.daysRemaining}d)
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-green-600 font-semibold">Never given — available now</div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!item.canGive}
+                        onClick={() => handleGiveItem(item.key, item.successMessage)}
+                        className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={item.canGive ? item.buttonLabel : nextDateLabel ? `Available ${nextDateLabel}` : 'Not yet available'}
+                      >
+                        {item.buttonLabel}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </Animated.div>
+      );
+    };
+
+    const isCompletedShowersOpen = showCompletedShowers || activeShowers.length === 0;
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1102,250 +1367,34 @@ const Services = () => {
                 No shower bookings match your filters.
               </div>
             ) : (
-              <div className="space-y-4">
-                {showersTrail.map((style, idx) => {
-                  const record = filteredShowers[idx];
-                  if (!record) return null;
-                  const guest = guests.find(g => g.id === record.guestId);
-                  const guestName = guest?.name || getGuestName(record.guestId);
-                  const canT = guest ? canGiveItem(guest.id, 'tshirt') : false;
-                  const canSB = guest ? canGiveItem(guest.id, 'sleeping_bag') : false;
-                  const canBP = guest ? canGiveItem(guest.id, 'backpack') : false;
-                  const canTent = guest ? canGiveItem(guest.id, 'tent') : false;
-                  const canFF = guest ? canGiveItem(guest.id, 'flip_flops') : false;
-                  const daysT = guest ? getDaysUntilAvailable(guest.id, 'tshirt') : 0;
-                  const daysSB = guest ? getDaysUntilAvailable(guest.id, 'sleeping_bag') : 0;
-                  const daysBP = guest ? getDaysUntilAvailable(guest.id, 'backpack') : 0;
-                  const daysTent = guest ? getDaysUntilAvailable(guest.id, 'tent') : 0;
-                  const daysFF = guest ? getDaysUntilAvailable(guest.id, 'flip_flops') : 0;
-                  const lastTGuest = guest ? getLastGivenItem(guest.id, 'tshirt') : null;
-                  const lastSBGuest = guest ? getLastGivenItem(guest.id, 'sleeping_bag') : null;
-                  const lastBPGuest = guest ? getLastGivenItem(guest.id, 'backpack') : null;
-                  const lastTentGuest = guest ? getLastGivenItem(guest.id, 'tent') : null;
-                  const lastFFGuest = guest ? getLastGivenItem(guest.id, 'flip_flops') : null;
-                  const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
-                  const isDone = record.status === 'done';
-                  const slotLabel = formatShowerSlotLabel(record.time);
-                  const bookedLabel = new Date(record.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                  const statusInfo = getShowerStatusInfo(record.status);
-                  const StatusIcon = statusInfo.icon;
-                  const statusIconSize = statusInfo.icon === Circle ? 10 : 12;
-                  const badgeIconSize = statusInfo.icon === Circle ? 12 : 14;
-                  const toggleStatusLabel = isDone ? 'Reopen shower' : 'Mark as complete';
-                  const toggleStatusClass = isDone
-                    ? 'bg-white border border-blue-200 text-blue-700 hover:bg-blue-50'
-                    : 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-500';
+              <div className="space-y-5">
+                {activeShowers.length > 0 ? (
+                  <div className="space-y-4">
+                    {activeShowers.map((record, idx) => renderShowerCard(record, activeShowersTrail[idx]))}
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-blue-200 rounded-lg text-center py-10 text-sm text-blue-600 bg-blue-50">
+                    No active shower bookings.
+                  </div>
+                )}
 
-                  const essentialsConfig = guest ? [
-                    {
-                      key: 'tshirt',
-                      label: 'T-Shirt (Weekly)',
-                      buttonLabel: 'Give T-Shirt',
-                      icon: Shirt,
-                      canGive: canT,
-                      lastRecord: lastTGuest,
-                      daysRemaining: daysT,
-                      successMessage: 'T-Shirt given',
-                    },
-                    {
-                      key: 'sleeping_bag',
-                      label: 'Sleeping Bag (Monthly)',
-                      buttonLabel: 'Give Sleeping Bag',
-                      icon: Bed,
-                      canGive: canSB,
-                      lastRecord: lastSBGuest,
-                      daysRemaining: daysSB,
-                      successMessage: 'Sleeping bag given',
-                    },
-                    {
-                      key: 'backpack',
-                      label: 'Backpack (Monthly)',
-                      buttonLabel: 'Give Backpack',
-                      icon: Backpack,
-                      canGive: canBP,
-                      lastRecord: lastBPGuest,
-                      daysRemaining: daysBP,
-                      successMessage: 'Backpack given',
-                    },
-                    {
-                      key: 'tent',
-                      label: 'Tent (Monthly)',
-                      buttonLabel: 'Give Tent',
-                      icon: TentTree,
-                      canGive: canTent,
-                      lastRecord: lastTentGuest,
-                      daysRemaining: daysTent,
-                      successMessage: 'Tent given',
-                    },
-                    {
-                      key: 'flip_flops',
-                      label: 'Flip Flops (Monthly)',
-                      buttonLabel: 'Give Flip Flops',
-                      icon: Footprints,
-                      canGive: canFF,
-                      lastRecord: lastFFGuest,
-                      daysRemaining: daysFF,
-                      successMessage: 'Flip Flops given',
-                    },
-                  ] : [];
-
-                  const handleGiveItem = (itemKey, successMessage) => {
-                    if (!guest) return;
-                    try {
-                      giveItem(guest.id, itemKey);
-                      toast.success(successMessage);
-                    } catch (error) {
-                      toast.error(error.message);
-                    }
-                  };
-
-                  return (
-                    <Animated.div
-                      key={record.id}
-                      style={style}
-                      className="will-change-transform bg-white border border-blue-100 rounded-xl shadow-sm p-4"
+                {completedShowers.length > 0 && (
+                  <div className="pt-4 border-t border-blue-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowCompletedShowers(prev => !prev)}
+                      className="w-full flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-4 py-2 transition-colors"
                     >
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-start">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-base font-semibold text-gray-900">{guestName}</span>
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full inline-flex items-center gap-1 ${statusInfo.chipClass}`}>
-                                <StatusIcon size={statusIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
-                                {statusInfo.label}
-                              </span>
-                              {hasLaundryToday && (
-                                <span className="text-[11px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
-                                  Laundry today
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                              <span className="inline-flex items-center gap-1">
-                                <Clock size={12} /> Slot {slotLabel}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <LogOutIcon size={12} className="rotate-180" /> Booked {bookedLabel}
-                              </span>
-                            </div>
-                          </div>
-                          <div className={`${statusInfo.badgeClass} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}>
-                            <StatusIcon size={badgeIconSize} className={`${statusInfo.iconClass || ''} shrink-0`} />
-                            <span>{statusInfo.label}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col lg:flex-row gap-3">
-                          <div className="flex flex-wrap items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                            <span className="font-semibold text-blue-900 uppercase tracking-wide flex items-center gap-1">
-                              <Clock size={12} className="text-blue-500" />
-                              Slot
-                            </span>
-                            <Selectize
-                              options={showerSlotOptions}
-                              value={record.time || ''}
-                              onChange={(time) => {
-                                try {
-                                  rescheduleShower(record.id, time);
-                                  if (record.status === 'waitlisted') {
-                                    updateShowerStatus(record.id, 'awaiting');
-                                  }
-                                  const friendly = formatShowerSlotLabel(time);
-                                  toast.success(`Shower moved to ${friendly || 'new slot'}`);
-                                } catch (error) {
-                                  toast.error(error.message);
-                                }
-                              }}
-                              size="xs"
-                              className="w-40"
-                              placeholder="Select slot"
-                              displayValue={record.time ? formatShowerSlotLabel(record.time) : 'Select slot'}
-                            />
-                            <span className="text-[11px] text-blue-600">2 guests max per slot</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                try {
-                                  const nextStatus = isDone ? 'awaiting' : 'done';
-                                  updateShowerStatus(record.id, nextStatus);
-                                  toast.success(nextStatus === 'done' ? 'Marked as completed' : 'Reopened shower');
-                                } catch (error) {
-                                  toast.error(error.message);
-                                }
-                              }}
-                              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${toggleStatusClass}`}
-                            >
-                              {toggleStatusLabel}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                try {
-                                  cancelShowerRecord(record.id);
-                                  toast.success('Shower booking cancelled');
-                                } catch (error) {
-                                  toast.error(error.message);
-                                }
-                              }}
-                              className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-                            >
-                              Cancel booking
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3">
-                            <Sparkles size={14} className="text-blue-500" />
-                            <span>Guest essentials kit</span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {essentialsConfig.map((item) => {
-                              const Icon = item.icon;
-                              const nextDate = item.lastRecord ? getNextAvailabilityDate(item.key, item.lastRecord.date) : null;
-                              const nextDateLabel = nextDate ? nextDate.toLocaleDateString('en-CA') : null;
-                              return (
-                                <div key={item.key} className="bg-white border border-blue-100 rounded-md p-3 shadow-sm">
-                                  <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                                    <Icon size={16} className="text-blue-600" />
-                                    <span>{item.label}</span>
-                                  </div>
-                                  <div className="mt-2 text-xs text-gray-600 space-y-1">
-                                    {item.lastRecord ? (
-                                      <>
-                                        <div>Last given: {new Date(item.lastRecord.date).toLocaleDateString()}</div>
-                                        {item.canGive ? (
-                                          <div className="text-green-600 font-semibold">Available now</div>
-                                        ) : (
-                                          <div className="text-orange-600 font-semibold">
-                                            Next: {nextDateLabel} ({item.daysRemaining}d)
-                                          </div>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <div className="text-green-600 font-semibold">Never given — available now</div>
-                                    )}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    disabled={!item.canGive}
-                                    onClick={() => handleGiveItem(item.key, item.successMessage)}
-                                    className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title={item.canGive ? item.buttonLabel : nextDateLabel ? `Available ${nextDateLabel}` : 'Not yet available'}
-                                  >
-                                    {item.buttonLabel}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                      <span>Completed showers ({completedShowers.length})</span>
+                      {isCompletedShowersOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {isCompletedShowersOpen && (
+                      <div className="mt-3 space-y-3">
+                        {completedShowers.map((record, idx) => renderShowerCard(record, completedShowersTrail[idx]))}
                       </div>
-                    </Animated.div>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1564,6 +1613,148 @@ const Services = () => {
       },
     ];
 
+    const renderLaundryCard = (record, animationStyle) => {
+      if (!record) return null;
+      const statusInfo = getLaundryStatusInfo(record.status);
+      const StatusIcon = statusInfo.icon;
+      const isOnsite = record.laundryType === 'onsite';
+      const isEditingBag = editingBagNumber === record.id;
+
+      return (
+        <Animated.div
+          key={record.id}
+          style={animationStyle}
+          className="will-change-transform bg-white border border-purple-100 rounded-xl shadow-sm p-4"
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base font-semibold text-gray-900">{record.guestName}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isOnsite ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                    {isOnsite ? 'On-site' : 'Off-site'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock size={12} /> {isOnsite ? formatLaundryRangeLabel(record.time) : 'Courier-managed window'}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <ShoppingBag size={12} />
+                    {isEditingBag ? (
+                      <input
+                        type="text"
+                        value={newBagNumber}
+                        onChange={(event) => setNewBagNumber(event.target.value)}
+                        className="px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
+                        placeholder="Bag #"
+                        onBlur={() => handleBagNumberUpdate(record.id, newBagNumber)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            handleBagNumberUpdate(record.id, newBagNumber);
+                          }
+                          if (event.key === 'Escape') {
+                            setEditingBagNumber(null);
+                            setNewBagNumber('');
+                          }
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
+                        className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full hover:bg-purple-100"
+                      >
+                        Bag #{record.bagNumber || 'Add'}
+                        <Edit3 size={10} className="opacity-60" />
+                      </button>
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1 border border-white/60`}>
+                <StatusIcon size={14} />
+                <span>{statusInfo.label}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Selectize
+                options={typeOptions}
+                value={record.laundryType}
+                onChange={(value) => {
+                  try {
+                    rescheduleLaundry(record.id, {
+                      newLaundryType: value,
+                      newTime: value === 'onsite' ? (record.time || laundrySlotOptions[0]?.value || null) : null,
+                    });
+                    toast.success('Laundry type updated');
+                  } catch (err) {
+                    toast.error(err.message);
+                  }
+                }}
+                size="xs"
+                className="w-32"
+                displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
+              />
+              {isOnsite && (
+                <Selectize
+                  options={laundrySlotOptions}
+                  value={record.time || laundrySlotOptions[0]?.value || ''}
+                  onChange={(time) => {
+                    try {
+                      rescheduleLaundry(record.id, { newTime: time });
+                      toast.success('Laundry slot updated');
+                    } catch (err) {
+                      toast.error(err.message);
+                    }
+                  }}
+                  size="xs"
+                  className="w-44"
+                  placeholder="Select slot"
+                  displayValue={record.time ? formatLaundryRangeLabel(record.time) : 'Select slot'}
+                />
+              )}
+              <button
+                onClick={() => {
+                  try {
+                    cancelLaundryRecord(record.id);
+                    toast.success('Laundry booking cancelled');
+                  } catch (err) {
+                    toast.error(err.message);
+                  }
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(isOnsite ? onsiteStatusButtons : offsiteStatusButtons).map((buttonConfig) => {
+                const Icon = buttonConfig.icon;
+                const isActive = record.status === buttonConfig.value;
+                return (
+                  <button
+                    key={buttonConfig.value}
+                    onClick={() => attemptLaundryStatusChange(record, buttonConfig.value)}
+                    disabled={isActive}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${isActive ? buttonConfig.activeClass : buttonConfig.idleClass}`}
+                  >
+                    <Icon size={12} className="inline mr-1" />
+                    {buttonConfig.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </Animated.div>
+      );
+    };
+
+    const isCompletedLaundryOpen = showCompletedLaundry || activeLaundry.length === 0;
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1664,147 +1855,34 @@ const Services = () => {
                 No laundry bookings match your filters.
               </div>
             ) : (
-              <div className="space-y-4">
-                {laundryTrail.map((style, idx) => {
-                  const record = filteredLaundry[idx];
-                  if (!record) return null;
-                  const statusInfo = getLaundryStatusInfo(record.status);
-                  const StatusIcon = statusInfo.icon;
-                  const isOnsite = record.laundryType === 'onsite';
-                  const isEditingBag = editingBagNumber === record.id;
+              <div className="space-y-5">
+                {activeLaundry.length > 0 ? (
+                  <div className="space-y-4">
+                    {activeLaundry.map((record, idx) => renderLaundryCard(record, activeLaundryTrail[idx]))}
+                  </div>
+                ) : (
+                  <div className="border border-dashed border-purple-200 rounded-lg text-center py-10 text-sm text-purple-600 bg-purple-50">
+                    No active laundry loads.
+                  </div>
+                )}
 
-                  return (
-                    <Animated.div
-                      key={record.id}
-                      style={style}
-                      className="will-change-transform bg-white border border-purple-100 rounded-xl shadow-sm p-4"
+                {completedLaundry.length > 0 && (
+                  <div className="pt-4 border-t border-purple-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowCompletedLaundry(prev => !prev)}
+                      className="w-full flex items-center justify-between text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg px-4 py-2 transition-colors"
                     >
-                      <div className="flex flex-col gap-3">
-                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-base font-semibold text-gray-900">{record.guestName}</span>
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isOnsite ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-                                {isOnsite ? 'On-site' : 'Off-site'}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                              <span className="inline-flex items-center gap-1">
-                                <Clock size={12} /> {isOnsite ? formatLaundryRangeLabel(record.time) : 'Courier-managed window'}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <ShoppingBag size={12} />
-                                {isEditingBag ? (
-                                  <input
-                                    type="text"
-                                    value={newBagNumber}
-                                    onChange={(event) => setNewBagNumber(event.target.value)}
-                                    className="px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
-                                    placeholder="Bag #"
-                                    onBlur={() => handleBagNumberUpdate(record.id, newBagNumber)}
-                                    onKeyDown={(event) => {
-                                      if (event.key === 'Enter') {
-                                        handleBagNumberUpdate(record.id, newBagNumber);
-                                      }
-                                      if (event.key === 'Escape') {
-                                        setEditingBagNumber(null);
-                                        setNewBagNumber('');
-                                      }
-                                    }}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
-                                    className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full hover:bg-purple-100"
-                                  >
-                                    Bag #{record.bagNumber || 'Add'}
-                                    <Edit3 size={10} className="opacity-60" />
-                                  </button>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                          <div className={`${statusInfo.bgColor} ${statusInfo.textColor} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1 border border-white/60`}>
-                            <StatusIcon size={14} />
-                            <span>{statusInfo.label}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Selectize
-                            options={typeOptions}
-                            value={record.laundryType}
-                            onChange={(value) => {
-                              try {
-                                rescheduleLaundry(record.id, {
-                                  newLaundryType: value,
-                                  newTime: value === 'onsite' ? (record.time || laundrySlotOptions[0]?.value || null) : null,
-                                });
-                                toast.success('Laundry type updated');
-                              } catch (err) {
-                                toast.error(err.message);
-                              }
-                            }}
-                            size="xs"
-                            className="w-32"
-                            displayValue={record.laundryType === 'offsite' ? 'Off-site' : 'On-site'}
-                          />
-                          {isOnsite && (
-                            <Selectize
-                              options={laundrySlotOptions}
-                              value={record.time || laundrySlotOptions[0]?.value || ''}
-                              onChange={(time) => {
-                                try {
-                                  rescheduleLaundry(record.id, { newTime: time });
-                                  toast.success('Laundry slot updated');
-                                } catch (err) {
-                                  toast.error(err.message);
-                                }
-                              }}
-                              size="xs"
-                              className="w-44"
-                              placeholder="Select slot"
-                              displayValue={record.time ? formatLaundryRangeLabel(record.time) : 'Select slot'}
-                            />
-                          )}
-                          <button
-                            onClick={() => {
-                              try {
-                                cancelLaundryRecord(record.id);
-                                toast.success('Laundry booking cancelled');
-                              } catch (err) {
-                                toast.error(err.message);
-                              }
-                            }}
-                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {(isOnsite ? onsiteStatusButtons : offsiteStatusButtons).map((buttonConfig) => {
-                            const Icon = buttonConfig.icon;
-                            const isActive = record.status === buttonConfig.value;
-                            return (
-                              <button
-                                key={buttonConfig.value}
-                                onClick={() => attemptLaundryStatusChange(record, buttonConfig.value)}
-                                disabled={isActive}
-                                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${isActive ? buttonConfig.activeClass : buttonConfig.idleClass}`}
-                              >
-                                <Icon size={12} className="inline mr-1" />
-                                {buttonConfig.label}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      <span>Completed laundry ({completedLaundry.length})</span>
+                      {isCompletedLaundryOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                    {isCompletedLaundryOpen && (
+                      <div className="mt-3 space-y-3">
+                        {completedLaundry.map((record, idx) => renderLaundryCard(record, completedLaundryTrail[idx]))}
                       </div>
-                    </Animated.div>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
