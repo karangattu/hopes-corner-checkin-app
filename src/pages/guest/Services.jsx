@@ -170,6 +170,7 @@ const Services = () => {
   const [laundryStatusFilter, setLaundryStatusFilter] = useState('any');
   const [laundrySort, setLaundrySort] = useState('time-asc');
   const [showCompletedLaundry, setShowCompletedLaundry] = useState(false);
+  const [expandedCompletedBicycleCards, setExpandedCompletedBicycleCards] = useState({});
 
   const todayMetrics = getTodayMetrics();
 
@@ -514,6 +515,12 @@ const Services = () => {
   const waitlistTrail = useStagger((todayWaitlisted || []).length, true);
   const activeLaundryTrail = useStagger((activeLaundry || []).length, true);
   const completedLaundryTrail = useStagger((completedLaundry || []).length, true);
+  const toggleCompletedBicycleCard = useCallback((id) => {
+    setExpandedCompletedBicycleCards((prev = {}) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }, []);
 
   const selectedRvMealRecords = rvMealRecords.filter(
     record => pacificDateStringFrom(record.date || '') === selectedDate
@@ -541,43 +548,142 @@ const Services = () => {
           <ul className="space-y-3">
             {sortedBicycleRepairs.map((rec, idx) => {
               const nameDetails = getGuestNameDetails(rec.guestId);
+              const isDone = rec.status === BICYCLE_REPAIR_STATUS.DONE;
+              const isExpanded = !isDone || expandedCompletedBicycleCards[rec.id];
               return (
                 <li key={rec.id} className="border rounded-md p-3 bg-white">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium text-sm text-gray-900">
-                        {nameDetails.primaryName}
-                        {nameDetails.hasPreferred && (
-                          <span className="ml-2 text-xs text-gray-500">(Legal: {nameDetails.legalName})</span>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
+                          <span>{nameDetails.primaryName}</span>
+                          {nameDetails.hasPreferred && (
+                            <span className="text-xs text-gray-500">(Legal: {nameDetails.legalName})</span>
+                          )}
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold ${
+                              isDone
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                                : 'border-sky-200 bg-sky-50 text-sky-600'
+                            }`}
+                          >
+                            {isDone ? 'Done' : 'Active'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1">
+                          <span>Priority {idx + 1}</span>
+                          {isDone ? <span>Completed</span> : <span>Needs attention</span>}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        {isDone && (
+                          <button
+                            type="button"
+                            onClick={() => toggleCompletedBicycleCard(rec.id)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900"
+                          >
+                            {isExpanded ? (
+                              <>
+                                Hide details <ChevronUp size={12} />
+                              </>
+                            ) : (
+                              <>
+                                Show details <ChevronDown size={12} />
+                              </>
+                            )}
+                          </button>
+                        )}
+                        {isDone ? (
+                          <button
+                            type="button"
+                            onClick={() => setBicycleStatus(rec.id, BICYCLE_REPAIR_STATUS.PENDING)}
+                            className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                          >
+                            Reopen
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => moveBicycleRecord(rec.id, 'up')}
+                              disabled={idx === 0}
+                              className="text-xs px-2 py-1 border rounded disabled:opacity-30"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveBicycleRecord(rec.id, 'down')}
+                              disabled={idx === sortedBicycleRepairs.length - 1}
+                              className="text-xs px-2 py-1 border rounded disabled:opacity-30"
+                            >
+                              ↓
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            deleteBicycleRecord(rec.id);
+                            toast.success('Deleted');
+                          }}
+                          className="text-xs px-2 py-1 border rounded text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    {isDone && !isExpanded ? (
+                      <div className="flex flex-col gap-1 text-xs text-gray-500">
+                        <div className="inline-flex items-center gap-2 font-semibold text-emerald-600">
+                          <CheckCircle2Icon size={14} /> Completed — expand to adjust details.
+                        </div>
+                        <div>
+                          <span className="font-semibold text-gray-600">Repair:</span> {rec.repairType || '—'}
+                        </div>
+                        {rec.notes && (
+                          <div>
+                            <span className="font-semibold text-gray-600">Notes:</span> {rec.notes}
+                          </div>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500">Priority {idx + 1}</div>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => moveBicycleRecord(rec.id, 'up')} disabled={idx === 0} className="text-xs px-2 py-1 border rounded disabled:opacity-30">↑</button>
-                      <button onClick={() => moveBicycleRecord(rec.id, 'down')} disabled={idx === sortedBicycleRepairs.length - 1} className="text-xs px-2 py-1 border rounded disabled:opacity-30">↓</button>
-                      <button onClick={() => { deleteBicycleRecord(rec.id); toast.success('Deleted'); }} className="text-xs px-2 py-1 border rounded text-red-600">Delete</button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Repair Type</label>
-                      <select value={rec.repairType} onChange={(e) => updateBicycleRecord(rec.id, { repairType: e.target.value })} className="w-full border rounded px-2 py-1 text-sm">
-                        {repairTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Status</label>
-                      <select value={rec.status || BICYCLE_REPAIR_STATUS.PENDING} onChange={(e) => setBicycleStatus(rec.id, e.target.value)} className="w-full border rounded px-2 py-1 text-sm">
-                        <option value={BICYCLE_REPAIR_STATUS.PENDING}>Pending</option>
-                        <option value={BICYCLE_REPAIR_STATUS.IN_PROGRESS}>Being Worked On</option>
-                        <option value={BICYCLE_REPAIR_STATUS.DONE}>Done</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Notes {rec.repairType === 'Other' && '(specify)'}</label>
-                      <input value={rec.notes || ''} onChange={(e) => updateBicycleRecord(rec.id, { notes: e.target.value })} className="w-full border rounded px-2 py-1 text-sm" placeholder="Optional notes" />
-                    </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Repair Type</label>
+                          <select
+                            value={rec.repairType}
+                            onChange={(event) => updateBicycleRecord(rec.id, { repairType: event.target.value })}
+                            className="w-full border rounded px-2 py-1 text-sm"
+                          >
+                            {repairTypes.map((type) => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Status</label>
+                          <select
+                            value={rec.status || BICYCLE_REPAIR_STATUS.PENDING}
+                            onChange={(event) => setBicycleStatus(rec.id, event.target.value)}
+                            className="w-full border rounded px-2 py-1 text-sm"
+                          >
+                            <option value={BICYCLE_REPAIR_STATUS.PENDING}>Pending</option>
+                            <option value={BICYCLE_REPAIR_STATUS.IN_PROGRESS}>Being Worked On</option>
+                            <option value={BICYCLE_REPAIR_STATUS.DONE}>Done</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Notes {rec.repairType === 'Other' && '(specify)'}</label>
+                          <input
+                            value={rec.notes || ''}
+                            onChange={(event) => updateBicycleRecord(rec.id, { notes: event.target.value })}
+                            className="w-full border rounded px-2 py-1 text-sm"
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </li>
               );
