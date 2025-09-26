@@ -91,23 +91,29 @@ const AttendanceBatchUpload = () => {
           throw new Error(`Invalid program type "${program}" on row ${rowIndex + 2}. Valid types: ${Object.keys(PROGRAM_TYPES).join(', ')}`);
         }
 
-        // Validate date format
+        // Validate and parse date format
         let parsedDate;
         try {
           if (dateSubmitted.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // YYYY-MM-DD format
             parsedDate = new Date(`${dateSubmitted}T12:00:00`);
-          } else if (dateSubmitted.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+          } else if (dateSubmitted.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+            // M/D/YYYY or MM/DD/YYYY format
             const [month, day, year] = dateSubmitted.split('/');
             parsedDate = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00`);
+          } else if (dateSubmitted.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i)) {
+            // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/2024 11:53:58 AM")
+            parsedDate = new Date(dateSubmitted);
           } else {
+            // Try generic Date parsing as fallback
             parsedDate = new Date(dateSubmitted);
           }
           
           if (isNaN(parsedDate.getTime())) {
-            throw new Error(`Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Use YYYY-MM-DD or MM/DD/YYYY format`);
+            throw new Error(`Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`);
           }
         } catch {
-          throw new Error(`Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Use YYYY-MM-DD or MM/DD/YYYY format`);
+          throw new Error(`Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`);
         }
 
         // For guest-specific programs, validate guest exists (all programs require Guest_ID)
@@ -250,7 +256,7 @@ const AttendanceBatchUpload = () => {
 ATT001,123,1,Meal,2024-01-15
 ATT002,456,1,Shower,2024-01-15
 ATT003,789,1,Laundry,01/15/2024
-ATT004,123,1,Bicycle,2024-01-15
+ATT004,123,1,Bicycle,4/29/2024 11:53:58 AM
 ATT005,456,1,Hair Cut,2024-01-15
 ATT006,789,1,Holiday,01/16/2024`;
     
@@ -327,13 +333,22 @@ ATT006,789,1,Holiday,01/16/2024`;
             <span key={program} className="bg-blue-100 px-2 py-1 rounded text-xs">{program}</span>
           ))}
         </div>
+
+        <p className="mb-2 font-semibold">Supported Date Formats:</p>
+        <div className="bg-gray-50 p-3 rounded mb-3 text-xs">
+          <div className="grid grid-cols-1 gap-1">
+            <span><strong>YYYY-MM-DD:</strong> 2024-04-29</span>
+            <span><strong>M/D/YYYY:</strong> 4/29/2024</span>
+            <span><strong>M/D/YYYY H:MM:SS AM/PM:</strong> 4/29/2024 11:53:58 AM</span>
+          </div>
+        </div>
         
         <ul className="list-disc pl-5 space-y-1">
           <li><strong>Attendance_ID:</strong> Unique identifier for the record</li>
           <li><strong>Guest_ID:</strong> Required - must match an existing guest in the system</li>
           <li><strong>Count:</strong> Number of items/services (default: 1)</li>
           <li><strong>Program:</strong> Must match one of the supported program types above</li>
-          <li><strong>Date_Submitted:</strong> Use YYYY-MM-DD or MM/DD/YYYY format</li>
+          <li><strong>Date_Submitted:</strong> Supports YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM formats</li>
           <li>All programs require a valid Guest_ID for individual tracking</li>
         </ul>
       </div>

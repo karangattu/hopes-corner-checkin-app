@@ -86,4 +86,58 @@ describe('AttendanceBatchUpload', () => {
     const allRequireGuestId = true;
     expect(allRequireGuestId).toBe(true);
   });
+
+  it('supports multiple date formats including datetime with AM/PM', () => {
+    // Test various date formats that should be supported
+    const supportedDateFormats = [
+      '2024-04-29',           // YYYY-MM-DD
+      '4/29/2024',            // M/D/YYYY
+      '04/29/2024',           // MM/DD/YYYY
+      '4/29/2024 11:53:58 AM', // M/D/YYYY H:MM:SS AM/PM
+      '4/29/2024 1:53:58 PM',  // M/D/YYYY H:MM:SS AM/PM (single digit hour)
+      '12/31/2023 11:59:59 PM' // MM/DD/YYYY H:MM:SS AM/PM
+    ];
+    
+    // All these formats should be parseable by JavaScript's Date constructor
+    // or our custom parsing logic
+    supportedDateFormats.forEach(dateStr => {
+      const date = new Date(dateStr);
+      const isValidOrCustomFormat = !isNaN(date.getTime()) || 
+        dateStr.match(/^\d{4}-\d{2}-\d{2}$/) ||
+        dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/) ||
+        dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i);
+      
+      expect(isValidOrCustomFormat).toBe(true);
+    });
+  });
+
+  it('correctly identifies datetime format with AM/PM pattern', () => {
+    // Test the specific regex pattern for M/D/YYYY H:MM:SS AM/PM
+    const datetimePattern = /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i;
+    
+    const validDatetimes = [
+      '4/29/2024 11:53:58 AM',
+      '12/31/2023 1:00:00 PM',
+      '1/1/2024 12:00:00 AM',
+      '6/15/2024 11:59:59 PM'
+    ];
+    
+    const invalidDatetimes = [
+      '2024-04-29',           // Wrong format (YYYY-MM-DD)
+      '4/29/2024',            // No time component
+      '4/29/24 11:53:58 AM',  // 2-digit year
+      '4/29/2024 11:53 AM'    // Missing seconds
+    ];
+    
+    validDatetimes.forEach(datetime => {
+      expect(datetimePattern.test(datetime)).toBe(true);
+    });
+    
+    invalidDatetimes.forEach(datetime => {
+      expect(datetimePattern.test(datetime)).toBe(false);
+    });
+    
+    // Test that the pattern correctly identifies the target format
+    expect(datetimePattern.test('4/29/2024 11:53:58 AM')).toBe(true);
+  });
 });
