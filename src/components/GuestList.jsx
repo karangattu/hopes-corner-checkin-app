@@ -63,6 +63,7 @@ const GuestList = () => {
     age: '',
     gender: '',
     notes: '',
+    bicycleDescription: '',
   });
 
   const [editingGuestId, setEditingGuestId] = useState(null);
@@ -75,6 +76,7 @@ const GuestList = () => {
     age: '',
     gender: '',
     notes: '',
+    bicycleDescription: '',
   });
 
   const BAY_AREA_CITIES = [
@@ -198,8 +200,11 @@ const GuestList = () => {
 
   const trail = useStagger((filteredGuests || []).length, true);
 
+  const createTokens = useMemo(() => searchTerm.trim().split(/\s+/).filter(Boolean), [searchTerm]);
+  const hasMinimumNameParts = createTokens.length >= 2 && createTokens[0].length >= 1 && createTokens[1].length >= 1;
+
   const shouldShowCreateOption =
-    searchTerm.trim().length > 2 && filteredGuests.length === 0 && searchTerm.includes(' ');
+    hasMinimumNameParts && searchTerm.trim().length > 2 && filteredGuests.length === 0;
 
   const toggleExpanded = (guestId) => {
     setExpandedGuest(expandedGuest === guestId ? null : guestId);
@@ -389,10 +394,11 @@ const GuestList = () => {
       const guestData = {
         ...createFormData,
         preferredName: createFormData.preferredName?.trim() || '',
+        bicycleDescription: createFormData.bicycleDescription?.trim() || '',
         name: `${createFormData.firstName.trim()} ${createFormData.lastName.trim()}`
       };
       const newGuest = addGuest(guestData);
-      setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
+      setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '', bicycleDescription: '' });
       setShowCreateForm(false);
       setSearchTerm(newGuest.preferredName || newGuest.name || `${guestData.firstName} ${guestData.lastName}`.trim());
       setExpandedGuest(newGuest.id);
@@ -420,7 +426,7 @@ const GuestList = () => {
 
   const handleCancelCreate = () => {
     setShowCreateForm(false);
-    setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '' });
+    setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '', bicycleDescription: '' });
     setCreateError('');
   };
 
@@ -435,6 +441,7 @@ const GuestList = () => {
       age: guest.age || '',
       gender: guest.gender || '',
       notes: guest.notes || '',
+      bicycleDescription: guest.bicycleDescription || '',
     });
   };
 
@@ -464,6 +471,7 @@ const GuestList = () => {
       firstName: toTitleCase(editFormData.firstName.trim()),
       lastName: toTitleCase(editFormData.lastName.trim()),
       preferredName: editFormData.preferredName?.trim() || '',
+      bicycleDescription: editFormData.bicycleDescription?.trim() || '',
       name: `${toTitleCase(editFormData.firstName.trim())} ${toTitleCase(editFormData.lastName.trim())}`.trim(),
     };
     updateGuest(editingGuestId, updates);
@@ -516,6 +524,9 @@ const GuestList = () => {
               </SpringIcon>
             </button>
           )}
+        </div>
+        <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
+          Tip: enter a first name and at least the first letter of the last name (for example, "Alex R") to reveal the “Create New Guest” button when no matches are found.
         </div>
       </div>
 
@@ -678,6 +689,19 @@ const GuestList = () => {
                 placeholder="Any additional information (optional)"
                 disabled={isCreating}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Bicycle Description</label>
+              <textarea
+                name="bicycleDescription"
+                value={createFormData.bicycleDescription}
+                onChange={handleCreateFormChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                rows="2"
+                placeholder="Bike make, color, or unique markers (optional)"
+                disabled={isCreating}
+              />
+              <p className="mt-1 text-xs text-gray-500">Helps confirm it’s the same bicycle when logging repairs.</p>
             </div>
             <div className="flex gap-3 pt-4">
               <button
@@ -847,41 +871,88 @@ const GuestList = () => {
                           <span className="text-gray-600">Legal: {guest.name}</span>
                         </div>
                       )}
+                      {guest.bicycleDescription && editingGuestId !== guest.id && (
+                        <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
+                          <Bike size={16} className="text-sky-500 mt-0.5" />
+                          <div>
+                            <span className="font-medium text-gray-700">Bicycle on file:</span>{' '}
+                            <span className="text-gray-700">{guest.bicycleDescription}</span>
+                          </div>
+                        </div>
+                      )}
                       {editingGuestId === guest.id && (
-                        <div className="mb-4 bg-white p-3 rounded border">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                            <input type="text" name="firstName" value={editFormData.firstName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="First name" />
-                            <input type="text" name="lastName" value={editFormData.lastName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="px-3 py-2 border rounded" placeholder="Last name" />
-                            <input type="text" name="preferredName" value={editFormData.preferredName} onChange={handleEditChange} className="px-3 py-2 border rounded" placeholder="Preferred name (optional)" />
-                            <select name="housingStatus" value={editFormData.housingStatus} onChange={handleEditChange} className="px-3 py-2 border rounded">
-                              {HOUSING_STATUSES.map(h => <option key={h} value={h}>{h}</option>)}
-                            </select>
+                        <div className="mb-4 bg-white p-4 rounded border space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">First Name*</label>
+                              <input type="text" name="firstName" value={editFormData.firstName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Last Name*</label>
+                              <input type="text" name="lastName" value={editFormData.lastName} onChange={handleEditChange} onBlur={handleEditNameBlur} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Preferred Name</label>
+                              <input type="text" name="preferredName" value={editFormData.preferredName} onChange={handleEditChange} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Optional" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Housing Status</label>
+                              <select name="housingStatus" value={editFormData.housingStatus} onChange={handleEditChange} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                {HOUSING_STATUSES.map(h => <option key={h} value={h}>{h}</option>)}
+                              </select>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                            <select name="age" value={editFormData.age} onChange={handleEditChange} className="px-3 py-2 border rounded">
-                              <option value="">Select age group</option>
-                              {AGE_GROUPS.map(a => <option key={a} value={a}>{a}</option>)}
-                            </select>
-                            <select name="gender" value={editFormData.gender} onChange={handleEditChange} className="px-3 py-2 border rounded">
-                              <option value="">Select gender</option>
-                              {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                            </select>
-                            <Selectize
-                              options={[
-                                ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
-                                { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
-                              ]}
-                              value={editFormData.location}
-                              onChange={(val) => setEditFormData(prev => ({ ...prev, location: val }))}
-                              placeholder="Select location"
-                              size="sm"
-                              className="w-full"
-                              buttonClassName="w-full px-3 py-2 border rounded text-left"
-                              searchable
-                              displayValue={editFormData.location}
-                            />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Age Group*</label>
+                              <select name="age" value={editFormData.age} onChange={handleEditChange} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select age group</option>
+                                {AGE_GROUPS.map(a => <option key={a} value={a}>{a}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Gender*</label>
+                              <select name="gender" value={editFormData.gender} onChange={handleEditChange} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select gender</option>
+                                {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Location*</label>
+                              <Selectize
+                                options={[
+                                  ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
+                                  { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
+                                ]}
+                                value={editFormData.location}
+                                onChange={(val) => setEditFormData(prev => ({ ...prev, location: val }))}
+                                placeholder="Select location"
+                                size="sm"
+                                className="w-full"
+                                buttonClassName="w-full px-3 py-2 border rounded text-left"
+                                searchable
+                                displayValue={editFormData.location}
+                              />
+                            </div>
                           </div>
-                          <textarea name="notes" value={editFormData.notes} onChange={handleEditChange} className="w-full px-3 py-2 border rounded resize-none" rows="3" placeholder="Notes (optional)" />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Notes</label>
+                              <textarea name="notes" value={editFormData.notes} onChange={handleEditChange} className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" rows="3" placeholder="Notes (optional)" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Bicycle Description</label>
+                              <textarea
+                                name="bicycleDescription"
+                                value={editFormData.bicycleDescription}
+                                onChange={handleEditChange}
+                                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                rows="3"
+                                placeholder="Bike make, color, or other identifiers"
+                              />
+                              <p className="mt-1 text-[11px] text-gray-500">Use this to confirm the guest is using the same bicycle when scheduling repairs.</p>
+                            </div>
+                          </div>
                         </div>
                       )}
                       {guest.notes && editingGuestId !== guest.id && (

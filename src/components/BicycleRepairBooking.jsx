@@ -28,6 +28,8 @@ const BicycleRepairBooking = () => {
         }
     };
 
+    const bikeDescription = bicyclePickerGuest?.bicycleDescription?.trim();
+
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setBicyclePickerGuest(null)} />
@@ -37,6 +39,15 @@ const BicycleRepairBooking = () => {
                     <button onClick={() => setBicyclePickerGuest(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
                 </div>
                 <div className="space-y-4">
+                    {bikeDescription ? (
+                        <div className="text-sm text-gray-600 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
+                            <span className="font-semibold text-sky-700">Bicycle on file:</span> {bikeDescription}
+                        </div>
+                    ) : (
+                        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                            No bicycle description saved for this guest. Consider updating their profile to keep repairs tied to a single bike.
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium mb-1">Repair Type</label>
                         <select value={repairType} onChange={e => setRepairType(e.target.value)} className="w-full border rounded px-3 py-2 text-sm">

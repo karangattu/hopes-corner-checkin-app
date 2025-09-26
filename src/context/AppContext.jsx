@@ -33,6 +33,11 @@ const normalizePreferredName = (value) => {
   return value.trim();
 };
 
+const normalizeBicycleDescription = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim();
+};
+
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
   const [settings, setSettings] = useState({
@@ -78,6 +83,7 @@ export const AppProvider = ({ children }) => {
           lastName: toTitleCase(guest.lastName),
           name: toTitleCase(guest.name || `${guest.firstName} ${guest.lastName}`),
           preferredName: normalizePreferredName(guest.preferredName),
+          bicycleDescription: normalizeBicycleDescription(guest.bicycleDescription),
         };
       }
 
@@ -91,6 +97,7 @@ export const AppProvider = ({ children }) => {
         lastName,
         name: toTitleCase(guest.name || ''),
         preferredName: normalizePreferredName(guest.preferredName),
+        bicycleDescription: normalizeBicycleDescription(guest.bicycleDescription),
       };
     });
   };
@@ -308,7 +315,8 @@ export const AppProvider = ({ children }) => {
       throw new Error('Invalid gender');
     }
 
-    const preferredName = normalizePreferredName(guest.preferredName);
+  const preferredName = normalizePreferredName(guest.preferredName);
+  const bicycleDescription = normalizeBicycleDescription(guest.bicycleDescription);
     const legalName = `${firstName} ${lastName}`.trim();
 
     const takenIds = new Set(guests.map(g => g.guestId));
@@ -322,6 +330,7 @@ export const AppProvider = ({ children }) => {
       lastName,
       name: legalName,
       preferredName,
+      bicycleDescription,
       createdAt: new Date().toISOString(),
     };
     setGuests([...guests, newGuest]);
@@ -395,6 +404,7 @@ export const AppProvider = ({ children }) => {
         location,
         preferredName: normalizePreferredName(row.preferred_name || row.preferredName),
         notes: (row.notes || '').trim(),
+        bicycleDescription: normalizeBicycleDescription(row.bicycle_description || row.bicycleDescription),
         createdAt: new Date().toISOString(),
       };
     });
@@ -608,9 +618,18 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateGuest = (id, updates) => {
+    const normalizedUpdates = {
+      ...updates,
+      bicycleDescription: updates?.bicycleDescription !== undefined
+        ? normalizeBicycleDescription(updates.bicycleDescription)
+        : undefined,
+    };
+    if (normalizedUpdates.bicycleDescription === undefined) {
+      delete normalizedUpdates.bicycleDescription;
+    }
     const target = guests.find(g => g.id === id);
     setGuests(
-      guests.map((guest) => (guest.id === id ? { ...guest, ...updates } : guest))
+      guests.map((guest) => (guest.id === id ? { ...guest, ...normalizedUpdates } : guest))
     );
     if (firestoreEnabled) {
       ensureDb().then(async (db) => {
@@ -618,7 +637,7 @@ export const AppProvider = ({ children }) => {
           if (!db) return;
           const docId = target?.docId ? target.docId : String(id);
           const { doc, updateDoc } = await import('firebase/firestore');
-          await updateDoc(doc(db, 'guests', docId), { ...updates });
+          await updateDoc(doc(db, 'guests', docId), { ...normalizedUpdates });
         } catch {
           // ignore
         }

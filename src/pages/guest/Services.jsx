@@ -548,6 +548,7 @@ const Services = () => {
           <ul className="space-y-3">
             {sortedBicycleRepairs.map((rec, idx) => {
               const nameDetails = getGuestNameDetails(rec.guestId);
+              const guestBikeDescription = nameDetails.guest?.bicycleDescription?.trim();
               const isDone = rec.status === BICYCLE_REPAIR_STATUS.DONE;
               const isExpanded = !isDone || expandedCompletedBicycleCards[rec.id];
               return (
@@ -633,11 +634,24 @@ const Services = () => {
                         </button>
                       </div>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                      <Bike size={14} className="text-sky-500" />
+                      {guestBikeDescription ? (
+                        <span className="text-gray-600">{guestBikeDescription}</span>
+                      ) : (
+                        <span className="text-amber-600 font-medium">No bicycle description on file — edit the guest profile to add one.</span>
+                      )}
+                    </div>
                     {isDone && !isExpanded ? (
                       <div className="flex flex-col gap-1 text-xs text-gray-500">
                         <div className="inline-flex items-center gap-2 font-semibold text-emerald-600">
                           <CheckCircle2Icon size={14} /> Completed — expand to adjust details.
                         </div>
+                        {guestBikeDescription && (
+                          <div>
+                            <span className="font-semibold text-gray-600">Bike:</span> {guestBikeDescription}
+                          </div>
+                        )}
                         <div>
                           <span className="font-semibold text-gray-600">Repair:</span> {rec.repairType || '—'}
                         </div>
