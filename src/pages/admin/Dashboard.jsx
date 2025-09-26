@@ -2,23 +2,18 @@ import React, { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import {
   BarChart3,
-  Utensils,
-  ShowerHead,
-  WashingMachine,
   Calendar,
   Download,
-  Users,
   Home,
   FileText,
   Upload
 } from 'lucide-react';
-import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2 } from 'lucide-react';
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
 import AttendanceBatchUpload from '../../components/AttendanceBatchUpload';
 import OverviewDashboard from '../../components/admin/OverviewDashboard';
-import DonutCard from '../../components/charts/DonutCard';
 import TrendLine from '../../components/charts/TrendLine';
 import Selectize from '../../components/Selectize';
 import { animated as Animated } from '@react-spring/web';
