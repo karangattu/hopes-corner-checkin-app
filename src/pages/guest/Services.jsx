@@ -1748,7 +1748,7 @@ const Services = () => {
       {
         id: 'lunchBags',
         label: 'Lunch bags',
-        description: 'Bagged lunches prepared for outreach.',
+        description: 'Bagged lunches prepared for takeout.',
       },
     ];
 
