@@ -50,13 +50,13 @@ const BicycleRepairBooking = () => {
                     )}
                     <div>
                         <label className="block text-sm font-medium mb-1">Repair Type</label>
-                        <select value={repairType} onChange={e => setRepairType(e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
+                        <select aria-label="repair type" value={repairType} onChange={e => setRepairType(e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
                             {repairTypes.map(t => <option key={t}>{t}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium mb-1 flex justify-between"><span>Notes {repairType === 'Other' && '(required)'}</span><span className="text-xs text-gray-400">Optional</span></label>
-                        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full border rounded px-3 py-2 text-sm resize-y" placeholder="Additional info or description" />
+                        <textarea aria-label="notes" value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full border rounded px-3 py-2 text-sm resize-y" placeholder="Additional info or description" />
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                         <button onClick={() => setBicyclePickerGuest(null)} className="px-3 py-2 text-sm rounded border">Cancel</button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { animated as Animated } from '@react-spring/web';
 import { useScaleIn, useFadeInUp, SpringIcon } from '../utils/animations';
 import { LogIn, User, Lock, Eye, EyeOff } from 'lucide-react';
@@ -15,6 +15,8 @@ const Login = () => {
   const [mode, setMode] = useState('login');
   const cardAnim = useScaleIn();
   const ctaAnim = useFadeInUp();
+  const usernameId = useId();
+  const passwordId = useId();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,7 +62,7 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">{useFirebase ? 'Email' : 'Username'}</label>
+            <label htmlFor={usernameId} className="block text-sm font-medium mb-1">{useFirebase ? 'Email' : 'Username'}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 w-10 flex items-center justify-center pointer-events-none text-emerald-500">
                 <SpringIcon>
@@ -71,17 +73,17 @@ const Login = () => {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                id={usernameId}
                 className="w-full border rounded-md px-3 py-2 pl-12 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 placeholder={useFirebase ? 'you@hope.org' : 'username'}
                 autoComplete="username"
-                aria-label="username"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label htmlFor={passwordId} className="block text-sm font-medium mb-1">Password</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 w-10 flex items-center justify-center pointer-events-none text-emerald-500">
                 <SpringIcon>
@@ -92,10 +94,10 @@ const Login = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                id={passwordId}
                 className="w-full border rounded-md px-3 py-2 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 placeholder="Your secure password"
                 autoComplete="current-password"
-                aria-label="password"
                 required
               />
               <button

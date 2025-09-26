@@ -86,4 +86,58 @@ describe('GuestList', () => {
     expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
     expect(screen.queryByText(/no guest found/i)).not.toBeInTheDocument();
   });
+
+  it('filters guests by partial name match', async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        { id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' },
+        { id: 'g2', name: 'Jane Doe', firstName: 'Jane', lastName: 'Doe' },
+        { id: 'g3', name: 'Bob Smith', firstName: 'Bob', lastName: 'Smith' },
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, 'Doe');
+
+    expect(await screen.findByText(/found 2 guests/i)).toBeInTheDocument();
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+  });
+
+  it('shows no results when search does not match', async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [{ id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' }],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, 'Nonexistent');
+
+    expect(await screen.findByText(/no guests found/i)).toBeInTheDocument();
+  });
+
+  it('clears search and shows all guests when search is empty', async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        { id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' },
+        { id: 'g2', name: 'Jane Smith', firstName: 'Jane', lastName: 'Smith' },
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, 'John');
+    expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
+
+    await user.clear(search);
+    expect(await screen.findByText(/for privacy, start typing to search/i)).toBeInTheDocument();
+  });
 });

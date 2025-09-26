@@ -84,4 +84,77 @@ describe('BicycleRepairBooking', () => {
     });
     expect(setBicyclePickerGuest).toHaveBeenCalledWith(null);
   });
+
+  it('allows selecting different repair types', async () => {
+    const user = userEvent.setup();
+    const addBicycleRecord = vi.fn();
+
+    mockContextValue = {
+      bicyclePickerGuest: {
+        id: 'g4',
+        name: 'Alex Rider',
+        bicycleDescription: 'Blue Trek',
+      },
+      addBicycleRecord,
+      setBicyclePickerGuest: vi.fn(),
+    };
+
+    render(<BicycleRepairBooking />);
+
+  const select = screen.getByLabelText(/repair type/i);
+    await user.selectOptions(select, 'Chain Replacement');
+    await user.click(screen.getByRole('button', { name: /log repair/i }));
+
+    expect(addBicycleRecord).toHaveBeenCalledWith('g4', {
+      repairType: 'Chain Replacement',
+      notes: '',
+    });
+  });
+
+  it('includes notes in repair record', async () => {
+    const user = userEvent.setup();
+    const addBicycleRecord = vi.fn();
+
+    mockContextValue = {
+      bicyclePickerGuest: {
+        id: 'g5',
+        name: 'Sam Wilson',
+        bicycleDescription: 'Green Giant',
+      },
+      addBicycleRecord,
+      setBicyclePickerGuest: vi.fn(),
+    };
+
+    render(<BicycleRepairBooking />);
+
+  const notesTextarea = screen.getByLabelText(/notes/i);
+    await user.type(notesTextarea, 'Replaced with new chain');
+    await user.click(screen.getByRole('button', { name: /log repair/i }));
+
+    expect(addBicycleRecord).toHaveBeenCalledWith('g5', {
+      repairType: 'Flat Tire',
+      notes: 'Replaced with new chain',
+    });
+  });
+
+  it('closes the form after submission', async () => {
+    const user = userEvent.setup();
+    const setBicyclePickerGuest = vi.fn();
+
+    mockContextValue = {
+      bicyclePickerGuest: {
+        id: 'g6',
+        name: 'Test User',
+        bicycleDescription: 'Test Bike',
+      },
+      addBicycleRecord: vi.fn(),
+      setBicyclePickerGuest,
+    };
+
+    render(<BicycleRepairBooking />);
+
+    await user.click(screen.getByRole('button', { name: /log repair/i }));
+
+    expect(setBicyclePickerGuest).toHaveBeenCalledWith(null);
+  });
 });

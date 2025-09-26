@@ -1,11 +1,11 @@
 import React, { createContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext(null);
-const useFirebase = import.meta.env.VITE_USE_FIREBASE === 'true';
+const envUseFirebase = import.meta.env.VITE_USE_FIREBASE === 'true';
 
 let __authCache = null;
-const ensureFirebaseAuth = async () => {
-  if (!useFirebase) return null;
+const ensureFirebaseAuth = async (firebaseEnabled) => {
+  if (!firebaseEnabled) return null;
   if (__authCache) return __authCache;
   try {
     const mod = await import('../firebase.js');
@@ -16,7 +16,8 @@ const ensureFirebaseAuth = async () => {
   }
 };
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children, useFirebaseOverride }) => {
+  const firebaseEnabled = useFirebaseOverride ?? envUseFirebase;
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -45,8 +46,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password) => {
-    if (useFirebase) {
-      const auth = await ensureFirebaseAuth();
+    if (firebaseEnabled) {
+      const auth = await ensureFirebaseAuth(firebaseEnabled);
       if (!auth) throw new Error('Authentication service unavailable');
       const { signInWithEmailAndPassword } = await import('firebase/auth');
       const cred = await signInWithEmailAndPassword(auth, username, password);
@@ -69,8 +70,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email) => {
-    if (!useFirebase) throw new Error('Password reset requires Firebase Auth');
-    const auth = await ensureFirebaseAuth();
+    if (!firebaseEnabled) throw new Error('Password reset requires Firebase Auth');
+    const auth = await ensureFirebaseAuth(firebaseEnabled);
     if (!auth) throw new Error('Authentication service unavailable');
     const { sendPasswordResetEmail } = await import('firebase/auth');
     await sendPasswordResetEmail(auth, email);
@@ -78,9 +79,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    if (useFirebase) {
+    if (firebaseEnabled) {
       try {
-        const auth = await ensureFirebaseAuth();
+        const auth = await ensureFirebaseAuth(firebaseEnabled);
         if (auth) {
           const { signOut } = await import('firebase/auth');
           await signOut(auth);
@@ -92,7 +93,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = { user, login, logout, resetPassword, useFirebase };
+  const value = { user, login, logout, resetPassword, useFirebase: firebaseEnabled };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

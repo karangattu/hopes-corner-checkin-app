@@ -96,7 +96,7 @@ const GuestForm = () => {
 
   <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
+          <label htmlFor="guest-name-input" className="block text-sm font-semibold text-gray-700">
             Guest Name*
           </label>
           <div className="relative">
@@ -108,6 +108,7 @@ const GuestForm = () => {
               name="name"
               value={formData.name}
               onChange={handleChange}
+              id="guest-name-input"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               placeholder="Enter guest name"
               required
@@ -117,7 +118,7 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
+          <label htmlFor="housing-status-select" className="block text-sm font-semibold text-gray-700">
             Housing Status
           </label>
           <div className="relative">
@@ -128,6 +129,7 @@ const GuestForm = () => {
               name="housingStatus"
               value={formData.housingStatus}
               onChange={handleChange}
+              id="housing-status-select"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
               disabled={isSubmitting}
             >
@@ -165,13 +167,14 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
+          <label htmlFor="notes-textarea" className="block text-sm font-semibold text-gray-700">
             Notes
           </label>
           <textarea
             name="notes"
             value={formData.notes}
             onChange={handleChange}
+            id="notes-textarea"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
             rows="3"
             placeholder="Any additional information"
@@ -180,7 +183,7 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
+          <label htmlFor="bicycle-description" className="block text-sm font-semibold text-gray-700">
             Bicycle description
           </label>
           <div className="relative">
@@ -191,6 +194,7 @@ const GuestForm = () => {
               name="bicycleDescription"
               value={formData.bicycleDescription}
               onChange={handleChange}
+              id="bicycle-description"
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
               rows="2"
               placeholder="Bike make, color, or identifying details"

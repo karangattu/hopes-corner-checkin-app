@@ -89,7 +89,7 @@ export const SpringIcon = ({ children, className = '', options = {}, ...rest }) 
   const mergedClass = `inline-flex items-center justify-center will-change-transform ${className}`;
   return React.createElement(
     animated.span,
-    { style, className: mergedClass, role: 'img', 'aria-hidden': 'true', ...handlers, ...rest },
+    { style, className: mergedClass, role: rest.role || 'img', 'aria-hidden': rest['aria-hidden'] ?? 'true', ...handlers, ...rest },
     children
   );
 };
