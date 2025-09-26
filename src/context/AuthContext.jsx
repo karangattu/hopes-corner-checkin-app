@@ -55,7 +55,9 @@ export const AuthProvider = ({ children }) => {
       try {
         const token = await cred.user.getIdTokenResult(true);
         if (token?.claims?.role) role = token.claims.role;
-  } catch { }
+      } catch {
+        // Ignore errors when fetching token claims
+      }
       setUser({ username: email, role, name: email.split('@')[0] || 'User' });
       return true;
     }
@@ -84,7 +86,8 @@ export const AuthProvider = ({ children }) => {
           await signOut(auth);
         }
       } catch {
-        }
+        // Ignore errors during logout
+      }
     }
     setUser(null);
   };
