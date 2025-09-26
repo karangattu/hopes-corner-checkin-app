@@ -16,6 +16,7 @@ import { Scissors, Gift, Bike, AlertTriangle, ShieldAlert, Cloud, HardDrive, Ref
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
+import AttendanceBatchUpload from '../../components/AttendanceBatchUpload';
 import DonutCard from '../../components/charts/DonutCard';
 import TrendLine from '../../components/charts/TrendLine';
 import Selectize from '../../components/Selectize';
@@ -570,6 +571,16 @@ const Dashboard = () => {
           Upload multiple guests at once using a CSV file. This feature is restricted to admin users.
         </p>
         <GuestBatchUpload />
+      </div>
+      
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Upload size={20} className="text-green-600" /> Batch Attendance Upload
+        </h2>
+        <p className="text-gray-600 mb-4">
+          Import legacy attendance data from another program using a CSV file. Supports all service types including meals, showers, laundry, and more.
+        </p>
+        <AttendanceBatchUpload />
       </div>
     </div>
   );
