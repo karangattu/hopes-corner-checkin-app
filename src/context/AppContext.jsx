@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 const firestoreEnabled = import.meta.env.VITE_USE_FIREBASE === 'true';
 let __dbCache = null;
 const ensureDb = async () => {
@@ -38,33 +38,58 @@ const normalizeBicycleDescription = (value) => {
   return value.trim();
 };
 
+const DEFAULT_TARGETS = {
+  monthlyMeals: 1500,
+  yearlyMeals: 18000,
+  monthlyShowers: 300,
+  yearlyShowers: 3600,
+  monthlyLaundry: 200,
+  yearlyLaundry: 2400,
+  monthlyBicycles: 50,
+  yearlyBicycles: 600,
+  monthlyHaircuts: 100,
+  yearlyHaircuts: 1200,
+  monthlyHolidays: 80,
+  yearlyHolidays: 960
+};
+
+const createDefaultSettings = () => ({
+  siteName: "Hope's Corner",
+  maxOnsiteLaundrySlots: 5,
+  enableOffsiteLaundry: true,
+  uiDensity: 'comfortable',
+  showCharts: true,
+  defaultReportDays: 7,
+  donationAutofill: true,
+  defaultDonationType: 'Protein',
+  targets: { ...DEFAULT_TARGETS }
+});
+
+const mergeSettings = (base, incoming = {}) => {
+  if (!incoming || typeof incoming !== 'object') return base;
+
+  const next = {
+    ...base,
+    ...incoming,
+  };
+
+  if (incoming.targets) {
+    next.targets = {
+      ...(base.targets ?? {}),
+      ...(incoming.targets ?? {}),
+    };
+  }
+
+  if (!next.targets) {
+    next.targets = { ...DEFAULT_TARGETS };
+  }
+
+  return next;
+};
+
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
-  const [settings, setSettings] = useState({
-    siteName: "Hope's Corner",
-    maxOnsiteLaundrySlots: 5,
-    enableOffsiteLaundry: true,
-    uiDensity: 'comfortable',
-    showCharts: true,
-    defaultReportDays: 7,
-    donationAutofill: true,
-    defaultDonationType: 'Protein',
-    // Target settings for dashboard
-    targets: {
-      monthlyMeals: 1500,
-      yearlyMeals: 18000,
-      monthlyShowers: 300,
-      yearlyShowers: 3600,
-      monthlyLaundry: 200,
-      yearlyLaundry: 2400,
-      monthlyBicycles: 50,
-      yearlyBicycles: 600,
-      monthlyHaircuts: 100,
-      yearlyHaircuts: 1200,
-      monthlyHolidays: 80,
-      yearlyHolidays: 960
-    }
-  });
+  const [settings, setSettings] = useState(() => createDefaultSettings());
 
   const [mealRecords, setMealRecords] = useState([]);
   const [rvMealRecords, setRvMealRecords] = useState([]);
@@ -182,7 +207,10 @@ export const AppProvider = ({ children }) => {
       if (savedHolidayRecords) setHolidayRecords(JSON.parse(savedHolidayRecords));
       if (savedHaircutRecords) setHaircutRecords(JSON.parse(savedHaircutRecords));
       if (savedItemRecords) setItemGivenRecords(JSON.parse(savedItemRecords));
-      if (savedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(prev => mergeSettings(prev, parsedSettings));
+      }
       if (savedDonations) setDonationRecords(JSON.parse(savedDonations));
       if (savedLunchBags) setLunchBagRecords(JSON.parse(savedLunchBags));
     } catch (error) {
@@ -224,6 +252,80 @@ export const AppProvider = ({ children }) => {
       console.error('Error saving data to localStorage:', error);
     }
   }, [guests, mealRecords, rvMealRecords, showerRecords, laundryRecords, bicycleRecords, holidayRecords, haircutRecords, itemGivenRecords, donationRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, settings]);
+
+  useEffect(() => {
+    if (!firestoreEnabled) return undefined;
+
+    let unsubscribe;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const db = await ensureDb();
+        if (!db) return;
+
+        const { doc, getDoc, setDoc, onSnapshot } = await import('firebase/firestore');
+        const settingsRef = doc(db, 'appSettings', 'global');
+
+        const snapshot = await getDoc(settingsRef);
+        if (!snapshot.exists()) {
+          await setDoc(settingsRef, createDefaultSettings(), { merge: true });
+        } else if (!cancelled) {
+          const cloudSettings = snapshot.data();
+          if (cloudSettings) {
+            setSettings(prev => mergeSettings(prev, cloudSettings));
+          }
+        }
+
+        if (cancelled) return;
+
+        unsubscribe = onSnapshot(
+          settingsRef,
+          (snap) => {
+            const data = snap.data();
+            if (data) {
+              setSettings(prev => mergeSettings(prev, data));
+            }
+          },
+          (error) => {
+            console.warn('Settings listener error:', error);
+          }
+        );
+      } catch (error) {
+        console.warn('Failed to subscribe to settings:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const persistSettingsToFirestore = useCallback(async (nextSettings) => {
+    if (!firestoreEnabled) return;
+
+    try {
+      const db = await ensureDb();
+      if (!db) return;
+
+      const { doc, setDoc } = await import('firebase/firestore');
+      const settingsRef = doc(db, 'appSettings', 'global');
+      await setDoc(settingsRef, nextSettings, { merge: true });
+    } catch (error) {
+      console.error('Failed to persist settings to Firestore:', error);
+    }
+  }, []);
+
+  const updateSettings = useCallback((partial) => {
+    if (!partial) return;
+
+    setSettings(prev => {
+      const next = mergeSettings(prev, partial);
+      persistSettingsToFirestore(next);
+      return next;
+    });
+  }, [persistSettingsToFirestore]);
 
 
   const generateShowerSlots = () => {
@@ -1641,7 +1743,7 @@ export const AppProvider = ({ children }) => {
         try {
           const db = await ensureDb();
           if (db) {
-            const { collection, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+            const { collection, getDocs, deleteDoc, doc, setDoc } = await import('firebase/firestore');
             const colls = [
               { name: 'guests', keep: keepGuests },
               { name: 'meals' },
@@ -1664,6 +1766,9 @@ export const AppProvider = ({ children }) => {
               const promises = snap.docs.map(d => deleteDoc(doc(db, c.name, d.id)));
               await Promise.all(promises);
             }
+
+            const settingsRef = doc(db, 'appSettings', 'global');
+            await setDoc(settingsRef, createDefaultSettings(), { merge: true });
           }
         } catch (err) {
           console.warn('Firestore reset failed:', err);
@@ -1720,8 +1825,8 @@ export const AppProvider = ({ children }) => {
     setLaundryRecords,
     setMealRecords,
     setItemGivenRecords,
-    setDonationRecords,
-    updateSettings: (partial) => setSettings(prev => ({ ...prev, ...partial })),
+  setDonationRecords,
+  updateSettings,
 
     addGuest,
     importGuestsFromCSV,
