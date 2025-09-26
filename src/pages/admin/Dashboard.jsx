@@ -6,9 +6,10 @@ import {
   Download,
   Home,
   FileText,
-  Upload
+  Upload,
+  Users
 } from 'lucide-react';
-import { AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2, Utensils, ShowerHead, WashingMachine } from 'lucide-react';
 import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';

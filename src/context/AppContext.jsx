@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFirestoreSync } from './FirestoreSync';
 const firestoreEnabled = import.meta.env.VITE_USE_FIREBASE === 'true';
 let __dbCache = null;
 const ensureDb = async () => {
@@ -114,6 +115,15 @@ export const AppProvider = ({ children }) => {
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
 
+  const [db, setDb] = useState(null);
+
+  // Initialize database connection
+  useEffect(() => {
+    if (firestoreEnabled) {
+      ensureDb().then(setDb);
+    }
+  }, []);
+
   const migrateGuestData = (guestList) => {
     return guestList.map(guest => {
       if (guest.firstName && guest.lastName) {
@@ -142,36 +152,36 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  // Real-time Firestore synchronization for all collections
+  useFirestoreSync(db, 'guests', (data) => {
+    const migratedGuests = migrateGuestData(data);
+    const normalizedGuests = (migratedGuests || []).map(g => ({
+      ...g,
+      housingStatus: normalizeHousingStatus(g.housingStatus),
+    }));
+    setGuests(normalizedGuests);
+  }, firestoreEnabled && db);
 
+  useFirestoreSync(db, 'meals', setMealRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'rvMeals', setRvMealRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'unitedEffortMeals', setUnitedEffortMealRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'extraMeals', setExtraMealRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'dayWorkerMeals', setDayWorkerMealRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'lunchBags', setLunchBagRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'showers', setShowerRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'laundry', setLaundryRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'bicycles', setBicycleRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'holidays', setHolidayRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'haircuts', setHaircutRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'itemsGiven', setItemGivenRecords, firestoreEnabled && db);
+  useFirestoreSync(db, 'donations', setDonationRecords, firestoreEnabled && db);
+
+  // Fallback to localStorage only if Firestore is disabled or fails
   useEffect(() => {
+    if (firestoreEnabled) return; // Skip localStorage if Firestore is enabled
+
     try {
       const savedGuests = localStorage.getItem('hopes-corner-guests');
-      if (firestoreEnabled && (!savedGuests || JSON.parse(savedGuests || '[]').length === 0)) {
-        (async () => {
-          try {
-            const db = await ensureDb();
-            if (db) {
-              const { collection, getDocs } = await import('firebase/firestore');
-              const snap = await getDocs(collection(db, 'guests'));
-              const cloudGuests = snap.docs.map((d, idx) => {
-                const data = d.data();
-                let numericId = typeof data.id === 'number' ? data.id : (Date.now() + idx);
-                return { ...data, id: numericId, docId: d.id };
-              });
-              if (cloudGuests && cloudGuests.length) {
-                const migratedGuests = migrateGuestData(cloudGuests);
-                const normalizedGuests = (migratedGuests || []).map(g => ({
-                  ...g,
-                  housingStatus: normalizeHousingStatus(g.housingStatus),
-                }));
-                setGuests(normalizedGuests);
-              }
-            }
-          } catch {
-            // ignore
-          }
-        })();
-      }
       const savedMealRecords = localStorage.getItem('hopes-corner-meal-records');
       const savedRvMealRecords = localStorage.getItem('hopes-corner-rv-meal-records');
       const savedUnitedEffortMealRecords = localStorage.getItem('hopes-corner-united-effort-meal-records');
@@ -231,7 +241,10 @@ export const AppProvider = ({ children }) => {
     return 'Unhoused';
   };
 
+  // Cache to localStorage only when Firestore is disabled - real-time sync handles caching
   useEffect(() => {
+    if (firestoreEnabled) return; // Skip localStorage caching when using Firestore real-time sync
+
     try {
       localStorage.setItem('hopes-corner-guests', JSON.stringify(guests));
       localStorage.setItem('hopes-corner-meal-records', JSON.stringify(mealRecords));
@@ -400,7 +413,7 @@ export const AppProvider = ({ children }) => {
     return id;
   };
 
-  const addGuest = (guest) => {
+  const addGuest = async (guest) => {
     let firstName = '';
     let lastName = '';
 
@@ -432,8 +445,8 @@ export const AppProvider = ({ children }) => {
       throw new Error('Invalid gender');
     }
 
-  const preferredName = normalizePreferredName(guest.preferredName);
-  const bicycleDescription = normalizeBicycleDescription(guest.bicycleDescription);
+    const preferredName = normalizePreferredName(guest.preferredName);
+    const bicycleDescription = normalizeBicycleDescription(guest.bicycleDescription);
     const legalName = `${firstName} ${lastName}`.trim();
 
     const takenIds = new Set(guests.map(g => g.guestId));
@@ -450,18 +463,26 @@ export const AppProvider = ({ children }) => {
       bicycleDescription,
       createdAt: new Date().toISOString(),
     };
-    setGuests([...guests, newGuest]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-          await setDoc(doc(db, 'guests', String(newGuest.id)), { ...newGuest, createdAt: serverTimestamp() });
-        } catch {
-          // ignore
-        }
-      });
+
+    if (firestoreEnabled && db) {
+      try {
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        await setDoc(doc(db, 'guests', String(newGuest.id)), { 
+          ...newGuest, 
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp() 
+        });
+        // Real-time sync will update local state
+      } catch (error) {
+        console.error('Failed to add guest to Firestore:', error);
+        // Fallback to local state
+        setGuests([...guests, newGuest]);
+      }
+    } else {
+      // Fallback to local state when Firestore disabled
+      setGuests([...guests, newGuest]);
     }
+    
     return newGuest;
   };
 
@@ -779,16 +800,36 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const addMealRecord = (guestId, count) => {
+  const addMealRecord = async (guestId, count) => {
     const today = pacificDateStringFrom(new Date());
     const already = mealRecords.some(r => r.guestId === guestId && pacificDateStringFrom(r.date) === today);
     if (already) return null;
-    const record = { id: Date.now(), guestId, count, date: new Date().toISOString() };
-    setMealRecords(prev => [...prev, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'meals', String(record.id)), record); } catch { /* ignore */ }
-      });
+    
+    const record = { 
+      id: Date.now(), 
+      guestId, 
+      count, 
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    if (firestoreEnabled && db) {
+      try {
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        await setDoc(doc(db, 'meals', String(record.id)), { 
+          ...record, 
+          createdAt: serverTimestamp(),
+          lastUpdated: serverTimestamp() 
+        });
+        // Real-time sync will update local state
+      } catch (error) {
+        console.error('Failed to add meal record to Firestore:', error);
+        // Fallback to local state
+        setMealRecords(prev => [...prev, record]);
+      }
+    } else {
+      // Fallback when Firestore disabled
+      setMealRecords(prev => [...prev, record]);
     }
 
     const action = {

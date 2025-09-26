@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   collection, 
   onSnapshot, 
@@ -105,69 +105,6 @@ export const useFirestoreSync = (db, collectionName, setState, enabled = true) =
     updateDocument,
     deleteDocument
   };
-};
-
-/**
- * Hook for managing guest data with real-time sync
- */
-export const useGuestsSync = (db, setGuests) => {
-  return useFirestoreSync(db, 'guests', setGuests);
-};
-
-/**
- * Hook for managing meal records with real-time sync
- */
-export const useMealsSync = (db, setMealRecords) => {
-  return useFirestoreSync(db, 'meals', setMealRecords);
-};
-
-/**
- * Hook for managing shower records with real-time sync
- */
-export const useShowersSync = (db, setShowerRecords) => {
-  return useFirestoreSync(db, 'showers', setShowerRecords);
-};
-
-/**
- * Hook for managing laundry records with real-time sync
- */
-export const useLaundrySync = (db, setLaundryRecords) => {
-  return useFirestoreSync(db, 'laundry', setLaundryRecords);
-};
-
-/**
- * Hook for managing bicycle records with real-time sync
- */
-export const useBicyclesSync = (db, setBicycleRecords) => {
-  return useFirestoreSync(db, 'bicycles', setBicycleRecords);
-};
-
-/**
- * Hook for managing haircut records with real-time sync
- */
-export const useHaircutsSync = (db, setHaircutRecords) => {
-  return useFirestoreSync(db, 'haircuts', setHaircutRecords);
-};
-
-/**
- * Hook for managing holiday records with real-time sync
- */
-export const useHolidaysSync = (db, setHolidayRecords) => {
-  return useFirestoreSync(db, 'holidays', setHolidayRecords);
-};
-
-/**
- * Hook for managing item given records with real-time sync
- */
-export const useItemsGivenSync = (db, setItemGivenRecords) => {
-  return useFirestoreSync(db, 'itemsGiven', setItemGivenRecords);
-};
-
-/**
- * Hook for managing donation records with real-time sync
- */
-export const useDonationsSync = (db, setDonationRecords) => {
-  return useFirestoreSync(db, 'donations', setDonationRecords);
 };
 
 /**
