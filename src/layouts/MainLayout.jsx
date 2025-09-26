@@ -30,7 +30,7 @@ const MainLayout = ({ children }) => {
 
   return (
   <div className="min-h-screen bg-emerald-50 flex flex-col">
-  <header className="bg-emerald-600 text-white shadow-lg">
+  <header className="bg-green-950 text-white shadow-lg">
         <div className="container mx-auto px-4">
       <div className="flex justify-between items-center h-12 md:h-16">
             <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ const MainLayout = ({ children }) => {
             Hope's Corner Guest Check-In System
           </p>
       <p className="text-emerald-400 text-xs mt-1">
-            &copy; {new Date().getFullYear()} - Serving our community with care
+            &copy; {new Date().getFullYear()} - Building community one meal and shower at a time
           </p>
         </div>
       </footer>
