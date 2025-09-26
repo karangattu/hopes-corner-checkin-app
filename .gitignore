@@ -51,4 +51,4 @@ Thumbs.db
 .cache/
 
 # CSV data files (like guest_list.csv)
-*.csv
+guest_list.csv

@@ -1,0 +1,6 @@
+Guest_ID,First_Name,Last_Name,Preferred_Name,Full_Name,City,Housing_status,Age,Gender,Notes
+,John,Doe,Johnny,,Downtown,Unhoused,Adult 18-59,Male,Prefers evening services
+,Jane,Smith,Jenny,,Shelter on Main St,Temporarily Housed,Senior 60+,Female,Has dietary restrictions
+,Robert,Johnson,Bobby,,Hope Housing Program,Transitional Housing,Child 0-17,Male,
+,Maria,Garcia,Mary,,Oak Street,Housed,Senior 60+,Female,Volunteer on weekends
+,David,Wilson,Dave,,Community Center,Sheltered,Adult 18-59,Male,Needs assistance with paperwork

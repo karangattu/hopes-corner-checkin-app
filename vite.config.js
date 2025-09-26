@@ -7,14 +7,44 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          chart: ['chart.js', 'react-chartjs-2'],
-          firebase: ['firebase/app','firebase/auth','firebase/firestore','firebase/storage'],
-          ui: ['lucide-react']
+        manualChunks: (id) => {
+          // React core
+          if (id.includes('react') || id.includes('react-dom')) {
+            return 'react';
+          }
+          
+          // Chart libraries
+          if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
+            return 'chart';
+          }
+          
+          // Firebase - split into smaller chunks
+          if (id.includes('firebase/app') || id.includes('firebase/auth')) {
+            return 'firebase-core';
+          }
+          if (id.includes('firebase/firestore')) {
+            return 'firebase-firestore';
+          }
+          if (id.includes('firebase/storage') || id.includes('firebase/analytics')) {
+            return 'firebase-other';
+          }
+          
+          // UI libraries
+          if (id.includes('lucide-react')) {
+            return 'ui-icons';
+          }
+          if (id.includes('@react-spring')) {
+            return 'animations';
+          }
+          
+          // Utilities
+          if (id.includes('node_modules') && !id.includes('firebase') && !id.includes('react') && !id.includes('chart')) {
+            return 'vendor';
+          }
         }
       }
-    }
+    },
+    chunkSizeWarningLimit: 1000 // Increase limit to 1MB to reduce warnings
   },
   test: {
     environment: 'jsdom',

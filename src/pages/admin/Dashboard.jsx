@@ -17,12 +17,13 @@ import Donations from '../../components/Donations';
 import { useAppContext } from '../../context/useAppContext';
 import GuestBatchUpload from '../../components/GuestBatchUpload';
 import AttendanceBatchUpload from '../../components/AttendanceBatchUpload';
+import OverviewDashboard from '../../components/admin/OverviewDashboard';
 import DonutCard from '../../components/charts/DonutCard';
 import TrendLine from '../../components/charts/TrendLine';
 import Selectize from '../../components/Selectize';
 import { animated as Animated } from '@react-spring/web';
 import { useFadeInUp, SpringIcon } from '../../utils/animations';
-import { todayPacificDateString, pacificDateStringFrom } from '../../utils/date';
+import { todayPacificDateString } from '../../utils/date';
 
 const Dashboard = () => {
   const {
@@ -219,72 +220,6 @@ const Dashboard = () => {
   const yearGridAnim = useFadeInUp();
   const reportsChartAnim = useFadeInUp();
 
-  const housingStatusCounts = guests.reduce((counts, guest) => {
-    const status = guest.housingStatus || 'Unknown';
-    counts[status] = (counts[status] || 0) + 1;
-    return counts;
-  }, {});
-
-  const todayMetrics = getTodayMetrics();
-
-  const monthMetrics = useMemo(() => {
-    const now = new Date();
-    const monthStartPT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now.getFullYear(), now.getMonth(), 1));
-    const inMonth = (iso) => pacificDateStringFrom(iso) >= monthStartPT;
-    const monthMeals = mealRecords.filter(r => inMonth(r.date));
-    const monthRvMeals = (rvMealRecords || []).filter(r => inMonth(r.date));
-    const monthUeMeals = (unitedEffortMealRecords || []).filter(r => inMonth(r.date));
-    const monthExtraMeals = (extraMealRecords || []).filter(r => inMonth(r.date));
-    const monthDayWorkerMeals = (dayWorkerMealRecords || []).filter(r => inMonth(r.date));
-    const monthShowers = showerRecords.filter(r => inMonth(r.date));
-    const monthLaundry = laundryRecords.filter(r => inMonth(r.date));
-    const monthHaircuts = (haircutRecords || []).filter(r => inMonth(r.date));
-    const monthHolidays = (holidayRecords || []).filter(r => inMonth(r.date));
-    const monthBicycles = (bicycleRecords || []).filter(r => inMonth(r.date) && (r.status ? r.status === 'done' : true));
-    const countsAsLaundryLoad = (rec) => rec.laundryType === 'onsite' ? (rec.status === 'done' || rec.status === 'picked_up') : true;
-    return {
-      mealsServed: monthMeals.reduce((s, r) => s + r.count, 0)
-        + monthRvMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + monthUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + monthExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + monthDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
-      showersBooked: monthShowers.filter(r => r.status === 'done').length,
-      laundryLoads: monthLaundry.reduce((s, r) => s + (countsAsLaundryLoad(r) ? 1 : 0), 0),
-      haircuts: monthHaircuts.length,
-      holidays: monthHolidays.length,
-      bicycles: monthBicycles.length,
-    };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
-
-  const yearMetrics = useMemo(() => {
-    const now = new Date();
-    const yearStartPT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now.getFullYear(), 0, 1));
-    const inYear = (iso) => pacificDateStringFrom(iso) >= yearStartPT;
-    const yearMeals = mealRecords.filter(r => inYear(r.date));
-    const yearRvMeals = (rvMealRecords || []).filter(r => inYear(r.date));
-    const yearUeMeals = (unitedEffortMealRecords || []).filter(r => inYear(r.date));
-    const yearExtraMeals = (extraMealRecords || []).filter(r => inYear(r.date));
-    const yearDayWorkerMeals = (dayWorkerMealRecords || []).filter(r => inYear(r.date));
-    const yearShowers = showerRecords.filter(r => inYear(r.date));
-    const yearLaundry = laundryRecords.filter(r => inYear(r.date));
-    const yearHaircuts = (haircutRecords || []).filter(r => inYear(r.date));
-    const yearHolidays = (holidayRecords || []).filter(r => inYear(r.date));
-    const yearBicycles = (bicycleRecords || []).filter(r => inYear(r.date) && (r.status ? r.status === 'done' : true));
-    const countsAsLaundryLoad = (rec) => rec.laundryType === 'onsite' ? (rec.status === 'done' || rec.status === 'picked_up') : true;
-    return {
-      mealsServed: yearMeals.reduce((s, r) => s + r.count, 0)
-        + yearRvMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + yearUeMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + yearExtraMeals.reduce((s, r) => s + (r.count || 0), 0)
-        + yearDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
-      showersBooked: yearShowers.filter(r => r.status === 'done').length,
-      laundryLoads: yearLaundry.reduce((s, r) => s + (countsAsLaundryLoad(r) ? 1 : 0), 0),
-      haircuts: yearHaircuts.length,
-      holidays: yearHolidays.length,
-      bicycles: yearBicycles.length,
-    };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, haircutRecords, holidayRecords, bicycleRecords]);
-
   const sections = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -314,126 +249,11 @@ const Dashboard = () => {
   };
 
   const renderOverviewSection = () => (
-    <div className="space-y-6">
-      <div className="space-y-6">
-        <Animated.div style={overviewGridAnim} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-            <div className="flex justify-between">
-              <h3 className="text-blue-800 font-medium">Guests Registered</h3>
-              <SpringIcon>
-                <Users className="text-blue-500" size={20} />
-              </SpringIcon>
-            </div>
-            <p className="text-3xl font-bold text-blue-900 mt-2">{guests.length}</p>
-            <div className="mt-2 text-sm text-blue-700 max-h-32 overflow-y-auto pr-1">
-              {Object.entries(housingStatusCounts).map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between">
-                  <span>{status}</span>
-                  <span>{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="hidden sm:block lg:col-span-1">
-            <DonutCard title="Guests" subtitle="Housing" dataMap={housingStatusCounts} />
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-            <div className="flex justify-between">
-              <h3 className="text-green-800 font-medium">Today's Meals</h3>
-              <SpringIcon>
-                <Utensils className="text-green-500" size={20} />
-              </SpringIcon>
-            </div>
-            <p className="text-3xl font-bold text-green-900 mt-2">{todayMetrics.mealsServed}</p>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-            <div className="flex justify-between">
-              <h3 className="text-blue-800 font-medium">Today's Showers</h3>
-              <SpringIcon>
-                <ShowerHead className="text-blue-500" size={20} />
-              </SpringIcon>
-            </div>
-            <p className="text-3xl font-bold text-blue-900 mt-2">{todayMetrics.showersBooked}</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
-            <div className="flex justify-between">
-              <h3 className="text-purple-800 font-medium">Today's Laundry</h3>
-              <SpringIcon>
-                <WashingMachine className="text-purple-500" size={20} />
-              </SpringIcon>
-            </div>
-            <p className="text-3xl font-bold text-purple-900 mt-2">{todayMetrics.laundryLoads}</p>
-          </div>
-          <div className="bg-sky-50 rounded-lg p-4 border border-sky-100">
-            <div className="flex justify-between">
-              <h3 className="text-sky-800 font-medium">Today's Bicycle Repairs</h3>
-              <SpringIcon>
-                <Bike className="text-sky-500" size={20} />
-              </SpringIcon>
-            </div>
-            <p className="text-3xl font-bold text-sky-900 mt-2">{todayMetrics.bicycles}</p>
-          </div>
-        </Animated.div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2"><Calendar size={14} /> Month To Date</h3>
-          <Animated.div style={monthGridAnim} className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Utensils size={16} /></SpringIcon> Meals</div>
-              <div className="text-2xl font-bold">{monthMetrics.mealsServed}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><ShowerHead size={16} /></SpringIcon> Showers</div>
-              <div className="text-2xl font-bold">{monthMetrics.showersBooked}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><WashingMachine size={16} /></SpringIcon> Laundry</div>
-              <div className="text-2xl font-bold">{monthMetrics.laundryLoads}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Scissors size={16} /></SpringIcon> Haircuts</div>
-              <div className="text-2xl font-bold">{monthMetrics.haircuts || 0}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Gift size={16} /></SpringIcon> Holiday</div>
-              <div className="text-2xl font-bold">{monthMetrics.holidays || 0}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Bike size={16} /></SpringIcon> Bicycle Repairs</div>
-              <div className="text-2xl font-bold">{monthMetrics.bicycles || 0}</div>
-            </div>
-          </Animated.div>
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2"><Calendar size={14} /> Year To Date</h3>
-          <Animated.div style={yearGridAnim} className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Utensils size={16} /></SpringIcon> Meals</div>
-              <div className="text-2xl font-bold">{yearMetrics.mealsServed}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><ShowerHead size={16} /></SpringIcon> Showers</div>
-              <div className="text-2xl font-bold">{yearMetrics.showersBooked}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><WashingMachine size={16} /></SpringIcon> Laundry</div>
-              <div className="text-2xl font-bold">{yearMetrics.laundryLoads}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Scissors size={16} /></SpringIcon> Haircuts</div>
-              <div className="text-2xl font-bold">{yearMetrics.haircuts || 0}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Gift size={16} /></SpringIcon> Holiday</div>
-              <div className="text-2xl font-bold">{yearMetrics.holidays || 0}</div>
-            </div>
-            <div className="bg-white border rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-600 mb-1"><SpringIcon><Bike size={16} /></SpringIcon> Bicycle Repairs</div>
-              <div className="text-2xl font-bold">{yearMetrics.bicycles || 0}</div>
-            </div>
-          </Animated.div>
-        </div>
-      </div>
-    </div>
+    <OverviewDashboard 
+      overviewGridAnim={overviewGridAnim}
+      monthGridAnim={monthGridAnim} 
+      yearGridAnim={yearGridAnim}
+    />
   );
 
   const renderReportsSection = () => (

@@ -49,6 +49,21 @@ export const AppProvider = ({ children }) => {
     defaultReportDays: 7,
     donationAutofill: true,
     defaultDonationType: 'Protein',
+    // Target settings for dashboard
+    targets: {
+      monthlyMeals: 1500,
+      yearlyMeals: 18000,
+      monthlyShowers: 300,
+      yearlyShowers: 3600,
+      monthlyLaundry: 200,
+      yearlyLaundry: 2400,
+      monthlyBicycles: 50,
+      yearlyBicycles: 600,
+      monthlyHaircuts: 100,
+      yearlyHaircuts: 1200,
+      monthlyHolidays: 80,
+      yearlyHolidays: 960
+    }
   });
 
   const [mealRecords, setMealRecords] = useState([]);
