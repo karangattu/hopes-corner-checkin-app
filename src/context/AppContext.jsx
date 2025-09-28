@@ -39,6 +39,39 @@ const normalizeHousingStatus = (value) => {
   return 'Unhoused';
 };
 
+const normalizeTimeComponent = (value) => {
+  if (value == null) return null;
+  const [rawHours, rawMinutes] = value.toString().trim().split(':');
+  if (rawHours == null || rawMinutes == null) return null;
+  const hours = Number.parseInt(rawHours, 10);
+  const minutes = Number.parseInt(rawMinutes, 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
+
+const combineDateAndTimeISO = (dateStr, timeStr) => {
+  if (!dateStr) return null;
+  const normalizedTime = normalizeTimeComponent(timeStr);
+  if (!normalizedTime) return null;
+  const candidate = new Date(`${dateStr}T${normalizedTime}:00`);
+  if (Number.isNaN(candidate.getTime())) return null;
+  return candidate.toISOString();
+};
+
+const fallbackIsoFromDateOnly = (dateStr) => {
+  if (!dateStr) return null;
+  const candidate = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(candidate.getTime())) return null;
+  return candidate.toISOString();
+};
+
+const extractLaundrySlotStart = (slotLabel) => {
+  if (!slotLabel) return null;
+  const [start] = slotLabel.split('-');
+  return normalizeTimeComponent(start);
+};
+
 const DEFAULT_TARGETS = {
   monthlyMeals: 1500,
   yearlyMeals: 18000,
@@ -181,26 +214,38 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
-  const mapShowerRow = useCallback((row) => ({
-    id: row.id,
-    guestId: row.guest_id,
-    time: row.scheduled_time,
-    date: row.scheduled_for ? new Date(`${row.scheduled_for}T12:00:00`).toISOString() : row.created_at,
-    status: row.status || 'booked',
-    createdAt: row.created_at,
-    lastUpdated: row.updated_at,
-  }), []);
+  const mapShowerRow = useCallback((row) => {
+    const scheduledTimestamp = combineDateAndTimeISO(row.scheduled_for, row.scheduled_time);
+    const fallbackTimestamp = row.updated_at || row.created_at || fallbackIsoFromDateOnly(row.scheduled_for);
+    return {
+      id: row.id,
+      guestId: row.guest_id,
+      time: row.scheduled_time,
+      scheduledFor: row.scheduled_for,
+      date: scheduledTimestamp || fallbackTimestamp,
+      status: row.status || 'booked',
+      createdAt: row.created_at,
+      lastUpdated: row.updated_at,
+    };
+  }, []);
 
-  const mapLaundryRow = useCallback((row) => ({
-    id: row.id,
-    guestId: row.guest_id,
-    time: row.slot_label,
-    laundryType: row.laundry_type,
-    bagNumber: row.bag_number || '',
-    date: row.scheduled_for ? new Date(`${row.scheduled_for}T12:00:00`).toISOString() : row.created_at,
-    status: row.status,
-    lastUpdated: row.updated_at,
-  }), []);
+  const mapLaundryRow = useCallback((row) => {
+    const slotStart = extractLaundrySlotStart(row.slot_label);
+    const scheduledTimestamp = combineDateAndTimeISO(row.scheduled_for, slotStart);
+    const fallbackTimestamp = row.updated_at || row.created_at || fallbackIsoFromDateOnly(row.scheduled_for);
+    return {
+      id: row.id,
+      guestId: row.guest_id,
+      time: row.slot_label,
+      laundryType: row.laundry_type,
+      bagNumber: row.bag_number || '',
+      scheduledFor: row.scheduled_for,
+      date: scheduledTimestamp || fallbackTimestamp,
+      status: row.status,
+      createdAt: row.created_at,
+      lastUpdated: row.updated_at,
+    };
+  }, []);
 
   const mapBicycleRow = useCallback((row) => ({
     id: row.id,
@@ -336,7 +381,7 @@ export const AppProvider = ({ children }) => {
 
   // Fallback to localStorage only if Supabase is disabled or fails
   useEffect(() => {
-  if (supabaseEnabled) return; // Skip localStorage if cloud sync is enabled
+    if (supabaseEnabled) return; // Skip localStorage if cloud sync is enabled
 
     try {
       const savedGuests = localStorage.getItem('hopes-corner-guests');
@@ -388,7 +433,7 @@ export const AppProvider = ({ children }) => {
 
   // Cache to localStorage only when Supabase is disabled - cloud sync handles persistence
   useEffect(() => {
-  if (supabaseEnabled) return; // Skip localStorage caching when using cloud sync
+    if (supabaseEnabled) return; // Skip localStorage caching when using cloud sync
 
     try {
       localStorage.setItem('hopes-corner-guests', JSON.stringify(guests));
@@ -795,7 +840,7 @@ export const AppProvider = ({ children }) => {
     setBicycleRecords(prev => prev.filter(r => r.id !== recordId));
     if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
       try {
-  const { error } = await supabase.from('bicycle_repairs').delete().eq('id', recordId);
+        const { error } = await supabase.from('bicycle_repairs').delete().eq('id', recordId);
         if (error) throw error;
       } catch (error) {
         console.error('Failed to delete bicycle record:', error);
@@ -1376,7 +1421,8 @@ export const AppProvider = ({ children }) => {
     }
 
     const timestamp = new Date().toISOString();
-    const scheduledFor = todayPacificDateString();
+    const scheduledFor = today;
+    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, time);
 
     if (supabaseEnabled && supabase) {
       try {
@@ -1414,8 +1460,11 @@ export const AppProvider = ({ children }) => {
       id: `local-${Date.now()}`,
       guestId,
       time,
-      date: timestamp,
+      scheduledFor,
+      date: scheduledDateTime || timestamp,
       status: 'booked',
+      createdAt: timestamp,
+      lastUpdated: timestamp,
     };
 
     setShowerRecords(prev => [...prev, record]);
@@ -1439,14 +1488,17 @@ export const AppProvider = ({ children }) => {
     if (already) {
       throw new Error('Guest already has a shower entry today.');
     }
+    const timestamp = new Date().toISOString();
     const record = {
       id: Date.now(),
       guestId,
       time: null,
-      date: new Date().toISOString(),
+      date: timestamp,
+      scheduledFor: today,
       status: 'waitlisted',
+      createdAt: timestamp,
+      lastUpdated: timestamp,
     };
-    const timestamp = record.date;
 
     if (supabaseEnabled && supabase) {
       try {
@@ -1498,7 +1550,7 @@ export const AppProvider = ({ children }) => {
     setShowerSlots(prev => prev.filter(s => !(s.guestId === record.guestId && s.time === record.time)));
     if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
       try {
-  const { error } = await supabase.from('shower_reservations').delete().eq('id', recordId);
+        const { error } = await supabase.from('shower_reservations').delete().eq('id', recordId);
         if (error) throw error;
       } catch (error) {
         console.error('Failed to cancel shower booking:', error);
@@ -1523,7 +1575,16 @@ export const AppProvider = ({ children }) => {
     if (record.time === newTime) return record;
     const countAtNew = showerSlots.filter(s => s.time === newTime && s.guestId !== record.guestId).length;
     if (countAtNew >= 2) throw new Error('That time slot is full.');
-    let updatedRecord = { ...record, time: newTime, lastUpdated: new Date().toISOString() };
+    const timestamp = new Date().toISOString();
+    const scheduledFor = record.scheduledFor || pacificDateStringFrom(record.date) || todayPacificDateString();
+    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, newTime);
+    let updatedRecord = {
+      ...record,
+      time: newTime,
+      scheduledFor,
+      date: scheduledDateTime || record.date,
+      lastUpdated: timestamp,
+    };
     setShowerRecords(prev => prev.map(r => r.id === recordId ? updatedRecord : r));
     setShowerSlots(prev => {
       const filtered = prev.filter(s => !(s.guestId === record.guestId && s.time === record.time));
@@ -1533,7 +1594,7 @@ export const AppProvider = ({ children }) => {
       try {
         const { data, error } = await supabase
           .from('shower_reservations')
-          .update({ scheduled_time: newTime, updated_at: new Date().toISOString() })
+          .update({ scheduled_time: newTime, updated_at: timestamp })
           .eq('id', recordId)
           .select()
           .maybeSingle();
@@ -1551,7 +1612,7 @@ export const AppProvider = ({ children }) => {
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_RESCHEDULED',
-      timestamp: new Date().toISOString(),
+      timestamp,
       data: { recordId, guestId: record.guestId, from: record.time, to: newTime },
       description: `Rescheduled shower ${record.time} → ${newTime}`
     };
@@ -1605,7 +1666,9 @@ export const AppProvider = ({ children }) => {
     }
 
     const timestamp = new Date().toISOString();
-    const scheduledFor = todayPacificDateString();
+    const scheduledFor = today;
+    const slotStart = laundryType === 'onsite' ? extractLaundrySlotStart(time) : null;
+    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
 
     if (supabaseEnabled && supabase) {
       try {
@@ -1649,8 +1712,11 @@ export const AppProvider = ({ children }) => {
       time: laundryType === 'onsite' ? time : null,
       laundryType,
       bagNumber,
-      date: timestamp,
+      scheduledFor,
+      date: scheduledDateTime || timestamp,
       status: laundryType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+      createdAt: timestamp,
+      lastUpdated: timestamp,
     };
 
     setLaundryRecords(prev => [...prev, record]);
@@ -1679,7 +1745,7 @@ export const AppProvider = ({ children }) => {
     }
     if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
       try {
-  const { error } = await supabase.from('laundry_bookings').delete().eq('id', recordId);
+        const { error } = await supabase.from('laundry_bookings').delete().eq('id', recordId);
         if (error) throw error;
       } catch (error) {
         console.error('Failed to cancel laundry booking:', error);
@@ -1714,11 +1780,16 @@ export const AppProvider = ({ children }) => {
     }
 
     const timestamp = new Date().toISOString();
+    const scheduledFor = record.scheduledFor || pacificDateStringFrom(record.date) || todayPacificDateString();
+    const slotStart = targetType === 'onsite' ? extractLaundrySlotStart(targetTime) : null;
+    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
     let updatedRecord = {
       ...record,
       laundryType: targetType,
       time: targetTime,
       status: targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+      scheduledFor,
+      date: scheduledDateTime || (targetType === 'onsite' ? record.date : timestamp),
       lastUpdated: timestamp,
     };
 
@@ -2625,8 +2696,8 @@ export const AppProvider = ({ children }) => {
     setLaundryRecords,
     setMealRecords,
     setItemGivenRecords,
-  setDonationRecords,
-  updateSettings,
+    setDonationRecords,
+    updateSettings,
 
     addGuest,
     importGuestsFromCSV,
@@ -2638,7 +2709,7 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
-  removeMealAttendanceRecord,
+    removeMealAttendanceRecord,
     addShowerRecord,
     addShowerWaitlist,
     addLaundryRecord,
@@ -2654,7 +2725,7 @@ export const AppProvider = ({ children }) => {
     canGiveItem,
     getLastGivenItem,
     getNextAvailabilityDate,
-  getDaysUntilAvailable,
+    getDaysUntilAvailable,
     addDonation,
     getRecentDonations,
     getTodayDonationsConsolidated,
@@ -2671,7 +2742,7 @@ export const AppProvider = ({ children }) => {
     actionHistory,
     undoAction,
     clearActionHistory
-    ,resetAllData
+    , resetAllData
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
