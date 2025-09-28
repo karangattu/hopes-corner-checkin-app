@@ -10,10 +10,9 @@ import {
   X
 } from 'lucide-react';
 import { SpringIcon } from '../utils/animations';
-import SyncStatus from '../components/SyncStatus';
 
 const MainLayout = ({ children }) => {
-  const { activeTab, setActiveTab, settings, firestoreEnabled, firestoreConnection } = useAppContext();
+  const { activeTab, setActiveTab, settings } = useAppContext();
   const { user, logout } = useAuth();
 
   const navItemsAll = [
@@ -47,10 +46,6 @@ const MainLayout = ({ children }) => {
       <div className="md:hidden" />
 
             <div className="hidden md:flex items-center gap-3">
-              <SyncStatus 
-                isFirestoreEnabled={firestoreEnabled}
-                hasFirestoreConnection={firestoreConnection}
-              />
               <span className="text-emerald-100 text-sm">{user?.name} ({role})</span>
               <button onClick={logout} className="px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-sm">Logout</button>
             </div>
