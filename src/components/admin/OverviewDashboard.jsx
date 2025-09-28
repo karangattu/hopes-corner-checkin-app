@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { LAUNDRY_STATUS } from '../../context/constants';
 import { 
   Users, 
   Utensils, 
@@ -182,6 +183,20 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
     }, {});
   }, [guests]);
 
+  const completedLaundryStatuses = useMemo(() => new Set([
+    LAUNDRY_STATUS?.DONE,
+    LAUNDRY_STATUS?.PICKED_UP,
+    LAUNDRY_STATUS?.RETURNED,
+    LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+  ]), []);
+
+  const isLaundryCompleted = useCallback((status) => completedLaundryStatuses.has(status), [completedLaundryStatuses]);
+
+  const isCompletedBicycleStatus = useCallback((status) => {
+    const normalized = (status || '').toString().toLowerCase();
+    return !status || normalized === 'done' || normalized === 'completed' || normalized === 'ready' || normalized === 'finished';
+  }, []);
+
   // Calculate month and year metrics with progress tracking
   const { monthMetrics, yearMetrics } = useMemo(() => {
     const now = new Date();
@@ -206,14 +221,14 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
       .filter(r => isCurrentYear(r.date))
       .reduce((sum, r) => sum + (r.count || 0), 0);
 
-    const monthShowers = showerRecords.filter(r => isCurrentMonth(r.date)).length;
-    const yearShowers = showerRecords.filter(r => isCurrentYear(r.date)).length;
+  const monthShowers = showerRecords.filter(r => isCurrentMonth(r.date) && r.status === 'done').length;
+  const yearShowers = showerRecords.filter(r => isCurrentYear(r.date) && r.status === 'done').length;
 
-    const monthLaundry = laundryRecords.filter(r => isCurrentMonth(r.date)).length;
-    const yearLaundry = laundryRecords.filter(r => isCurrentYear(r.date)).length;
+  const monthLaundry = laundryRecords.filter(r => isCurrentMonth(r.date) && isLaundryCompleted(r.status)).length;
+  const yearLaundry = laundryRecords.filter(r => isCurrentYear(r.date) && isLaundryCompleted(r.status)).length;
 
-    const monthBicycles = bicycleRecords.filter(r => isCurrentMonth(r.date)).length;
-    const yearBicycles = bicycleRecords.filter(r => isCurrentYear(r.date)).length;
+  const monthBicycles = bicycleRecords.filter(r => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status)).length;
+  const yearBicycles = bicycleRecords.filter(r => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status)).length;
 
     const monthHaircuts = haircutRecords.filter(r => isCurrentMonth(r.date)).length;
     const yearHaircuts = haircutRecords.filter(r => isCurrentYear(r.date)).length;
@@ -239,7 +254,7 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
         holidays: yearHolidays
       }
     };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords]);
+  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isLaundryCompleted, isCompletedBicycleStatus]);
 
   const targetFieldGroups = {
     monthly: [
