@@ -92,3 +92,10 @@ The app automatically syncs to Supabase when `VITE_SUPABASE_URL` and `VITE_SUPAB
 4. **Restart the app**: Restart `npm run dev` (or rebuild for production) so Vite picks up the new variables. The admin dashboard will reflect cloud-only actions (like clearing Supabase data) once the credentials are detected.
 
    The command runs `vite build` and then calls `firebase deploy` with the configuration in `firebase.json` and `firestore.rules`.
+
+## Changelog
+
+### 0.0.1 · 2025-09-28
+
+- Surfaced booked shower slot times and fresh laundry activity in the Services dashboard.
+- Ensured donation logs honor the selected date, showing every recorded item before export.
