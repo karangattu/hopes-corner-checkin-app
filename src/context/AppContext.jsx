@@ -2032,80 +2032,332 @@ export const AppProvider = ({ children }) => {
     return Array.from(map.values()).sort((a, b) => a.itemName.localeCompare(b.itemName));
   };
 
-  const undoAction = (actionId) => {
+  const deleteSupabaseRecord = async (table, recordId, errorMessage) => {
+    if (!supabaseEnabled || !supabase || recordId == null) return true;
+    if (typeof recordId === 'string' && recordId.startsWith('local-')) return true;
+
+    try {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', recordId);
+
+      if (error) {
+        console.error(`Failed to delete record ${recordId} from ${table}:`, error);
+        if (errorMessage) toast.error(errorMessage);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to delete record ${recordId} from ${table}:`, error);
+      if (errorMessage) toast.error(errorMessage);
+      return false;
+    }
+  };
+
+  const undoAction = async (actionId) => {
     const action = actionHistory.find(a => a.id === actionId);
     if (!action) return false;
 
     try {
       switch (action.type) {
-        case 'MEAL_ADDED':
-          setMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'MEAL_ADDED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo meal entry.');
+          if (!deleted) return false;
+          setMealRecords(prev => prev.filter(r => r.id !== recordId));
           break;
+        }
 
-        case 'RV_MEALS_ADDED':
-          setRvMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'RV_MEALS_ADDED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo RV meal entry.');
+          if (!deleted) return false;
+          setRvMealRecords(prev => prev.filter(r => r.id !== recordId));
           break;
+        }
 
-        case 'UNITED_EFFORT_MEALS_ADDED':
-          setUnitedEffortMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'UNITED_EFFORT_MEALS_ADDED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo United Effort meal entry.');
+          if (!deleted) return false;
+          setUnitedEffortMealRecords(prev => prev.filter(r => r.id !== recordId));
           break;
+        }
 
-        case 'EXTRA_MEALS_ADDED':
-          setExtraMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'EXTRA_MEALS_ADDED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo extra meal entry.');
+          if (!deleted) return false;
+          setExtraMealRecords(prev => prev.filter(r => r.id !== recordId));
           break;
-        case 'DAY_WORKER_MEALS_ADDED':
-          setDayWorkerMealRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        }
+        case 'DAY_WORKER_MEALS_ADDED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo day worker meal entry.');
+          if (!deleted) return false;
+          setDayWorkerMealRecords(prev => prev.filter(r => r.id !== recordId));
           break;
+        }
 
-        case 'SHOWER_BOOKED':
-          setShowerRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'BICYCLE_LOGGED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('bicycle_repairs', recordId, 'Unable to undo bicycle repair.');
+          if (!deleted) return false;
+          setBicycleRecords(prev => prev.filter(r => r.id !== recordId));
+          toast.success('Reverted bicycle repair');
+          break;
+        }
+
+        case 'HOLIDAY_LOGGED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('holiday_visits', recordId, 'Unable to undo holiday entry.');
+          if (!deleted) return false;
+          setHolidayRecords(prev => prev.filter(r => r.id !== recordId));
+          toast.success('Reverted holiday service');
+          break;
+        }
+
+        case 'HAIRCUT_LOGGED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('haircut_visits', recordId, 'Unable to undo haircut entry.');
+          if (!deleted) return false;
+          setHaircutRecords(prev => prev.filter(r => r.id !== recordId));
+          toast.success('Reverted haircut service');
+          break;
+        }
+
+        case 'SHOWER_BOOKED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('shower_reservations', recordId, 'Unable to undo shower booking.');
+          if (!deleted) return false;
+          setShowerRecords(prev => prev.filter(r => r.id !== recordId));
           setShowerSlots(prev => prev.filter(s =>
             !(s.guestId === action.data.guestId && s.time === action.data.time)
           ));
+          toast.success('Removed shower booking');
           break;
+        }
 
-        case 'LAUNDRY_BOOKED':
-          setLaundryRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'LAUNDRY_BOOKED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('laundry_bookings', recordId, 'Unable to undo laundry booking.');
+          if (!deleted) return false;
+          setLaundryRecords(prev => prev.filter(r => r.id !== recordId));
           setLaundrySlots(prev => prev.filter(s =>
             !(s.guestId === action.data.guestId && s.time === action.data.time)
           ));
+          toast.success('Removed laundry booking');
           break;
+        }
 
-        case 'SHOWER_WAITLISTED':
-          setShowerRecords(prev => prev.filter(r => r.id !== action.data.recordId));
+        case 'SHOWER_WAITLISTED': {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord('shower_reservations', recordId, 'Unable to undo shower waitlist entry.');
+          if (!deleted) return false;
+          setShowerRecords(prev => prev.filter(r => r.id !== recordId));
+          toast.success('Removed shower waitlist entry');
           break;
+        }
         case 'SHOWER_CANCELLED': {
           const snap = action.data?.snapshot;
           if (!snap) return false;
-          setShowerRecords(prev => [...prev, snap]);
-          if (snap.time) {
-            setShowerSlots(prev => [...prev, { guestId: snap.guestId, time: snap.time }]);
+          let restored = snap;
+          if (supabaseEnabled && supabase && snap.id && !(typeof snap.id === 'string' && snap.id.startsWith('local-'))) {
+            const payload = {
+              id: snap.id,
+              guest_id: snap.guestId,
+              scheduled_time: snap.time ?? null,
+              scheduled_for: snap.date ? snap.date.split('T')[0] : todayPacificDateString(),
+              status: snap.status || 'booked',
+              created_at: snap.createdAt || snap.date,
+              updated_at: snap.lastUpdated || new Date().toISOString(),
+            };
+            try {
+              const { data, error } = await supabase
+                .from('shower_reservations')
+                .upsert(payload, { onConflict: 'id' })
+                .select()
+                .maybeSingle();
+              if (error) throw error;
+              if (data) {
+                restored = mapShowerRow(data);
+              }
+            } catch (error) {
+              console.error('Failed to restore shower booking in Supabase:', error);
+              toast.error('Unable to restore shower booking.');
+              return false;
+            }
+          }
+          setShowerRecords(prev => [...prev, restored]);
+          if (restored.time) {
+            setShowerSlots(prev => [...prev, { guestId: restored.guestId, time: restored.time }]);
           }
           toast.success('Restored cancelled shower');
           break;
         }
 
+        case 'SHOWER_RESCHEDULED': {
+          const { recordId, guestId, from, to } = action.data || {};
+          if (!recordId) return false;
+          const targetTime = from ?? null;
+          const timestamp = new Date().toISOString();
+          let restoredRecord = null;
+          if (supabaseEnabled && supabase && !(typeof recordId === 'string' && recordId.startsWith('local-'))) {
+            try {
+              const { data, error } = await supabase
+                .from('shower_reservations')
+                .update({ scheduled_time: targetTime, updated_at: timestamp })
+                .eq('id', recordId)
+                .select()
+                .maybeSingle();
+              if (error) throw error;
+              if (data) {
+                restoredRecord = mapShowerRow(data);
+              }
+            } catch (error) {
+              console.error('Failed to revert shower schedule in Supabase:', error);
+              toast.error('Unable to undo shower reschedule.');
+              return false;
+            }
+          }
+          setShowerRecords(prev => prev.map(r => {
+            if (r.id !== recordId) return r;
+            if (restoredRecord) return restoredRecord;
+            return { ...r, time: targetTime, lastUpdated: timestamp };
+          }));
+          setShowerSlots(prev => {
+            const withoutNew = prev.filter(s => !(s.guestId === guestId && s.time === to));
+            if (targetTime) {
+              return [...withoutNew, { guestId, time: targetTime }];
+            }
+            return withoutNew;
+          });
+          toast.success('Reverted shower schedule');
+          break;
+        }
+
         case 'ITEM_GIVEN':
-          setItemGivenRecords(prev => prev.filter(r => r.id !== action.data.recordId));
-          toast.success('Reverted item distribution');
+          {
+            const recordId = action.data?.recordId;
+            const deleted = await deleteSupabaseRecord('items_distributed', recordId, 'Unable to undo item distribution.');
+            if (!deleted) return false;
+            setItemGivenRecords(prev => prev.filter(r => r.id !== recordId));
+            toast.success('Reverted item distribution');
+          }
           break;
         case 'DONATION_ADDED':
-          setDonationRecords(prev => prev.filter(r => r.id !== action.data.recordId));
-          toast.success('Reverted donation');
+          {
+            const recordId = action.data?.recordId;
+            const deleted = await deleteSupabaseRecord('donations', recordId, 'Unable to undo donation entry.');
+            if (!deleted) return false;
+            setDonationRecords(prev => prev.filter(r => r.id !== recordId));
+            toast.success('Reverted donation');
+          }
           break;
         case 'LAUNDRY_CANCELLED': {
           const snap = action.data?.snapshot;
           if (!snap) return false;
-          setLaundryRecords(prev => [...prev, snap]);
-          if (snap.laundryType === 'onsite' && snap.time) {
-            setLaundrySlots(prev => [...prev, { guestId: snap.guestId, time: snap.time, laundryType: 'onsite', bagNumber: snap.bagNumber, status: snap.status }]);
+          let restored = snap;
+          if (supabaseEnabled && supabase && snap.id && !(typeof snap.id === 'string' && snap.id.startsWith('local-'))) {
+            const payload = {
+              id: snap.id,
+              guest_id: snap.guestId,
+              slot_label: snap.laundryType === 'onsite' ? snap.time : null,
+              laundry_type: snap.laundryType,
+              bag_number: snap.bagNumber || null,
+              scheduled_for: snap.date ? snap.date.split('T')[0] : todayPacificDateString(),
+              status: snap.status,
+              created_at: snap.createdAt || snap.date,
+              updated_at: snap.lastUpdated || new Date().toISOString(),
+            };
+            try {
+              const { data, error } = await supabase
+                .from('laundry_bookings')
+                .upsert(payload, { onConflict: 'id' })
+                .select()
+                .maybeSingle();
+              if (error) throw error;
+              if (data) {
+                restored = mapLaundryRow(data);
+              }
+            } catch (error) {
+              console.error('Failed to restore laundry booking in Supabase:', error);
+              toast.error('Unable to restore laundry booking.');
+              return false;
+            }
+          }
+          setLaundryRecords(prev => [...prev, restored]);
+          if (restored.laundryType === 'onsite' && restored.time) {
+            setLaundrySlots(prev => [...prev, { guestId: restored.guestId, time: restored.time, laundryType: 'onsite', bagNumber: restored.bagNumber, status: restored.status }]);
           }
           toast.success('Restored cancelled laundry');
           break;
         }
+
+        case 'LAUNDRY_RESCHEDULED': {
+          const { recordId, guestId, from, to } = action.data || {};
+          if (!recordId) return false;
+          const previousType = from?.type || null;
+          const previousTime = from?.time || null;
+          const timestamp = new Date().toISOString();
+          const existingRecord = laundryRecords.find(r => r.id === recordId);
+          let restoredRecord = null;
+          if (supabaseEnabled && supabase && !(typeof recordId === 'string' && recordId.startsWith('local-'))) {
+            try {
+              const { data, error } = await supabase
+                .from('laundry_bookings')
+                .update({
+                  laundry_type: previousType,
+                  slot_label: previousType === 'onsite' ? previousTime : null,
+                  status: previousType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+                  updated_at: timestamp,
+                })
+                .eq('id', recordId)
+                .select()
+                .maybeSingle();
+              if (error) throw error;
+              if (data) {
+                restoredRecord = mapLaundryRow(data);
+              }
+            } catch (error) {
+              console.error('Failed to revert laundry booking in Supabase:', error);
+              toast.error('Unable to undo laundry reschedule.');
+              return false;
+            }
+          }
+          setLaundryRecords(prev => prev.map(r => {
+            if (r.id !== recordId) return r;
+            if (restoredRecord) return restoredRecord;
+            return {
+              ...r,
+              laundryType: previousType,
+              time: previousTime,
+              status: previousType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+              lastUpdated: timestamp,
+            };
+          }));
+          setLaundrySlots(prev => {
+            const withoutNew = prev.filter(s => !(s.guestId === guestId && s.time === to?.time));
+            if (previousType === 'onsite' && previousTime) {
+              const slotBagNumber = restoredRecord?.bagNumber ?? existingRecord?.bagNumber ?? '';
+              return [...withoutNew, { guestId, time: previousTime, laundryType: 'onsite', bagNumber: slotBagNumber, status: LAUNDRY_STATUS.WAITING }];
+            }
+            return withoutNew;
+          });
+          toast.success('Reverted laundry booking changes');
+          break;
+        }
+
         case 'LUNCH_BAGS_ADDED':
-          setLunchBagRecords(prev => prev.filter(r => r.id !== action.data.recordId));
-          toast.success('Reverted lunch bag entry');
+          {
+            const recordId = action.data?.recordId;
+            const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to undo lunch bag entry.');
+            if (!deleted) return false;
+            setLunchBagRecords(prev => prev.filter(r => r.id !== recordId));
+            toast.success('Reverted lunch bag entry');
+          }
           break;
 
         default:

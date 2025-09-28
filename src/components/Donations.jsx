@@ -512,10 +512,10 @@ const Donations = () => {
                               <button
                                 type="button"
                                 className="px-3 py-1 text-xs rounded border border-red-300 text-red-700"
-                                onClick={() => {
+                                onClick={async () => {
                                   if (!confirm('Delete this donation entry?')) return;
                                   if (r.actionId) {
-                                    const ok = undoAction(r.actionId);
+                                    const ok = await undoAction(r.actionId);
                                     if (ok) { toast.success('Donation deleted'); return; }
                                   }
                                   setDonationRecords(prev => prev.filter(d => d.id !== r.id));
@@ -525,7 +525,11 @@ const Donations = () => {
                               <button
                                 type="button"
                                 disabled={!r.actionId}
-                                onClick={() => r.actionId && undoAction(r.actionId)}
+                                onClick={async () => {
+                                  if (r.actionId) {
+                                    await undoAction(r.actionId);
+                                  }
+                                }}
                                 className="px-3 py-1 text-xs rounded border disabled:opacity-60"
                               >Undo</button>
                             </div>

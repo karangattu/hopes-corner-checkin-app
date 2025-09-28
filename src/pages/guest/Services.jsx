@@ -964,8 +964,8 @@ const Services = () => {
     setNewBagNumber(currentBagNumber || '');
   };
 
-  const handleUndoAction = (actionId) => {
-    const success = undoAction(actionId);
+  const handleUndoAction = async (actionId) => {
+    const success = await undoAction(actionId);
     if (success) {
       toast.success('Action undone');
     }
@@ -2423,16 +2423,18 @@ const Services = () => {
                         <button
                           className="text-xs font-medium px-2.5 py-1 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
                           title="Delete this entry"
-                          onClick={() => {
+                          onClick={async () => {
                             const matchingMeal = actionHistory.find(a => a.type === 'MEAL_ADDED' && a.data?.recordId === rec.id);
                             const matchingExtra = actionHistory.find(a => a.type === 'EXTRA_MEALS_ADDED' && a.data?.recordId === rec.id);
                             if (matchingMeal) {
-                              if (undoAction(matchingMeal.id)) {
+                              const ok = await undoAction(matchingMeal.id);
+                              if (ok) {
                                 toast.success('Meal entry deleted');
                                 return;
                               }
                             } else if (matchingExtra) {
-                              if (undoAction(matchingExtra.id)) {
+                              const ok = await undoAction(matchingExtra.id);
+                              if (ok) {
                                 toast.success('Extra meal entry deleted');
                                 return;
                               }
