@@ -163,14 +163,23 @@ export const AppProvider = ({ children }) => {
     docId: row.id,
   }), []);
 
-  const mapMealRow = useCallback((row) => ({
-    id: row.id,
-    guestId: row.guest_id,
-    count: row.quantity || 1,
-    date: row.served_on ? new Date(`${row.served_on}T12:00:00`).toISOString() : row.recorded_at || row.created_at,
-    createdAt: row.created_at,
-    type: row.meal_type,
-  }), []);
+  const mapMealRow = useCallback((row) => {
+    const recordedAt = row.recorded_at || row.created_at || null;
+    const fallbackDate = row.served_on
+      ? new Date(`${row.served_on}T12:00:00Z`).toISOString()
+      : null;
+
+    return {
+      id: row.id,
+      guestId: row.guest_id,
+      count: row.quantity || 1,
+      date: recordedAt || fallbackDate,
+      recordedAt,
+      servedOn: row.served_on,
+      createdAt: row.created_at,
+      type: row.meal_type,
+    };
+  }, []);
 
   const mapShowerRow = useCallback((row) => ({
     id: row.id,
@@ -1063,6 +1072,8 @@ export const AppProvider = ({ children }) => {
       guestId,
       count,
       date: timestamp,
+      recordedAt: timestamp,
+      servedOn: timestamp.slice(0, 10),
       createdAt: timestamp,
       type: 'guest',
     };
@@ -1113,7 +1124,14 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'rv' };
+    const record = {
+      id: `local-${Date.now()}`,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: 'rv'
+    };
     setRvMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
@@ -1159,7 +1177,14 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'united_effort' };
+    const record = {
+      id: `local-${Date.now()}`,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: 'united_effort'
+    };
     setUnitedEffortMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
@@ -1211,7 +1236,15 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const record = { id: `local-${Date.now()}`, guestId, count: quantity, date: iso, type: 'extra' };
+    const record = {
+      id: `local-${Date.now()}`,
+      guestId,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: 'extra'
+    };
     setExtraMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
@@ -1257,7 +1290,14 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'day_worker' };
+    const record = {
+      id: `local-${Date.now()}`,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: 'day_worker'
+    };
     setDayWorkerMealRecords(prev => [...prev, record]);
     const action = { id: Date.now() + Math.random(), type: 'DAY_WORKER_MEALS_ADDED', timestamp: iso, data: { recordId: record.id, count: quantity }, description: `Added ${quantity} day worker meals` };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
@@ -1300,7 +1340,14 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'lunch_bag' };
+    const record = {
+      id: `local-${Date.now()}`,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: 'lunch_bag'
+    };
     setLunchBagRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),

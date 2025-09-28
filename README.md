@@ -66,4 +66,27 @@ This repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) 
    npm run firebase:deploy
    ```
 
+## Using Supabase for cloud sync
+
+The app automatically syncs to Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are present. Otherwise it falls back to local storage.
+
+1. **Create a Supabase project**: In the [Supabase dashboard](https://app.supabase.com/), create a new project (any region works) and note your project URL and anon API key from _Project settings → API_.
+2. **Provision the tables**: In the SQL editor or Table Editor, create the following tables with `uuid` primary keys (`default uuid_generate_v4()`) and UTC timestamp columns (`created_at`, `updated_at` where applicable):
+   - `guests` → guest profile fields (`external_id`, `first_name`, `last_name`, `full_name`, `preferred_name`, `housing_status`, `age_group`, `gender`, `location`, `notes`, `bicycle_description`).
+   - `meal_attendance` → meal logs (`guest_id` FK, `quantity`, `meal_type`, `recorded_at`, `served_on`, `created_at`).
+   - `shower_reservations` → shower bookings (`guest_id`, `scheduled_time`, `scheduled_for`, `status`, `created_at`, `updated_at`).
+   - `laundry_bookings` → laundry bookings (`guest_id`, `slot_label`, `laundry_type`, `bag_number`, `scheduled_for`, `status`, `updated_at`).
+   - `bicycle_repairs` → bicycle queue (`guest_id`, `requested_at`, `repair_type`, `notes`, `status`, `priority`, `completed_at`, `updated_at`).
+   - `holiday_visits`, `haircut_visits`, `items_distributed` → one row per service delivered (`guest_id`, service-specific timestamp columns).
+   - `donations` → donation intake (`donation_type`, `item_name`, `trays`, `weight_lbs`, `donor`, `donated_at`, `created_at`).
+   - `app_settings` → single row with `id = 'global'` storing JSON `targets` plus site preferences (`site_name`, `max_onsite_laundry_slots`, `enable_offsite_laundry`, `ui_density`, `show_charts`, `default_report_days`, `donation_autofill`, `default_donation_type`).
+3. **Set environment variables**: Add the Supabase URL and anon key to your `.env.local` (or deployment environment):
+
+   ```bash
+   VITE_SUPABASE_URL=your-project-url
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+4. **Restart the app**: Restart `npm run dev` (or rebuild for production) so Vite picks up the new variables. The admin dashboard will reflect cloud-only actions (like clearing Supabase data) once the credentials are detected.
+
    The command runs `vite build` and then calls `firebase deploy` with the configuration in `firebase.json` and `firestore.rules`.
