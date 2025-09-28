@@ -241,13 +241,13 @@ const ShowerBooking = () => {
             <h3 className="text-sm font-medium text-gray-700 mb-2">Select Available Time Slot:</h3>
             <p className="text-xs text-gray-500 mb-4">Maximum of 2 guests per time slot</p>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {slotsWithDetails.map((slot) => (
                 <button
                   key={slot.slotTime}
                   onClick={() => !slot.isFull && handleBookShower(slot.slotTime)}
                   disabled={slot.isFull}
-                  className={`flex flex-col items-start gap-2 px-3 py-3 border rounded-lg transition-all text-sm w-full ${
+                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all text-sm w-full min-h-[100px] ${
                     slot.isFull
                       ? 'bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200'
                       : slot.isNearlyFull
@@ -256,21 +256,21 @@ const ShowerBooking = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="text-base md:text-sm font-semibold">{slot.label}</span>
-                    <span className="flex items-center gap-1 text-xs text-gray-600">
-                      <Users size={14} />
+                    <span className="text-lg sm:text-base font-semibold">{slot.label}</span>
+                    <span className="flex items-center gap-1 text-sm text-gray-600">
+                      <Users size={16} />
                       {slot.count}/2
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 w-full">
                     {slot.guests.length > 0 ? (
                       slot.guests.map((name, idx) => (
-                        <span key={`${slot.slotTime}-${idx}`} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                        <span key={`${slot.slotTime}-${idx}`} className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 max-w-full truncate">
                           {name}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">Available</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600">Available</span>
                     )}
                   </div>
                 </button>

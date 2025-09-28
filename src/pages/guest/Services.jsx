@@ -2761,7 +2761,7 @@ const Services = () => {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100 p-4 shadow-sm">
+          <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
               <Sparkles size={16} className="text-blue-500" />
               <span>Next availability</span>
@@ -2777,7 +2777,7 @@ const Services = () => {
             )}
           </div>
 
-          <div className="rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-sky-100 bg-white p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-sky-600 text-xs font-semibold uppercase tracking-wide">
               <BarChart3 size={16} className="text-sky-500" />
               <span>Capacity today</span>
@@ -2795,7 +2795,7 @@ const Services = () => {
             <p className="mt-3 text-xs text-sky-700">{doneCount} completed shower{doneCount === 1 ? '' : 's'} so far</p>
           </div>
 
-          <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-amber-700 text-xs font-semibold uppercase tracking-wide">
               <History size={16} className="text-amber-600" />
               <span>Waitlist today</span>
@@ -2827,11 +2827,11 @@ const Services = () => {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-wrap gap-2">
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
               <select
                 value={showerStatusFilter}
                 onChange={(event) => setShowerStatusFilter(event.target.value)}
-                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="all">Status: All</option>
                 <option value="awaiting">Status: Awaiting</option>
@@ -2840,7 +2840,7 @@ const Services = () => {
               <select
                 value={showerLaundryFilter}
                 onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="any">Laundry: Any</option>
                 <option value="with">Laundry: With</option>
@@ -2849,7 +2849,7 @@ const Services = () => {
               <select
                 value={showerSort}
                 onChange={(event) => setShowerSort(event.target.value)}
-                className="text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
@@ -3270,8 +3270,8 @@ const Services = () => {
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-100 p-4 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-100 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-purple-600 text-xs font-semibold uppercase tracking-wide">
               <WashingMachine size={16} className="text-purple-500" />
               <span>On-site loads</span>
@@ -3284,7 +3284,7 @@ const Services = () => {
             <p className="mt-3 text-[11px] text-purple-600">{washerLoads} washer • {dryerLoads} dryer</p>
           </div>
 
-          <div className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm">
+          <div className="rounded-xl border border-blue-100 bg-white p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
               <Truck size={16} className="text-blue-500" />
               <span>Off-site pipeline</span>
@@ -3294,7 +3294,7 @@ const Services = () => {
             <p className="mt-3 text-[11px] text-blue-500">Keep bag numbers handy for quick updates.</p>
           </div>
 
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-emerald-700 text-xs font-semibold uppercase tracking-wide">
               <CheckCircle2Icon size={16} className="text-emerald-600" />
               <span>Ready for pickup</span>
@@ -3325,11 +3325,11 @@ const Services = () => {
               </div>
             </div>
 
-            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 flex flex-wrap gap-2">
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
               <select
                 value={laundryTypeFilter}
                 onChange={(event) => setLaundryTypeFilter(event.target.value)}
-                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
               >
                 <option value="any">Type: Any</option>
                 <option value="onsite">Type: On-site</option>
@@ -3338,7 +3338,7 @@ const Services = () => {
               <select
                 value={laundryStatusFilter}
                 onChange={(event) => setLaundryStatusFilter(event.target.value)}
-                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
               >
                 <option value="any">Status: Any</option>
                 <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
@@ -3354,7 +3354,7 @@ const Services = () => {
               <select
                 value={laundrySort}
                 onChange={(event) => setLaundrySort(event.target.value)}
-                className="text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
               >
                 <option value="time-asc">Sort: Time ↑</option>
                 <option value="time-desc">Sort: Time ↓</option>
@@ -3459,26 +3459,28 @@ const Services = () => {
       )}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-4 md:mb-6 sticky top-0 z-10">
-  <div className="mb-2 px-1"><Breadcrumbs /></div>
-        <nav className="flex flex-wrap gap-1">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === section.id
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-              >
-                <SpringIcon>
-                  <Icon size={16} />
-                </SpringIcon>
-                <span className="hidden sm:inline">{section.label}</span>
-              </button>
-            );
-          })}
+        <div className="mb-2 px-1"><Breadcrumbs /></div>
+        <nav className="overflow-x-auto">
+          <div className="flex gap-1 min-w-max pb-2 md:pb-0">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeSection === section.id
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                >
+                  <SpringIcon>
+                    <Icon size={16} />
+                  </SpringIcon>
+                  <span className="hidden xs:inline sm:hidden lg:inline">{section.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </div>
 
@@ -3510,6 +3512,7 @@ const Services = () => {
           </Animated.div>
         </div>
       )}
+      
     </div>
   );
 };

@@ -397,7 +397,7 @@ const GuestList = () => {
         bicycleDescription: createFormData.bicycleDescription?.trim() || '',
         name: `${createFormData.firstName.trim()} ${createFormData.lastName.trim()}`
       };
-      const newGuest = addGuest(guestData);
+      const newGuest = await addGuest(guestData);
       setCreateFormData({ firstName: '', lastName: '', preferredName: '', housingStatus: 'Unhoused', location: '', age: '', gender: '', notes: '', bicycleDescription: '' });
       setShowCreateForm(false);
       setSearchTerm(newGuest.preferredName || newGuest.name || `${guestData.firstName} ${guestData.lastName}`.trim());

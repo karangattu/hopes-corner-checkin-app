@@ -1,18 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useFirestoreSync } from './FirestoreSync';
-const firestoreEnabled = import.meta.env.VITE_USE_FIREBASE === 'true';
-let __dbCache = null;
-const ensureDb = async () => {
-  if (!firestoreEnabled) return null;
-  if (__dbCache) return __dbCache;
-  try {
-    const mod = await import('../firebase.js');
-    __dbCache = mod.db;
-    return __dbCache;
-  } catch {
-    return null;
-  }
-};
+import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
 import toast from 'react-hot-toast';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS, LAUNDRY_STATUS, DONATION_TYPES, BICYCLE_REPAIR_STATUS } from './constants';
@@ -37,6 +24,19 @@ const normalizePreferredName = (value) => {
 const normalizeBicycleDescription = (value) => {
   if (!value || typeof value !== 'string') return '';
   return value.trim();
+};
+
+const normalizeHousingStatus = (value) => {
+  const v = (value || '').toString().trim().toLowerCase();
+  if (!v) return 'Unhoused';
+  if (HOUSING_STATUSES.map(s => s.toLowerCase()).includes(v)) {
+    return HOUSING_STATUSES.find(s => s.toLowerCase() === v) || 'Unhoused';
+  }
+  if (/(temp|temporary).*(shelter)/.test(v) || /shelter(ed)?/.test(v)) return 'Temp. shelter';
+  if (/(rv|vehicle|car|van|truck)/.test(v)) return 'RV or vehicle';
+  if (/house(d)?|apartment|home/.test(v)) return 'Housed';
+  if (/unhouse(d)?|unshelter(ed)?|street|tent/.test(v)) return 'Unhoused';
+  return 'Unhoused';
 };
 
 const DEFAULT_TARGETS = {
@@ -115,15 +115,6 @@ export const AppProvider = ({ children }) => {
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
 
-  const [db, setDb] = useState(null);
-
-  // Initialize database connection
-  useEffect(() => {
-    if (firestoreEnabled) {
-      ensureDb().then(setDb);
-    }
-  }, []);
-
   const migrateGuestData = (guestList) => {
     return guestList.map(guest => {
       if (guest.firstName && guest.lastName) {
@@ -152,33 +143,191 @@ export const AppProvider = ({ children }) => {
     });
   };
 
-  // Real-time Firestore synchronization for all collections
-  useFirestoreSync(db, 'guests', (data) => {
-    const migratedGuests = migrateGuestData(data);
-    const normalizedGuests = (migratedGuests || []).map(g => ({
-      ...g,
-      housingStatus: normalizeHousingStatus(g.housingStatus),
-    }));
-    setGuests(normalizedGuests);
-  }, firestoreEnabled && db);
+  const supabaseEnabled = isSupabaseEnabled;
 
-  useFirestoreSync(db, 'meals', setMealRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'rvMeals', setRvMealRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'unitedEffortMeals', setUnitedEffortMealRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'extraMeals', setExtraMealRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'dayWorkerMeals', setDayWorkerMealRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'lunchBags', setLunchBagRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'showers', setShowerRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'laundry', setLaundryRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'bicycles', setBicycleRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'holidays', setHolidayRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'haircuts', setHaircutRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'itemsGiven', setItemGivenRecords, firestoreEnabled && db);
-  useFirestoreSync(db, 'donations', setDonationRecords, firestoreEnabled && db);
+  const mapGuestRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.external_id,
+    firstName: toTitleCase(row.first_name || ''),
+    lastName: toTitleCase(row.last_name || ''),
+    name: toTitleCase(row.full_name || `${row.first_name || ''} ${row.last_name || ''}`),
+    preferredName: normalizePreferredName(row.preferred_name),
+    housingStatus: normalizeHousingStatus(row.housing_status),
+    age: row.age_group,
+    gender: row.gender,
+    location: row.location || 'Mountain View',
+    notes: row.notes || '',
+    bicycleDescription: normalizeBicycleDescription(row.bicycle_description),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    docId: row.id,
+  }), []);
 
-  // Fallback to localStorage only if Firestore is disabled or fails
+  const mapMealRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    count: row.quantity || 1,
+    date: row.served_on ? new Date(`${row.served_on}T12:00:00`).toISOString() : row.recorded_at || row.created_at,
+    createdAt: row.created_at,
+    type: row.meal_type,
+  }), []);
+
+  const mapShowerRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    time: row.scheduled_time,
+    date: row.scheduled_for ? new Date(`${row.scheduled_for}T12:00:00`).toISOString() : row.created_at,
+    status: row.status || 'booked',
+    createdAt: row.created_at,
+    lastUpdated: row.updated_at,
+  }), []);
+
+  const mapLaundryRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    time: row.slot_label,
+    laundryType: row.laundry_type,
+    bagNumber: row.bag_number || '',
+    date: row.scheduled_for ? new Date(`${row.scheduled_for}T12:00:00`).toISOString() : row.created_at,
+    status: row.status,
+    lastUpdated: row.updated_at,
+  }), []);
+
+  const mapBicycleRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    date: row.requested_at,
+    type: 'bicycle',
+    repairType: row.repair_type,
+    notes: row.notes,
+    status: row.status,
+    priority: row.priority || 0,
+    doneAt: row.completed_at,
+    lastUpdated: row.updated_at,
+  }), []);
+
+  const mapHolidayRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    date: row.served_at,
+    type: 'holiday',
+  }), []);
+
+  const mapHaircutRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    date: row.served_at,
+    type: 'haircut',
+  }), []);
+
+  const mapItemRow = useCallback((row) => ({
+    id: row.id,
+    guestId: row.guest_id,
+    item: row.item_key,
+    date: row.distributed_at,
+  }), []);
+
+  const mapDonationRow = useCallback((row) => ({
+    id: row.id,
+    type: row.donation_type,
+    itemName: row.item_name,
+    trays: Number(row.trays) || 0,
+    weightLbs: Number(row.weight_lbs) || 0,
+    donor: row.donor,
+    date: row.donated_at,
+    createdAt: row.created_at,
+  }), []);
+
+  const insertMealAttendance = async (payload) => {
+    if (!supabaseEnabled || !supabase) return null;
+    const { data, error } = await supabase
+      .from('meal_attendance')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data ? mapMealRow(data) : null;
+  };
+
   useEffect(() => {
-    if (firestoreEnabled) return; // Skip localStorage if Firestore is enabled
+    if (!supabaseEnabled || !supabase) return;
+
+    let cancelled = false;
+
+    const fetchCloudData = async () => {
+      try {
+        const [guestsRes, mealsRes, showersRes, laundryRes, bicyclesRes, holidaysRes, haircutsRes, itemsRes, donationsRes, settingsRes] = await Promise.all([
+          supabase.from('guests').select('*').order('created_at', { ascending: false }),
+          supabase.from('meal_attendance').select('*').order('created_at', { ascending: false }),
+          supabase.from('shower_reservations').select('*').order('created_at', { ascending: false }),
+          supabase.from('laundry_bookings').select('*').order('created_at', { ascending: false }),
+          supabase.from('bicycle_repairs').select('*').order('requested_at', { ascending: false }),
+          supabase.from('holiday_visits').select('*').order('created_at', { ascending: false }),
+          supabase.from('haircut_visits').select('*').order('created_at', { ascending: false }),
+          supabase.from('items_distributed').select('*').order('distributed_at', { ascending: false }),
+          supabase.from('donations').select('*').order('donated_at', { ascending: false }),
+          supabase.from('app_settings').select('*').eq('id', 'global').maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        const guestRows = guestsRes.data?.map(mapGuestRow) || [];
+        const migratedGuests = migrateGuestData(guestRows);
+        setGuests(migratedGuests.map(g => ({
+          ...g,
+          housingStatus: normalizeHousingStatus(g.housingStatus),
+        })));
+
+        const allMealRows = mealsRes.data?.map(mapMealRow) || [];
+        setMealRecords(allMealRows.filter(r => r.type === 'guest'));
+        setRvMealRecords(allMealRows.filter(r => r.type === 'rv'));
+        setUnitedEffortMealRecords(allMealRows.filter(r => r.type === 'united_effort'));
+        setExtraMealRecords(allMealRows.filter(r => r.type === 'extra'));
+        setDayWorkerMealRecords(allMealRows.filter(r => r.type === 'day_worker'));
+        setLunchBagRecords(allMealRows.filter(r => r.type === 'lunch_bag'));
+
+        setShowerRecords(showersRes.data?.map(mapShowerRow) || []);
+        setLaundryRecords(laundryRes.data?.map(mapLaundryRow) || []);
+        setBicycleRecords(bicyclesRes.data?.map(mapBicycleRow) || []);
+        setHolidayRecords(holidaysRes.data?.map(mapHolidayRow) || []);
+        setHaircutRecords(haircutsRes.data?.map(mapHaircutRow) || []);
+        setItemGivenRecords(itemsRes.data?.map(mapItemRow) || []);
+        setDonationRecords(donationsRes.data?.map(mapDonationRow) || []);
+
+        const settingsRow = settingsRes?.data;
+        if (settingsRow) {
+          const nextSettings = mergeSettings(createDefaultSettings(), {
+            siteName: settingsRow.site_name,
+            maxOnsiteLaundrySlots: settingsRow.max_onsite_laundry_slots,
+            enableOffsiteLaundry: settingsRow.enable_offsite_laundry,
+            uiDensity: settingsRow.ui_density,
+            showCharts: settingsRow.show_charts,
+            defaultReportDays: settingsRow.default_report_days,
+            donationAutofill: settingsRow.donation_autofill,
+            defaultDonationType: settingsRow.default_donation_type,
+            targets: settingsRow.targets,
+          });
+          setSettings(nextSettings);
+        }
+      } catch (error) {
+        console.error('Failed to load Supabase data:', error);
+      }
+    };
+
+    fetchCloudData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseEnabled, mapGuestRow, mapMealRow, mapShowerRow, mapLaundryRow, mapBicycleRow, mapHolidayRow, mapHaircutRow, mapItemRow, mapDonationRow]);
+
+  // Fallback to localStorage only if Supabase is disabled or fails
+  useEffect(() => {
+  if (supabaseEnabled) return; // Skip localStorage if cloud sync is enabled
 
     try {
       const savedGuests = localStorage.getItem('hopes-corner-guests');
@@ -226,24 +375,11 @@ export const AppProvider = ({ children }) => {
     } catch (error) {
       console.error('Error loading data from localStorage:', error);
     }
-  }, []);
+  }, [supabaseEnabled]);
 
-  const normalizeHousingStatus = (value) => {
-    const v = (value || '').toString().trim().toLowerCase();
-    if (!v) return 'Unhoused';
-    if (HOUSING_STATUSES.map(s => s.toLowerCase()).includes(v)) {
-      return HOUSING_STATUSES.find(s => s.toLowerCase() === v) || 'Unhoused';
-    }
-    if (/(temp|temporary).*(shelter)/.test(v) || /shelter(ed)?/.test(v)) return 'Temp. shelter';
-    if (/(rv|vehicle|car|van|truck)/.test(v)) return 'RV or vehicle';
-    if (/house(d)?|apartment|home/.test(v)) return 'Housed';
-    if (/unhouse(d)?|unshelter(ed)?|street|tent/.test(v)) return 'Unhoused';
-    return 'Unhoused';
-  };
-
-  // Cache to localStorage only when Firestore is disabled - real-time sync handles caching
+  // Cache to localStorage only when Supabase is disabled - cloud sync handles persistence
   useEffect(() => {
-    if (firestoreEnabled) return; // Skip localStorage caching when using Firestore real-time sync
+  if (supabaseEnabled) return; // Skip localStorage caching when using cloud sync
 
     try {
       localStorage.setItem('hopes-corner-guests', JSON.stringify(guests));
@@ -264,81 +400,47 @@ export const AppProvider = ({ children }) => {
     } catch (error) {
       console.error('Error saving data to localStorage:', error);
     }
-  }, [guests, mealRecords, rvMealRecords, showerRecords, laundryRecords, bicycleRecords, holidayRecords, haircutRecords, itemGivenRecords, donationRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, settings]);
+  }, [guests, mealRecords, rvMealRecords, showerRecords, laundryRecords, bicycleRecords, holidayRecords, haircutRecords, itemGivenRecords, donationRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, settings, supabaseEnabled]);
 
-  useEffect(() => {
-    if (!firestoreEnabled) return undefined;
-
-    let unsubscribe;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const db = await ensureDb();
-        if (!db) return;
-
-        const { doc, getDoc, setDoc, onSnapshot } = await import('firebase/firestore');
-        const settingsRef = doc(db, 'appSettings', 'global');
-
-        const snapshot = await getDoc(settingsRef);
-        if (!snapshot.exists()) {
-          await setDoc(settingsRef, createDefaultSettings(), { merge: true });
-        } else if (!cancelled) {
-          const cloudSettings = snapshot.data();
-          if (cloudSettings) {
-            setSettings(prev => mergeSettings(prev, cloudSettings));
-          }
-        }
-
-        if (cancelled) return;
-
-        unsubscribe = onSnapshot(
-          settingsRef,
-          (snap) => {
-            const data = snap.data();
-            if (data) {
-              setSettings(prev => mergeSettings(prev, data));
-            }
-          },
-          (error) => {
-            console.warn('Settings listener error:', error);
-          }
-        );
-      } catch (error) {
-        console.warn('Failed to subscribe to settings:', error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
-
-  const persistSettingsToFirestore = useCallback(async (nextSettings) => {
-    if (!firestoreEnabled) return;
+  const persistSettingsToSupabase = useCallback(async (nextSettings) => {
+    if (!supabaseEnabled || !supabase) return;
 
     try {
-      const db = await ensureDb();
-      if (!db) return;
+      const payload = {
+        id: 'global',
+        site_name: nextSettings.siteName,
+        max_onsite_laundry_slots: nextSettings.maxOnsiteLaundrySlots,
+        enable_offsite_laundry: nextSettings.enableOffsiteLaundry,
+        ui_density: nextSettings.uiDensity,
+        show_charts: nextSettings.showCharts,
+        default_report_days: nextSettings.defaultReportDays,
+        donation_autofill: nextSettings.donationAutofill,
+        default_donation_type: nextSettings.defaultDonationType,
+        targets: nextSettings.targets || { ...DEFAULT_TARGETS },
+        updated_at: new Date().toISOString(),
+      };
 
-      const { doc, setDoc } = await import('firebase/firestore');
-      const settingsRef = doc(db, 'appSettings', 'global');
-      await setDoc(settingsRef, nextSettings, { merge: true });
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert(payload, { onConflict: 'id' });
+
+      if (error) {
+        console.error('Failed to persist settings to Supabase:', error);
+      }
     } catch (error) {
-      console.error('Failed to persist settings to Firestore:', error);
+      console.error('Failed to persist settings to Supabase:', error);
     }
-  }, []);
+  }, [supabaseEnabled]);
 
   const updateSettings = useCallback((partial) => {
     if (!partial) return;
 
     setSettings(prev => {
       const next = mergeSettings(prev, partial);
-      persistSettingsToFirestore(next);
+      persistSettingsToSupabase(next);
       return next;
     });
-  }, [persistSettingsToFirestore]);
+  }, [persistSettingsToSupabase]);
 
 
   const generateShowerSlots = () => {
@@ -452,8 +554,39 @@ export const AppProvider = ({ children }) => {
     const takenIds = new Set(guests.map(g => g.guestId));
     const finalGuestId = generateUniqueGuestId(guest.guestId, takenIds);
 
-    const newGuest = {
-      id: Date.now(),
+    if (supabaseEnabled && supabase) {
+      const payload = {
+        external_id: finalGuestId,
+        first_name: firstName,
+        last_name: lastName,
+        full_name: legalName,
+        preferred_name: preferredName,
+        housing_status: normalizedHousing,
+        age_group: guest.age,
+        gender: guest.gender,
+        location: guest.location,
+        notes: guest.notes || '',
+        bicycle_description: bicycleDescription,
+      };
+
+      const { data, error } = await supabase
+        .from('guests')
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to add guest to Supabase:', error);
+        throw new Error('Unable to save guest. Please try again.');
+      }
+
+      const mapped = mapGuestRow(data);
+      setGuests(prev => [...prev, mapped]);
+      return mapped;
+    }
+
+    const fallbackGuest = {
+      id: `local-${Date.now()}`,
       guestId: finalGuestId,
       ...guest,
       firstName,
@@ -464,26 +597,8 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString(),
     };
 
-    if (firestoreEnabled && db) {
-      try {
-        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-        await setDoc(doc(db, 'guests', String(newGuest.id)), { 
-          ...newGuest, 
-          createdAt: serverTimestamp(),
-          lastUpdated: serverTimestamp() 
-        });
-        // Real-time sync will update local state
-      } catch (error) {
-        console.error('Failed to add guest to Firestore:', error);
-        // Fallback to local state
-        setGuests([...guests, newGuest]);
-      }
-    } else {
-      // Fallback to local state when Firestore disabled
-      setGuests([...guests, newGuest]);
-    }
-    
-    return newGuest;
+    setGuests(prev => [...prev, fallbackGuest]);
+    return fallbackGuest;
   };
 
   const importGuestsFromCSV = (csvData) => {
@@ -547,83 +662,139 @@ export const AppProvider = ({ children }) => {
       };
     });
 
-    setGuests([...guests, ...newGuests]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-          const writes = newGuests.map(g => setDoc(doc(db, 'guests', String(g.id)), { ...g, createdAt: serverTimestamp() }));
-          await Promise.allSettled(writes);
-        } catch {
-          // ignore cloud write failures
-        }
-      });
+    if (supabaseEnabled && supabase) {
+      const payload = newGuests.map(g => ({
+        external_id: g.guestId,
+        first_name: g.firstName,
+        last_name: g.lastName,
+        full_name: g.name,
+        preferred_name: g.preferredName,
+        housing_status: g.housingStatus,
+        age_group: g.age,
+        gender: g.gender,
+        location: g.location,
+        notes: g.notes || '',
+        bicycle_description: g.bicycleDescription,
+      }));
+
+      supabase
+        .from('guests')
+        .insert(payload)
+        .select()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Failed to bulk import guests to Supabase:', error);
+            setGuests(prev => [...prev, ...newGuests]);
+          } else if (data) {
+            const mapped = data.map(mapGuestRow);
+            setGuests(prev => [...prev, ...mapped]);
+          }
+        })
+        .catch((error) => {
+          console.error('Bulk import error:', error);
+          setGuests(prev => [...prev, ...newGuests]);
+        });
+    } else {
+      setGuests(prev => [...prev, ...newGuests]);
     }
+
     return newGuests;
   };
 
   const isSameDay = (iso1, iso2) => iso1.split('T')[0] === iso2.split('T')[0];
-  const addBicycleRecord = (guestId, { repairType = 'Flat Tire', notes = '' } = {}) => {
+  const addBicycleRecord = async (guestId, { repairType = 'Flat Tire', notes = '' } = {}) => {
     const now = new Date().toISOString();
     // Allow multiple repairs per day; no uniqueness constraint.
+    const priority = (bicycleRecords[0]?.priority || 0) + 1;
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('bicycle_repairs')
+          .insert({
+            guest_id: guestId,
+            repair_type: repairType,
+            notes,
+            status: BICYCLE_REPAIR_STATUS.PENDING,
+            priority,
+            requested_at: now,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapBicycleRow(data);
+        setBicycleRecords(prev => [mapped, ...prev]);
+        setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: mapped.id, guestId }, description: `Logged bicycle repair (${repairType})` }, ...prev.slice(0, 49)]);
+        toast.success('Bicycle repair logged');
+        return mapped;
+      } catch (error) {
+        console.error('Failed to log bicycle repair:', error);
+        toast.error('Unable to log bicycle repair.');
+        throw error;
+      }
+    }
+
     const record = {
-      id: Date.now(),
+      id: `local-${Date.now()}`,
       guestId,
       date: now,
       type: 'bicycle',
       repairType,
       notes,
       status: BICYCLE_REPAIR_STATUS.PENDING,
-      priority: (bicycleRecords[0]?.priority || 0) + 1 // higher number = higher priority
+      priority,
     };
     setBicycleRecords(prev => [record, ...prev]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc } = await import('firebase/firestore');
-          await setDoc(doc(db, 'bicycles', String(record.id)), record);
-        } catch {
-          // ignore
-        }
-      });
-    }
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'BICYCLE_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: `Logged bicycle repair (${repairType})` }, ...prev.slice(0, 49)]);
-  toast.success('Bicycle repair logged');
+    toast.success('Bicycle repair logged');
     return record;
   };
 
-  const updateBicycleRecord = (recordId, updates) => {
+  const updateBicycleRecord = async (recordId, updates) => {
     const mergedUpdates = { ...updates };
     if (!mergedUpdates.lastUpdated) mergedUpdates.lastUpdated = new Date().toISOString();
     setBicycleRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...mergedUpdates } : r));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, updateDoc } = await import('firebase/firestore');
-          await updateDoc(doc(db, 'bicycles', String(recordId)), { ...mergedUpdates });
-        } catch {
-          // ignore
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+        const payload = {};
+        if (mergedUpdates.repairType !== undefined) payload.repair_type = mergedUpdates.repairType;
+        if (mergedUpdates.notes !== undefined) payload.notes = mergedUpdates.notes;
+        if (mergedUpdates.status !== undefined) payload.status = mergedUpdates.status;
+        if (mergedUpdates.priority !== undefined) payload.priority = mergedUpdates.priority;
+        if (mergedUpdates.doneAt !== undefined) payload.completed_at = mergedUpdates.doneAt;
+        if (mergedUpdates.lastUpdated !== undefined) payload.updated_at = mergedUpdates.lastUpdated;
+        if (Object.keys(payload).length === 0) return;
+        const { data, error } = await supabase
+          .from('bicycle_repairs')
+          .update(payload)
+          .eq('id', recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapBicycleRow(data);
+          setBicycleRecords(prev => prev.map(r => r.id === recordId ? mapped : r));
         }
-      });
+      } catch (error) {
+        console.error('Failed to update bicycle record:', error);
+        toast.error('Unable to update bicycle record.');
+      }
     }
   };
 
-  const deleteBicycleRecord = (recordId) => {
+  const deleteBicycleRecord = async (recordId) => {
     setBicycleRecords(prev => prev.filter(r => r.id !== recordId));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, deleteDoc } = await import('firebase/firestore');
-          await deleteDoc(doc(db, 'bicycles', String(recordId)));
-        } catch {
-          // ignore
-        }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+  const { error } = await supabase.from('bicycle_repairs').delete().eq('id', recordId);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Failed to delete bicycle record:', error);
+        toast.error('Unable to delete bicycle record.');
+        return false;
+      }
     }
+    return true;
   };
 
   const setBicycleStatus = (recordId, status) => {
@@ -645,46 +816,68 @@ export const AppProvider = ({ children }) => {
       return list;
     });
   };
-  const addHolidayRecord = (guestId) => {
+  const addHolidayRecord = async (guestId) => {
     const now = new Date().toISOString();
     const already = holidayRecords.some(r => r.guestId === guestId && isSameDay(r.date, now));
     if (already) {
       toast.error('Holiday already logged today');
       return null;
     }
-    const record = { id: Date.now(), guestId, date: now, type: 'holiday' };
-    setHolidayRecords(prev => [record, ...prev]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc } = await import('firebase/firestore');
-          await setDoc(doc(db, 'holidays', String(record.id)), record);
-        } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('holiday_visits')
+          .insert({ guest_id: guestId, served_at: now })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapHolidayRow(data);
+        setHolidayRecords(prev => [mapped, ...prev]);
+        setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HOLIDAY_LOGGED', timestamp: now, data: { recordId: mapped.id, guestId }, description: 'Logged holiday service' }, ...prev.slice(0, 49)]);
+        toast.success('Holiday logged');
+        return mapped;
+      } catch (error) {
+        console.error('Failed to log holiday in Supabase:', error);
+        toast.error('Unable to log holiday.');
+        throw error;
+      }
     }
+
+    const record = { id: `local-${Date.now()}`, guestId, date: now, type: 'holiday' };
+    setHolidayRecords(prev => [record, ...prev]);
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HOLIDAY_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: 'Logged holiday service' }, ...prev.slice(0, 49)]);
     toast.success('Holiday logged');
     return record;
   };
-  const addHaircutRecord = (guestId) => {
+  const addHaircutRecord = async (guestId) => {
     const now = new Date().toISOString();
     const already = haircutRecords.some(r => r.guestId === guestId && isSameDay(r.date, now));
     if (already) {
       toast.error('Haircut already logged today');
       return null;
     }
-    const record = { id: Date.now(), guestId, date: now, type: 'haircut' };
-    setHaircutRecords(prev => [record, ...prev]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc } = await import('firebase/firestore');
-          await setDoc(doc(db, 'haircuts', String(record.id)), record);
-        } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('haircut_visits')
+          .insert({ guest_id: guestId, served_at: now })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapHaircutRow(data);
+        setHaircutRecords(prev => [mapped, ...prev]);
+        setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HAIRCUT_LOGGED', timestamp: now, data: { recordId: mapped.id, guestId }, description: 'Logged haircut service' }, ...prev.slice(0, 49)]);
+        toast.success('Haircut logged');
+        return mapped;
+      } catch (error) {
+        console.error('Failed to log haircut in Supabase:', error);
+        toast.error('Unable to log haircut.');
+        throw error;
+      }
     }
+
+    const record = { id: `local-${Date.now()}`, guestId, date: now, type: 'haircut' };
+    setHaircutRecords(prev => [record, ...prev]);
     setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'HAIRCUT_LOGGED', timestamp: now, data: { recordId: record.id, guestId }, description: 'Logged haircut service' }, ...prev.slice(0, 49)]);
     toast.success('Haircut logged');
     return record;
@@ -736,26 +929,37 @@ export const AppProvider = ({ children }) => {
     const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
     return days > 0 ? days : 0;
   };
-  const giveItem = (guestId, item) => {
+  const giveItem = async (guestId, item) => {
     if (!canGiveItem(guestId, item)) {
       throw new Error('Limit reached for this item based on last given date.');
     }
-    const record = { id: Date.now(), guestId, item, date: new Date().toISOString() };
-    setItemGivenRecords(prev => [record, ...prev]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const { doc, setDoc } = await import('firebase/firestore');
-          await setDoc(doc(db, 'itemsGiven', String(record.id)), record);
-        } catch { /* ignore */ }
-      });
+    const now = new Date().toISOString();
+
+    if (supabaseEnabled && supabase) {
+      const { data, error } = await supabase
+        .from('items_distributed')
+        .insert({ guest_id: guestId, item_key: item, distributed_at: now })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to record distributed item in Supabase:', error);
+        throw new Error('Unable to log item distribution.');
+      }
+
+      const record = mapItemRow(data);
+      setItemGivenRecords(prev => [record, ...prev]);
+      setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'ITEM_GIVEN', timestamp: now, data: { recordId: record.id, guestId, item }, description: `Gave ${item.replace('_', ' ')}` }, ...prev.slice(0, 49)]);
+      return record;
     }
-    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'ITEM_GIVEN', timestamp: new Date().toISOString(), data: { recordId: record.id, guestId, item }, description: `Gave ${item.replace('_', ' ')}` }, ...prev.slice(0, 49)]);
-    return record;
+
+    const fallbackRecord = { id: `local-${Date.now()}`, guestId, item, date: now };
+    setItemGivenRecords(prev => [fallbackRecord, ...prev]);
+    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'ITEM_GIVEN', timestamp: now, data: { recordId: fallbackRecord.id, guestId, item }, description: `Gave ${item.replace('_', ' ')}` }, ...prev.slice(0, 49)]);
+    return fallbackRecord;
   };
 
-  const updateGuest = (id, updates) => {
+  const updateGuest = async (id, updates) => {
     const normalizedUpdates = {
       ...updates,
       bicycleDescription: updates?.bicycleDescription !== undefined
@@ -766,37 +970,52 @@ export const AppProvider = ({ children }) => {
       delete normalizedUpdates.bicycleDescription;
     }
     const target = guests.find(g => g.id === id);
-    setGuests(
-      guests.map((guest) => (guest.id === id ? { ...guest, ...normalizedUpdates } : guest))
-    );
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const docId = target?.docId ? target.docId : String(id);
-          const { doc, updateDoc } = await import('firebase/firestore');
-          await updateDoc(doc(db, 'guests', docId), { ...normalizedUpdates });
-        } catch {
-          // ignore
-        }
-      });
+    setGuests(prev => prev.map((guest) => (guest.id === id ? { ...guest, ...normalizedUpdates } : guest)));
+
+    if (supabaseEnabled && supabase && target) {
+      const payload = {};
+      if (normalizedUpdates.firstName !== undefined) payload.first_name = toTitleCase(normalizedUpdates.firstName);
+      if (normalizedUpdates.lastName !== undefined) payload.last_name = toTitleCase(normalizedUpdates.lastName);
+      if (normalizedUpdates.name !== undefined) payload.full_name = toTitleCase(normalizedUpdates.name);
+      if (normalizedUpdates.preferredName !== undefined) payload.preferred_name = normalizePreferredName(normalizedUpdates.preferredName);
+      if (normalizedUpdates.housingStatus !== undefined) payload.housing_status = normalizeHousingStatus(normalizedUpdates.housingStatus);
+      if (normalizedUpdates.age !== undefined) payload.age_group = normalizedUpdates.age;
+      if (normalizedUpdates.gender !== undefined) payload.gender = normalizedUpdates.gender;
+      if (normalizedUpdates.location !== undefined) payload.location = normalizedUpdates.location;
+      if (normalizedUpdates.notes !== undefined) payload.notes = normalizedUpdates.notes;
+      if (normalizedUpdates.bicycleDescription !== undefined) payload.bicycle_description = normalizedUpdates.bicycleDescription;
+      if (normalizedUpdates.guestId !== undefined) payload.external_id = normalizedUpdates.guestId;
+
+      if (Object.keys(payload).length === 0) return;
+
+      const { data, error } = await supabase
+        .from('guests')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to update guest in Supabase:', error);
+      } else if (data) {
+        const mapped = mapGuestRow(data);
+        setGuests(prev => prev.map(guest => (guest.id === id ? mapped : guest)));
+      }
     }
   };
 
-  const removeGuest = (id) => {
+  const removeGuest = async (id) => {
     const target = guests.find(g => g.id === id);
     setGuests(guests.filter((guest) => guest.id !== id));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try {
-          if (!db) return;
-          const docId = target?.docId ? target.docId : String(id);
-          const { doc, deleteDoc } = await import('firebase/firestore');
-          await deleteDoc(doc(db, 'guests', docId));
-        } catch {
-          // ignore
-        }
-      });
+    if (supabaseEnabled && supabase && target) {
+      const { error } = await supabase
+        .from('guests')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Failed to delete guest from Supabase:', error);
+      }
     }
   };
 
@@ -804,38 +1023,55 @@ export const AppProvider = ({ children }) => {
     const today = pacificDateStringFrom(new Date());
     const already = mealRecords.some(r => r.guestId === guestId && pacificDateStringFrom(r.date) === today);
     if (already) return null;
-    
-    const record = { 
-      id: Date.now(), 
-      guestId, 
-      count, 
-      date: new Date().toISOString(),
-      createdAt: new Date().toISOString()
-    };
+    const timestamp = new Date().toISOString();
 
-    if (firestoreEnabled && db) {
+    if (supabaseEnabled && supabase) {
       try {
-        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-        await setDoc(doc(db, 'meals', String(record.id)), { 
-          ...record, 
-          createdAt: serverTimestamp(),
-          lastUpdated: serverTimestamp() 
+        const inserted = await insertMealAttendance({
+          meal_type: 'guest',
+          guest_id: guestId,
+          quantity: count,
+          served_on: timestamp.slice(0, 10),
+          recorded_at: timestamp,
         });
-        // Real-time sync will update local state
+
+        if (!inserted) {
+          throw new Error('Failed to insert meal attendance');
+        }
+
+        setMealRecords(prev => [...prev, inserted]);
+
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'MEAL_ADDED',
+          timestamp,
+          data: { recordId: inserted.id, guestId, count },
+          description: `Added ${count} meal${count > 1 ? 's' : ''} for guest`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+
+        return inserted;
       } catch (error) {
-        console.error('Failed to add meal record to Firestore:', error);
-        // Fallback to local state
-        setMealRecords(prev => [...prev, record]);
+        console.error('Failed to add meal record in Supabase:', error);
+        toast.error('Unable to save meal record.');
+        return null;
       }
-    } else {
-      // Fallback when Firestore disabled
-      setMealRecords(prev => [...prev, record]);
     }
 
+    const record = {
+      id: `local-${Date.now()}`,
+      guestId,
+      count,
+      date: timestamp,
+      createdAt: timestamp,
+      type: 'guest',
+    };
+
+    setMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'MEAL_ADDED',
-      timestamp: new Date().toISOString(),
+      timestamp,
       data: { recordId: record.id, guestId, count },
       description: `Added ${count} meal${count > 1 ? 's' : ''} for guest`
     };
@@ -844,63 +1080,99 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addRvMealRecord = (count, dateOverride = null) => {
+  const addRvMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
-    const record = {
-      id: Date.now(),
-      count: parseInt(count),
-      date: iso,
-      type: 'rv_meals'
-    };
-    setRvMealRecords([...rvMealRecords, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'rvMeals', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (quantity <= 0) throw new Error('Invalid meal count');
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: 'rv',
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error('Insert returned no data');
+        setRvMealRecords(prev => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'RV_MEALS_ADDED',
+          timestamp: iso,
+          data: { recordId: inserted.id, count: quantity },
+          description: `Added ${quantity} RV meals`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error('Failed to log RV meals in Supabase:', error);
+        toast.error('Unable to record RV meals.');
+        return null;
+      }
     }
 
+    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'rv' };
+    setRvMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'RV_MEALS_ADDED',
-      timestamp: new Date().toISOString(),
-      data: { recordId: record.id, count: parseInt(count) },
-      description: `Added ${count} RV meals`
+      timestamp: iso,
+      data: { recordId: record.id, count: quantity },
+      description: `Added ${quantity} RV meals`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-
     return record;
   };
 
-  const addUnitedEffortMealRecord = (count, dateOverride = null) => {
+  const addUnitedEffortMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
-    const record = {
-      id: Date.now(),
-      count: parseInt(count),
-      date: iso,
-      type: 'united_effort_meals'
-    };
-    setUnitedEffortMealRecords([...unitedEffortMealRecords, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'unitedEffortMeals', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (quantity <= 0) throw new Error('Invalid meal count');
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: 'united_effort',
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error('Insert returned no data');
+        setUnitedEffortMealRecords(prev => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'UNITED_EFFORT_MEALS_ADDED',
+          timestamp: iso,
+          data: { recordId: inserted.id, count: quantity },
+          description: `Added ${quantity} United Effort meals`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error('Failed to log United Effort meals:', error);
+        toast.error('Unable to record United Effort meals.');
+        return null;
+      }
     }
 
+    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'united_effort' };
+    setUnitedEffortMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'UNITED_EFFORT_MEALS_ADDED',
-      timestamp: new Date().toISOString(),
-      data: { recordId: record.id, count: parseInt(count) },
-      description: `Added ${count} United Effort meals`
+      timestamp: iso,
+      data: { recordId: record.id, count: quantity },
+      description: `Added ${quantity} United Effort meals`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-
     return record;
   };
 
-  const addExtraMealRecord = (guestId, count, dateOverride = null) => {
+  const addExtraMealRecord = async (guestId, count, dateOverride = null) => {
     if (typeof count === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(count) && (dateOverride == null)) {
       dateOverride = count;
       count = guestId;
@@ -908,70 +1180,132 @@ export const AppProvider = ({ children }) => {
     }
     const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
-    const record = {
-      id: Date.now(),
-      guestId,
-      count: parseInt(count),
-      date: iso,
-      type: 'extra_meals'
-    };
-    setExtraMealRecords([...extraMealRecords, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'extraMeals', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (quantity <= 0) throw new Error('Invalid extra meal count');
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: 'extra',
+          guest_id: guestId,
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error('Insert returned no data');
+        setExtraMealRecords(prev => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'EXTRA_MEALS_ADDED',
+          timestamp: iso,
+          data: { recordId: inserted.id, guestId, count: quantity },
+          description: `Added ${quantity} extra meal${quantity > 1 ? 's' : ''}${guestId ? ' for guest' : ''}`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error('Failed to log extra meals:', error);
+        toast.error('Unable to record extra meals.');
+        return null;
+      }
     }
 
+    const record = { id: `local-${Date.now()}`, guestId, count: quantity, date: iso, type: 'extra' };
+    setExtraMealRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'EXTRA_MEALS_ADDED',
-      timestamp: new Date().toISOString(),
-      data: { recordId: record.id, guestId, count: parseInt(count) },
-      description: `Added ${count} extra meal${count > 1 ? 's' : ''}${guestId ? ' for guest' : ''}`
+      timestamp: iso,
+      data: { recordId: record.id, guestId, count: quantity },
+      description: `Added ${quantity} extra meal${quantity > 1 ? 's' : ''}${guestId ? ' for guest' : ''}`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-
     return record;
   };
 
-  const addDayWorkerMealRecord = (count, dateOverride = null) => {
+  const addDayWorkerMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => new Date(`${dateStr}T12:00:00`).toISOString();
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
-    const record = { id: Date.now(), count: parseInt(count), date: iso, type: 'day_worker_meals' };
-    setDayWorkerMealRecords(prev => [...prev, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'dayWorkerMeals', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (quantity <= 0) throw new Error('Invalid meal count');
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: 'day_worker',
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error('Insert returned no data');
+        setDayWorkerMealRecords(prev => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'DAY_WORKER_MEALS_ADDED',
+          timestamp: iso,
+          data: { recordId: inserted.id, count: quantity },
+          description: `Added ${quantity} day worker meals`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error('Failed to log day worker meals:', error);
+        toast.error('Unable to record day worker meals.');
+        return null;
+      }
     }
-    const action = { id: Date.now() + Math.random(), type: 'DAY_WORKER_MEALS_ADDED', timestamp: new Date().toISOString(), data: { recordId: record.id, count: parseInt(count) }, description: `Added ${count} day worker meals` };
+
+    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'day_worker' };
+    setDayWorkerMealRecords(prev => [...prev, record]);
+    const action = { id: Date.now() + Math.random(), type: 'DAY_WORKER_MEALS_ADDED', timestamp: iso, data: { recordId: record.id, count: quantity }, description: `Added ${quantity} day worker meals` };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
     return record;
   };
 
-  const addLunchBagRecord = (count, dateOverride = null) => {
+  const addLunchBagRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       const d = new Date(`${dateStr}T12:00:00`);
       return d.toISOString();
     };
     const iso = dateOverride ? makeISOForDate(dateOverride) : new Date().toISOString();
-    const record = {
-      id: Date.now(),
-      count: parseInt(count),
-      date: iso,
-      type: 'lunch_bags'
-    };
-    if (!record.count || record.count <= 0) throw new Error('Invalid lunch bag count');
-    setLunchBagRecords(prev => [...prev, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'lunchBags', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (!quantity || quantity <= 0) throw new Error('Invalid lunch bag count');
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: 'lunch_bag',
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error('Insert returned no data');
+        setLunchBagRecords(prev => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'LUNCH_BAGS_ADDED',
+          timestamp: iso,
+          data: { recordId: inserted.id, count: quantity, date: dateOverride },
+          description: `Added ${quantity} lunch bag${quantity > 1 ? 's' : ''}${dateOverride ? ` on ${dateOverride}` : ''}`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error('Failed to log lunch bags:', error);
+        toast.error('Unable to record lunch bags.');
+        return null;
+      }
     }
+
+    const record = { id: `local-${Date.now()}`, count: quantity, date: iso, type: 'lunch_bag' };
+    setLunchBagRecords(prev => [...prev, record]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'LUNCH_BAGS_ADDED',
-      timestamp: new Date().toISOString(),
+      timestamp: iso,
       data: { recordId: record.id, count: record.count, date: dateOverride },
       description: `Added ${record.count} lunch bag${record.count > 1 ? 's' : ''}${dateOverride ? ` on ${dateOverride}` : ''}`
     };
@@ -979,7 +1313,7 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addShowerRecord = (guestId, time) => {
+  const addShowerRecord = async (guestId, time) => {
     const count = showerSlots.filter((s) => s.time === time).length;
     if (count >= 2) {
       throw new Error("That time slot is full.");
@@ -994,26 +1328,56 @@ export const AppProvider = ({ children }) => {
       throw new Error("Guest already has a shower booking today.");
     }
 
+    const timestamp = new Date().toISOString();
+    const scheduledFor = todayPacificDateString();
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('shower_reservations')
+          .insert({
+            guest_id: guestId,
+            scheduled_time: time,
+            scheduled_for: scheduledFor,
+            status: 'booked',
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapShowerRow(data);
+        setShowerRecords(prev => [...prev, mapped]);
+        setShowerSlots(prev => [...prev, { guestId, time }]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'SHOWER_BOOKED',
+          timestamp,
+          data: { recordId: mapped.id, guestId, time },
+          description: `Booked shower at ${time} for guest`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return mapped;
+      } catch (error) {
+        console.error('Failed to create shower booking:', error);
+        toast.error('Unable to save shower booking.');
+        throw error;
+      }
+    }
+
     const record = {
-      id: Date.now(),
+      id: `local-${Date.now()}`,
       guestId,
       time,
-      date: new Date().toISOString(),
+      date: timestamp,
       status: 'booked',
     };
 
-    setShowerRecords([...showerRecords, record]);
-    setShowerSlots([...showerSlots, { guestId, time }]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'showers', String(record.id)), record); } catch { /* ignore */ }
-      });
-    }
+    setShowerRecords(prev => [...prev, record]);
+    setShowerSlots(prev => [...prev, { guestId, time }]);
 
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_BOOKED',
-      timestamp: new Date().toISOString(),
+      timestamp,
       data: { recordId: record.id, guestId, time },
       description: `Booked shower at ${time} for guest`
     };
@@ -1022,7 +1386,7 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addShowerWaitlist = (guestId) => {
+  const addShowerWaitlist = async (guestId) => {
     const today = todayPacificDateString();
     const already = showerRecords.some((r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today);
     if (already) {
@@ -1035,32 +1399,65 @@ export const AppProvider = ({ children }) => {
       date: new Date().toISOString(),
       status: 'waitlisted',
     };
-    setShowerRecords(prev => [...prev, record]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'showers', String(record.id)), record); } catch { /* ignore */ }
-      });
+    const timestamp = record.date;
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('shower_reservations')
+          .insert({
+            guest_id: guestId,
+            scheduled_time: null,
+            scheduled_for: today,
+            status: 'waitlisted',
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapShowerRow(data);
+        setShowerRecords(prev => [...prev, mapped]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'SHOWER_WAITLISTED',
+          timestamp,
+          data: { recordId: mapped.id, guestId },
+          description: 'Added to shower waitlist'
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return mapped;
+      } catch (error) {
+        console.error('Failed to add shower waitlist entry:', error);
+        toast.error('Unable to add to shower waitlist.');
+        throw error;
+      }
     }
+
+    setShowerRecords(prev => [...prev, { ...record, id: `local-${record.id}` }]);
     const action = {
       id: Date.now() + Math.random(),
       type: 'SHOWER_WAITLISTED',
-      timestamp: new Date().toISOString(),
-      data: { recordId: record.id, guestId },
+      timestamp,
+      data: { recordId: `local-${record.id}`, guestId },
       description: 'Added to shower waitlist'
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-    return record;
+    return { ...record, id: `local-${record.id}` };
   };
 
-  const cancelShowerRecord = (recordId) => {
+  const cancelShowerRecord = async (recordId) => {
     const record = showerRecords.find(r => r.id === recordId);
     if (!record) return false;
     setShowerRecords(prev => prev.filter(r => r.id !== recordId));
     setShowerSlots(prev => prev.filter(s => !(s.guestId === record.guestId && s.time === record.time)));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'showers', String(recordId))); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+  const { error } = await supabase.from('shower_reservations').delete().eq('id', recordId);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Failed to cancel shower booking:', error);
+        toast.error('Unable to cancel shower booking.');
+        return false;
+      }
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -1073,21 +1470,36 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  const rescheduleShower = (recordId, newTime) => {
+  const rescheduleShower = async (recordId, newTime) => {
     const record = showerRecords.find(r => r.id === recordId);
     if (!record) throw new Error('Shower booking not found');
     if (record.time === newTime) return record;
     const countAtNew = showerSlots.filter(s => s.time === newTime && s.guestId !== record.guestId).length;
     if (countAtNew >= 2) throw new Error('That time slot is full.');
-  setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, time: newTime } : r));
+    let updatedRecord = { ...record, time: newTime, lastUpdated: new Date().toISOString() };
+    setShowerRecords(prev => prev.map(r => r.id === recordId ? updatedRecord : r));
     setShowerSlots(prev => {
       const filtered = prev.filter(s => !(s.guestId === record.guestId && s.time === record.time));
       return [...filtered, { guestId: record.guestId, time: newTime }];
     });
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'showers', String(recordId)), { time: newTime, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+        const { data, error } = await supabase
+          .from('shower_reservations')
+          .update({ scheduled_time: newTime, updated_at: new Date().toISOString() })
+          .eq('id', recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapShowerRow(data);
+          updatedRecord = mapped;
+          setShowerRecords(prev => prev.map(r => r.id === recordId ? mapped : r));
+        }
+      } catch (error) {
+        console.error('Failed to reschedule shower:', error);
+        toast.error('Unable to reschedule shower.');
+      }
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -1097,19 +1509,33 @@ export const AppProvider = ({ children }) => {
       description: `Rescheduled shower ${record.time} → ${newTime}`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-    return { ...record, time: newTime };
+    return updatedRecord;
   };
 
-  const updateShowerStatus = (recordId, newStatus) => {
-    setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, status: newStatus, lastUpdated: new Date().toISOString() } : r));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'showers', String(recordId)), { status: newStatus, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
-      });
+  const updateShowerStatus = async (recordId, newStatus) => {
+    const timestamp = new Date().toISOString();
+    setShowerRecords(prev => prev.map(r => r.id === recordId ? { ...r, status: newStatus, lastUpdated: timestamp } : r));
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+        const { data, error } = await supabase
+          .from('shower_reservations')
+          .update({ status: newStatus, updated_at: timestamp })
+          .eq('id', recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapShowerRow(data);
+          setShowerRecords(prev => prev.map(r => r.id === recordId ? mapped : r));
+        }
+      } catch (error) {
+        console.error('Failed to update shower status:', error);
+        toast.error('Unable to update shower status.');
+      }
     }
   };
 
-  const addLaundryRecord = (guestId, time, laundryType, bagNumber = '') => {
+  const addLaundryRecord = async (guestId, time, laundryType, bagNumber = '') => {
     if (laundryType === 'onsite') {
       const slotTaken = laundrySlots.some((slot) => slot.time === time);
       if (slotTaken) {
@@ -1131,30 +1557,64 @@ export const AppProvider = ({ children }) => {
       throw new Error("Guest already has a laundry booking today.");
     }
 
+    const timestamp = new Date().toISOString();
+    const scheduledFor = todayPacificDateString();
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('laundry_bookings')
+          .insert({
+            guest_id: guestId,
+            slot_label: laundryType === 'onsite' ? time : null,
+            laundry_type: laundryType,
+            bag_number: bagNumber,
+            scheduled_for: scheduledFor,
+            status: laundryType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapLaundryRow(data);
+        setLaundryRecords(prev => [...prev, mapped]);
+        if (laundryType === 'onsite') {
+          setLaundrySlots(prev => [...prev, { guestId, time, laundryType, bagNumber, status: mapped.status }]);
+        }
+        const action = {
+          id: Date.now() + Math.random(),
+          type: 'LAUNDRY_BOOKED',
+          timestamp,
+          data: { recordId: mapped.id, guestId, time, laundryType, bagNumber },
+          description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ''} for guest`
+        };
+        setActionHistory(prev => [action, ...prev.slice(0, 49)]);
+        return mapped;
+      } catch (error) {
+        console.error('Failed to create laundry booking:', error);
+        toast.error('Unable to save laundry booking.');
+        throw error;
+      }
+    }
+
     const record = {
-      id: Date.now(),
+      id: `local-${Date.now()}`,
       guestId,
       time: laundryType === 'onsite' ? time : null,
       laundryType,
       bagNumber,
-      date: new Date().toISOString(),
+      date: timestamp,
       status: laundryType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
     };
 
-    setLaundryRecords([...laundryRecords, record]);
+    setLaundryRecords(prev => [...prev, record]);
     if (laundryType === 'onsite') {
-      setLaundrySlots([...laundrySlots, { guestId, time, laundryType, bagNumber, status: record.status }]);
-    }
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'laundry', String(record.id)), record); } catch { /* ignore */ }
-      });
+      setLaundrySlots(prev => [...prev, { guestId, time, laundryType, bagNumber, status: record.status }]);
     }
 
     const action = {
       id: Date.now() + Math.random(),
       type: 'LAUNDRY_BOOKED',
-      timestamp: new Date().toISOString(),
+      timestamp,
       data: { recordId: record.id, guestId, time, laundryType, bagNumber },
       description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ''} for guest`
     };
@@ -1163,17 +1623,22 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const cancelLaundryRecord = (recordId) => {
+  const cancelLaundryRecord = async (recordId) => {
     const record = laundryRecords.find(r => r.id === recordId);
     if (!record) return false;
     setLaundryRecords(prev => prev.filter(r => r.id !== recordId));
     if (record.laundryType === 'onsite') {
       setLaundrySlots(prev => prev.filter(s => !(s.guestId === record.guestId && s.time === record.time)));
     }
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, deleteDoc } = await import('firebase/firestore'); await deleteDoc(doc(db, 'laundry', String(recordId))); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+  const { error } = await supabase.from('laundry_bookings').delete().eq('id', recordId);
+        if (error) throw error;
+      } catch (error) {
+        console.error('Failed to cancel laundry booking:', error);
+        toast.error('Unable to cancel laundry booking.');
+        return false;
+      }
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -1186,7 +1651,7 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  const rescheduleLaundry = (recordId, { newTime = null, newLaundryType = null } = {}) => {
+  const rescheduleLaundry = async (recordId, { newTime = null, newLaundryType = null } = {}) => {
     const record = laundryRecords.find(r => r.id === recordId);
     if (!record) throw new Error('Laundry booking not found');
     const targetType = newLaundryType || record.laundryType;
@@ -1201,13 +1666,16 @@ export const AppProvider = ({ children }) => {
       if (isNewToOnsite && onsiteSlots.length >= settings.maxOnsiteLaundrySlots) throw new Error('All on-site laundry slots are taken for today.');
     }
 
-    setLaundryRecords(prev => prev.map(r => {
-      if (r.id !== recordId) return r;
-      const updated = { ...r, laundryType: targetType, time: targetTime };
-      updated.status = targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING;
-      updated.lastUpdated = new Date().toISOString();
-      return updated;
-    }));
+    const timestamp = new Date().toISOString();
+    let updatedRecord = {
+      ...record,
+      laundryType: targetType,
+      time: targetTime,
+      status: targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+      lastUpdated: timestamp,
+    };
+
+    setLaundryRecords(prev => prev.map(r => r.id === recordId ? updatedRecord : r));
 
     setLaundrySlots(prev => {
       let next = prev.filter(s => !(s.guestId === record.guestId && s.time === record.time));
@@ -1217,10 +1685,29 @@ export const AppProvider = ({ children }) => {
       return next;
     });
 
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'laundry', String(recordId)), { laundryType: targetType, time: targetTime, status: targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+        const { data, error } = await supabase
+          .from('laundry_bookings')
+          .update({
+            laundry_type: targetType,
+            slot_label: targetTime,
+            status: targetType === 'onsite' ? LAUNDRY_STATUS.WAITING : LAUNDRY_STATUS.PENDING,
+            updated_at: timestamp,
+          })
+          .eq('id', recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapLaundryRow(data);
+          updatedRecord = mapped;
+          setLaundryRecords(prev => prev.map(r => r.id === recordId ? mapped : r));
+        }
+      } catch (error) {
+        console.error('Failed to update laundry booking:', error);
+        toast.error('Unable to update laundry booking.');
+      }
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -1230,10 +1717,10 @@ export const AppProvider = ({ children }) => {
       description: `Updated laundry to ${targetType}${targetTime ? ` at ${targetTime}` : ''}`
     };
     setActionHistory(prev => [action, ...prev.slice(0, 49)]);
-    return { ...record, laundryType: targetType, time: targetTime };
+    return updatedRecord;
   };
 
-  const updateLaundryStatus = (recordId, newStatus) => {
+  const updateLaundryStatus = async (recordId, newStatus) => {
     let updatedRecordRef = null;
     setLaundryRecords(prev => prev.map(record => {
       if (record.id !== recordId) return record;
@@ -1249,10 +1736,24 @@ export const AppProvider = ({ children }) => {
       }
       return slot;
     }));
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, updateDoc } = await import('firebase/firestore'); await updateDoc(doc(db, 'laundry', String(recordId)), { status: newStatus, lastUpdated: new Date().toISOString() }); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase && !String(recordId).startsWith('local-')) {
+      try {
+        const timestamp = new Date().toISOString();
+        const { data, error } = await supabase
+          .from('laundry_bookings')
+          .update({ status: newStatus, updated_at: timestamp })
+          .eq('id', recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapLaundryRow(data);
+          setLaundryRecords(prev => prev.map(r => r.id === recordId ? mapped : r));
+        }
+      } catch (error) {
+        console.error('Failed to update laundry status:', error);
+        toast.error('Unable to update laundry status.');
+      }
     }
   };
 
@@ -1434,10 +1935,9 @@ export const AppProvider = ({ children }) => {
   const normalizeDonation = (str) => toTitleCase((str || '').trim());
   const isValidDonationType = (type) => DONATION_TYPES.includes(type);
 
-  const addDonation = ({ type, itemName, trays = 0, weightLbs = 0, donor }) => {
+  const addDonation = async ({ type, itemName, trays = 0, weightLbs = 0, donor }) => {
     const now = new Date().toISOString();
     const clean = {
-      id: Date.now(),
       type: normalizeDonation(type),
       itemName: normalizeDonation(itemName),
       trays: Number(trays) || 0,
@@ -1450,15 +1950,38 @@ export const AppProvider = ({ children }) => {
     }
     if (!clean.itemName) throw new Error('Donation item name is required');
     if (!clean.donor) throw new Error('Donation source (donor) is required');
-    setDonationRecords(prev => [clean, ...prev]);
-    if (firestoreEnabled) {
-      ensureDb().then(async (db) => {
-        try { if (!db) return; const { doc, setDoc } = await import('firebase/firestore'); await setDoc(doc(db, 'donations', String(clean.id)), clean); } catch { /* ignore */ }
-      });
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('donations')
+          .insert({
+            donation_type: clean.type,
+            item_name: clean.itemName,
+            trays: clean.trays,
+            weight_lbs: clean.weightLbs,
+            donor: clean.donor,
+            donated_at: now,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        const mapped = mapDonationRow(data);
+        setDonationRecords(prev => [mapped, ...prev]);
+        setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'DONATION_ADDED', timestamp: now, data: { recordId: mapped.id }, description: `Donation: ${clean.itemName} (${clean.type})` }, ...prev.slice(0, 49)]);
+        toast.success('Donation recorded');
+        return mapped;
+      } catch (error) {
+        console.error('Failed to log donation in Supabase:', error);
+        toast.error('Unable to record donation.');
+        throw error;
+      }
     }
-    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'DONATION_ADDED', timestamp: now, data: { recordId: clean.id }, description: `Donation: ${clean.itemName} (${clean.type})` }, ...prev.slice(0, 49)]);
+
+    const fallback = { id: `local-${Date.now()}`, ...clean };
+    setDonationRecords(prev => [fallback, ...prev]);
+    setActionHistory(prev => [{ id: Date.now() + Math.random(), type: 'DONATION_ADDED', timestamp: now, data: { recordId: fallback.id }, description: `Donation: ${clean.itemName} (${clean.type})` }, ...prev.slice(0, 49)]);
     toast.success('Donation recorded');
-    return clean;
+    return fallback;
   };
 
   const getRecentDonations = (limit = 10) => {
@@ -1602,145 +2125,11 @@ export const AppProvider = ({ children }) => {
     setActionHistory([]);
   };
 
-  // Background sync: merge remote changes into local state for multi-admin use
-  useEffect(() => {
-    if (!firestoreEnabled) return;
-    let unsubscribers = [];
-    let mounted = true;
+  // TODO: Reintroduce multi-admin real-time sync using Supabase channels if needed
 
-    const mergeByNewest = (localArr, remoteArr, { idKey = 'id', timeKeys = ['lastUpdated', 'date'] } = {}) => {
-      try {
-        const map = new Map();
-        const ts = (obj) => {
-          for (const k of timeKeys) {
-            const v = obj && obj[k];
-            if (v) return new Date(v).getTime();
-          }
-          return 0;
-        };
-        for (const r of localArr || []) map.set(r[idKey], r);
-        for (const r of remoteArr || []) {
-          const id = r[idKey];
-          if (!map.has(id)) {
-            map.set(id, r);
-          } else {
-            const curr = map.get(id);
-            map.set(id, ts(r) >= ts(curr) ? { ...curr, ...r } : curr);
-          }
-        }
-        return Array.from(map.values());
-      } catch {
-        return localArr || [];
-      }
-    };
-
-    const subscribe = async () => {
-      const db = await ensureDb();
-      if (!db) return;
-      const { collection, onSnapshot, query, orderBy, limit } = await import('firebase/firestore');
-
-      const addHandler = (q, apply) => {
-        const unsub = onSnapshot(q, (snap) => {
-          if (!mounted) return;
-          const remote = snap.docs.map(d => d.data());
-          apply(remote);
-        }, () => { /* ignore */ });
-        unsubscribers.push(unsub);
-      };
-
-      // Helper to recompute today's shower/laundry slots from records
-      const recomputeTodaySlots = (nextShowerRecords, nextLaundryRecords) => {
-        try {
-          const today = todayPacificDateString();
-          // Showers
-          const showerSlotsToday = (nextShowerRecords || [])
-            .filter(r => r.time && pacificDateStringFrom(r.date) === today)
-            .map(r => ({ guestId: r.guestId, time: r.time }));
-          setShowerSlots(showerSlotsToday);
-          // Laundry (onsite only)
-          const laundrySlotsToday = (nextLaundryRecords || [])
-            .filter(r => r.laundryType === 'onsite' && r.time && pacificDateStringFrom(r.date) === today)
-            .map(r => ({ guestId: r.guestId, time: r.time, laundryType: 'onsite', bagNumber: r.bagNumber, status: r.status }));
-          setLaundrySlots(laundrySlotsToday);
-        } catch {
-          // ignore
-        }
-      };
-
-      // Meals and counts (append-only)
-      addHandler(query(collection(db, 'meals'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setMealRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'rvMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setRvMealRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'unitedEffortMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setUnitedEffortMealRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'extraMeals'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setExtraMealRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'dayWorkerMeals'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setDayWorkerMealRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'lunchBags'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setLunchBagRecords(prev => mergeByNewest(prev, remote));
-      });
-
-      // Items Given, Donations (append-only)
-      addHandler(query(collection(db, 'itemsGiven'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setItemGivenRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'donations'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setDonationRecords(prev => mergeByNewest(prev, remote));
-      });
-
-      // Holidays and Haircuts (append-only)
-      addHandler(query(collection(db, 'holidays'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setHolidayRecords(prev => mergeByNewest(prev, remote));
-      });
-      addHandler(query(collection(db, 'haircuts'), orderBy('date', 'desc'), limit(200)), (remote) => {
-        setHaircutRecords(prev => mergeByNewest(prev, remote));
-      });
-
-      // Showers (updates use lastUpdated)
-      addHandler(query(collection(db, 'showers'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setShowerRecords(prev => {
-          const merged = mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] });
-          // recompute slots based on merged showers and current laundry records
-          recomputeTodaySlots(merged, laundryRecords);
-          return merged;
-        });
-      });
-
-      // Laundry (updates use lastUpdated)
-      addHandler(query(collection(db, 'laundry'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setLaundryRecords(prev => {
-          const merged = mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] });
-          recomputeTodaySlots(showerRecords, merged);
-          return merged;
-        });
-      });
-
-      // Bicycles (may have updates; prefer lastUpdated)
-      addHandler(query(collection(db, 'bicycles'), orderBy('date', 'desc'), limit(500)), (remote) => {
-        setBicycleRecords(prev => mergeByNewest(prev, remote, { idKey: 'id', timeKeys: ['lastUpdated', 'date'] }));
-      });
-    };
-
-    subscribe();
-    return () => {
-      mounted = false;
-      for (const u of unsubscribers) {
-        try { u(); } catch { /* ignore */ }
-      }
-      unsubscribers = [];
-    };
-  }, [laundryRecords, showerRecords]);
-
-  const resetAllData = async (options = { local: true, firestore: false, keepGuests: false }) => {
+  const resetAllData = async (options = { local: true, supabase: false, keepGuests: false }) => {
     try {
-      const { local = true, firestore = false, keepGuests = false } = options || {};
+      const { local = true, supabase: supabaseReset = false, keepGuests = false } = options || {};
 
       if (local) {
         // Clear in-memory state
@@ -1780,39 +2169,55 @@ export const AppProvider = ({ children }) => {
         // keep settings by default
       }
 
-      if (firestore && firestoreEnabled) {
+      if (supabaseReset && supabaseEnabled && supabase) {
         try {
-          const db = await ensureDb();
-          if (db) {
-            const { collection, getDocs, deleteDoc, doc, setDoc } = await import('firebase/firestore');
-            const colls = [
-              { name: 'guests', keep: keepGuests },
-              { name: 'meals' },
-              { name: 'rvMeals' },
-              { name: 'unitedEffortMeals' },
-              { name: 'extraMeals' },
-              { name: 'dayWorkerMeals' },
-              { name: 'showers' },
-              { name: 'laundry' },
-              { name: 'bicycles' },
-              { name: 'holidays' },
-              { name: 'haircuts' },
-              { name: 'itemsGiven' },
-              { name: 'donations' },
-              { name: 'lunchBags' },
-            ];
-            for (const c of colls) {
-              if (c.keep) continue;
-              const snap = await getDocs(collection(db, c.name));
-              const promises = snap.docs.map(d => deleteDoc(doc(db, c.name, d.id)));
-              await Promise.all(promises);
-            }
+          const tables = [
+            { name: 'guests', keep: keepGuests },
+            { name: 'meal_attendance' },
+            { name: 'shower_reservations' },
+            { name: 'laundry_bookings' },
+            { name: 'bicycle_repairs' },
+            { name: 'holiday_visits' },
+            { name: 'haircut_visits' },
+            { name: 'items_distributed' },
+            { name: 'donations' },
+          ];
 
-            const settingsRef = doc(db, 'appSettings', 'global');
-            await setDoc(settingsRef, createDefaultSettings(), { merge: true });
+          for (const table of tables) {
+            if (table.keep) continue;
+            const { data, error } = await supabase.from(table.name).select('id');
+            if (error) {
+              console.warn(`Failed to fetch ${table.name} for reset:`, error);
+              continue;
+            }
+            const ids = (data || []).map(row => row.id).filter(Boolean);
+            if (!ids.length) continue;
+            const { error: deleteError } = await supabase.from(table.name).delete().in('id', ids);
+            if (deleteError) {
+              console.warn(`Failed to delete rows from ${table.name}:`, deleteError);
+            }
+          }
+
+          const defaults = createDefaultSettings();
+          const { error: settingsError } = await supabase
+            .from('app_settings')
+            .upsert({
+              id: 'global',
+              site_name: defaults.siteName,
+              max_onsite_laundry_slots: defaults.maxOnsiteLaundrySlots,
+              enable_offsite_laundry: defaults.enableOffsiteLaundry,
+              ui_density: defaults.uiDensity,
+              show_charts: defaults.showCharts,
+              default_report_days: defaults.defaultReportDays,
+              donation_autofill: defaults.donationAutofill,
+              default_donation_type: defaults.defaultDonationType,
+              targets: defaults.targets,
+            });
+          if (settingsError) {
+            console.warn('Failed to reset settings in Supabase:', settingsError);
           }
         } catch (err) {
-          console.warn('Firestore reset failed:', err);
+          console.warn('Supabase reset failed:', err);
         }
       }
 

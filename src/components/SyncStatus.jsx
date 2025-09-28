@@ -1,9 +1,11 @@
-import React from 'react';
-import { Wifi, WifiOff, Cloud, CloudOff, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useContext } from 'react';
+import { Wifi, WifiOff, Cloud, CloudOff, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useOnlineStatus } from '../context/FirestoreSync';
+import AppContext from '../context/internalContext';
 
 const SyncStatus = ({ isFirestoreEnabled = false, hasFirestoreConnection = false }) => {
   const isOnline = useOnlineStatus();
+  const { isSyncing, triggerGlobalSync } = useContext(AppContext);
   
   const getStatusInfo = () => {
     if (!isOnline) {
@@ -34,8 +36,8 @@ const SyncStatus = ({ isFirestoreEnabled = false, hasFirestoreConnection = false
         color: 'text-green-500',
         bgColor: 'bg-green-50',
         borderColor: 'border-green-200',
-        title: 'Real-time Sync',
-        description: 'Multi-user sync active'
+        title: 'Conservative Sync',
+        description: 'Periodic sync active (30s intervals)'
       };
     }
     
@@ -52,6 +54,12 @@ const SyncStatus = ({ isFirestoreEnabled = false, hasFirestoreConnection = false
   const status = getStatusInfo();
   const Icon = status.icon;
 
+  const handleManualSync = () => {
+    if (isFirestoreEnabled && hasFirestoreConnection && !isSyncing && triggerGlobalSync) {
+      triggerGlobalSync();
+    }
+  };
+
   return (
     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${status.bgColor} ${status.borderColor}`}>
       <Icon size={16} className={status.color} />
@@ -59,6 +67,23 @@ const SyncStatus = ({ isFirestoreEnabled = false, hasFirestoreConnection = false
         <div className={`font-medium ${status.color}`}>{status.title}</div>
         <div className="text-gray-600">{status.description}</div>
       </div>
+      
+      {/* Sync indicator and manual sync button */}
+      {isFirestoreEnabled && hasFirestoreConnection && (
+        <div className="flex items-center gap-1 ml-2">
+          {isSyncing ? (
+            <RefreshCw size={12} className="text-blue-500 animate-spin" />
+          ) : (
+            <button
+              onClick={handleManualSync}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              title="Trigger manual sync"
+            >
+              <RefreshCw size={12} className="text-gray-400 hover:text-blue-500" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

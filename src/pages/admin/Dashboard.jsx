@@ -473,11 +473,11 @@ const Dashboard = () => {
     </div>
   );
 
-  const [resetOptions, setResetOptions] = useState({ local: true, firestore: false, keepGuests: false });
+  const [resetOptions, setResetOptions] = useState({ local: true, supabase: false, keepGuests: false });
   const [isResetting, setIsResetting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const useFirebase = import.meta.env.VITE_USE_FIREBASE === 'true';
+  const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const localCounts = useMemo(() => ({
     guests: guests?.length || 0,
@@ -497,11 +497,11 @@ const Dashboard = () => {
   }), [guests, mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, showerRecords, laundryRecords, itemGivenRecords, haircutRecords, holidayRecords, bicycleRecords, donationRecords]);
   const renderSystemSection = () => {
     const scopeParts = [];
-    if (resetOptions.local) scopeParts.push('local data');
-    if (resetOptions.firestore) scopeParts.push('cloud data');
+  if (resetOptions.local) scopeParts.push('local data');
+  if (resetOptions.supabase) scopeParts.push('cloud data');
     const scopeSummary = scopeParts.length > 0 ? scopeParts.join(' + ') : 'No data sets selected';
     const guestSummary = resetOptions.keepGuests ? 'Guest directory will be preserved.' : 'Guest directory will be cleared as well.';
-    const resetDisabled = isResetting || (!resetOptions.local && !resetOptions.firestore);
+  const resetDisabled = isResetting || (!resetOptions.local && !resetOptions.supabase);
 
     const impactList = [
       { label: 'Meals', value: localCounts.meals },
@@ -535,7 +535,7 @@ const Dashboard = () => {
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide">
                 <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
-                  <Cloud size={14} className="text-white" /> Cloud sync: {useFirebase ? 'enabled' : 'disabled'}
+                  <Cloud size={14} className="text-white" /> Cloud sync: {supabaseConfigured ? 'enabled' : 'disabled'}
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
                   <Database size={14} className="text-white" /> Scope: {scopeSummary}
@@ -565,7 +565,7 @@ const Dashboard = () => {
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <AlertTriangle size={18} className="text-rose-500" /> Step 1 · Choose what to reset
                   </h3>
-                  <p className="text-sm text-gray-500">Tick the areas you want to clear. Cloud data is only available when Firestore sync is enabled.</p>
+                  <p className="text-sm text-gray-500">Tick the areas you want to clear. Cloud data is only available when Supabase sync is configured.</p>
                 </div>
                 <div className="inline-flex items-center gap-2 text-xs rounded-full px-3 py-1 bg-rose-50 text-rose-600">
                   <RefreshCcw size={14} /> Pending scope
@@ -587,18 +587,18 @@ const Dashboard = () => {
                 </label>
 
                 <label
-                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.firestore && useFirebase ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition ${!useFirebase ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  title={!useFirebase ? 'Enable Firebase in settings to reset cloud collections' : ''}
+                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.supabase && supabaseConfigured ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition ${!supabaseConfigured ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  title={!supabaseConfigured ? 'Configure Supabase credentials to reset cloud tables' : ''}
                 >
                   <input
                     className="mt-1 h-4 w-4 text-rose-500 focus:ring-rose-500"
                     type="checkbox"
-                    disabled={!useFirebase}
-                    checked={resetOptions.firestore && useFirebase}
-                    onChange={e => setResetOptions(o => ({ ...o, firestore: e.target.checked && useFirebase }))}
+                    disabled={!supabaseConfigured}
+                    checked={resetOptions.supabase && supabaseConfigured}
+                    onChange={e => setResetOptions(o => ({ ...o, supabase: e.target.checked && supabaseConfigured }))}
                   />
                   <div className="text-sm">
-                    <p className="font-semibold text-gray-900">Firestore collections</p>
+                    <p className="font-semibold text-gray-900">Supabase tables</p>
                     <p className="text-xs text-gray-500">Deletes synced records in the cloud to match this reset.</p>
                   </div>
                 </label>
@@ -622,24 +622,24 @@ const Dashboard = () => {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: true, firestore: false, keepGuests: false })}
+                    onClick={() => setResetOptions({ local: true, supabase: false, keepGuests: false })}
                     className="px-3 py-2 text-xs font-semibold rounded-full border border-gray-200 hover:border-rose-300 hover:text-rose-600 transition"
                   >
                     Local only
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: false, firestore: true, keepGuests: false })}
-                    disabled={!useFirebase}
-                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${useFirebase ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    onClick={() => setResetOptions({ local: false, supabase: true, keepGuests: false })}
+                    disabled={!supabaseConfigured}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
                   >
                     Cloud only
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: true, firestore: true, keepGuests: true })}
-                    disabled={!useFirebase}
-                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${useFirebase ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    onClick={() => setResetOptions({ local: true, supabase: true, keepGuests: true })}
+                    disabled={!supabaseConfigured}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
                   >
                     Everything · keep guests
                   </button>
@@ -703,7 +703,7 @@ const Dashboard = () => {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">3</span>
-                  If Firestore is enabled, double-check you truly want to wipe the cloud backup.
+                  If Supabase sync is enabled, double-check you truly want to wipe the cloud backup.
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">4</span>
@@ -731,15 +731,26 @@ const Dashboard = () => {
                 <AlertTriangle size={20} />
                 <div>
                   <h4 className="text-lg font-semibold">Type RESET to finalize</h4>
-                  <p className="text-sm text-gray-600">This action removes the selected records immediately. There is no undo.</p>
+                  <p className="text-sm text-gray-600">This action removes the selected records immediately. There is no undo. If Supabase sync is enabled, double-check you truly want to wipe the cloud backup.</p>
                 </div>
               </div>
               <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-sm text-rose-900 space-y-2">
                 <div className="font-semibold uppercase tracking-wide text-xs">What will happen</div>
                 <ul className="list-disc list-inside space-y-1">
-                  {resetOptions.local && <li>Local storage on this device will be cleared for services, donations, supplies, and schedules{resetOptions.keepGuests ? ', keeping guest profiles' : ', including guest profiles'}.</li>}
-                  {resetOptions.firestore && <li>Firestore collections (meals, showers, laundry, donations, supplies, bicycles, holidays, haircuts, and extras) will be deleted to match.</li>}
-                  {!resetOptions.local && !resetOptions.firestore && <li>No data sets selected. Close to adjust your options.</li>}
+                  {resetOptions.local && (
+                    <li>
+                      Local storage on this device will be cleared for services, donations, supplies, and schedules
+                      {resetOptions.keepGuests ? ', keeping guest profiles' : ', including guest profiles'}.
+                    </li>
+                  )}
+                  {resetOptions.supabase && (
+                    <li>
+                      Supabase tables (meals, showers, laundry, donations, supplies, bicycles, holidays, haircuts, and extras) will be deleted to match.
+                    </li>
+                  )}
+                  {!resetOptions.local && !resetOptions.supabase && (
+                    <li>No data sets selected. Close to adjust your options.</li>
+                  )}
                 </ul>
               </div>
               <div className="space-y-2">

@@ -153,16 +153,16 @@ const LaundryBooking = () => {
   if (!laundryPickerGuest) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
-        <div className="p-6 space-y-6">
+    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
+      <div className="bg-white rounded-t-2xl md:rounded-lg w-full md:max-w-2xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-xl">
+        <div className="p-4 md:p-6 space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold flex items-center gap-2">
+            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
               <WashingMachine /> Book Laundry for {laundryPickerGuest.name}
             </h2>
             <button
               onClick={() => setLaundryPickerGuest(null)}
-              className="p-1 rounded-full hover:bg-gray-100"
+              className="p-2 md:p-1 rounded-full hover:bg-gray-100"
             >
               <X size={20} />
             </button>
@@ -232,34 +232,34 @@ const LaundryBooking = () => {
             </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Select Laundry Type:</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {laundryTypes.map((type) => (
-                <div key={type.id} className="relative">
-                  <input
-                    type="radio"
-                    name="laundryType"
-                    id={`laundry-type-${type.id}`}
-                    className="peer absolute opacity-0"
-                    checked={selectedLaundryType === type.id}
-                    onChange={() => setSelectedLaundryType(type.id)}
-                  />
-                  <label
-                    htmlFor={`laundry-type-${type.id}`}
-                    className={`block p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedLaundryType === type.id
-                        ? 'bg-purple-100 border-purple-500 text-purple-900 shadow-sm'
-                        : 'bg-white hover:bg-gray-50 border-gray-200'
-                    }`}
-                  >
-                    <div className="font-medium">{type.label}</div>
-                    <div className="text-xs text-gray-500">{type.description}</div>
-                  </label>
-                </div>
-              ))}
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Select Laundry Type:</h3>
+              <div className="grid grid-cols-1 gap-3">
+                {laundryTypes.map((type) => (
+                  <div key={type.id} className="relative">
+                    <input
+                      type="radio"
+                      name="laundryType"
+                      id={`laundry-type-${type.id}`}
+                      className="peer absolute opacity-0"
+                      checked={selectedLaundryType === type.id}
+                      onChange={() => setSelectedLaundryType(type.id)}
+                    />
+                    <label
+                      htmlFor={`laundry-type-${type.id}`}
+                      className={`block p-4 border rounded-lg cursor-pointer transition-colors ${
+                        selectedLaundryType === type.id
+                          ? 'bg-purple-100 border-purple-500 text-purple-900 shadow-sm'
+                          : 'bg-white hover:bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="font-medium text-base">{type.label}</div>
+                      <div className="text-sm text-gray-500 mt-1">{type.description}</div>
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
           {selectedLaundryType === 'onsite' ? (
             <div className="space-y-4">
@@ -287,7 +287,7 @@ const LaundryBooking = () => {
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Select Available Time Slot:</h3>
                 <p className="text-xs text-gray-500 mb-3">Maximum of {onsiteCapacity} on-site laundry slots per day</p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {allLaundrySlots.map((slotTime) => {
                     const booked = isSlotBooked(slotTime);
                     const slotInfo = slotAssignments.get(slotTime);
@@ -297,32 +297,32 @@ const LaundryBooking = () => {
                         key={slotTime}
                         onClick={() => !booked && !capacityReached && handleBookLaundry(slotTime)}
                         disabled={booked || capacityReached}
-                        className={`flex items-center justify-between gap-3 px-4 py-3 border rounded-lg transition-all duration-200 text-left ${
+                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-4 border rounded-lg transition-all duration-200 text-left ${
                           booked || capacityReached
                             ? 'bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200'
                             : 'bg-white hover:bg-purple-50 text-gray-800 hover:border-purple-500 shadow-sm'
                         }`}
                       >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                            <Clock size={16} />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 text-base font-semibold text-gray-800">
+                            <Clock size={18} />
                             <span>{slotTime}</span>
                           </div>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-gray-500">
                             {booked ? 'Currently assigned' : 'Tap to reserve this hour'}
                           </p>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex flex-col items-start sm:items-end gap-1">
                           {slotInfo ? (
                             <>
-                              <span className="text-xs font-medium text-gray-700">{slotInfo.guestName}</span>
-                              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${statusChipStyles[slotInfo.status] || 'bg-gray-200 text-gray-700'}`}>
+                              <span className="text-sm font-medium text-gray-700">{slotInfo.guestName}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusChipStyles[slotInfo.status] || 'bg-gray-200 text-gray-700'}`}>
                                 {humanizeStatus(slotInfo.status)}
                               </span>
                             </>
                           ) : (
-                            <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">Available</span>
+                            <span className="text-sm text-purple-600 bg-purple-50 px-3 py-1 rounded-full">Available</span>
                           )}
                         </div>
                       </button>
@@ -331,11 +331,11 @@ const LaundryBooking = () => {
                 </div>
               </div>
 
-              <div className="flex justify-between items-center text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 text-sm text-gray-600">
                 <span><span className="font-semibold">{onsiteSlotsTaken}</span> / {onsiteCapacity} on-site slots booked today</span>
                 <button
                   onClick={() => setLaundryPickerGuest(null)}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center gap-2"
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   Cancel
                 </button>
@@ -361,16 +361,16 @@ const LaundryBooking = () => {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
                 <button
                   onClick={() => handleBookLaundry()}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 order-2 sm:order-1"
                 >
                   Book Off-site Laundry
                 </button>
                 <button
                   onClick={() => setLaundryPickerGuest(null)}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center gap-2"
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center justify-center gap-2 order-1 sm:order-2"
                 >
                   Cancel
                 </button>
