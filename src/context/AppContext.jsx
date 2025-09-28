@@ -1905,29 +1905,48 @@ export const AppProvider = ({ children }) => {
   };
 
   const exportDataAsCSV = (data, filename) => {
-    if (!data || !data.length) return null;
+    if (!Array.isArray(data) || data.length === 0) {
+      return false;
+    }
 
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row => headers.map(key => {
-        const value = row[key];
-        if (typeof value === 'string' && value.includes(',')) {
-          return `"${value}"`;
+    const headerSet = new Set();
+    const headers = [];
+
+    const collectHeaders = (row) => {
+      Object.keys(row || {}).forEach(key => {
+        if (!headerSet.has(key)) {
+          headerSet.add(key);
+          headers.push(key);
         }
-        return value;
-      }).join(','))
-    ].join('\n');
+      });
+    };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    data.forEach(collectHeaders);
+
+    const serializeValue = (value) => {
+      if (value === null || value === undefined) return '';
+      const stringValue = String(value).replace(/\r?\n/g, '\n');
+      const needsQuoting = /[",\n]/.test(stringValue);
+      const escaped = stringValue.replace(/"/g, '""');
+      return needsQuoting ? `"${escaped}"` : escaped;
+    };
+
+    const csvLines = [
+      headers.map(serializeValue).join(','),
+      ...data.map(row => headers.map(header => serializeValue(row?.[header])).join(','))
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');
-    link.setAttribute('href', url);
+    link.href = url;
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    requestAnimationFrame(() => URL.revokeObjectURL(url));
 
     return true;
   };
