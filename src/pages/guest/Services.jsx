@@ -93,26 +93,25 @@ const Services = () => {
     extraMealRecords,
     addExtraMealRecord,
     dayWorkerMealRecords,
+    removeMealAttendanceRecord,
     addDayWorkerMealRecord,
     lunchBagRecords,
     addLunchBagRecord,
-    setExtraMealRecords,
-  laundryRecords,
+    laundryRecords,
     showerRecords,
-  haircutRecords,
-  holidayRecords,
+    haircutRecords,
+    holidayRecords,
     guests,
     showerPickerGuest,
     laundryPickerGuest,
     LAUNDRY_STATUS,
     updateLaundryStatus,
     setLaundryRecords,
-    setMealRecords,
     actionHistory,
     undoAction,
     clearActionHistory,
     allShowerSlots,
-  allLaundrySlots,
+    allLaundrySlots,
     cancelShowerRecord,
     rescheduleShower,
     updateShowerStatus,
@@ -122,7 +121,7 @@ const Services = () => {
     getLastGivenItem,
     giveItem,
     getNextAvailabilityDate,
-  getDaysUntilAvailable,
+    getDaysUntilAvailable,
     bicycleRecords,
     updateBicycleRecord,
     deleteBicycleRecord,
@@ -2439,12 +2438,13 @@ const Services = () => {
                                 return;
                               }
                             }
-                            if (isExtraGuestMeal) {
-                              setExtraMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                            const recordType = rec.type || (isExtraGuestMeal ? 'extra' : 'guest');
+                            const ok = await removeMealAttendanceRecord(rec.id, recordType);
+                            if (ok) {
+                              toast.success(isExtraGuestMeal ? 'Extra meal entry deleted' : 'Meal entry deleted');
                             } else {
-                              setMealRecords(prev => prev.filter(r => r.id !== rec.id));
+                              toast.error('Unable to delete meal entry.');
                             }
-                            toast.success(isExtraGuestMeal ? 'Extra meal entry deleted' : 'Meal entry deleted');
                           }}
                         >
                           Remove

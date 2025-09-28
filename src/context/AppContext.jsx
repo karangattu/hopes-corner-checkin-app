@@ -2122,6 +2122,42 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const removeMealAttendanceRecord = async (recordId, mealType = 'guest') => {
+    if (!recordId) return false;
+
+    const shouldDeleteRemote = supabaseEnabled && supabase && !(typeof recordId === 'string' && recordId.startsWith('local-'));
+    if (shouldDeleteRemote) {
+      const deleted = await deleteSupabaseRecord('meal_attendance', recordId, 'Unable to remove meal entry.');
+      if (!deleted) return false;
+    }
+
+    const applyRemoval = (setter) => setter(prev => prev.filter(r => r.id !== recordId));
+    switch (mealType) {
+      case 'rv':
+        applyRemoval(setRvMealRecords);
+        break;
+      case 'united_effort':
+        applyRemoval(setUnitedEffortMealRecords);
+        break;
+      case 'extra':
+        applyRemoval(setExtraMealRecords);
+        break;
+      case 'day_worker':
+        applyRemoval(setDayWorkerMealRecords);
+        break;
+      case 'lunch_bag':
+        applyRemoval(setLunchBagRecords);
+        break;
+      case 'guest':
+      default:
+        applyRemoval(setMealRecords);
+        break;
+    }
+
+    setActionHistory(prev => prev.filter(entry => entry?.data?.recordId !== recordId));
+    return true;
+  };
+
   const undoAction = async (actionId) => {
     const action = actionHistory.find(a => a.id === actionId);
     if (!action) return false;
@@ -2602,6 +2638,7 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
+  removeMealAttendanceRecord,
     addShowerRecord,
     addShowerWaitlist,
     addLaundryRecord,
