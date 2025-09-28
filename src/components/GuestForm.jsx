@@ -1,59 +1,67 @@
-import React, { useState } from 'react';
-import { User, Home, MapPin, Bike, Plus, CheckCircle, AlertCircle } from 'lucide-react';
-import Selectize from './Selectize';
-import { useAppContext } from '../context/useAppContext';
+import React, { useState } from "react";
+import {
+  User,
+  Home,
+  MapPin,
+  Bike,
+  Plus,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import Selectize from "./Selectize";
+import { useAppContext } from "../context/useAppContext";
 
 const GuestForm = () => {
   const { addGuest } = useAppContext();
   const [formData, setFormData] = useState({
-    name: '',
-    housingStatus: 'Unhoused',
-    location: '',
-    notes: '',
-    bicycleDescription: ''
+    name: "",
+    housingStatus: "Unhoused",
+    location: "",
+    notes: "",
+    bicycleDescription: "",
   });
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const BAY_AREA_CITIES = [
-    'Antioch',
-    'Berkeley',
-    'Concord',
-    'Daly City',
-    'Fremont',
-    'Hayward',
-    'Livermore',
-    'Mountain View',
-    'Oakland',
-    'Palo Alto',
-    'Redwood City',
-    'Richmond',
-    'San Francisco',
-    'San Jose',
-    'San Leandro',
-    'San Mateo',
-    'Santa Clara',
-    'Santa Rosa',
-    'Sunnyvale',
-    'Vallejo',
-    'Walnut Creek',
+    "Antioch",
+    "Berkeley",
+    "Concord",
+    "Daly City",
+    "Fremont",
+    "Hayward",
+    "Livermore",
+    "Mountain View",
+    "Oakland",
+    "Palo Alto",
+    "Redwood City",
+    "Richmond",
+    "San Francisco",
+    "San Jose",
+    "San Leandro",
+    "San Mateo",
+    "Santa Clara",
+    "Santa Rosa",
+    "Sunnyvale",
+    "Vallejo",
+    "Walnut Creek",
   ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (!formData.name.trim()) {
-      setError('Please enter a guest name');
+      setError("Please enter a guest name");
       return;
     }
 
@@ -62,11 +70,11 @@ const GuestForm = () => {
     try {
       addGuest(formData);
       setFormData({
-        name: '',
-        housingStatus: 'Unhoused',
-        location: '',
-        notes: '',
-        bicycleDescription: ''
+        name: "",
+        housingStatus: "Unhoused",
+        location: "",
+        notes: "",
+        bicycleDescription: "",
       });
 
       setShowSuccessMessage(true);
@@ -83,7 +91,9 @@ const GuestForm = () => {
       {showSuccessMessage && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
           <CheckCircle size={20} className="text-green-600" />
-          <span className="text-green-800 font-medium">Guest registered successfully!</span>
+          <span className="text-green-800 font-medium">
+            Guest registered successfully!
+          </span>
         </div>
       )}
 
@@ -94,9 +104,12 @@ const GuestForm = () => {
         </div>
       )}
 
-  <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="guest-name-input" className="block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="guest-name-input"
+            className="block text-sm font-semibold text-gray-700"
+          >
             Guest Name*
           </label>
           <div className="relative">
@@ -118,7 +131,10 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="housing-status-select" className="block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="housing-status-select"
+            className="block text-sm font-semibold text-gray-700"
+          >
             Housing Status
           </label>
           <div className="relative">
@@ -152,8 +168,8 @@ const GuestForm = () => {
             </div>
             <Selectize
               options={[
-                ...BAY_AREA_CITIES.map(c => ({ value: c, label: c })),
-                { value: 'Outside SF Bay Area', label: 'Outside SF Bay Area' },
+                ...BAY_AREA_CITIES.map((c) => ({ value: c, label: c })),
+                { value: "Outside SF Bay Area", label: "Outside SF Bay Area" },
               ]}
               value={formData.location}
               onChange={(val) => setFormData({ ...formData, location: val })}
@@ -167,7 +183,10 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="notes-textarea" className="block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="notes-textarea"
+            className="block text-sm font-semibold text-gray-700"
+          >
             Notes
           </label>
           <textarea
@@ -183,7 +202,10 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="bicycle-description" className="block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="bicycle-description"
+            className="block text-sm font-semibold text-gray-700"
+          >
             Bicycle description
           </label>
           <div className="relative">
@@ -202,7 +224,8 @@ const GuestForm = () => {
             />
           </div>
           <p className="text-xs text-gray-500">
-            Capturing bike details helps ensure each guest registers only one bicycle for repairs.
+            Capturing bike details helps ensure each guest registers only one
+            bicycle for repairs.
           </p>
         </div>
 
@@ -212,7 +235,7 @@ const GuestForm = () => {
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm hover:shadow-md"
         >
           <Plus size={18} />
-          {isSubmitting ? 'Registering...' : 'Register Guest'}
+          {isSubmitting ? "Registering..." : "Register Guest"}
         </button>
       </form>
     </div>

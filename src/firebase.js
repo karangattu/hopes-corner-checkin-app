@@ -1,12 +1,15 @@
-import { initializeApp } from 'firebase/app';
-import { getAnalytics, isSupported as analyticsSupported } from 'firebase/analytics';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import {
+  getAnalytics,
+  isSupported as analyticsSupported,
+} from "firebase/analytics";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
 import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
   connectFirestoreEmulator,
-} from 'firebase/firestore';
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -39,14 +42,19 @@ try {
 }
 export const db = dbInstance;
 
-if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+if (
+  import.meta.env.DEV &&
+  import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"
+) {
   try {
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
   } catch {
     // ignore
   }
   try {
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", {
+      disableWarnings: true,
+    });
   } catch {
     // ignore
   }

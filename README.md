@@ -51,6 +51,7 @@ This repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) 
    ```
 
    Restart `npm run dev` after changing environment variables.
+
 3. **Connect the Firebase CLI**:
 
    ```bash
@@ -60,6 +61,7 @@ This repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) 
    ```
 
    This updates `.firebaserc` to point at your project.
+
 4. **Deploy**: Build and deploy using the provided script.
 
    ```bash

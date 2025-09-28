@@ -11,9 +11,13 @@ import LaundryBooking from "./components/LaundryBooking";
 import BicycleRepairBooking from "./components/BicycleRepairBooking";
 import Login from "./pages/Login";
 
-
 const AppContent = () => {
-  const { activeTab, showerPickerGuest, laundryPickerGuest, bicyclePickerGuest } = useAppContext();
+  const {
+    activeTab,
+    showerPickerGuest,
+    laundryPickerGuest,
+    bicyclePickerGuest,
+  } = useAppContext();
   const { user } = useAuth();
 
   if (!user) {
@@ -22,11 +26,11 @@ const AppContent = () => {
 
   const renderPage = () => {
     switch (activeTab) {
-      case 'check-in':
+      case "check-in":
         return <CheckIn />;
-      case 'services':
+      case "services":
         return <Services />;
-      case 'admin':
+      case "admin":
         return <Dashboard />;
       default:
         return <CheckIn />;

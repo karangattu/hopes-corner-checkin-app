@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useSpring, useTrail, animated, config } from '@react-spring/web';
+import React, { useEffect, useMemo, useState } from "react";
+import { useSpring, useTrail, animated, config } from "@react-spring/web";
 
 export const useFadeInUp = (deps = []) =>
   useSpring({
@@ -27,20 +27,21 @@ export const useStagger = (length, open = true) =>
   });
 
 export const iconHoverProps = {
-  className: 'transition-transform duration-200 will-change-transform hover:scale-110',
+  className:
+    "transition-transform duration-200 will-change-transform hover:scale-110",
 };
 
 const usePrefersReducedMotion = () => {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduced(!!mq.matches);
     update();
-    if (mq.addEventListener) mq.addEventListener('change', update);
+    if (mq.addEventListener) mq.addEventListener("change", update);
     else mq.addListener(update);
     return () => {
-      if (mq.removeEventListener) mq.removeEventListener('change', update);
+      if (mq.removeEventListener) mq.removeEventListener("change", update);
       else mq.removeListener(update);
     };
   }, []);
@@ -50,7 +51,7 @@ const usePrefersReducedMotion = () => {
 export const useIconHoverSpring = (options = {}) => {
   const {
     scale = 1.12,
-  lift = 1,
+    lift = 1,
     tension = 300,
     friction = 16,
     tapDuration = 180,
@@ -60,37 +61,52 @@ export const useIconHoverSpring = (options = {}) => {
 
   const spring = useSpring({
     to: {
-      scale: prefersReduced ? 1 : (active ? scale : 1),
-      y: prefersReduced ? 0 : (active ? -lift : 0),
+      scale: prefersReduced ? 1 : active ? scale : 1,
+      y: prefersReduced ? 0 : active ? -lift : 0,
     },
     config: { tension, friction },
   });
 
-  const handlers = useMemo(() => ({
-    onMouseEnter: () => setActive(true),
-    onMouseLeave: () => setActive(false),
-    onFocus: () => setActive(true),
-    onBlur: () => setActive(false),
-    onKeyDown: (e) => {
-      if (e.key === 'Enter' || e.key === ' ') setActive(true);
-    },
-    onKeyUp: () => setActive(false),
-    onTouchStart: () => {
-      setActive(true);
-      window.setTimeout(() => setActive(false), tapDuration);
-    },
-  }), [tapDuration]);
+  const handlers = useMemo(
+    () => ({
+      onMouseEnter: () => setActive(true),
+      onMouseLeave: () => setActive(false),
+      onFocus: () => setActive(true),
+      onBlur: () => setActive(false),
+      onKeyDown: (e) => {
+        if (e.key === "Enter" || e.key === " ") setActive(true);
+      },
+      onKeyUp: () => setActive(false),
+      onTouchStart: () => {
+        setActive(true);
+        window.setTimeout(() => setActive(false), tapDuration);
+      },
+    }),
+    [tapDuration],
+  );
 
   return { style: spring, handlers };
 };
 
-export const SpringIcon = ({ children, className = '', options = {}, ...rest }) => {
+export const SpringIcon = ({
+  children,
+  className = "",
+  options = {},
+  ...rest
+}) => {
   const { style, handlers } = useIconHoverSpring(options);
   const mergedClass = `inline-flex items-center justify-center will-change-transform ${className}`;
   return React.createElement(
     animated.span,
-    { style, className: mergedClass, role: rest.role || 'img', 'aria-hidden': rest['aria-hidden'] ?? 'true', ...handlers, ...rest },
-    children
+    {
+      style,
+      className: mergedClass,
+      role: rest.role || "img",
+      "aria-hidden": rest["aria-hidden"] ?? "true",
+      ...handlers,
+      ...rest,
+    },
+    children,
   );
 };
 

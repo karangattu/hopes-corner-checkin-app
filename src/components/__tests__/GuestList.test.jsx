@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import GuestList from '../GuestList';
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import GuestList from "../GuestList";
 
 const createDefaultContext = () => ({
   guests: [],
@@ -30,114 +30,122 @@ const createDefaultContext = () => ({
 
 let mockContextValue = createDefaultContext();
 
-vi.mock('../../context/useAppContext', () => ({
+vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => mockContextValue,
 }));
 
-describe('GuestList', () => {
+describe("GuestList", () => {
   beforeEach(() => {
     mockContextValue = createDefaultContext();
   });
 
-  it('shows the tip describing how to enable the create guest shortcut', () => {
+  it("shows the tip describing how to enable the create guest shortcut", () => {
     render(<GuestList />);
 
     expect(
-      screen.getByText(/first name and at least the first letter of the last name/i)
+      screen.getByText(
+        /first name and at least the first letter of the last name/i,
+      ),
     ).toBeInTheDocument();
   });
 
-  it('displays create-guest prompt when search has first and last initial with no results', async () => {
+  it("displays create-guest prompt when search has first and last initial with no results", async () => {
     const user = userEvent.setup();
     render(<GuestList />);
 
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, 'Alex R');
+    await user.type(search, "Alex R");
 
-    expect(await screen.findByText(/no guest found for "Alex R"/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /create new guest/i })
+      await screen.findByText(/no guest found for "Alex R"/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /create new guest/i }),
     ).toBeInTheDocument();
   });
 
-  it('shows matched guests instead of create prompt when results exist', async () => {
+  it("shows matched guests instead of create prompt when results exist", async () => {
     const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
         {
-          id: 'g1',
-          name: 'Jane Roe',
-          preferredName: '',
-          firstName: 'Jane',
-          lastName: 'Roe',
-          housingStatus: 'Unhoused',
-          location: 'Mountain View',
-          age: 'Adult 18-59',
-          gender: 'Female',
+          id: "g1",
+          name: "Jane Roe",
+          preferredName: "",
+          firstName: "Jane",
+          lastName: "Roe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Female",
         },
       ],
     };
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, 'Jane R');
+    await user.type(search, "Jane R");
 
     expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
     expect(screen.queryByText(/no guest found/i)).not.toBeInTheDocument();
   });
 
-  it('filters guests by partial name match', async () => {
+  it("filters guests by partial name match", async () => {
     const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
-        { id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' },
-        { id: 'g2', name: 'Jane Doe', firstName: 'Jane', lastName: 'Doe' },
-        { id: 'g3', name: 'Bob Smith', firstName: 'Bob', lastName: 'Smith' },
+        { id: "g1", name: "John Doe", firstName: "John", lastName: "Doe" },
+        { id: "g2", name: "Jane Doe", firstName: "Jane", lastName: "Doe" },
+        { id: "g3", name: "Bob Smith", firstName: "Bob", lastName: "Smith" },
       ],
     };
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, 'Doe');
+    await user.type(search, "Doe");
 
     expect(await screen.findByText(/found 2 guests/i)).toBeInTheDocument();
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-    expect(screen.queryByText('Bob Smith')).not.toBeInTheDocument();
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.queryByText("Bob Smith")).not.toBeInTheDocument();
   });
 
-  it('shows no results when search does not match', async () => {
+  it("shows no results when search does not match", async () => {
     const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
-      guests: [{ id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' }],
+      guests: [
+        { id: "g1", name: "John Doe", firstName: "John", lastName: "Doe" },
+      ],
     };
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, 'Nonexistent');
+    await user.type(search, "Nonexistent");
 
     expect(await screen.findByText(/no guests found/i)).toBeInTheDocument();
   });
 
-  it('clears search and shows all guests when search is empty', async () => {
+  it("clears search and shows all guests when search is empty", async () => {
     const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
-        { id: 'g1', name: 'John Doe', firstName: 'John', lastName: 'Doe' },
-        { id: 'g2', name: 'Jane Smith', firstName: 'Jane', lastName: 'Smith' },
+        { id: "g1", name: "John Doe", firstName: "John", lastName: "Doe" },
+        { id: "g2", name: "Jane Smith", firstName: "Jane", lastName: "Smith" },
       ],
     };
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, 'John');
+    await user.type(search, "John");
     expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
 
     await user.clear(search);
-    expect(await screen.findByText(/for privacy, start typing to search/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/for privacy, start typing to search/i),
+    ).toBeInTheDocument();
   });
 });

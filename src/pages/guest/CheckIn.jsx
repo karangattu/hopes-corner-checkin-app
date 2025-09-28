@@ -1,6 +1,6 @@
-import React from 'react';
-import { Users, Search } from 'lucide-react';
-import GuestList from '../../components/GuestList';
+import React from "react";
+import { Users, Search } from "lucide-react";
+import GuestList from "../../components/GuestList";
 
 const CheckIn = () => {
   return (
@@ -13,14 +13,15 @@ const CheckIn = () => {
           Search for existing guests or create new ones as needed
         </p>
       </div>
-      
-  <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
         <div className="mb-6">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
             <Users size={20} className="text-green-600" /> Find or Add Guests
           </h2>
           <p className="text-sm text-gray-600 mb-4">
-            Start typing a guest's name to search. If no results are found, you'll see an option to create a new guest.
+            Start typing a guest's name to search. If no results are found,
+            you'll see an option to create a new guest.
           </p>
         </div>
         <GuestList />

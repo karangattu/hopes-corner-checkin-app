@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const SYNC_INTERVALS = {
   CRITICAL: 60000,
@@ -9,7 +9,7 @@ const SYNC_INTERVALS = {
 const SMART_SYNC_EVENTS = {
   USER_ACTION: 2000,
   TAB_FOCUS: 5000,
-  MANUAL_ONLY: ['donations', 'bicycles', 'holidays', 'haircuts'],
+  MANUAL_ONLY: ["donations", "bicycles", "holidays", "haircuts"],
 };
 
 const isBusinessHours = () => {
@@ -32,8 +32,10 @@ const getWeekAgo = () => {
 
 class QuotaManager {
   constructor() {
-    this.dailyReads = parseInt(localStorage.getItem('supabase_daily_reads') || '0');
-    this.lastReset = localStorage.getItem('supabase_last_reset');
+    this.dailyReads = parseInt(
+      localStorage.getItem("supabase_daily_reads") || "0",
+    );
+    this.lastReset = localStorage.getItem("supabase_last_reset");
     this.DAILY_LIMIT = 250000;
     this.resetIfNewDay();
   }
@@ -43,21 +45,23 @@ class QuotaManager {
     if (this.lastReset !== today) {
       this.dailyReads = 0;
       this.lastReset = today;
-      localStorage.setItem('supabase_daily_reads', '0');
-      localStorage.setItem('supabase_last_reset', today);
+      localStorage.setItem("supabase_daily_reads", "0");
+      localStorage.setItem("supabase_last_reset", today);
     }
   }
 
   recordRead(count = 1) {
     this.dailyReads += count;
-    localStorage.setItem('supabase_daily_reads', this.dailyReads.toString());
+    localStorage.setItem("supabase_daily_reads", this.dailyReads.toString());
   }
 
-  shouldSync(priority = 'normal') {
+  shouldSync(priority = "normal") {
     this.resetIfNewDay();
     if (this.dailyReads > this.DAILY_LIMIT * 0.8) {
-      console.warn(`Approaching quota limit: ${this.dailyReads}/${this.DAILY_LIMIT}`);
-      return priority === 'critical';
+      console.warn(
+        `Approaching quota limit: ${this.dailyReads}/${this.DAILY_LIMIT}`,
+      );
+      return priority === "critical";
     }
     return true;
   }
@@ -76,57 +80,100 @@ class SyncManager {
     this.lastSync = new Map();
     this.syncInterval = SYNC_INTERVALS.STANDARD;
     this.batchSize = 3;
-    this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-    this.tabVisible = typeof document !== 'undefined' ? !document.hidden : true;
+    this.isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+    this.tabVisible = typeof document !== "undefined" ? !document.hidden : true;
     this.setupNetworkListeners();
     this.setupVisibilityListener();
 
     this.collectionConfig = {
-      guests: { interval: SYNC_INTERVALS.CRITICAL, priority: 'critical', businessHours: false },
-      meals: { interval: SYNC_INTERVALS.STANDARD, priority: 'normal', businessHours: true },
-      showers: { interval: SYNC_INTERVALS.STANDARD, priority: 'normal', businessHours: true },
-      laundry: { interval: SYNC_INTERVALS.STANDARD, priority: 'normal', businessHours: true },
-      itemsGiven: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: false },
-      donations: { interval: 0, priority: 'manual', businessHours: false },
-      bicycles: { interval: 0, priority: 'manual', businessHours: false },
-      holidays: { interval: 0, priority: 'manual', businessHours: false },
-      haircuts: { interval: 0, priority: 'manual', businessHours: false },
-      rvMeals: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: true },
-      unitedEffortMeals: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: true },
-      extraMeals: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: true },
-      dayWorkerMeals: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: true },
-      lunchBags: { interval: SYNC_INTERVALS.LOW_PRIORITY, priority: 'low', businessHours: true },
+      guests: {
+        interval: SYNC_INTERVALS.CRITICAL,
+        priority: "critical",
+        businessHours: false,
+      },
+      meals: {
+        interval: SYNC_INTERVALS.STANDARD,
+        priority: "normal",
+        businessHours: true,
+      },
+      showers: {
+        interval: SYNC_INTERVALS.STANDARD,
+        priority: "normal",
+        businessHours: true,
+      },
+      laundry: {
+        interval: SYNC_INTERVALS.STANDARD,
+        priority: "normal",
+        businessHours: true,
+      },
+      itemsGiven: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: false,
+      },
+      donations: { interval: 0, priority: "manual", businessHours: false },
+      bicycles: { interval: 0, priority: "manual", businessHours: false },
+      holidays: { interval: 0, priority: "manual", businessHours: false },
+      haircuts: { interval: 0, priority: "manual", businessHours: false },
+      rvMeals: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
+      unitedEffortMeals: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
+      extraMeals: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
+      dayWorkerMeals: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
+      lunchBags: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
     };
   }
 
   setupNetworkListeners() {
-    if (typeof window === 'undefined') return;
-    window.addEventListener('online', () => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("online", () => {
       this.isOnline = true;
       this.resumeSync();
     });
-    window.addEventListener('offline', () => {
+    window.addEventListener("offline", () => {
       this.isOnline = false;
       this.pauseSync();
     });
   }
 
   setupVisibilityListener() {
-    if (typeof document === 'undefined') return;
-    document.addEventListener('visibilitychange', () => {
+    if (typeof document === "undefined") return;
+    document.addEventListener("visibilitychange", () => {
       this.tabVisible = !document.hidden;
       if (this.tabVisible && this.isOnline) {
-        setTimeout(() => this.triggerTabFocusSync(), SMART_SYNC_EVENTS.TAB_FOCUS);
+        setTimeout(
+          () => this.triggerTabFocusSync(),
+          SMART_SYNC_EVENTS.TAB_FOCUS,
+        );
       }
     });
   }
 
   triggerTabFocusSync() {
-    const criticalCollections = ['guests', 'meals', 'showers', 'laundry'];
+    const criticalCollections = ["guests", "meals", "showers", "laundry"];
     criticalCollections.forEach((collectionName) => {
       this.lastSync.set(collectionName, 0);
     });
-    console.log('Tab focus sync triggered for critical collections');
+    console.log("Tab focus sync triggered for critical collections");
   }
 
   shouldSync(collectionName) {
@@ -134,7 +181,7 @@ class SyncManager {
 
     const config = this.collectionConfig[collectionName];
     if (!config) return false;
-    if (config.priority === 'manual') return false;
+    if (config.priority === "manual") return false;
 
     if (!globalQuotaManager.shouldSync(config.priority)) return false;
     if (config.businessHours && !isBusinessHours()) return false;
@@ -164,24 +211,74 @@ const globalSyncManager = new SyncManager();
 
 const COLLECTION_FILTERS = {
   guests: null,
-  meals: { dateField: 'date', since: getToday(), limit: 50, orderBy: 'date' },
-  showers: { dateField: 'date', since: getToday(), limit: 30, orderBy: 'date' },
-  laundry: { dateField: 'date', since: getToday(), limit: 30, orderBy: 'date' },
-  itemsGiven: { dateField: 'date', since: getWeekAgo(), limit: 100, orderBy: 'date' },
-  donations: { dateField: 'date', since: getWeekAgo(), limit: 50, orderBy: 'date' },
-  bicycles: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  holidays: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  haircuts: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  rvMeals: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  unitedEffortMeals: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  extraMeals: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  dayWorkerMeals: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
-  lunchBags: { dateField: 'date', since: getToday(), limit: 20, orderBy: 'date' },
+  meals: { dateField: "date", since: getToday(), limit: 50, orderBy: "date" },
+  showers: { dateField: "date", since: getToday(), limit: 30, orderBy: "date" },
+  laundry: { dateField: "date", since: getToday(), limit: 30, orderBy: "date" },
+  itemsGiven: {
+    dateField: "date",
+    since: getWeekAgo(),
+    limit: 100,
+    orderBy: "date",
+  },
+  donations: {
+    dateField: "date",
+    since: getWeekAgo(),
+    limit: 50,
+    orderBy: "date",
+  },
+  bicycles: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  holidays: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  haircuts: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  rvMeals: { dateField: "date", since: getToday(), limit: 20, orderBy: "date" },
+  unitedEffortMeals: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  extraMeals: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  dayWorkerMeals: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
+  lunchBags: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
 };
 
 const normalizeRow = (row) => {
   if (!row) return row;
-  const fallbackTimestamp = row.lastUpdated || row.updatedAt || row.date || row.createdAt || new Date().toISOString();
+  const fallbackTimestamp =
+    row.lastUpdated ||
+    row.updatedAt ||
+    row.date ||
+    row.createdAt ||
+    new Date().toISOString();
   return {
     ...row,
     docId: row.docId || row.id,
@@ -192,13 +289,13 @@ const normalizeRow = (row) => {
 
 const fetchCollection = async (client, tableName) => {
   const filter = COLLECTION_FILTERS[tableName];
-  let builder = client.from(tableName).select('*');
+  let builder = client.from(tableName).select("*");
 
   if (filter?.dateField && filter?.since) {
     builder = builder.gte(filter.dateField, filter.since);
   }
 
-  const sortField = filter?.orderBy || filter?.dateField || 'createdAt';
+  const sortField = filter?.orderBy || filter?.dateField || "createdAt";
   builder = builder.order(sortField, { ascending: false, nullsLast: true });
 
   if (filter?.limit) {
@@ -212,7 +309,12 @@ const fetchCollection = async (client, tableName) => {
   return data || [];
 };
 
-export const useSupabaseSync = (client, tableName, setState, enabled = true) => {
+export const useSupabaseSync = (
+  client,
+  tableName,
+  setState,
+  enabled = true,
+) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const syncTimeoutRef = useRef(null);
@@ -226,7 +328,9 @@ export const useSupabaseSync = (client, tableName, setState, enabled = true) => 
       const rows = await fetchCollection(client, tableName);
       globalQuotaManager.recordRead(rows.length);
 
-      console.log(`[${tableName}] Synced ${rows.length} rows (${globalQuotaManager.getRemainingQuota()} quota remaining)`);
+      console.log(
+        `[${tableName}] Synced ${rows.length} rows (${globalQuotaManager.getRemainingQuota()} quota remaining)`,
+      );
 
       setIsConnected(true);
       setError(null);
@@ -236,8 +340,14 @@ export const useSupabaseSync = (client, tableName, setState, enabled = true) => 
       setState(normalizedRows);
 
       try {
-        localStorage.setItem(`hopes-corner-${tableName}`, JSON.stringify(normalizedRows));
-        localStorage.setItem(`hopes-corner-${tableName}-lastSync`, Date.now().toString());
+        localStorage.setItem(
+          `hopes-corner-${tableName}`,
+          JSON.stringify(normalizedRows),
+        );
+        localStorage.setItem(
+          `hopes-corner-${tableName}-lastSync`,
+          Date.now().toString(),
+        );
       } catch (cacheError) {
         console.warn(`Failed to cache ${tableName}:`, cacheError);
       }
@@ -250,7 +360,9 @@ export const useSupabaseSync = (client, tableName, setState, enabled = true) => 
         if (cached) {
           const cachedData = JSON.parse(cached);
           setState(cachedData);
-          console.log(`[${tableName}] Loaded ${cachedData.length} items from cache`);
+          console.log(
+            `[${tableName}] Loaded ${cachedData.length} items from cache`,
+          );
         }
       } catch (fallbackError) {
         console.error(`Cache fallback failed for ${tableName}:`, fallbackError);
@@ -292,15 +404,21 @@ export const useSupabaseSync = (client, tableName, setState, enabled = true) => 
     const loadInitial = async () => {
       try {
         const cached = localStorage.getItem(`hopes-corner-${tableName}`);
-        const lastSync = localStorage.getItem(`hopes-corner-${tableName}-lastSync`);
+        const lastSync = localStorage.getItem(
+          `hopes-corner-${tableName}-lastSync`,
+        );
 
         if (cached) {
           const cachedData = JSON.parse(cached);
           setState(cachedData);
-          console.log(`[${tableName}] Loaded ${cachedData.length} items from cache`);
+          console.log(
+            `[${tableName}] Loaded ${cachedData.length} items from cache`,
+          );
         }
 
-        const cacheAge = lastSync ? Date.now() - parseInt(lastSync, 10) : Infinity;
+        const cacheAge = lastSync
+          ? Date.now() - parseInt(lastSync, 10)
+          : Infinity;
         if (cacheAge > globalSyncManager.syncInterval) {
           await syncCollection();
         }
@@ -338,7 +456,11 @@ export const useSupabaseSync = (client, tableName, setState, enabled = true) => 
   };
 };
 
-export const useSupabaseConnectionStatus = (client, enabled, tableName = 'guests') => {
+export const useSupabaseConnectionStatus = (
+  client,
+  enabled,
+  tableName = "guests",
+) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
@@ -353,7 +475,7 @@ export const useSupabaseConnectionStatus = (client, enabled, tableName = 'guests
       try {
         const { error } = await client
           .from(tableName)
-          .select('id', { head: true, count: 'exact' })
+          .select("id", { head: true, count: "exact" })
           .limit(1);
         if (!cancelled) {
           setIsConnected(!error);
@@ -383,9 +505,13 @@ export const mergeByNewest = (local, remote) => {
 
   combined.forEach((item) => {
     const existing = uniqueById.get(item.id);
-    const itemTimestamp = new Date(item.lastUpdated || item.createdAt || item.date || 0);
+    const itemTimestamp = new Date(
+      item.lastUpdated || item.createdAt || item.date || 0,
+    );
     const existingTimestamp = existing
-      ? new Date(existing.lastUpdated || existing.createdAt || existing.date || 0)
+      ? new Date(
+          existing.lastUpdated || existing.createdAt || existing.date || 0,
+        )
       : new Date(0);
     if (!existing || itemTimestamp > existingTimestamp) {
       uniqueById.set(item.id, item);
@@ -393,26 +519,30 @@ export const mergeByNewest = (local, remote) => {
   });
 
   return Array.from(uniqueById.values()).sort(
-    (a, b) => new Date(b.createdAt || b.date || b.lastUpdated) - new Date(a.createdAt || a.date || a.lastUpdated),
+    (a, b) =>
+      new Date(b.createdAt || b.date || b.lastUpdated) -
+      new Date(a.createdAt || a.date || a.lastUpdated),
   );
 };
 
 export const useOnlineStatus = () => {
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
     }
 
     return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
       }
     };
   }, []);
@@ -432,9 +562,9 @@ export const useSyncTrigger = () => {
       globalSyncManager.syncQueue.forEach((_, collectionName) => {
         globalSyncManager.lastSync.set(collectionName, 0);
       });
-      console.log('Triggered manual sync for all collections');
+      console.log("Triggered manual sync for all collections");
     } catch (error) {
-      console.error('Manual sync failed:', error);
+      console.error("Manual sync failed:", error);
     } finally {
       setIsSyncing(false);
     }

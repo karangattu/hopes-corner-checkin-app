@@ -1,18 +1,26 @@
-import React from 'react';
-import { Doughnut } from 'react-chartjs-2';
-import { palette, defaultAnimations } from './ChartTheme';
+import React from "react";
+import { Doughnut } from "react-chartjs-2";
+import { palette, defaultAnimations } from "./ChartTheme";
 
 const DonutCard = ({ title, subtitle, dataMap }) => {
   const labels = Object.keys(dataMap || {});
   const values = Object.values(dataMap || {});
-  const colors = [palette.blue, palette.green, palette.purple, palette.amber, palette.sky, palette.rose, palette.gray];
+  const colors = [
+    palette.blue,
+    palette.green,
+    palette.purple,
+    palette.amber,
+    palette.sky,
+    palette.rose,
+    palette.gray,
+  ];
 
   const data = {
     labels,
     datasets: [
       {
         data: values,
-        backgroundColor: labels.map((_, i) => colors[i % colors.length] + 'B3'),
+        backgroundColor: labels.map((_, i) => colors[i % colors.length] + "B3"),
         borderColor: labels.map((_, i) => colors[i % colors.length]),
         borderWidth: 2,
         hoverOffset: 8,
@@ -21,7 +29,7 @@ const DonutCard = ({ title, subtitle, dataMap }) => {
   };
 
   const options = {
-    cutout: '65%',
+    cutout: "65%",
     animation: defaultAnimations,
     plugins: {
       tooltip: {

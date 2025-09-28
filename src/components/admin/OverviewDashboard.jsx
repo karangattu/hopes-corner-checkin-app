@@ -1,21 +1,21 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { LAUNDRY_STATUS } from '../../context/constants';
-import { 
-  Users, 
-  Utensils, 
-  ShowerHead, 
-  WashingMachine, 
+import React, { useState, useMemo, useCallback } from "react";
+import { LAUNDRY_STATUS } from "../../context/constants";
+import {
+  Users,
+  Utensils,
+  ShowerHead,
+  WashingMachine,
   Calendar,
   Target,
   TrendingUp,
   Save,
-  X
-} from 'lucide-react';
-import { Scissors, Gift, Bike } from 'lucide-react';
-import { useAppContext } from '../../context/useAppContext';
-import DonutCard from '../charts/DonutCard';
-import { animated as Animated } from '@react-spring/web';
-import { SpringIcon } from '../../utils/animations';
+  X,
+} from "lucide-react";
+import { Scissors, Gift, Bike } from "lucide-react";
+import { useAppContext } from "../../context/useAppContext";
+import DonutCard from "../charts/DonutCard";
+import { animated as Animated } from "@react-spring/web";
+import { SpringIcon } from "../../utils/animations";
 
 // Helper functions defined outside component to avoid hoisting issues
 const calculateProgress = (current, target) => {
@@ -24,9 +24,9 @@ const calculateProgress = (current, target) => {
 };
 
 const getProgressColor = (progress) => {
-  if (progress >= 90) return 'text-green-600';
-  if (progress >= 70) return 'text-yellow-600';
-  return 'text-blue-600';
+  if (progress >= 90) return "text-green-600";
+  if (progress >= 70) return "text-yellow-600";
+  return "text-blue-600";
 };
 
 const DEFAULT_TARGETS = {
@@ -41,66 +41,120 @@ const DEFAULT_TARGETS = {
   monthlyHaircuts: 100,
   yearlyHaircuts: 1200,
   monthlyHolidays: 80,
-  yearlyHolidays: 960
+  yearlyHolidays: 960,
 };
 
 const formatTargetsForEditing = (targets = DEFAULT_TARGETS) =>
   Object.fromEntries(
     Object.entries(targets).map(([key, value]) => [
       key,
-      value === undefined || value === null ? '' : value.toString()
-    ])
+      value === undefined || value === null ? "" : value.toString(),
+    ]),
   );
 
 const parseTargetsForSaving = (targets) =>
   Object.fromEntries(
     Object.entries(targets).map(([key, value]) => {
-      if (value === '' || value === null || value === undefined) {
+      if (value === "" || value === null || value === undefined) {
         return [key, 0];
       }
 
       const numericValue = parseInt(value, 10);
       return [key, Number.isNaN(numericValue) ? 0 : numericValue];
-    })
+    }),
   );
 
 // MetricCard component defined outside to avoid hoisting issues
-const MetricCard = ({ title, icon, value, target, colorClass = 'blue' }) => {
+const MetricCard = ({ title, icon, value, target, colorClass = "blue" }) => {
   const progress = calculateProgress(value, target);
   const progressColor = getProgressColor(progress);
-  
+
   const colorClasses = {
-    blue: { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-800', value: 'text-blue-900', icon: 'text-blue-500', progress: 'bg-blue-200', bar: 'bg-blue-500' },
-    green: { bg: 'bg-green-50', border: 'border-green-100', text: 'text-green-800', value: 'text-green-900', icon: 'text-green-500', progress: 'bg-green-200', bar: 'bg-green-500' },
-    purple: { bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-800', value: 'text-purple-900', icon: 'text-purple-500', progress: 'bg-purple-200', bar: 'bg-purple-500' },
-    sky: { bg: 'bg-sky-50', border: 'border-sky-100', text: 'text-sky-800', value: 'text-sky-900', icon: 'text-sky-500', progress: 'bg-sky-200', bar: 'bg-sky-500' },
-    yellow: { bg: 'bg-yellow-50', border: 'border-yellow-100', text: 'text-yellow-800', value: 'text-yellow-900', icon: 'text-yellow-500', progress: 'bg-yellow-200', bar: 'bg-yellow-500' },
-    pink: { bg: 'bg-pink-50', border: 'border-pink-100', text: 'text-pink-800', value: 'text-pink-900', icon: 'text-pink-500', progress: 'bg-pink-200', bar: 'bg-pink-500' }
+    blue: {
+      bg: "bg-blue-50",
+      border: "border-blue-100",
+      text: "text-blue-800",
+      value: "text-blue-900",
+      icon: "text-blue-500",
+      progress: "bg-blue-200",
+      bar: "bg-blue-500",
+    },
+    green: {
+      bg: "bg-green-50",
+      border: "border-green-100",
+      text: "text-green-800",
+      value: "text-green-900",
+      icon: "text-green-500",
+      progress: "bg-green-200",
+      bar: "bg-green-500",
+    },
+    purple: {
+      bg: "bg-purple-50",
+      border: "border-purple-100",
+      text: "text-purple-800",
+      value: "text-purple-900",
+      icon: "text-purple-500",
+      progress: "bg-purple-200",
+      bar: "bg-purple-500",
+    },
+    sky: {
+      bg: "bg-sky-50",
+      border: "border-sky-100",
+      text: "text-sky-800",
+      value: "text-sky-900",
+      icon: "text-sky-500",
+      progress: "bg-sky-200",
+      bar: "bg-sky-500",
+    },
+    yellow: {
+      bg: "bg-yellow-50",
+      border: "border-yellow-100",
+      text: "text-yellow-800",
+      value: "text-yellow-900",
+      icon: "text-yellow-500",
+      progress: "bg-yellow-200",
+      bar: "bg-yellow-500",
+    },
+    pink: {
+      bg: "bg-pink-50",
+      border: "border-pink-100",
+      text: "text-pink-800",
+      value: "text-pink-900",
+      icon: "text-pink-500",
+      progress: "bg-pink-200",
+      bar: "bg-pink-500",
+    },
   };
-  
+
   const colors = colorClasses[colorClass] || colorClasses.blue;
   const IconComponent = icon;
 
   return (
-    <div className={`${colors.bg} rounded-lg p-4 ${colors.border} border relative overflow-hidden`}>
+    <div
+      className={`${colors.bg} rounded-lg p-4 ${colors.border} border relative overflow-hidden`}
+    >
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <h3 className={`${colors.text} font-medium text-sm mb-1`}>{title}</h3>
-          <p className={`text-2xl font-bold ${colors.value}`}>{value.toLocaleString()}</p>
+          <p className={`text-2xl font-bold ${colors.value}`}>
+            {value.toLocaleString()}
+          </p>
         </div>
         <SpringIcon>
           <IconComponent className={colors.icon} size={20} />
         </SpringIcon>
       </div>
-      
+
       {target && (
         <div className="space-y-2">
           <div className="flex justify-between items-center text-xs">
-            <span className={colors.text}>Target: {target.toLocaleString()}</span>
+            <span className={colors.text}>
+              Target: {target.toLocaleString()}
+            </span>
             <span className={progressColor}>{progress.toFixed(0)}%</span>
           </div>
           <div className={`w-full ${colors.progress} rounded-full h-2`}>
-            <div 
+            <div
               className={`${colors.bar} h-2 rounded-full transition-all duration-500`}
               style={{ width: `${progress}%` }}
             />
@@ -111,7 +165,11 @@ const MetricCard = ({ title, icon, value, target, colorClass = 'blue' }) => {
   );
 };
 
-const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) => {
+const OverviewDashboard = ({
+  overviewGridAnim,
+  monthGridAnim,
+  yearGridAnim,
+}) => {
   const {
     getTodayMetrics,
     guests,
@@ -126,27 +184,29 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
     laundryRecords,
     bicycleRecords,
     haircutRecords,
-    holidayRecords
+    holidayRecords,
   } = useAppContext();
 
   const [isEditingTargets, setIsEditingTargets] = useState(false);
   const [tempTargets, setTempTargets] = useState(() =>
-    formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS)
+    formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
   );
 
   // Keep temp targets in sync when not actively editing
   React.useEffect(() => {
     if (!isEditingTargets) {
-      setTempTargets(formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS));
+      setTempTargets(
+        formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
+      );
     }
   }, [settings.targets, isEditingTargets]);
 
   // Handle target changes (allow digits only, permit empty string during editing)
   const handleTargetChange = useCallback((field, value) => {
-    const sanitized = value.replace(/[^0-9]/g, '');
-    setTempTargets(prev => ({
+    const sanitized = value.replace(/[^0-9]/g, "");
+    setTempTargets((prev) => ({
       ...prev,
-      [field]: sanitized
+      [field]: sanitized,
     }));
   }, []);
 
@@ -157,44 +217,59 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
   }, [tempTargets, updateSettings]);
 
   const cancelEdit = useCallback(() => {
-    setTempTargets(formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS));
+    setTempTargets(
+      formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
+    );
     setIsEditingTargets(false);
   }, [settings.targets]);
 
   const handleToggleEditor = useCallback(() => {
     if (!isEditingTargets) {
-      setTempTargets(formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS));
+      setTempTargets(
+        formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
+      );
       setIsEditingTargets(true);
     } else {
       setIsEditingTargets(false);
     }
   }, [isEditingTargets, settings.targets]);
 
-
-
   const todayMetrics = getTodayMetrics();
 
   // Calculate housing status breakdown
   const housingStatusCounts = useMemo(() => {
     return guests.reduce((acc, guest) => {
-      const status = guest.housingStatus || 'Unknown';
+      const status = guest.housingStatus || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {});
   }, [guests]);
 
-  const completedLaundryStatuses = useMemo(() => new Set([
-    LAUNDRY_STATUS?.DONE,
-    LAUNDRY_STATUS?.PICKED_UP,
-    LAUNDRY_STATUS?.RETURNED,
-    LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
-  ]), []);
+  const completedLaundryStatuses = useMemo(
+    () =>
+      new Set([
+        LAUNDRY_STATUS?.DONE,
+        LAUNDRY_STATUS?.PICKED_UP,
+        LAUNDRY_STATUS?.RETURNED,
+        LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+      ]),
+    [],
+  );
 
-  const isLaundryCompleted = useCallback((status) => completedLaundryStatuses.has(status), [completedLaundryStatuses]);
+  const isLaundryCompleted = useCallback(
+    (status) => completedLaundryStatuses.has(status),
+    [completedLaundryStatuses],
+  );
 
   const isCompletedBicycleStatus = useCallback((status) => {
-    const normalized = (status || '').toString().toLowerCase();
-    return !status || normalized === 'done' || normalized === 'completed' || normalized === 'ready' || normalized === 'finished';
+    const normalized = (status || "").toString().toLowerCase();
+    return (
+      !status ||
+      normalized === "done" ||
+      normalized === "completed" ||
+      normalized === "ready" ||
+      normalized === "finished"
+    );
   }, []);
 
   // Calculate month and year metrics with progress tracking
@@ -202,39 +277,71 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     const isCurrentMonth = (date) => {
       const d = new Date(date);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
-    
+
     const isCurrentYear = (date) => {
       const d = new Date(date);
       return d.getFullYear() === currentYear;
     };
 
-    const monthMeals = [...mealRecords, ...rvMealRecords, ...unitedEffortMealRecords, ...extraMealRecords, ...dayWorkerMealRecords]
-      .filter(r => isCurrentMonth(r.date))
+    const monthMeals = [
+      ...mealRecords,
+      ...rvMealRecords,
+      ...unitedEffortMealRecords,
+      ...extraMealRecords,
+      ...dayWorkerMealRecords,
+    ]
+      .filter((r) => isCurrentMonth(r.date))
       .reduce((sum, r) => sum + (r.count || 0), 0);
 
-    const yearMeals = [...mealRecords, ...rvMealRecords, ...unitedEffortMealRecords, ...extraMealRecords, ...dayWorkerMealRecords]
-      .filter(r => isCurrentYear(r.date))
+    const yearMeals = [
+      ...mealRecords,
+      ...rvMealRecords,
+      ...unitedEffortMealRecords,
+      ...extraMealRecords,
+      ...dayWorkerMealRecords,
+    ]
+      .filter((r) => isCurrentYear(r.date))
       .reduce((sum, r) => sum + (r.count || 0), 0);
 
-  const monthShowers = showerRecords.filter(r => isCurrentMonth(r.date) && r.status === 'done').length;
-  const yearShowers = showerRecords.filter(r => isCurrentYear(r.date) && r.status === 'done').length;
+    const monthShowers = showerRecords.filter(
+      (r) => isCurrentMonth(r.date) && r.status === "done",
+    ).length;
+    const yearShowers = showerRecords.filter(
+      (r) => isCurrentYear(r.date) && r.status === "done",
+    ).length;
 
-  const monthLaundry = laundryRecords.filter(r => isCurrentMonth(r.date) && isLaundryCompleted(r.status)).length;
-  const yearLaundry = laundryRecords.filter(r => isCurrentYear(r.date) && isLaundryCompleted(r.status)).length;
+    const monthLaundry = laundryRecords.filter(
+      (r) => isCurrentMonth(r.date) && isLaundryCompleted(r.status),
+    ).length;
+    const yearLaundry = laundryRecords.filter(
+      (r) => isCurrentYear(r.date) && isLaundryCompleted(r.status),
+    ).length;
 
-  const monthBicycles = bicycleRecords.filter(r => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status)).length;
-  const yearBicycles = bicycleRecords.filter(r => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status)).length;
+    const monthBicycles = bicycleRecords.filter(
+      (r) => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status),
+    ).length;
+    const yearBicycles = bicycleRecords.filter(
+      (r) => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status),
+    ).length;
 
-    const monthHaircuts = haircutRecords.filter(r => isCurrentMonth(r.date)).length;
-    const yearHaircuts = haircutRecords.filter(r => isCurrentYear(r.date)).length;
+    const monthHaircuts = haircutRecords.filter((r) =>
+      isCurrentMonth(r.date),
+    ).length;
+    const yearHaircuts = haircutRecords.filter((r) =>
+      isCurrentYear(r.date),
+    ).length;
 
-    const monthHolidays = holidayRecords.filter(r => isCurrentMonth(r.date)).length;
-    const yearHolidays = holidayRecords.filter(r => isCurrentYear(r.date)).length;
+    const monthHolidays = holidayRecords.filter((r) =>
+      isCurrentMonth(r.date),
+    ).length;
+    const yearHolidays = holidayRecords.filter((r) =>
+      isCurrentYear(r.date),
+    ).length;
 
     return {
       monthMetrics: {
@@ -243,7 +350,7 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
         laundryLoads: monthLaundry,
         bicycles: monthBicycles,
         haircuts: monthHaircuts,
-        holidays: monthHolidays
+        holidays: monthHolidays,
       },
       yearMetrics: {
         mealsServed: yearMeals,
@@ -251,28 +358,41 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
         laundryLoads: yearLaundry,
         bicycles: yearBicycles,
         haircuts: yearHaircuts,
-        holidays: yearHolidays
-      }
+        holidays: yearHolidays,
+      },
     };
-  }, [mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isLaundryCompleted, isCompletedBicycleStatus]);
+  }, [
+    mealRecords,
+    rvMealRecords,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    showerRecords,
+    laundryRecords,
+    bicycleRecords,
+    haircutRecords,
+    holidayRecords,
+    isLaundryCompleted,
+    isCompletedBicycleStatus,
+  ]);
 
   const targetFieldGroups = {
     monthly: [
-      { key: 'monthlyMeals', label: 'Meals' },
-      { key: 'monthlyShowers', label: 'Showers' },
-      { key: 'monthlyLaundry', label: 'Laundry' },
-      { key: 'monthlyBicycles', label: 'Bicycle Repairs' },
-      { key: 'monthlyHaircuts', label: 'Haircuts' },
-      { key: 'monthlyHolidays', label: 'Holiday Services' }
+      { key: "monthlyMeals", label: "Meals" },
+      { key: "monthlyShowers", label: "Showers" },
+      { key: "monthlyLaundry", label: "Laundry" },
+      { key: "monthlyBicycles", label: "Bicycle Repairs" },
+      { key: "monthlyHaircuts", label: "Haircuts" },
+      { key: "monthlyHolidays", label: "Holiday Services" },
     ],
     yearly: [
-      { key: 'yearlyMeals', label: 'Meals' },
-      { key: 'yearlyShowers', label: 'Showers' },
-      { key: 'yearlyLaundry', label: 'Laundry' },
-      { key: 'yearlyBicycles', label: 'Bicycle Repairs' },
-      { key: 'yearlyHaircuts', label: 'Haircuts' },
-      { key: 'yearlyHolidays', label: 'Holiday Services' }
-    ]
+      { key: "yearlyMeals", label: "Meals" },
+      { key: "yearlyShowers", label: "Showers" },
+      { key: "yearlyLaundry", label: "Laundry" },
+      { key: "yearlyBicycles", label: "Bicycle Repairs" },
+      { key: "yearlyHaircuts", label: "Haircuts" },
+      { key: "yearlyHolidays", label: "Holiday Services" },
+    ],
   };
 
   return (
@@ -280,20 +400,24 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
       {/* Header with Target Management */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-600 mt-1">Monitor daily operations and track progress toward your goals</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Dashboard Overview
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Monitor daily operations and track progress toward your goals
+          </p>
         </div>
         <button
           onClick={handleToggleEditor}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors w-fit ${
-            isEditingTargets 
-              ? 'bg-gray-600 text-white hover:bg-gray-700' 
-              : 'bg-blue-600 text-white hover:bg-blue-700'
+            isEditingTargets
+              ? "bg-gray-600 text-white hover:bg-gray-700"
+              : "bg-blue-600 text-white hover:bg-blue-700"
           }`}
           type="button"
         >
           <Target size={16} />
-          {isEditingTargets ? 'Hide Editor' : 'Edit Targets'}
+          {isEditingTargets ? "Hide Editor" : "Edit Targets"}
         </button>
       </div>
 
@@ -316,11 +440,16 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <h3 className="font-semibold text-blue-800 mb-4">Monthly Targets</h3>
+              <h3 className="font-semibold text-blue-800 mb-4">
+                Monthly Targets
+              </h3>
               <div className="space-y-3">
                 {targetFieldGroups.monthly.map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-3">
-                    <label htmlFor={key} className="flex-1 text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor={key}
+                      className="flex-1 text-sm font-medium text-gray-700"
+                    >
                       {label}
                     </label>
                     <input
@@ -328,7 +457,7 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      value={tempTargets[key] ?? ''}
+                      value={tempTargets[key] ?? ""}
                       onChange={(e) => handleTargetChange(key, e.target.value)}
                       className="w-24 px-3 py-2 border border-gray-300 rounded text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="0"
@@ -339,11 +468,16 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
             </div>
 
             <div>
-              <h3 className="font-semibold text-blue-800 mb-4">Yearly Targets</h3>
+              <h3 className="font-semibold text-blue-800 mb-4">
+                Yearly Targets
+              </h3>
               <div className="space-y-3">
                 {targetFieldGroups.yearly.map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-3">
-                    <label htmlFor={key} className="flex-1 text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor={key}
+                      className="flex-1 text-sm font-medium text-gray-700"
+                    >
                       {label}
                     </label>
                     <input
@@ -351,7 +485,7 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      value={tempTargets[key] ?? ''}
+                      value={tempTargets[key] ?? ""}
                       onChange={(e) => handleTargetChange(key, e.target.value)}
                       className="w-32 px-3 py-2 border border-gray-300 rounded text-sm text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="0"
@@ -388,12 +522,19 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
           <Calendar size={18} />
           Today's Activity
         </h2>
-        <Animated.div style={overviewGridAnim} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Animated.div
+          style={overviewGridAnim}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        >
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <h3 className="text-blue-800 font-medium text-sm">Guests Registered</h3>
-                <p className="text-2xl font-bold text-blue-900 mt-1">{guests.length}</p>
+                <h3 className="text-blue-800 font-medium text-sm">
+                  Guests Registered
+                </h3>
+                <p className="text-2xl font-bold text-blue-900 mt-1">
+                  {guests.length}
+                </p>
               </div>
               <SpringIcon>
                 <Users className="text-blue-500" size={20} />
@@ -408,18 +549,22 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
               ))}
             </div>
           </div>
-          
+
           <div className="hidden sm:block">
-            <DonutCard title="Guests" subtitle="Housing Status" dataMap={housingStatusCounts} />
+            <DonutCard
+              title="Guests"
+              subtitle="Housing Status"
+              dataMap={housingStatusCounts}
+            />
           </div>
-          
+
           <MetricCard
             title="Today's Meals"
             icon={Utensils}
             value={todayMetrics.mealsServed}
             colorClass="green"
           />
-          
+
           <MetricCard
             title="Today's Showers"
             icon={ShowerHead}
@@ -435,7 +580,10 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
           <TrendingUp size={18} />
           Monthly Progress
         </h2>
-        <Animated.div style={monthGridAnim} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <Animated.div
+          style={monthGridAnim}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"
+        >
           <MetricCard
             title="Meals"
             icon={Utensils}
@@ -493,7 +641,10 @@ const OverviewDashboard = ({ overviewGridAnim, monthGridAnim, yearGridAnim }) =>
           <Calendar size={18} />
           Yearly Progress
         </h2>
-        <Animated.div style={yearGridAnim} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <Animated.div
+          style={yearGridAnim}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"
+        >
           <MetricCard
             title="Meals"
             icon={Utensils}

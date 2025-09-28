@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import toast from 'react-hot-toast';
+import React, { useState, useMemo } from "react";
+import toast from "react-hot-toast";
 import {
   BarChart3,
   Calendar,
@@ -7,19 +7,31 @@ import {
   Home,
   FileText,
   Upload,
-  Users
-} from 'lucide-react';
-import { AlertTriangle, ShieldAlert, Cloud, HardDrive, RefreshCcw, Database, ClipboardList, CheckCircle2, Utensils, ShowerHead, WashingMachine } from 'lucide-react';
-import Donations from '../../components/Donations';
-import { useAppContext } from '../../context/useAppContext';
-import GuestBatchUpload from '../../components/GuestBatchUpload';
-import AttendanceBatchUpload from '../../components/AttendanceBatchUpload';
-import OverviewDashboard from '../../components/admin/OverviewDashboard';
-import TrendLine from '../../components/charts/TrendLine';
-import Selectize from '../../components/Selectize';
-import { animated as Animated } from '@react-spring/web';
-import { useFadeInUp, SpringIcon } from '../../utils/animations';
-import { todayPacificDateString } from '../../utils/date';
+  Users,
+} from "lucide-react";
+import {
+  AlertTriangle,
+  ShieldAlert,
+  Cloud,
+  HardDrive,
+  RefreshCcw,
+  Database,
+  ClipboardList,
+  CheckCircle2,
+  Utensils,
+  ShowerHead,
+  WashingMachine,
+} from "lucide-react";
+import Donations from "../../components/Donations";
+import { useAppContext } from "../../context/useAppContext";
+import GuestBatchUpload from "../../components/GuestBatchUpload";
+import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
+import OverviewDashboard from "../../components/admin/OverviewDashboard";
+import TrendLine from "../../components/charts/TrendLine";
+import Selectize from "../../components/Selectize";
+import { animated as Animated } from "@react-spring/web";
+import { useFadeInUp, SpringIcon } from "../../utils/animations";
+import { todayPacificDateString } from "../../utils/date";
 
 const Dashboard = () => {
   const {
@@ -40,142 +52,178 @@ const Dashboard = () => {
     holidayRecords,
     bicycleRecords,
     donationRecords,
-    resetAllData
+    resetAllData,
   } = useAppContext();
 
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = useState("overview");
 
   const [startDate, setStartDate] = useState(() => {
     const today = new Date();
     const sevenAgo = new Date(today);
     sevenAgo.setDate(today.getDate() - 7);
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(sevenAgo);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(sevenAgo);
   });
 
   const [endDate, setEndDate] = useState(() => todayPacificDateString());
 
-  const [metrics, setMetrics] = useState(() => ({ today: getTodayMetrics(), period: null }));
+  const [metrics, setMetrics] = useState(() => ({
+    today: getTodayMetrics(),
+    period: null,
+  }));
 
   const handleDateRangeSearch = () => {
     const periodMetrics = getDateRangeMetrics(startDate, endDate);
     setMetrics({
       ...metrics,
-      period: periodMetrics
+      period: periodMetrics,
     });
   };
 
   const exportGuests = () => {
-    const guestsForExport = guests.map(guest => ({
-      'Guest_ID': guest.guestId,
-      'First Name': guest.firstName || '',
-      'Last Name': guest.lastName || '',
-      'Preferred Name': guest.preferredName || '',
+    const guestsForExport = guests.map((guest) => ({
+      Guest_ID: guest.guestId,
+      "First Name": guest.firstName || "",
+      "Last Name": guest.lastName || "",
+      "Preferred Name": guest.preferredName || "",
       Name: guest.name,
-      'Housing Status': guest.housingStatus,
-      Location: guest.location || '',
-      Age: guest.age || '',
-      Gender: guest.gender || '',
-      Phone: guest.phone || '',
-      'Birth Date': guest.birthdate || '',
-      'Registration Date': new Date(guest.createdAt).toLocaleDateString()
+      "Housing Status": guest.housingStatus,
+      Location: guest.location || "",
+      Age: guest.age || "",
+      Gender: guest.gender || "",
+      Phone: guest.phone || "",
+      "Birth Date": guest.birthdate || "",
+      "Registration Date": new Date(guest.createdAt).toLocaleDateString(),
     }));
 
-    exportDataAsCSV(guestsForExport, `hopes-corner-guests-${todayPacificDateString()}.csv`);
+    exportDataAsCSV(
+      guestsForExport,
+      `hopes-corner-guests-${todayPacificDateString()}.csv`,
+    );
   };
 
   const exportServiceData = () => {
     const allServices = [
-      ...mealRecords.map(record => ({
+      ...mealRecords.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Meal',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Meal",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: record.count,
-        'Laundry Type': '-',
-        'Time Slot': '-'
+        "Laundry Type": "-",
+        "Time Slot": "-",
       })),
-      ...dayWorkerMealRecords.map(record => ({
+      ...dayWorkerMealRecords.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Day Worker Meal',
-        'Guest ID': '-',
-        'Guest Name': '-',
+        Service: "Day Worker Meal",
+        "Guest ID": "-",
+        "Guest Name": "-",
         Quantity: record.count,
-        'Laundry Type': '-',
-        'Time Slot': '-'
+        "Laundry Type": "-",
+        "Time Slot": "-",
       })),
-      ...showerRecords.map(record => ({
+      ...showerRecords.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Shower',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Shower",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: 1,
-        'Laundry Type': '-',
-        'Time Slot': record.time
+        "Laundry Type": "-",
+        "Time Slot": record.time,
       })),
-      ...laundryRecords.map(record => ({
+      ...laundryRecords.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Laundry',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Laundry",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: 1,
-        'Laundry Type': record.laundryType,
-        'Time Slot': record.time
+        "Laundry Type": record.laundryType,
+        "Time Slot": record.time,
       })),
-      ...(haircutRecords || []).map(record => ({
+      ...(haircutRecords || []).map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Haircut',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Haircut",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: 1,
-        'Laundry Type': '-',
-        'Time Slot': '-'
+        "Laundry Type": "-",
+        "Time Slot": "-",
       })),
-      ...(holidayRecords || []).map(record => ({
+      ...(holidayRecords || []).map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Holiday',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Holiday",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: 1,
-        'Laundry Type': '-',
-        'Time Slot': '-'
+        "Laundry Type": "-",
+        "Time Slot": "-",
       })),
-      ...(bicycleRecords || []).map(record => ({
+      ...(bicycleRecords || []).map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
-        Service: 'Bicycle Repair',
-        'Guest ID': record.guestId,
-        'Guest Name': guests.find(g => g.id === record.guestId)?.name || 'Unknown',
+        Service: "Bicycle Repair",
+        "Guest ID": record.guestId,
+        "Guest Name":
+          guests.find((g) => g.id === record.guestId)?.name || "Unknown",
         Quantity: 1,
-        'Laundry Type': '-',
-        'Time Slot': '-',
-        'Repair Type': record.repairType || '-',
-        'Repair Status': record.status || '-',
-        Notes: record.notes ? record.notes.replace(/\n/g, ' ') : '-'
-      }))
+        "Laundry Type": "-",
+        "Time Slot": "-",
+        "Repair Type": record.repairType || "-",
+        "Repair Status": record.status || "-",
+        Notes: record.notes ? record.notes.replace(/\n/g, " ") : "-",
+      })),
     ];
 
-    exportDataAsCSV(allServices, `hopes-corner-services-${todayPacificDateString()}.csv`);
+    exportDataAsCSV(
+      allServices,
+      `hopes-corner-services-${todayPacificDateString()}.csv`,
+    );
   };
 
   const exportSuppliesData = () => {
-    const rows = (itemGivenRecords || []).map(r => ({
+    const rows = (itemGivenRecords || []).map((r) => ({
       Date: new Date(r.date).toLocaleDateString(),
-      Item: r.item.replace('_', ' '),
-      'Guest ID': r.guestId,
-      'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown'
+      Item: r.item.replace("_", " "),
+      "Guest ID": r.guestId,
+      "Guest Name": guests.find((g) => g.id === r.guestId)?.name || "Unknown",
     }));
-    exportDataAsCSV(rows, `hopes-corner-supplies-${todayPacificDateString()}.csv`);
+    exportDataAsCSV(
+      rows,
+      `hopes-corner-supplies-${todayPacificDateString()}.csv`,
+    );
   };
 
   const exportGuestMetrics = (guestId) => {
-    const target = guests.find(g => g.id === guestId);
+    const target = guests.find((g) => g.id === guestId);
     if (!target) return;
-    const meals = mealRecords.filter(r => r.guestId === guestId);
-    const showers = showerRecords.filter(r => r.guestId === guestId);
-    const laundry = laundryRecords.filter(r => r.guestId === guestId);
+    const meals = mealRecords.filter((r) => r.guestId === guestId);
+    const showers = showerRecords.filter((r) => r.guestId === guestId);
+    const laundry = laundryRecords.filter((r) => r.guestId === guestId);
     const rows = [
-      ...meals.map(r => ({ Date: new Date(r.date).toLocaleDateString(), Service: 'Meal', Quantity: r.count })),
-      ...showers.map(r => ({ Date: new Date(r.date).toLocaleDateString(), Service: 'Shower', Time: r.time })),
-      ...laundry.map(r => ({ Date: new Date(r.date).toLocaleDateString(), Service: 'Laundry', Type: r.laundryType, Time: r.time || '-' }))
+      ...meals.map((r) => ({
+        Date: new Date(r.date).toLocaleDateString(),
+        Service: "Meal",
+        Quantity: r.count,
+      })),
+      ...showers.map((r) => ({
+        Date: new Date(r.date).toLocaleDateString(),
+        Service: "Shower",
+        Time: r.time,
+      })),
+      ...laundry.map((r) => ({
+        Date: new Date(r.date).toLocaleDateString(),
+        Service: "Laundry",
+        Type: r.laundryType,
+        Time: r.time || "-",
+      })),
     ];
     exportDataAsCSV(rows, `guest-${target.guestId}-services.csv`);
   };
@@ -185,29 +233,32 @@ const Dashboard = () => {
       handleDateRangeSearch();
     }
 
-    const metricsData = metrics.period.dailyBreakdown.map(day => ({
+    const metricsData = metrics.period.dailyBreakdown.map((day) => ({
       Date: day.date,
-      'Meals Served': day.meals,
-      'Showers Taken': day.showers,
-      'Laundry Loads': day.laundry
+      "Meals Served": day.meals,
+      "Showers Taken": day.showers,
+      "Laundry Loads": day.laundry,
     }));
 
     exportDataAsCSV(
       metricsData,
-      `hopes-corner-metrics-${startDate}-to-${endDate}.csv`
+      `hopes-corner-metrics-${startDate}-to-${endDate}.csv`,
     );
   };
 
   const exportDonations = () => {
-    const rows = (donationRecords || []).map(r => ({
+    const rows = (donationRecords || []).map((r) => ({
       Date: new Date(r.date).toLocaleDateString(),
       Type: r.type,
       Item: r.itemName,
       Trays: r.trays,
-      'Weight (lbs)': r.weightLbs,
+      "Weight (lbs)": r.weightLbs,
       Donor: r.donor,
     }));
-    exportDataAsCSV(rows, `hopes-corner-donations-${todayPacificDateString()}.csv`);
+    exportDataAsCSV(
+      rows,
+      `hopes-corner-donations-${todayPacificDateString()}.csv`,
+    );
   };
 
   const headerAnim = useFadeInUp();
@@ -217,27 +268,27 @@ const Dashboard = () => {
   const reportsChartAnim = useFadeInUp();
 
   const sections = [
-    { id: 'overview', label: 'Overview', icon: Home },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'batch-upload', label: 'Batch Upload', icon: Upload },
-    { id: 'donations', label: 'Donations', icon: FileText },
-    { id: 'export', label: 'Data Export', icon: Download },
-    { id: 'system', label: 'System', icon: ShieldAlert }
+    { id: "overview", label: "Overview", icon: Home },
+    { id: "reports", label: "Reports", icon: BarChart3 },
+    { id: "batch-upload", label: "Batch Upload", icon: Upload },
+    { id: "donations", label: "Donations", icon: FileText },
+    { id: "export", label: "Data Export", icon: Download },
+    { id: "system", label: "System", icon: ShieldAlert },
   ];
 
   const renderSectionContent = () => {
     switch (activeSection) {
-      case 'overview':
+      case "overview":
         return renderOverviewSection();
-      case 'reports':
+      case "reports":
         return renderReportsSection();
-      case 'batch-upload':
+      case "batch-upload":
         return renderBatchUploadSection();
-      case 'export':
+      case "export":
         return renderExportSection();
-      case 'donations':
+      case "donations":
         return renderDonationsSection();
-      case 'system':
+      case "system":
         return renderSystemSection();
       default:
         return renderOverviewSection();
@@ -245,9 +296,9 @@ const Dashboard = () => {
   };
 
   const renderOverviewSection = () => (
-    <OverviewDashboard 
+    <OverviewDashboard
       overviewGridAnim={overviewGridAnim}
-      monthGridAnim={monthGridAnim} 
+      monthGridAnim={monthGridAnim}
       yearGridAnim={yearGridAnim}
     />
   );
@@ -261,7 +312,9 @@ const Dashboard = () => {
 
         <div className="flex flex-wrap items-end gap-3 mb-4">
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+            <label className="block text-sm text-gray-600 mb-1">
+              Start Date
+            </label>
             <input
               type="date"
               value={startDate}
@@ -295,25 +348,37 @@ const Dashboard = () => {
                 <div className="flex items-center gap-2 text-gray-600 mb-1">
                   <Utensils size={16} /> Meals Served
                 </div>
-                <div className="text-2xl font-bold">{metrics.period.mealsServed}</div>
+                <div className="text-2xl font-bold">
+                  {metrics.period.mealsServed}
+                </div>
               </div>
 
               <div className="bg-gray-50 rounded p-3">
                 <div className="flex items-center gap-2 text-gray-600 mb-1">
                   <ShowerHead size={16} /> Showers Booked
                 </div>
-                <div className="text-2xl font-bold">{metrics.period.showersBooked}</div>
+                <div className="text-2xl font-bold">
+                  {metrics.period.showersBooked}
+                </div>
               </div>
 
               <div className="bg-gray-50 rounded p-3">
                 <div className="flex items-center gap-2 text-gray-600 mb-1">
                   <WashingMachine size={16} /> Laundry Loads
                 </div>
-                <div className="text-2xl font-bold">{metrics.period.laundryLoads}</div>
+                <div className="text-2xl font-bold">
+                  {metrics.period.laundryLoads}
+                </div>
               </div>
             </div>
-            <Animated.div style={reportsChartAnim} className="mt-4 will-change-transform">
-              <TrendLine days={metrics.period.dailyBreakdown} metrics={["meals", "showers", "laundry"]} />
+            <Animated.div
+              style={reportsChartAnim}
+              className="mt-4 will-change-transform"
+            >
+              <TrendLine
+                days={metrics.period.dailyBreakdown}
+                metrics={["meals", "showers", "laundry"]}
+              />
             </Animated.div>
 
             <div className="mt-4 mb-4 overflow-x-auto">
@@ -330,19 +395,27 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {metrics.period.dailyBreakdown.sort((a, b) => b.date.localeCompare(a.date)).map((day) => (
-                    <tr key={day.date} className="border-b">
-                      <td className="px-4 py-2">
-                        {new Date(day.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-2 text-right">{day.meals}</td>
-                      <td className="px-4 py-2 text-right">{day.showers}</td>
-                      <td className="px-4 py-2 text-right">{day.laundry}</td>
-                      <td className="px-4 py-2 text-right">{day.haircuts || 0}</td>
-                      <td className="px-4 py-2 text-right">{day.holidays || 0}</td>
-                      <td className="px-4 py-2 text-right">{day.bicycles || 0}</td>
-                    </tr>
-                  ))}
+                  {metrics.period.dailyBreakdown
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map((day) => (
+                      <tr key={day.date} className="border-b">
+                        <td className="px-4 py-2">
+                          {new Date(day.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-2 text-right">{day.meals}</td>
+                        <td className="px-4 py-2 text-right">{day.showers}</td>
+                        <td className="px-4 py-2 text-right">{day.laundry}</td>
+                        <td className="px-4 py-2 text-right">
+                          {day.haircuts || 0}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {day.holidays || 0}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {day.bicycles || 0}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -354,14 +427,25 @@ const Dashboard = () => {
               <Download size={16} /> Export Date Range Report
             </button>
             <div className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Supplies given in range</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Supplies given in range
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {['tshirt', 'sleeping_bag', 'backpack'].map(item => {
-                  const count = (itemGivenRecords || []).filter(r => {
+                {["tshirt", "sleeping_bag", "backpack"].map((item) => {
+                  const count = (itemGivenRecords || []).filter((r) => {
                     const d = new Date(r.date).toISOString();
-                    return r.item === item && d >= new Date(startDate).toISOString() && d <= new Date(endDate).toISOString();
+                    return (
+                      r.item === item &&
+                      d >= new Date(startDate).toISOString() &&
+                      d <= new Date(endDate).toISOString()
+                    );
                   }).length;
-                  const label = item === 'tshirt' ? 'T-Shirts' : item === 'sleeping_bag' ? 'Sleeping Bags' : 'Backpacks';
+                  const label =
+                    item === "tshirt"
+                      ? "T-Shirts"
+                      : item === "sleeping_bag"
+                        ? "Sleeping Bags"
+                        : "Backpacks";
                   return (
                     <div key={item} className="bg-gray-50 rounded p-3">
                       <div className="text-gray-600 text-sm">{label}</div>
@@ -384,17 +468,21 @@ const Dashboard = () => {
           <Upload size={20} className="text-purple-600" /> Batch Guest Upload
         </h2>
         <p className="text-gray-600 mb-4">
-          Upload multiple guests at once using a CSV file. This feature is restricted to admin users.
+          Upload multiple guests at once using a CSV file. This feature is
+          restricted to admin users.
         </p>
         <GuestBatchUpload />
       </div>
-      
+
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-          <Upload size={20} className="text-green-600" /> Batch Attendance Upload
+          <Upload size={20} className="text-green-600" /> Batch Attendance
+          Upload
         </h2>
         <p className="text-gray-600 mb-4">
-          Import legacy attendance data from another program using a CSV file. Supports all service types including meals, showers, laundry, and more.
+          Import legacy attendance data from another program using a CSV file.
+          Supports all service types including meals, showers, laundry, and
+          more.
         </p>
         <AttendanceBatchUpload />
       </div>
@@ -450,10 +538,15 @@ const Dashboard = () => {
         </div>
 
         <div className="mt-4 border-t pt-4">
-          <h3 className="text-sm font-semibold mb-2">Export a single guest's service history</h3>
+          <h3 className="text-sm font-semibold mb-2">
+            Export a single guest's service history
+          </h3>
           <div className="flex gap-2 items-center">
             <Selectize
-              options={guests.map(g => ({ value: String(g.id), label: `${g.name} (${g.guestId || '-'})` }))}
+              options={guests.map((g) => ({
+                value: String(g.id),
+                label: `${g.name} (${g.guestId || "-"})`,
+              }))}
               value={""}
               onChange={(val) => val && exportGuestMetrics(Number(val))}
               placeholder="Search guest by name or ID…"
@@ -473,50 +566,78 @@ const Dashboard = () => {
     </div>
   );
 
-  const [resetOptions, setResetOptions] = useState({ local: true, supabase: false, keepGuests: false });
+  const [resetOptions, setResetOptions] = useState({
+    local: true,
+    supabase: false,
+    keepGuests: false,
+  });
   const [isResetting, setIsResetting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
-  const supabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const [confirmText, setConfirmText] = useState("");
+  const supabaseConfigured = Boolean(
+    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
+  );
 
-  const localCounts = useMemo(() => ({
-    guests: guests?.length || 0,
-    meals: mealRecords?.length || 0,
-    rvMeals: rvMealRecords?.length || 0,
-    ueMeals: unitedEffortMealRecords?.length || 0,
-    extraMeals: extraMealRecords?.length || 0,
-    dayWorkerMeals: dayWorkerMealRecords?.length || 0,
-    lunchBags: lunchBagRecords?.length || 0,
-    showers: showerRecords?.length || 0,
-    laundry: laundryRecords?.length || 0,
-    items: itemGivenRecords?.length || 0,
-    haircuts: haircutRecords?.length || 0,
-    holidays: holidayRecords?.length || 0,
-    bicycles: bicycleRecords?.length || 0,
-    donations: donationRecords?.length || 0,
-  }), [guests, mealRecords, rvMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, showerRecords, laundryRecords, itemGivenRecords, haircutRecords, holidayRecords, bicycleRecords, donationRecords]);
+  const localCounts = useMemo(
+    () => ({
+      guests: guests?.length || 0,
+      meals: mealRecords?.length || 0,
+      rvMeals: rvMealRecords?.length || 0,
+      ueMeals: unitedEffortMealRecords?.length || 0,
+      extraMeals: extraMealRecords?.length || 0,
+      dayWorkerMeals: dayWorkerMealRecords?.length || 0,
+      lunchBags: lunchBagRecords?.length || 0,
+      showers: showerRecords?.length || 0,
+      laundry: laundryRecords?.length || 0,
+      items: itemGivenRecords?.length || 0,
+      haircuts: haircutRecords?.length || 0,
+      holidays: holidayRecords?.length || 0,
+      bicycles: bicycleRecords?.length || 0,
+      donations: donationRecords?.length || 0,
+    }),
+    [
+      guests,
+      mealRecords,
+      rvMealRecords,
+      unitedEffortMealRecords,
+      extraMealRecords,
+      dayWorkerMealRecords,
+      lunchBagRecords,
+      showerRecords,
+      laundryRecords,
+      itemGivenRecords,
+      haircutRecords,
+      holidayRecords,
+      bicycleRecords,
+      donationRecords,
+    ],
+  );
   const renderSystemSection = () => {
     const scopeParts = [];
-  if (resetOptions.local) scopeParts.push('local data');
-  if (resetOptions.supabase) scopeParts.push('cloud data');
-    const scopeSummary = scopeParts.length > 0 ? scopeParts.join(' + ') : 'No data sets selected';
-    const guestSummary = resetOptions.keepGuests ? 'Guest directory will be preserved.' : 'Guest directory will be cleared as well.';
-  const resetDisabled = isResetting || (!resetOptions.local && !resetOptions.supabase);
+    if (resetOptions.local) scopeParts.push("local data");
+    if (resetOptions.supabase) scopeParts.push("cloud data");
+    const scopeSummary =
+      scopeParts.length > 0 ? scopeParts.join(" + ") : "No data sets selected";
+    const guestSummary = resetOptions.keepGuests
+      ? "Guest directory will be preserved."
+      : "Guest directory will be cleared as well.";
+    const resetDisabled =
+      isResetting || (!resetOptions.local && !resetOptions.supabase);
 
     const impactList = [
-      { label: 'Meals', value: localCounts.meals },
-      { label: 'RV Meals', value: localCounts.rvMeals },
-      { label: 'United Effort Meals', value: localCounts.ueMeals },
-      { label: 'Extra Meals', value: localCounts.extraMeals },
-      { label: 'Day Worker Meals', value: localCounts.dayWorkerMeals },
-      { label: 'Lunch Bags', value: localCounts.lunchBags },
-      { label: 'Showers', value: localCounts.showers },
-      { label: 'Laundry', value: localCounts.laundry },
-      { label: 'Items Given', value: localCounts.items },
-      { label: 'Haircuts', value: localCounts.haircuts },
-      { label: 'Holidays', value: localCounts.holidays },
-      { label: 'Bicycles', value: localCounts.bicycles },
-      { label: 'Donations', value: localCounts.donations },
+      { label: "Meals", value: localCounts.meals },
+      { label: "RV Meals", value: localCounts.rvMeals },
+      { label: "United Effort Meals", value: localCounts.ueMeals },
+      { label: "Extra Meals", value: localCounts.extraMeals },
+      { label: "Day Worker Meals", value: localCounts.dayWorkerMeals },
+      { label: "Lunch Bags", value: localCounts.lunchBags },
+      { label: "Showers", value: localCounts.showers },
+      { label: "Laundry", value: localCounts.laundry },
+      { label: "Items Given", value: localCounts.items },
+      { label: "Haircuts", value: localCounts.haircuts },
+      { label: "Holidays", value: localCounts.holidays },
+      { label: "Bicycles", value: localCounts.bicycles },
+      { label: "Donations", value: localCounts.donations },
     ];
 
     return (
@@ -525,23 +646,29 @@ const Dashboard = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
-                <ShieldAlert size={16} className="text-white" /> High-impact admin
+                <ShieldAlert size={16} className="text-white" /> High-impact
+                admin
               </div>
               <div>
                 <h2 className="text-2xl font-semibold">Reset database</h2>
                 <p className="text-sm text-rose-50 mt-2 max-w-2xl">
-                  Clear out demo or stale records in one action. Choose the scope below, review what will be deleted, and confirm with the safety prompt. This cannot be undone.
+                  Clear out demo or stale records in one action. Choose the
+                  scope below, review what will be deleted, and confirm with the
+                  safety prompt. This cannot be undone.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide">
                 <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
-                  <Cloud size={14} className="text-white" /> Cloud sync: {supabaseConfigured ? 'enabled' : 'disabled'}
+                  <Cloud size={14} className="text-white" /> Cloud sync:{" "}
+                  {supabaseConfigured ? "enabled" : "disabled"}
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
-                  <Database size={14} className="text-white" /> Scope: {scopeSummary}
+                  <Database size={14} className="text-white" /> Scope:{" "}
+                  {scopeSummary}
                 </span>
                 <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1">
-                  <ClipboardList size={14} className="text-white" /> {guestSummary}
+                  <ClipboardList size={14} className="text-white" />{" "}
+                  {guestSummary}
                 </span>
               </div>
             </div>
@@ -549,9 +676,14 @@ const Dashboard = () => {
               <div className="flex items-center gap-2 text-sm font-semibold">
                 <HardDrive size={18} className="text-white" /> Local totals
               </div>
-              <div className="text-3xl font-bold leading-none">{localCounts.guests}{resetOptions.keepGuests ? '' : '+'}</div>
+              <div className="text-3xl font-bold leading-none">
+                {localCounts.guests}
+                {resetOptions.keepGuests ? "" : "+"}
+              </div>
               <p className="text-xs text-white/80 leading-relaxed">
-                {resetOptions.keepGuests ? 'Guests stay in the system; services reset to zero.' : 'Guests and related service history will be removed.'}
+                {resetOptions.keepGuests
+                  ? "Guests stay in the system; services reset to zero."
+                  : "Guests and related service history will be removed."}
               </p>
             </div>
           </div>
@@ -563,9 +695,13 @@ const Dashboard = () => {
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <AlertTriangle size={18} className="text-rose-500" /> Step 1 · Choose what to reset
+                    <AlertTriangle size={18} className="text-rose-500" /> Step 1
+                    · Choose what to reset
                   </h3>
-                  <p className="text-sm text-gray-500">Tick the areas you want to clear. Cloud data is only available when Supabase sync is configured.</p>
+                  <p className="text-sm text-gray-500">
+                    Tick the areas you want to clear. Cloud data is only
+                    available when Supabase sync is configured.
+                  </p>
                 </div>
                 <div className="inline-flex items-center gap-2 text-xs rounded-full px-3 py-1 bg-rose-50 text-rose-600">
                   <RefreshCcw size={14} /> Pending scope
@@ -573,73 +709,128 @@ const Dashboard = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <label className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.local ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition`}> 
+                <label
+                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.local ? "border-rose-200 bg-rose-50" : "border-gray-200 bg-white"} p-4 shadow-sm transition`}
+                >
                   <input
                     className="mt-1 h-4 w-4 text-rose-500 focus:ring-rose-500"
                     type="checkbox"
                     checked={resetOptions.local}
-                    onChange={e => setResetOptions(o => ({ ...o, local: e.target.checked }))}
+                    onChange={(e) =>
+                      setResetOptions((o) => ({
+                        ...o,
+                        local: e.target.checked,
+                      }))
+                    }
                   />
                   <div className="text-sm">
                     <p className="font-semibold text-gray-900">Local storage</p>
-                    <p className="text-xs text-gray-500">Clears data saved on this device, including services, donations, and queue info.</p>
+                    <p className="text-xs text-gray-500">
+                      Clears data saved on this device, including services,
+                      donations, and queue info.
+                    </p>
                   </div>
                 </label>
 
                 <label
-                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.supabase && supabaseConfigured ? 'border-rose-200 bg-rose-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition ${!supabaseConfigured ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  title={!supabaseConfigured ? 'Configure Supabase credentials to reset cloud tables' : ''}
+                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.supabase && supabaseConfigured ? "border-rose-200 bg-rose-50" : "border-gray-200 bg-white"} p-4 shadow-sm transition ${!supabaseConfigured ? "opacity-60 cursor-not-allowed" : ""}`}
+                  title={
+                    !supabaseConfigured
+                      ? "Configure Supabase credentials to reset cloud tables"
+                      : ""
+                  }
                 >
                   <input
                     className="mt-1 h-4 w-4 text-rose-500 focus:ring-rose-500"
                     type="checkbox"
                     disabled={!supabaseConfigured}
                     checked={resetOptions.supabase && supabaseConfigured}
-                    onChange={e => setResetOptions(o => ({ ...o, supabase: e.target.checked && supabaseConfigured }))}
+                    onChange={(e) =>
+                      setResetOptions((o) => ({
+                        ...o,
+                        supabase: e.target.checked && supabaseConfigured,
+                      }))
+                    }
                   />
                   <div className="text-sm">
-                    <p className="font-semibold text-gray-900">Supabase tables</p>
-                    <p className="text-xs text-gray-500">Deletes synced records in the cloud to match this reset.</p>
+                    <p className="font-semibold text-gray-900">
+                      Supabase tables
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Deletes synced records in the cloud to match this reset.
+                    </p>
                   </div>
                 </label>
 
-                <label className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.keepGuests ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-white'} p-4 shadow-sm transition`}>
+                <label
+                  className={`group relative flex items-start gap-3 rounded-xl border ${resetOptions.keepGuests ? "border-emerald-200 bg-emerald-50" : "border-gray-200 bg-white"} p-4 shadow-sm transition`}
+                >
                   <input
                     className="mt-1 h-4 w-4 text-emerald-500 focus:ring-emerald-500"
                     type="checkbox"
                     checked={resetOptions.keepGuests}
-                    onChange={e => setResetOptions(o => ({ ...o, keepGuests: e.target.checked }))}
+                    onChange={(e) =>
+                      setResetOptions((o) => ({
+                        ...o,
+                        keepGuests: e.target.checked,
+                      }))
+                    }
                   />
                   <div className="text-sm">
-                    <p className="font-semibold text-gray-900">Keep guest profiles</p>
-                    <p className="text-xs text-gray-500">Preserve names and contact info while clearing service history.</p>
+                    <p className="font-semibold text-gray-900">
+                      Keep guest profiles
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Preserve names and contact info while clearing service
+                      history.
+                    </p>
                   </div>
                 </label>
               </div>
 
               <div className="space-y-3">
-                <div className="text-xs uppercase tracking-wide text-gray-500">Quick presets</div>
+                <div className="text-xs uppercase tracking-wide text-gray-500">
+                  Quick presets
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: true, supabase: false, keepGuests: false })}
+                    onClick={() =>
+                      setResetOptions({
+                        local: true,
+                        supabase: false,
+                        keepGuests: false,
+                      })
+                    }
                     className="px-3 py-2 text-xs font-semibold rounded-full border border-gray-200 hover:border-rose-300 hover:text-rose-600 transition"
                   >
                     Local only
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: false, supabase: true, keepGuests: false })}
+                    onClick={() =>
+                      setResetOptions({
+                        local: false,
+                        supabase: true,
+                        keepGuests: false,
+                      })
+                    }
                     disabled={!supabaseConfigured}
-                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? "border-gray-200 hover:border-rose-300 hover:text-rose-600 transition" : "border-gray-100 text-gray-400 cursor-not-allowed"}`}
                   >
                     Cloud only
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResetOptions({ local: true, supabase: true, keepGuests: true })}
+                    onClick={() =>
+                      setResetOptions({
+                        local: true,
+                        supabase: true,
+                        keepGuests: true,
+                      })
+                    }
                     disabled={!supabaseConfigured}
-                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? 'border-gray-200 hover:border-rose-300 hover:text-rose-600 transition' : 'border-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    className={`px-3 py-2 text-xs font-semibold rounded-full border ${supabaseConfigured ? "border-gray-200 hover:border-rose-300 hover:text-rose-600 transition" : "border-gray-100 text-gray-400 cursor-not-allowed"}`}
                   >
                     Everything · keep guests
                   </button>
@@ -651,37 +842,56 @@ const Dashboard = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <ClipboardList size={18} className="text-rose-500" /> Step 2 · Review impact
+                    <ClipboardList size={18} className="text-rose-500" /> Step 2
+                    · Review impact
                   </h3>
-                  <p className="text-sm text-gray-500">Once you confirm, these counts reset to zero for the selected scope.</p>
+                  <p className="text-sm text-gray-500">
+                    Once you confirm, these counts reset to zero for the
+                    selected scope.
+                  </p>
                 </div>
-                <span className="text-xs uppercase tracking-wide text-gray-400">Snapshot only</span>
+                <span className="text-xs uppercase tracking-wide text-gray-400">
+                  Snapshot only
+                </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 flex flex-col">
-                  <span className="text-xs uppercase tracking-wide text-gray-500">Guests on device</span>
-                  <span className="text-2xl font-semibold text-gray-900">{localCounts.guests}</span>
+                  <span className="text-xs uppercase tracking-wide text-gray-500">
+                    Guests on device
+                  </span>
+                  <span className="text-2xl font-semibold text-gray-900">
+                    {localCounts.guests}
+                  </span>
                   <span className="text-xs text-gray-500">{guestSummary}</span>
                 </div>
                 {impactList.map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-gray-100 bg-white p-3">
-                    <div className="text-sm font-medium text-gray-700">{label}</div>
-                    <div className="text-xl font-semibold text-gray-900">{value}</div>
+                  <div
+                    key={label}
+                    className="rounded-xl border border-gray-100 bg-white p-3"
+                  >
+                    <div className="text-sm font-medium text-gray-700">
+                      {label}
+                    </div>
+                    <div className="text-xl font-semibold text-gray-900">
+                      {value}
+                    </div>
                   </div>
                 ))}
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-100 pt-4">
                 <p className="text-sm text-gray-600">
-                  Double-check you have exported any reports you want to keep. Resets affect both web and kiosk experiences.
+                  Double-check you have exported any reports you want to keep.
+                  Resets affect both web and kiosk experiences.
                 </p>
                 <button
                   type="button"
                   disabled={resetDisabled}
                   onClick={() => setIsConfirmOpen(true)}
-                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${resetDisabled ? 'bg-rose-200 text-white cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white'}`}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${resetDisabled ? "bg-rose-200 text-white cursor-not-allowed" : "bg-rose-600 hover:bg-rose-700 text-white"}`}
                 >
-                  <AlertTriangle size={16} /> {isResetting ? 'Resetting…' : 'Proceed to confirm'}
+                  <AlertTriangle size={16} />{" "}
+                  {isResetting ? "Resetting…" : "Proceed to confirm"}
                 </button>
               </div>
             </div>
@@ -690,34 +900,50 @@ const Dashboard = () => {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <CheckCircle2 size={18} className="text-emerald-500" /> Safety checklist
+                <CheckCircle2 size={18} className="text-emerald-500" /> Safety
+                checklist
               </h3>
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">1</span>
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">
+                    1
+                  </span>
                   Export required CSVs or reports for bookkeeping.
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">2</span>
-                  Confirm all staff are informed—service queues will be cleared instantly.
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">
+                    2
+                  </span>
+                  Confirm all staff are informed—service queues will be cleared
+                  instantly.
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">3</span>
-                  If Supabase sync is enabled, double-check you truly want to wipe the cloud backup.
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">
+                    3
+                  </span>
+                  If Supabase sync is enabled, double-check you truly want to
+                  wipe the cloud backup.
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">4</span>
-                  Prepare to re-import guests if you plan to start fresh from a CSV template.
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 text-xs">
+                    4
+                  </span>
+                  Prepare to re-import guests if you plan to start fresh from a
+                  CSV template.
                 </li>
               </ul>
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <RefreshCcw size={18} className="text-blue-500" /> After the reset
+                <RefreshCcw size={18} className="text-blue-500" /> After the
+                reset
               </h3>
               <p className="text-sm text-gray-600">
-                You can begin logging new data immediately. Reconnect kiosks or satellite devices so they sync with the cleared database. Consider adding a reminder to export fresh baseline reports once operations resume.
+                You can begin logging new data immediately. Reconnect kiosks or
+                satellite devices so they sync with the cleared database.
+                Consider adding a reminder to export fresh baseline reports once
+                operations resume.
               </p>
             </div>
           </div>
@@ -725,39 +951,60 @@ const Dashboard = () => {
 
         {isConfirmOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => !isResetting && setIsConfirmOpen(false)} />
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => !isResetting && setIsConfirmOpen(false)}
+            />
             <div className="relative bg-white rounded-2xl shadow-xl border border-rose-100 w-[95%] max-w-lg p-6 space-y-4">
               <div className="flex items-center gap-3 text-rose-600">
                 <AlertTriangle size={20} />
                 <div>
-                  <h4 className="text-lg font-semibold">Type RESET to finalize</h4>
-                  <p className="text-sm text-gray-600">This action removes the selected records immediately. There is no undo. If Supabase sync is enabled, double-check you truly want to wipe the cloud backup.</p>
+                  <h4 className="text-lg font-semibold">
+                    Type RESET to finalize
+                  </h4>
+                  <p className="text-sm text-gray-600">
+                    This action removes the selected records immediately. There
+                    is no undo. If Supabase sync is enabled, double-check you
+                    truly want to wipe the cloud backup.
+                  </p>
                 </div>
               </div>
               <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-sm text-rose-900 space-y-2">
-                <div className="font-semibold uppercase tracking-wide text-xs">What will happen</div>
+                <div className="font-semibold uppercase tracking-wide text-xs">
+                  What will happen
+                </div>
                 <ul className="list-disc list-inside space-y-1">
                   {resetOptions.local && (
                     <li>
-                      Local storage on this device will be cleared for services, donations, supplies, and schedules
-                      {resetOptions.keepGuests ? ', keeping guest profiles' : ', including guest profiles'}.
+                      Local storage on this device will be cleared for services,
+                      donations, supplies, and schedules
+                      {resetOptions.keepGuests
+                        ? ", keeping guest profiles"
+                        : ", including guest profiles"}
+                      .
                     </li>
                   )}
                   {resetOptions.supabase && (
                     <li>
-                      Supabase tables (meals, showers, laundry, donations, supplies, bicycles, holidays, haircuts, and extras) will be deleted to match.
+                      Supabase tables (meals, showers, laundry, donations,
+                      supplies, bicycles, holidays, haircuts, and extras) will
+                      be deleted to match.
                     </li>
                   )}
                   {!resetOptions.local && !resetOptions.supabase && (
-                    <li>No data sets selected. Close to adjust your options.</li>
+                    <li>
+                      No data sets selected. Close to adjust your options.
+                    </li>
                   )}
                 </ul>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Safety phrase</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Safety phrase
+                </label>
                 <input
                   value={confirmText}
-                  onChange={e => setConfirmText(e.target.value)}
+                  onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="RESET"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300"
                 />
@@ -773,23 +1020,26 @@ const Dashboard = () => {
                 </button>
                 <button
                   type="button"
-                  disabled={isResetting || confirmText !== 'RESET'}
+                  disabled={isResetting || confirmText !== "RESET"}
                   onClick={async () => {
                     setIsResetting(true);
                     try {
                       await resetAllData(resetOptions);
-                      toast.success('Database reset complete');
+                      toast.success("Database reset complete");
                       setIsConfirmOpen(false);
-                      setConfirmText('');
+                      setConfirmText("");
                     } catch (e) {
-                      toast.error('Reset failed: ' + (e?.message || 'Unknown error'));
+                      toast.error(
+                        "Reset failed: " + (e?.message || "Unknown error"),
+                      );
                     } finally {
                       setIsResetting(false);
                     }
                   }}
-                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${isResetting || confirmText !== 'RESET' ? 'bg-rose-200 text-white cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white'}`}
+                  className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition ${isResetting || confirmText !== "RESET" ? "bg-rose-200 text-white cursor-not-allowed" : "bg-rose-600 hover:bg-rose-700 text-white"}`}
                 >
-                  <AlertTriangle size={16} /> {isResetting ? 'Resetting…' : 'Confirm reset'}
+                  <AlertTriangle size={16} />{" "}
+                  {isResetting ? "Resetting…" : "Confirm reset"}
                 </button>
               </div>
             </div>
@@ -818,10 +1068,11 @@ const Dashboard = () => {
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeSection === section.id
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeSection === section.id
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
               >
                 <SpringIcon>
                   <Icon size={16} />
