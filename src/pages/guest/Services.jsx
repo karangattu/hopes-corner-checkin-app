@@ -124,11 +124,12 @@ const Services = () => {
     holidayRecords,
     guests,
     showerPickerGuest,
+    setShowerPickerGuest,
     laundryPickerGuest,
+    setLaundryPickerGuest,
     LAUNDRY_STATUS,
     updateLaundryStatus,
     updateLaundryBagNumber,
-    setLaundryRecords,
     actionHistory,
     undoAction,
     clearActionHistory,
@@ -156,7 +157,7 @@ const Services = () => {
   const [activeSection, setActiveSection] = useState("overview");
 
   // Sticky Quick Actions state
-  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [showQuickActions] = useState(true);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
@@ -208,7 +209,6 @@ const Services = () => {
     let timeoutId;
     const handleScroll = () => {
       const scrollY = window.scrollY;
-      const windowHeight = window.innerHeight;
 
       // Show quick actions when user scrolls down past 100px
       // Hide when near top or on desktop
@@ -1396,6 +1396,7 @@ const Services = () => {
       setNewBagNumber("");
       enhancedToast.success("Bag number updated");
     } catch (error) {
+      console.error("Failed to update bag number", error);
       enhancedToast.error("Failed to update bag number");
     }
   };
@@ -1460,6 +1461,7 @@ const Services = () => {
       setBagPromptValue("");
       toast.success("Bag number saved and status updated");
     } catch (error) {
+      console.error("Failed to update bag number", error);
       toast.error("Failed to update bag number");
     }
   };
@@ -1655,9 +1657,16 @@ const Services = () => {
     };
 
     const statusButtons = getStatusButtons();
+    const statusTooltip = statusInfo
+      ? `Current status: ${statusInfo.label}`
+      : undefined;
 
     return (
-      <div className="flex items-center gap-1">
+      <div
+        className="flex items-center gap-1"
+        title={statusTooltip}
+        aria-label={statusTooltip}
+      >
         {/* Bag number edit */}
         <button
           type="button"
