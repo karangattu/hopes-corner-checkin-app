@@ -60,7 +60,10 @@ const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
   };
 
   return (
-    <div className="bg-white border rounded-lg p-4 h-72 relative group" ref={chartRef}>
+    <div
+      className="bg-white border rounded-lg p-4 h-72 relative group"
+      ref={chartRef}
+    >
       <button
         onClick={() => exportToPNG(chartRef, "30-day-activity-trend")}
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-sm z-10"

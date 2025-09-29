@@ -11,7 +11,7 @@ export const useChartExport = () => {
 
     try {
       toast.loading("Generating PNG...", { id: "chart-export" });
-      
+
       // Wait a brief moment to ensure the chart is fully rendered
       await new Promise((resolve) => setTimeout(resolve, 100));
 

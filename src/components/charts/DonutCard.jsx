@@ -49,7 +49,10 @@ const DonutCard = ({ title, subtitle, dataMap }) => {
   const safeTitle = title?.toLowerCase().replace(/\s+/g, "-") || "chart";
 
   return (
-    <div className="bg-white border rounded-lg p-4 h-64 relative group" ref={chartRef}>
+    <div
+      className="bg-white border rounded-lg p-4 h-64 relative group"
+      ref={chartRef}
+    >
       <button
         onClick={() => exportToPNG(chartRef, safeTitle)}
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-sm z-10"
