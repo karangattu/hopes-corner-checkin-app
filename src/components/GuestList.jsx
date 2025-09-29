@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { animated as Animated } from "@react-spring/web";
 import { useStagger, SpringIcon } from "../utils/animations";
@@ -52,6 +52,7 @@ const GuestList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedGuest, setExpandedGuest] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedGuestIndex, setSelectedGuestIndex] = useState(-1);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createFormData, setCreateFormData] = useState({
@@ -59,12 +60,14 @@ const GuestList = () => {
     lastName: "",
     preferredName: "",
     housingStatus: "Unhoused",
-    location: "",
+    location: "Mountain View", // Smart default - most common location
     age: "",
     gender: "",
     notes: "",
     bicycleDescription: "",
   });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [duplicateWarning, setDuplicateWarning] = useState("");
 
   const [editingGuestId, setEditingGuestId] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -104,8 +107,31 @@ const GuestList = () => {
   ];
 
   const guestsList = useMemo(() => guests || [], [guests]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Detect when initial load is complete
+  useEffect(() => {
+    if (guests && guests.length >= 0) {
+      const timer = setTimeout(() => setIsInitialLoad(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [guests]);
 
   const searchInputRef = useRef(null);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Cmd/Ctrl + K to focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const filteredGuests = useMemo(() => {
     const queryRaw = searchTerm.trim();
@@ -238,6 +264,7 @@ const GuestList = () => {
   };
 
   const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
+  const [pendingActions, setPendingActions] = useState(new Set());
 
   const handleMealSelection = (guestId, count) => {
     if (pendingMealGuests.has(guestId)) return;
@@ -328,6 +355,45 @@ const GuestList = () => {
     const years = Math.floor(days / 365);
     return `${years} yr${years === 1 ? "" : "s"} ago`;
   };
+
+  const todayServicesByGuest = useMemo(() => {
+    const today = todayPacificDateString();
+    const map = new Map();
+
+    // Helper to add service if it's from today
+    const addTodayService = (guestId, record, serviceType, icon, iconClass) => {
+      if (!guestId || !record?.date) return;
+      const recordDate = pacificDateStringFrom(record.date);
+      if (recordDate === today) {
+        if (!map.has(guestId)) map.set(guestId, []);
+        map.get(guestId).push({ serviceType, icon, iconClass, record });
+      }
+    };
+
+    mealRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Meal", Utensils, "text-green-600")
+    );
+    extraMealRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Extra", Utensils, "text-green-500")
+    );
+    showerRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Shower", ShowerHead, "text-emerald-600")
+    );
+    laundryRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Laundry", WashingMachine, "text-emerald-700")
+    );
+    holidayRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Holiday", Gift, "text-amber-500")
+    );
+    haircutRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Haircut", Scissors, "text-pink-500")
+    );
+    bicycleRecords.forEach(record =>
+      addTodayService(record.guestId, record, "Bicycle", Bike, "text-sky-500")
+    );
+
+    return map;
+  }, [mealRecords, extraMealRecords, showerRecords, laundryRecords, holidayRecords, haircutRecords, bicycleRecords]);
 
   const latestServiceByGuest = useMemo(() => {
     const map = new Map();
@@ -443,9 +509,32 @@ const GuestList = () => {
     bicycleRecords,
   ]);
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'firstName':
+      case 'lastName':
+        return value.trim().length < 1 ? 'This field is required' : '';
+      case 'location':
+        return value.trim().length < 1 ? 'Location is required' : '';
+      case 'age':
+        return !value ? 'Please select an age group' : '';
+      case 'gender':
+        return !value ? 'Please select a gender' : '';
+      default:
+        return '';
+    }
+  };
+
   const handleCreateFormChange = (e) => {
     const { name, value } = e.target;
     setCreateFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Inline validation
+    const error = validateField(name, value);
+    setFieldErrors((prev) => ({
+      ...prev,
+      [name]: error
+    }));
   };
 
   const handleNameBlur = (e) => {
@@ -455,6 +544,29 @@ const GuestList = () => {
         ...prev,
         [name]: toTitleCase(value.trim()),
       }));
+    }
+
+    // Check for potential duplicates when both names are available
+    if (name === "firstName" || name === "lastName") {
+      const firstName = name === "firstName" ? value.trim() : createFormData.firstName;
+      const lastName = name === "lastName" ? value.trim() : createFormData.lastName;
+
+      if (firstName && lastName) {
+        const fullName = `${firstName} ${lastName}`.toLowerCase();
+        const possibleDuplicate = guests.find(guest =>
+          guest.name?.toLowerCase() === fullName ||
+          (guest.firstName?.toLowerCase() === firstName.toLowerCase() &&
+           guest.lastName?.toLowerCase() === lastName.toLowerCase())
+        );
+
+        if (possibleDuplicate) {
+          setDuplicateWarning(
+            `A guest named "${possibleDuplicate.name}" already exists. Please verify this is a different person.`
+          );
+        } else {
+          setDuplicateWarning("");
+        }
+      }
     }
   };
 
@@ -533,13 +645,15 @@ const GuestList = () => {
       lastName: "",
       preferredName: "",
       housingStatus: "Unhoused",
-      location: "",
+      location: "Mountain View",
       age: "",
       gender: "",
       notes: "",
       bicycleDescription: "",
     });
     setCreateError("");
+    setFieldErrors({});
+    setDuplicateWarning("");
   };
 
   const startEditingGuest = (guest) => {
@@ -615,9 +729,13 @@ const GuestList = () => {
           </div>
           <input
             type="text"
-            placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')..."
+            placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')... (Ctrl+K)"
+            aria-label="Search guests by name"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setSelectedGuestIndex(-1); // Reset selection when search changes
+            }}
             onKeyDown={(e) => {
               if (
                 e.key === "Enter" &&
@@ -626,6 +744,22 @@ const GuestList = () => {
               ) {
                 e.preventDefault();
                 handleShowCreateForm();
+              } else if (e.key === "ArrowDown" && filteredGuests.length > 0) {
+                e.preventDefault();
+                setSelectedGuestIndex(prev =>
+                  prev < filteredGuests.length - 1 ? prev + 1 : 0
+                );
+              } else if (e.key === "ArrowUp" && filteredGuests.length > 0) {
+                e.preventDefault();
+                setSelectedGuestIndex(prev =>
+                  prev > 0 ? prev - 1 : filteredGuests.length - 1
+                );
+              } else if (e.key === "Enter" && selectedGuestIndex >= 0 && filteredGuests[selectedGuestIndex]) {
+                e.preventDefault();
+                toggleExpanded(filteredGuests[selectedGuestIndex].id);
+              } else if (e.key === "Escape") {
+                setSelectedGuestIndex(-1);
+                setSearchTerm("");
               }
             }}
             ref={searchInputRef}
@@ -649,9 +783,7 @@ const GuestList = () => {
           )}
         </div>
         <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
-          Tip: enter a first name and at least the first letter of the last name
-          (for example, "Alex R") to reveal the “Create New Guest” button when
-          no matches are found.
+          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first + last name to create new guest • Use ↑↓ arrows to navigate results
         </div>
       </div>
 
@@ -680,14 +812,20 @@ const GuestList = () => {
       )}
 
       {showCreateForm && (
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-6">
+        <div
+          className="bg-white border-2 border-blue-200 rounded-xl p-6"
+          role="dialog"
+          aria-labelledby="create-guest-title"
+          aria-describedby="create-guest-description"
+        >
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
+            <h3 id="create-guest-title" className="text-lg font-semibold flex items-center gap-2">
               <UserPlus size={20} className="text-blue-600" /> Create New Guest
             </h3>
             <button
               onClick={handleCancelCreate}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close create guest form"
             >
               <X size={20} />
             </button>
@@ -696,6 +834,12 @@ const GuestList = () => {
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
               <AlertCircle size={20} className="text-red-600" />
               <span className="text-red-800">{createError}</span>
+            </div>
+          )}
+          {duplicateWarning && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+              <AlertCircle size={20} className="text-amber-600" />
+              <span className="text-amber-800">{duplicateWarning}</span>
             </div>
           )}
           <form onSubmit={handleCreateGuest} className="space-y-4">
@@ -710,11 +854,18 @@ const GuestList = () => {
                   value={createFormData.firstName}
                   onChange={handleCreateFormChange}
                   onBlur={handleNameBlur}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    fieldErrors.firstName
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="Enter first name"
                   required
                   disabled={isCreating}
                 />
+                {fieldErrors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.firstName}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -726,11 +877,18 @@ const GuestList = () => {
                   value={createFormData.lastName}
                   onChange={handleCreateFormChange}
                   onBlur={handleNameBlur}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                    fieldErrors.lastName
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   placeholder="Enter last name"
                   required
                   disabled={isCreating}
                 />
+                {fieldErrors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{fieldErrors.lastName}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -894,10 +1052,36 @@ const GuestList = () => {
         <>
           {searchTerm.trim().length === 0 ? (
             <div className="space-y-4">
-              <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
-                For privacy, start typing to search for a guest. No names are
-                shown until you search.
-              </div>
+              {isInitialLoad ? (
+                <div className="space-y-3">
+                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
+                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+                    <div className="flex-1 space-y-2 py-1">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
+                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+                    <div className="flex-1 space-y-2 py-1">
+                      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
+                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+                    <div className="flex-1 space-y-2 py-1">
+                      <div className="h-4 bg-gray-200 rounded w-4/5"></div>
+                      <div className="h-3 bg-gray-200 rounded w-2/5"></div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+                  For privacy, start typing to search for a guest. No names are
+                  shown until you search.
+                </div>
+              )}
             </div>
           ) : filteredGuests.length === 0 && !shouldShowCreateOption ? (
             <div className="text-center py-12">
@@ -917,10 +1101,15 @@ const GuestList = () => {
               key={`search-results-${searchTerm}-${filteredGuests.length}`}
             >
               {searchTerm && filteredGuests.length > 0 && (
-                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
-                  Found {filteredGuests.length} guest
-                  {filteredGuests.length !== 1 ? "s" : ""} matching "
-                  {searchTerm}"
+                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg flex items-center justify-between">
+                  <span>
+                    Found {filteredGuests.length} guest
+                    {filteredGuests.length !== 1 ? "s" : ""} matching "
+                    {searchTerm}"
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Use ↑↓ arrows to navigate, Enter to expand
+                  </span>
                 </div>
               )}
               {filteredGuests.map((guest, i) => {
@@ -935,12 +1124,17 @@ const GuestList = () => {
                 const relativeLabel = lastService
                   ? formatRelativeTime(lastService.date)
                   : "";
+                const todayServices = todayServicesByGuest.get(guest.id) || [];
 
                 return (
                   <Animated.div
                     style={trail[i]}
                     key={`guest-${guest.id}-${searchTerm}`}
-                    className="border rounded-lg hover:shadow-md transition-shadow bg-white overflow-hidden"
+                    className={`border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
+                      selectedGuestIndex === i
+                        ? "ring-2 ring-blue-500 border-blue-300 shadow-md"
+                        : ""
+                    }`}
                   >
                     <div
                       className="p-4 cursor-pointer flex justify-between items-center"
@@ -950,24 +1144,42 @@ const GuestList = () => {
                         <div className="bg-blue-100 p-2 rounded-full">
                           <User size={24} className="text-blue-600" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {guest.preferredName ? (
-                              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                <span className="text-lg font-semibold text-gray-900">
-                                  {guest.preferredName}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <h3 className="font-semibold text-gray-900 flex-1">
+                              {guest.preferredName ? (
+                                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                  <span className="text-lg font-semibold text-gray-900">
+                                    {guest.preferredName}
+                                  </span>
+                                  <span className="text-sm text-gray-500">
+                                    ({guest.name})
+                                  </span>
+                                  <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                    Preferred
+                                  </span>
                                 </span>
-                                <span className="text-sm text-gray-500">
-                                  ({guest.name})
-                                </span>
-                                <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                                  Preferred
-                                </span>
-                              </span>
-                            ) : (
-                              guest.name
+                              ) : (
+                                guest.name
+                              )}
+                            </h3>
+                            {todayServices.length > 0 && (
+                              <div className="flex gap-1 ml-2">
+                                {todayServices.map((service, idx) => {
+                                  const Icon = service.icon;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border"
+                                      title={`${service.serviceType} today`}
+                                    >
+                                      <Icon size={12} className={service.iconClass} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
-                          </h3>
+                          </div>
                           {guest.preferredName && (
                             <p className="text-xs text-gray-500 mt-1">
                               Use their preferred name when greeting; legal name
@@ -1033,13 +1245,13 @@ const GuestList = () => {
                             <>
                               <button
                                 onClick={saveEditedGuest}
-                                className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm"
+                                className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={cancelEditing}
-                                className="px-3 py-2 border rounded-md text-sm"
+                                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                               >
                                 Cancel
                               </button>
@@ -1048,13 +1260,13 @@ const GuestList = () => {
                             <>
                               <button
                                 onClick={() => startEditingGuest(guest)}
-                                className="px-3 py-2 border rounded-md text-sm"
+                                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => deleteGuest(guest)}
-                                className="px-3 py-2 border rounded-md text-sm text-red-600 border-red-300"
+                                className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
                               >
                                 Delete
                               </button>
@@ -1298,10 +1510,10 @@ const GuestList = () => {
                                           handleMealSelection(guest.id, count)
                                         }
                                         disabled={alreadyHasMeal}
-                                        className={`px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors ${
+                                        className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
                                           alreadyHasMeal
                                             ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                            : "bg-green-100 hover:bg-green-200 text-green-800"
+                                            : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300"
                                         }`}
                                         title={
                                           alreadyHasMeal
@@ -1325,7 +1537,7 @@ const GuestList = () => {
                                           onClick={() =>
                                             handleAddExtraMeals(guest.id, count)
                                           }
-                                          className="px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors bg-green-100 hover:bg-green-200 text-green-800"
+                                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800"
                                           title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
                                         >
                                           <SpringIcon>
@@ -1341,49 +1553,71 @@ const GuestList = () => {
                             })()}
                           </div>
                           <button
-                            onClick={() => {
-                              const rec = addHaircutRecord(guest.id);
-                              if (rec) toast.success("Haircut logged");
+                            onClick={async () => {
+                              const actionKey = `haircut-${guest.id}`;
+                              if (pendingActions.has(actionKey)) return;
+
+                              setPendingActions(prev => new Set(prev).add(actionKey));
+                              try {
+                                const rec = await addHaircutRecord(guest.id);
+                                if (rec) toast.success("Haircut logged");
+                              } finally {
+                                setPendingActions(prev => {
+                                  const next = new Set(prev);
+                                  next.delete(actionKey);
+                                  return next;
+                                });
+                              }
                             }}
-                            className="bg-pink-100 hover:bg-pink-200 text-pink-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
+                            disabled={pendingActions.has(`haircut-${guest.id}`)}
+                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                              pendingActions.has(`haircut-${guest.id}`)
+                                ? 'bg-pink-200 text-pink-600 cursor-not-allowed'
+                                : 'bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800'
+                            }`}
                             title="Log haircut for today"
                           >
-                            Haircut
+                            <Scissors size={16} />
+                            <span className="hidden sm:inline">
+                              {pendingActions.has(`haircut-${guest.id}`) ? 'Saving...' : 'Haircut'}
+                            </span>
                           </button>
                           <button
                             onClick={() => {
                               const rec = addHolidayRecord(guest.id);
                               if (rec) toast.success("Holiday logged");
                             }}
-                            className="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
+                            className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
                             title="Log holiday service for today"
                           >
-                            Holiday
+                            <Gift size={16} />
+                            <span className="hidden sm:inline">Holiday</span>
                           </button>
                           <button
                             onClick={() => setBicyclePickerGuest(guest)}
-                            className="bg-sky-100 hover:bg-sky-200 text-sky-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
+                            className="bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
                             title="Log bicycle repair for today"
                           >
-                            Bicycle Repair
+                            <Bike size={16} />
+                            <span className="hidden sm:inline">Bicycle</span>
                           </button>
                           <button
                             onClick={() => setShowerPickerGuest(guest)}
-                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
+                            className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
                           >
                             <SpringIcon>
                               <ShowerHead size={16} />
                             </SpringIcon>
-                            Book Shower
+                            <span className="hidden sm:inline">Book </span>Shower
                           </button>
                           <button
                             onClick={() => setLaundryPickerGuest(guest)}
-                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors"
+                            className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
                           >
                             <SpringIcon>
                               <WashingMachine size={16} />
                             </SpringIcon>
-                            Book Laundry
+                            <span className="hidden sm:inline">Book </span>Laundry
                           </button>
                         </div>
                       </div>
