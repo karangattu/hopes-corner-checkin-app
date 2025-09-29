@@ -26,6 +26,8 @@ const BicycleRepairBooking = () => {
 
   if (!bicyclePickerGuest) return null;
 
+  const bikeDescription = bicyclePickerGuest?.bicycleDescription?.trim();
+
   const handleCreate = () => {
     if (!bicyclePickerGuest) return;
 
@@ -47,8 +49,6 @@ const BicycleRepairBooking = () => {
       setSubmitting(false);
     }
   };
-
-  const bikeDescription = bicyclePickerGuest?.bicycleDescription?.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -79,12 +79,11 @@ const BicycleRepairBooking = () => {
           ) : (
             <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               <div className="font-semibold mb-1">
-                ⚠️ Bicycle Description Required
+                ⚠️ No bicycle description saved
               </div>
               <div>
-                This guest needs a bicycle description in their profile before
-                repairs can be logged. Please edit their profile and add bike
-                details (make, model, color, etc.) to proceed.
+                Please add bicycle details (make, model, color, etc.) to this
+                guest's profile before logging repair work.
               </div>
             </div>
           )}

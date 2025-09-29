@@ -834,8 +834,9 @@ const GuestList = () => {
           )}
         </div>
         <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
-          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first + last
-          name to create new guest • Use ↑↓ arrows to navigate results
+          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first name
+          and at least the first letter of the last name to create new guest •
+          Use ↑↓ arrows to navigate results
         </div>
       </div>
 
