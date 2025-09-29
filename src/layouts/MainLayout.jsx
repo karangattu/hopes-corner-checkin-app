@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
+import SyncStatus from "../components/SyncStatus";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
@@ -87,7 +88,10 @@ const MainLayout = ({ children }) => {
         className="container mx-auto flex-1 px-4 pt-4 pb-[7.5rem] md:pb-8 md:px-6 min-h-[calc(100vh-4rem)]"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 120px)" }}
       >
-        <div className="max-w-7xl mx-auto">{children}</div>
+        <div className="max-w-7xl mx-auto space-y-4">
+          <SyncStatus />
+          {children}
+        </div>
       </main>
 
       <nav

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import toast from "react-hot-toast";
 import {
   ClipboardList,
@@ -11,6 +11,7 @@ import {
   CheckCircle2Icon,
   LogOutIcon,
   Clock,
+  CalendarClock,
   Calendar,
   ChevronDown,
   ChevronUp,
@@ -89,6 +90,8 @@ const createEmptyMealTotals = () =>
     return acc;
   }, {});
 
+const FILTER_STORAGE_KEY = "services-filters-v1";
+
 const toCsvValue = (value) => {
   const stringValue = String(value ?? "");
   if (/[",\n]/u.test(stringValue)) {
@@ -122,6 +125,7 @@ const Services = () => {
     laundryPickerGuest,
     LAUNDRY_STATUS,
     updateLaundryStatus,
+    updateLaundryBagNumber,
     setLaundryRecords,
     actionHistory,
     undoAction,
@@ -180,17 +184,77 @@ const Services = () => {
     createDefaultMealReportTypes(),
   );
 
-  const [showerStatusFilter, setShowerStatusFilter] = useState("all");
-  const [showerLaundryFilter, setShowerLaundryFilter] = useState("any");
-  const [showerSort, setShowerSort] = useState("time-asc");
-  const [showCompletedShowers, setShowCompletedShowers] = useState(false);
+  const savedFilters = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (error) {
+      console.warn("Failed to read saved Services filters", error);
+      return null;
+    }
+  }, []);
 
-  const [laundryTypeFilter, setLaundryTypeFilter] = useState("any");
-  const [laundryStatusFilter, setLaundryStatusFilter] = useState("any");
-  const [laundrySort, setLaundrySort] = useState("time-asc");
-  const [showCompletedLaundry, setShowCompletedLaundry] = useState(false);
+  const [showerStatusFilter, setShowerStatusFilter] = useState(
+    () => savedFilters?.showerStatusFilter ?? "all",
+  );
+  const [showerLaundryFilter, setShowerLaundryFilter] = useState(
+    () => savedFilters?.showerLaundryFilter ?? "any",
+  );
+  const [showerSort, setShowerSort] = useState(
+    () => savedFilters?.showerSort ?? "time-asc",
+  );
+  const [showCompletedShowers, setShowCompletedShowers] = useState(
+    () => Boolean(savedFilters?.showCompletedShowers),
+  );
+
+  const [laundryTypeFilter, setLaundryTypeFilter] = useState(
+    () => savedFilters?.laundryTypeFilter ?? "any",
+  );
+  const [laundryStatusFilter, setLaundryStatusFilter] = useState(
+    () => savedFilters?.laundryStatusFilter ?? "any",
+  );
+  const [laundrySort, setLaundrySort] = useState(
+    () => savedFilters?.laundrySort ?? "time-asc",
+  );
+  const [showCompletedLaundry, setShowCompletedLaundry] = useState(
+    () => Boolean(savedFilters?.showCompletedLaundry),
+  );
   const [expandedCompletedBicycleCards, setExpandedCompletedBicycleCards] =
     useState({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = {
+      showerStatusFilter,
+      showerLaundryFilter,
+      showerSort,
+      showCompletedShowers,
+      laundryTypeFilter,
+      laundryStatusFilter,
+      laundrySort,
+      showCompletedLaundry,
+    };
+    try {
+      window.localStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify(payload),
+      );
+    } catch (error) {
+      console.warn("Failed to persist Services filters", error);
+    }
+  }, [
+    showerStatusFilter,
+    showerLaundryFilter,
+    showerSort,
+    showCompletedShowers,
+    laundryTypeFilter,
+    laundryStatusFilter,
+    laundrySort,
+    showCompletedLaundry,
+  ]);
 
   const todayMetrics = getTodayMetrics();
 
@@ -216,21 +280,25 @@ const Services = () => {
 
   const todayLaundryWithGuests = getTodayLaundryWithGuests();
 
-  const parseTimeToMinutes = (t) => {
+  const parseTimeToMinutes = useCallback((t) => {
     if (!t) return Number.POSITIVE_INFINITY;
     const [h, m] = String(t).split(":");
     const hh = parseInt(h, 10);
     const mm = parseInt(m, 10);
     if (Number.isNaN(hh) || Number.isNaN(mm)) return Number.POSITIVE_INFINITY;
     return hh * 60 + mm;
-  };
-  const parseLaundryStartToMinutes = (range) => {
-    if (!range) return Number.POSITIVE_INFINITY;
-    const [start] = String(range).split(" - ");
-    return parseTimeToMinutes(start);
-  };
+  }, []);
 
-  const formatTimeLabel = (timeStr) => {
+  const parseLaundryStartToMinutes = useCallback(
+    (range) => {
+      if (!range) return Number.POSITIVE_INFINITY;
+      const [start] = String(range).split(" - ");
+      return parseTimeToMinutes(start);
+    },
+    [parseTimeToMinutes],
+  );
+
+  const formatTimeLabel = useCallback((timeStr) => {
     if (!timeStr) return "";
     const [hoursStr, minutesStr] = String(timeStr).split(":");
     const hours = Number(hoursStr);
@@ -240,24 +308,189 @@ const Services = () => {
     date.setHours(hours);
     date.setMinutes(minutes, 0, 0);
     return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  };
+  }, []);
 
-  const formatLaundryRangeLabel = (range) => {
-    if (!range) return "Off-site (no slot)";
-    const [start, end] = String(range).split(" - ");
-    const formattedStart = formatTimeLabel(start);
-    const formattedEnd = end ? formatTimeLabel(end) : "";
-    if (!formattedEnd) return formattedStart;
-    const [startTime, startPeriod] = formattedStart.split(" ");
-    const [endTime, endPeriod] = formattedEnd.split(" ");
-    if (startPeriod && endPeriod && startPeriod === endPeriod) {
-      return `${startTime} - ${endTime} ${startPeriod}`;
+  const formatLaundryRangeLabel = useCallback(
+    (range) => {
+      if (!range) return "Off-site (no slot)";
+      const [start, end] = String(range).split(" - ");
+      const formattedStart = formatTimeLabel(start);
+      const formattedEnd = end ? formatTimeLabel(end) : "";
+      if (!formattedEnd) return formattedStart;
+      const [startTime, startPeriod] = formattedStart.split(" ");
+      const [endTime, endPeriod] = formattedEnd.split(" ");
+      if (startPeriod && endPeriod && startPeriod === endPeriod) {
+        return `${startTime} - ${endTime} ${startPeriod}`;
+      }
+      return `${formattedStart} - ${formattedEnd}`;
+    },
+    [formatTimeLabel],
+  );
+
+  const formatShowerSlotLabel = useCallback(
+    (slotTime) => formatTimeLabel(slotTime) || slotTime,
+    [formatTimeLabel],
+  );
+
+  const getGuestNameDetails = useCallback(
+    (guestId) => {
+      const guest = guests.find((g) => g.id === guestId) || null;
+      const fallback = "Unknown Guest";
+      const legalName =
+        guest?.name ||
+        `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
+        fallback;
+      const preferredName = (guest?.preferredName || "").trim();
+      const hasPreferred =
+        Boolean(preferredName) &&
+        preferredName.toLowerCase() !== legalName.toLowerCase();
+      const primaryName = hasPreferred ? preferredName : legalName;
+      const displayName = hasPreferred
+        ? `${preferredName} (${legalName})`
+        : legalName;
+      return {
+        guest,
+        legalName,
+        preferredName,
+        hasPreferred,
+        primaryName,
+        displayName,
+        sortKey: legalName.toLowerCase(),
+      };
+    },
+    [guests],
+  );
+
+  const getGuestName = useCallback(
+    (guestId) => getGuestNameDetails(guestId).displayName,
+    [getGuestNameDetails],
+  );
+
+  const getShowerStatusInfo = useCallback((status) => {
+    switch (status) {
+      case "done":
+        return {
+          label: "Completed",
+          icon: CheckCircle2Icon,
+          iconClass: "text-emerald-600",
+          chipClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+          badgeClass:
+            "bg-emerald-100 text-emerald-700 border border-emerald-200",
+        };
+      case "awaiting":
+        return {
+          label: "Awaiting",
+          icon: Circle,
+          iconClass: "fill-blue-300 text-blue-400",
+          chipClass: "bg-blue-50 text-blue-700 border border-blue-200",
+          badgeClass: "bg-blue-100 text-blue-700 border border-blue-200",
+        };
+      case "waitlisted":
+        return {
+          label: "Waitlisted",
+          icon: Clock,
+          iconClass: "text-amber-500",
+          chipClass: "bg-amber-50 text-amber-700 border border-amber-200",
+          badgeClass: "bg-amber-100 text-amber-700 border border-amber-200",
+        };
+      default:
+        return {
+          label: "Scheduled",
+          icon: ShowerHead,
+          iconClass: "text-slate-500",
+          chipClass: "bg-slate-50 text-slate-700 border border-slate-200",
+          badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
+        };
     }
-    return `${formattedStart} - ${formattedEnd}`;
-  };
+  }, []);
 
-  const formatShowerSlotLabel = (slotTime) =>
-    formatTimeLabel(slotTime) || slotTime;
+  const getLaundryStatusInfo = useCallback(
+    (status) => {
+      switch (status) {
+        case LAUNDRY_STATUS.WAITING:
+          return {
+            icon: ShoppingBag,
+            color: "text-gray-500",
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-800",
+            label: "Waiting",
+          };
+        case LAUNDRY_STATUS.WASHER:
+          return {
+            icon: DropletIcon,
+            color: "text-blue-500",
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-800",
+            label: "In Washer",
+          };
+        case LAUNDRY_STATUS.DRYER:
+          return {
+            icon: FanIcon,
+            color: "text-orange-500",
+            bgColor: "bg-orange-100",
+            textColor: "text-orange-800",
+            label: "In Dryer",
+          };
+        case LAUNDRY_STATUS.DONE:
+          return {
+            icon: CheckCircle2Icon,
+            color: "text-green-500",
+            bgColor: "bg-green-100",
+            textColor: "text-green-800",
+            label: "Done",
+          };
+        case LAUNDRY_STATUS.PICKED_UP:
+          return {
+            icon: LogOutIcon,
+            color: "text-purple-500",
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-800",
+            label: "Picked Up",
+          };
+        case LAUNDRY_STATUS.PENDING:
+          return {
+            icon: Clock,
+            color: "text-yellow-500",
+            bgColor: "bg-yellow-100",
+            textColor: "text-yellow-800",
+            label: "Waiting",
+          };
+        case LAUNDRY_STATUS.TRANSPORTED:
+          return {
+            icon: Truck,
+            color: "text-blue-500",
+            bgColor: "bg-blue-100",
+            textColor: "text-blue-800",
+            label: "Transported",
+          };
+        case LAUNDRY_STATUS.RETURNED:
+          return {
+            icon: CheckCircle2Icon,
+            color: "text-green-500",
+            bgColor: "bg-green-100",
+            textColor: "text-green-800",
+            label: "Returned",
+          };
+        case LAUNDRY_STATUS.OFFSITE_PICKED_UP:
+          return {
+            icon: LogOutIcon,
+            color: "text-purple-500",
+            bgColor: "bg-purple-100",
+            textColor: "text-purple-800",
+            label: "Picked Up",
+          };
+        default:
+          return {
+            icon: ShoppingBag,
+            color: "text-gray-500",
+            bgColor: "bg-gray-100",
+            textColor: "text-gray-800",
+            label: "Unknown",
+          };
+      }
+    },
+    [LAUNDRY_STATUS],
+  );
 
   const laundryGuestIdsSet = new Set(
     (todayLaundryWithGuests || []).map((l) => l.guestId),
@@ -625,6 +858,143 @@ const Services = () => {
     (completedLaundry || []).length,
     true,
   );
+
+  const timelineEvents = useMemo(() => {
+    const events = [];
+
+    todayBookedShowers.forEach((record) => {
+      const nameDetails = getGuestNameDetails(record.guestId);
+      const statusInfo = getShowerStatusInfo(record.status);
+      const accentClass =
+        record.status === "done"
+          ? "bg-emerald-500"
+          : record.status === "awaiting"
+            ? "bg-blue-500"
+            : "bg-slate-400";
+      const iconWrapperClass =
+        record.status === "done"
+          ? "bg-emerald-100 text-emerald-700"
+          : record.status === "awaiting"
+            ? "bg-blue-100 text-blue-700"
+            : "bg-slate-100 text-slate-700";
+
+      events.push({
+        id: `shower-${record.id}`,
+        type: "shower",
+        title: nameDetails.primaryName,
+        subtitle: nameDetails.hasPreferred ? `Legal: ${nameDetails.legalName}` : "Shower booking",
+        timeLabel: formatShowerSlotLabel(record.time) || "No slot",
+        detail:
+          record.status === "done"
+            ? "Completed shower"
+            : record.status === "awaiting"
+              ? "Awaiting arrival"
+              : "Scheduled shower",
+        statusLabel: statusInfo.label,
+        statusClass: statusInfo.chipClass,
+        iconWrapperClass,
+        accentClass,
+        icon: ShowerHead,
+        sortValue: parseTimeToMinutes(record.time),
+        originalRecord: record, // Add original record for actions
+        meta: {
+          record,
+          guestId: record.guestId,
+        },
+      });
+    });
+
+    todayWaitlisted.forEach((record, index) => {
+      const nameDetails = record.guestId
+        ? getGuestNameDetails(record.guestId)
+        : null;
+      const statusInfo = getShowerStatusInfo("waitlisted");
+
+      events.push({
+        id: `waitlist-${record.id || index}`,
+        type: "waitlist",
+        title: nameDetails?.primaryName || "Waitlist guest",
+        subtitle: nameDetails?.hasPreferred
+          ? `Legal: ${nameDetails.legalName}`
+          : "Awaiting shower slot",
+        timeLabel: record.time
+          ? formatShowerSlotLabel(record.time)
+          : "Waitlist",
+        detail: `Position #${index + 1}`,
+        statusLabel: statusInfo.label,
+        statusClass: statusInfo.chipClass,
+        iconWrapperClass: "bg-amber-100 text-amber-700",
+        accentClass: "bg-amber-500",
+        icon: Clock,
+        sortValue: record.time
+          ? parseTimeToMinutes(record.time) + index * 0.01
+          : Number.MAX_SAFE_INTEGER - (todayWaitlisted.length - index),
+        meta: {
+          position: index + 1,
+        },
+      });
+    });
+
+    todayLaundryWithGuests.forEach((record) => {
+      const statusInfo = getLaundryStatusInfo(record.status);
+      const accentClass = statusInfo.color
+        ? statusInfo.color.replace("text-", "bg-")
+        : "bg-indigo-500";
+      const iconWrapperClass =
+        record.laundryType === "offsite"
+          ? "bg-purple-100 text-purple-700"
+          : "bg-indigo-100 text-indigo-700";
+      const guestName = record.guestName || getGuestName(record.guestId);
+      const laundryTypeLabel =
+        record.laundryType === "offsite" ? "Off-site" : "On-site";
+
+      events.push({
+        id: `laundry-${record.id}`,
+        type: "laundry",
+        title: guestName,
+        subtitle: `${laundryTypeLabel} laundry`,
+        timeLabel: formatLaundryRangeLabel(record.time),
+        detail: `Status · ${statusInfo.label}`,
+        statusLabel: statusInfo.label,
+        statusClass: `${statusInfo.bgColor} ${statusInfo.textColor} border border-transparent`,
+        iconWrapperClass,
+        accentClass,
+        icon: WashingMachine,
+        sortValue: parseLaundryStartToMinutes(record.time),
+        originalRecord: record, // Add original record for actions
+        meta: {
+          bagNumber: record.bagNumber,
+        },
+      });
+    });
+
+    return events
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aVal = Number.isFinite(a.sortValue)
+          ? a.sortValue
+          : Number.MAX_SAFE_INTEGER;
+        const bVal = Number.isFinite(b.sortValue)
+          ? b.sortValue
+          : Number.MAX_SAFE_INTEGER;
+        if (aVal !== bVal) return aVal - bVal;
+        return a.type.localeCompare(b.type);
+      });
+  }, [
+    todayBookedShowers,
+    todayWaitlisted,
+    todayLaundryWithGuests,
+    getGuestNameDetails,
+    getGuestName,
+    getShowerStatusInfo,
+    getLaundryStatusInfo,
+    formatShowerSlotLabel,
+    formatLaundryRangeLabel,
+    parseTimeToMinutes,
+    parseLaundryStartToMinutes,
+  ]);
+
+  const timelineTrail = useStagger((timelineEvents || []).length, true);
   const toggleCompletedBicycleCard = useCallback((id) => {
     setExpandedCompletedBicycleCards((prev = {}) => ({
       ...prev,
@@ -895,6 +1265,9 @@ const Services = () => {
   const overviewHighlightsSpring = useFadeInUp();
   const overviewSnapshotSpring = useFadeInUp();
   const overviewLinksSpring = useFadeInUp();
+  const timelineHeaderSpring = useFadeInUp();
+  const timelineStatsSpring = useFadeInUp();
+  const timelineListSpring = useFadeInUp();
   const modalSpring = useScaleIn([bagPromptOpen]);
 
   const handleAddRvMeals = () => {
@@ -961,173 +1334,21 @@ const Services = () => {
     }
   };
 
-  const getGuestNameDetails = (guestId) => {
-    const guest = guests.find((g) => g.id === guestId) || null;
-    const fallback = "Unknown Guest";
-    const legalName =
-      guest?.name ||
-      `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
-      fallback;
-    const preferredName = (guest?.preferredName || "").trim();
-    const hasPreferred =
-      Boolean(preferredName) &&
-      preferredName.toLowerCase() !== legalName.toLowerCase();
-    const primaryName = hasPreferred ? preferredName : legalName;
-    const displayName = hasPreferred
-      ? `${preferredName} (${legalName})`
-      : legalName;
-    return {
-      guest,
-      legalName,
-      preferredName,
-      hasPreferred,
-      primaryName,
-      displayName,
-      sortKey: legalName.toLowerCase(),
-    };
-  };
-
-  const getGuestName = (guestId) => getGuestNameDetails(guestId).displayName;
-
-  const getShowerStatusInfo = (status) => {
-    switch (status) {
-      case "done":
-        return {
-          label: "Completed",
-          icon: CheckCircle2Icon,
-          iconClass: "text-emerald-600",
-          chipClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-          badgeClass:
-            "bg-emerald-100 text-emerald-700 border border-emerald-200",
-        };
-      case "awaiting":
-        return {
-          label: "Awaiting",
-          icon: Circle,
-          iconClass: "fill-blue-300 text-blue-400",
-          chipClass: "bg-blue-50 text-blue-700 border border-blue-200",
-          badgeClass: "bg-blue-100 text-blue-700 border border-blue-200",
-        };
-      case "waitlisted":
-        return {
-          label: "Waitlisted",
-          icon: Clock,
-          iconClass: "text-amber-500",
-          chipClass: "bg-amber-50 text-amber-700 border border-amber-200",
-          badgeClass: "bg-amber-100 text-amber-700 border border-amber-200",
-        };
-      default:
-        return {
-          label: "Scheduled",
-          icon: ShowerHead,
-          iconClass: "text-slate-500",
-          chipClass: "bg-slate-50 text-slate-700 border border-slate-200",
-          badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
-        };
-    }
-  };
-
-  const getLaundryStatusInfo = (status) => {
-    switch (status) {
-      case LAUNDRY_STATUS.WAITING:
-        return {
-          icon: ShoppingBag,
-          color: "text-gray-500",
-          bgColor: "bg-gray-100",
-          textColor: "text-gray-800",
-          label: "Waiting",
-        };
-      case LAUNDRY_STATUS.WASHER:
-        return {
-          icon: DropletIcon,
-          color: "text-blue-500",
-          bgColor: "bg-blue-100",
-          textColor: "text-blue-800",
-          label: "In Washer",
-        };
-      case LAUNDRY_STATUS.DRYER:
-        return {
-          icon: FanIcon,
-          color: "text-orange-500",
-          bgColor: "bg-orange-100",
-          textColor: "text-orange-800",
-          label: "In Dryer",
-        };
-      case LAUNDRY_STATUS.DONE:
-        return {
-          icon: CheckCircle2Icon,
-          color: "text-green-500",
-          bgColor: "bg-green-100",
-          textColor: "text-green-800",
-          label: "Done",
-        };
-      case LAUNDRY_STATUS.PICKED_UP:
-        return {
-          icon: LogOutIcon,
-          color: "text-purple-500",
-          bgColor: "bg-purple-100",
-          textColor: "text-purple-800",
-          label: "Picked Up",
-        };
-      case LAUNDRY_STATUS.PENDING:
-        return {
-          icon: Clock,
-          color: "text-yellow-500",
-          bgColor: "bg-yellow-100",
-          textColor: "text-yellow-800",
-          label: "Waiting",
-        };
-      case LAUNDRY_STATUS.TRANSPORTED:
-        return {
-          icon: Truck,
-          color: "text-blue-500",
-          bgColor: "bg-blue-100",
-          textColor: "text-blue-800",
-          label: "Transported",
-        };
-      case LAUNDRY_STATUS.RETURNED:
-        return {
-          icon: CheckCircle2Icon,
-          color: "text-green-500",
-          bgColor: "bg-green-100",
-          textColor: "text-green-800",
-          label: "Returned",
-        };
-      case LAUNDRY_STATUS.OFFSITE_PICKED_UP:
-        return {
-          icon: LogOutIcon,
-          color: "text-purple-500",
-          bgColor: "bg-purple-100",
-          textColor: "text-purple-800",
-          label: "Picked Up",
-        };
-      default:
-        return {
-          icon: ShoppingBag,
-          color: "text-gray-500",
-          bgColor: "bg-gray-100",
-          textColor: "text-gray-800",
-          label: "Unknown",
-        };
-    }
-  };
-
   const handleStatusChange = (recordId, newStatus) => {
     updateLaundryStatus(recordId, newStatus);
     const info = getLaundryStatusInfo(newStatus);
     toast.success(`Laundry status updated to ${info.label}`);
   };
 
-  const handleBagNumberUpdate = (recordId, bagNumber) => {
-    setLaundryRecords((prevRecords) =>
-      prevRecords.map((record) =>
-        record.id === recordId
-          ? { ...record, bagNumber, lastUpdated: new Date().toISOString() }
-          : record,
-      ),
-    );
-    setEditingBagNumber(null);
-    setNewBagNumber("");
+  const handleBagNumberUpdate = async (recordId, bagNumber) => {
+    try {
+      await updateLaundryBagNumber(recordId, bagNumber);
+      setEditingBagNumber(null);
+      setNewBagNumber("");
+      toast.success("Bag number updated");
+    } catch (error) {
+      toast.error("Failed to update bag number");
+    }
   };
 
   const attemptLaundryStatusChange = (record, newStatus) => {
@@ -1142,7 +1363,7 @@ const Services = () => {
     handleStatusChange(record.id, newStatus);
   };
 
-  const confirmBagPrompt = () => {
+  const confirmBagPrompt = async () => {
     const val = (bagPromptValue || "").trim();
     if (!val) {
       toast.error("Please enter a bag number");
@@ -1152,20 +1373,24 @@ const Services = () => {
       setBagPromptOpen(false);
       return;
     }
-    setLaundryRecords((prev) =>
-      prev.map((r) =>
-        r.id === bagPromptRecord.id
-          ? { ...r, bagNumber: val, lastUpdated: new Date().toISOString() }
-          : r,
-      ),
-    );
-    if (bagPromptNextStatus) {
-      handleStatusChange(bagPromptRecord.id, bagPromptNextStatus);
+    
+    try {
+      // Update bag number first
+      await updateLaundryBagNumber(bagPromptRecord.id, val);
+      
+      // Then update status if needed
+      if (bagPromptNextStatus) {
+        handleStatusChange(bagPromptRecord.id, bagPromptNextStatus);
+      }
+      
+      setBagPromptOpen(false);
+      setBagPromptRecord(null);
+      setBagPromptNextStatus(null);
+      setBagPromptValue("");
+      toast.success("Bag number saved and status updated");
+    } catch (error) {
+      toast.error("Failed to update bag number");
     }
-    setBagPromptOpen(false);
-    setBagPromptRecord(null);
-    setBagPromptNextStatus(null);
-    setBagPromptValue("");
   };
 
   const startEditingBagNumber = (recordId, currentBagNumber) => {
@@ -1194,6 +1419,7 @@ const Services = () => {
 
   const sections = [
     { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "timeline", label: "Timeline", icon: CalendarClock },
     { id: "meals", label: "Meals", icon: Utensils },
     { id: "showers", label: "Showers", icon: ShowerHead },
     { id: "laundry", label: "Laundry", icon: WashingMachine },
@@ -1231,6 +1457,396 @@ const Services = () => {
           <span className="text-gray-500">Home</span>
         )}
       </nav>
+    );
+  };
+
+  // Timeline action renderers
+  const renderShowerActions = (event) => {
+    if (!event.originalRecord) return null;
+    
+    const record = event.originalRecord;
+    const isCompleted = record.status === "done";
+    
+    return (
+      <div className="flex items-center gap-1">
+        {/* Reschedule button */}
+        <button
+          type="button"
+          onClick={() => setShowerPickerGuest(record.guestId)}
+          className="p-1 rounded hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+          title="Reschedule shower"
+        >
+          <Calendar size={14} />
+        </button>
+        
+        {/* Toggle completion status */}
+        <button
+          type="button"
+          onClick={() => {
+            const nextStatus = isCompleted ? "awaiting" : "done";
+            updateShowerStatus(record.id, nextStatus);
+            toast.success(
+              nextStatus === "done" ? "Marked as completed" : "Reopened shower"
+            );
+          }}
+          className={`p-1 rounded text-xs px-2 py-1 ${
+            isCompleted
+              ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+          }`}
+          title={isCompleted ? "Reopen shower" : "Mark as done"}
+        >
+          {isCompleted ? <RotateCcw size={12} /> : <CheckCircle2Icon size={12} />}
+        </button>
+      </div>
+    );
+  };
+
+  const renderLaundryActions = (event) => {
+    if (!event.originalRecord) return null;
+    
+    const record = event.originalRecord;
+    const statusInfo = getLaundryStatusInfo(record.status);
+    
+    // Get available status transitions based on current status and laundry type
+    const getStatusButtons = () => {
+      const buttons = [];
+      
+      if (record.laundryType === "onsite") {
+        // Onsite laundry workflow
+        if (record.status === LAUNDRY_STATUS.WAITING) {
+          buttons.push({
+            value: LAUNDRY_STATUS.WASHER,
+            label: "Start Wash",
+            icon: DropletIcon,
+            activeClass: "bg-blue-100 text-blue-700",
+            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100"
+          });
+        } else if (record.status === LAUNDRY_STATUS.WASHER) {
+          buttons.push({
+            value: LAUNDRY_STATUS.DRYER,
+            label: "To Dryer",
+            icon: FanIcon,
+            activeClass: "bg-orange-100 text-orange-700",
+            idleClass: "bg-orange-50 text-orange-600 hover:bg-orange-100"
+          });
+        } else if (record.status === LAUNDRY_STATUS.DRYER) {
+          buttons.push({
+            value: LAUNDRY_STATUS.DONE,
+            label: "Done",
+            icon: CheckCircle2Icon,
+            activeClass: "bg-green-100 text-green-700",
+            idleClass: "bg-green-50 text-green-600 hover:bg-green-100"
+          });
+        } else if (record.status === LAUNDRY_STATUS.DONE) {
+          buttons.push({
+            value: LAUNDRY_STATUS.PICKED_UP,
+            label: "Picked Up",
+            icon: LogOutIcon,
+            activeClass: "bg-purple-100 text-purple-700",
+            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100"
+          });
+        }
+      } else {
+        // Offsite laundry workflow
+        if (record.status === LAUNDRY_STATUS.PENDING) {
+          buttons.push({
+            value: LAUNDRY_STATUS.TRANSPORTED,
+            label: "Transport",
+            icon: Truck,
+            activeClass: "bg-blue-100 text-blue-700",
+            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100"
+          });
+        } else if (record.status === LAUNDRY_STATUS.TRANSPORTED) {
+          buttons.push({
+            value: LAUNDRY_STATUS.RETURNED,
+            label: "Returned",
+            icon: CheckCircle2Icon,
+            activeClass: "bg-green-100 text-green-700",
+            idleClass: "bg-green-50 text-green-600 hover:bg-green-100"
+          });
+        } else if (record.status === LAUNDRY_STATUS.RETURNED) {
+          buttons.push({
+            value: LAUNDRY_STATUS.OFFSITE_PICKED_UP,
+            label: "Picked Up",
+            icon: LogOutIcon,
+            activeClass: "bg-purple-100 text-purple-700",
+            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100"
+          });
+        }
+      }
+      
+      return buttons;
+    };
+
+    const statusButtons = getStatusButtons();
+    
+    return (
+      <div className="flex items-center gap-1">
+        {/* Bag number edit */}
+        <button
+          type="button"
+          onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
+          className="p-1 rounded hover:bg-purple-50 text-purple-600 hover:text-purple-700"
+          title="Edit bag number"
+        >
+          <Edit3 size={12} />
+        </button>
+        
+        {/* Status progression buttons */}
+        {statusButtons.map((buttonConfig) => {
+          const Icon = buttonConfig.icon;
+          return (
+            <button
+              key={buttonConfig.value}
+              type="button"
+              onClick={() => attemptLaundryStatusChange(record, buttonConfig.value)}
+              className={`text-xs font-medium px-2 py-1 rounded border transition-colors ${buttonConfig.idleClass}`}
+              title={buttonConfig.label}
+            >
+              <Icon size={12} />
+            </button>
+          );
+        })}
+        
+        {/* Reschedule button */}
+        <button
+          type="button"
+          onClick={() => setLaundryPickerGuest(record.guestId)}
+          className="p-1 rounded hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+          title="Reschedule laundry"
+        >
+          <Calendar size={14} />
+        </button>
+      </div>
+    );
+  };
+
+  const renderTimelineSection = () => {
+    const totalEvents = timelineEvents.length;
+    const showerEvents = timelineEvents.filter((event) => event.type === "shower");
+    const waitlistEvents = timelineEvents.filter((event) => event.type === "waitlist");
+    const laundryEvents = timelineEvents.filter((event) => event.type === "laundry");
+    const showerCompleted = showerEvents.filter(
+      (event) => event.statusLabel === "Completed",
+    ).length;
+    const showerActive = showerEvents.length - showerCompleted;
+    const laundryCompletedLabels = new Set(["Done", "Picked Up", "Returned"]);
+    const laundryCompleted = laundryEvents.filter((event) =>
+      laundryCompletedLabels.has(event.statusLabel),
+    ).length;
+    const laundryActive = laundryEvents.length - laundryCompleted;
+
+    return (
+      <div className="space-y-4 md:space-y-6">
+        {/* Quick Actions Section */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4 border border-blue-100">
+          <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <SquarePlus size={16} className="text-blue-600" />
+            Quick Add Services
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveSection('showers')}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <ShowerHead size={14} />
+              Add Shower
+            </button>
+            <button
+              onClick={() => setActiveSection('laundry')}
+              className="flex items-center gap-2 px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <WashingMachine size={14} />
+              Add Laundry
+            </button>
+            <button
+              onClick={() => setActiveSection('meals')}
+              className="flex items-center gap-2 px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Utensils size={14} />
+              Add Meal
+            </button>
+            <button
+              onClick={() => setActiveSection('bicycles')}
+              className="flex items-center gap-2 px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Bike size={14} />
+              Add Bicycle
+            </button>
+          </div>
+        </div>
+        <Animated.div
+          style={timelineHeaderSpring}
+          className="bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 text-white rounded-2xl p-6 shadow-sm"
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/70 font-semibold">
+                Field operations
+              </p>
+              <h2 className="text-2xl font-semibold mt-2">Today's timeline</h2>
+              <p className="text-sm text-white/80 mt-3 max-w-xl">
+                Follow showers and laundry from the first slot to the last pickup. Use the stats below to balance staff coverage and keep the queues moving.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[150px]">
+                <div className="text-xs uppercase tracking-wide text-white/70">
+                  Logged touchpoints
+                </div>
+                <div className="text-lg font-semibold">
+                  {totalEvents.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[150px]">
+                <div className="text-xs uppercase tracking-wide text-white/70">
+                  Shower queue
+                </div>
+                <div className="text-lg font-semibold">
+                  {waitlistEvents.length > 0
+                    ? `${waitlistEvents.length} waiting`
+                    : "No waitlist"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Animated.div>
+
+        <Animated.div
+          style={timelineStatsSpring}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
+        >
+          {[
+            {
+              label: "Active showers",
+              value: showerActive,
+              description: `${showerCompleted.toLocaleString()} completed`,
+              accent: "bg-sky-50 border border-sky-100 text-sky-700",
+            },
+            {
+              label: "Waitlist",
+              value: waitlistEvents.length,
+              description:
+                waitlistEvents.length > 0
+                  ? "Prioritize open slots"
+                  : "All guests scheduled",
+              accent: "bg-amber-50 border border-amber-100 text-amber-700",
+            },
+            {
+              label: "Laundry in progress",
+              value: laundryActive,
+              description: `${laundryCompleted.toLocaleString()} loads ready`,
+              accent: "bg-indigo-50 border border-indigo-100 text-indigo-700",
+            },
+            {
+              label: "Total tracked",
+              value: totalEvents,
+              description: "Includes showers, waitlist, laundry",
+              accent: "bg-emerald-50 border border-emerald-100 text-emerald-700",
+            },
+          ].map(({ label, value, description, accent }) => (
+            <div
+              key={label}
+              className={`rounded-2xl px-3 py-3 md:px-4 md:py-4 shadow-sm ${accent}`}
+            >
+              <p className="text-xs uppercase tracking-wide font-semibold">
+                {label}
+              </p>
+              <p className="text-xl md:text-2xl font-semibold mt-1 md:mt-2">{value}</p>
+              <p className="text-xs mt-1 md:mt-2 text-current/80">{description}</p>
+            </div>
+          ))}
+        </Animated.div>
+
+        <Animated.div
+          style={timelineListSpring}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-6"
+        >
+          {totalEvents === 0 ? (
+            <div className="py-12 text-center text-sm text-gray-500">
+              No shower or laundry activity recorded yet today. Log bookings from the other tabs to populate this view.
+            </div>
+          ) : (
+            <ol className="relative border-l border-gray-200">
+              {timelineEvents.map((event, index) => {
+                const style = timelineTrail[index] || {};
+                const Icon = event.icon;
+                return (
+                  <Animated.li
+                    key={event.id}
+                    style={style}
+                    className="ml-6 pb-4 md:pb-6 last:pb-0 relative"
+                  >
+                    <span className="absolute -left-[21px] top-2 flex items-center justify-center">
+                      <span className={`h-3 w-3 rounded-full ${event.accentClass}`} />
+                    </span>
+                    <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 md:px-4 md:py-3 shadow-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${event.iconWrapperClass}`}
+                          >
+                            <Icon size={18} />
+                          </span>
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {event.title}
+                              </p>
+                              {event.statusLabel ? (
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}
+                                >
+                                  {event.statusLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                            {event.subtitle ? (
+                              <p className="text-xs text-gray-500">
+                                {event.subtitle}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            {event.timeLabel}
+                          </div>
+                          {/* Action buttons for timeline entries */}
+                          {event.type === 'shower' && renderShowerActions(event)}
+                          {event.type === 'laundry' && renderLaundryActions(event)}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 font-medium text-gray-600">
+                          {event.type === "laundry"
+                            ? "Laundry"
+                            : event.type === "waitlist"
+                              ? "Shower waitlist"
+                              : "Shower"}
+                        </span>
+                        {event.detail ? <span>{event.detail}</span> : null}
+                        {event.meta?.bagNumber ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-800">
+                            <ShoppingBag size={10} />
+                            Bag #{event.meta.bagNumber}
+                          </span>
+                        ) : null}
+                        {event.meta?.position ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
+                            Queue #{event.meta.position}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Animated.li>
+                );
+              })}
+            </ol>
+          )}
+        </Animated.div>
+      </div>
     );
   };
 
@@ -1278,6 +1894,10 @@ const Services = () => {
       month: "long",
       day: "numeric",
     });
+    const timelineEventCount = timelineEvents.length;
+    const timelineQueueCount = timelineEvents.filter(
+      (event) => event.type === "waitlist",
+    ).length;
     const housingEntries = Object.entries(housingStatusCounts || {}).sort(
       (a, b) => b[1] - a[1],
     );
@@ -1432,6 +2052,16 @@ const Services = () => {
     ];
 
     const quickLinks = [
+      {
+        id: "link-timeline",
+        title: "Today's timeline",
+        description: `${(
+          timelineEventCount + timelineQueueCount
+        ).toLocaleString()} touchpoints across showers & laundry`,
+        Icon: CalendarClock,
+        accent: "bg-blue-50 border border-blue-100 text-blue-700",
+        onClick: () => setActiveSection("timeline"),
+      },
       {
         id: "link-showers",
         title: "Manage showers",
@@ -1674,11 +2304,18 @@ const Services = () => {
             ({ id, title, description, Icon, accent, onClick, actions }) => {
               const CTAIcon = Icon;
               return (
-                <button
+                <div
                   key={id}
-                  type="button"
                   onClick={onClick}
-                  className={`text-left rounded-2xl border shadow-sm p-5 transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${accent}`}
+                  className={`text-left rounded-2xl border shadow-sm p-5 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${accent}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onClick();
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-white/60 flex items-center justify-center">
@@ -1706,7 +2343,7 @@ const Services = () => {
                       ))}
                     </div>
                   )}
-                </button>
+                </div>
               );
             },
           )}
@@ -3162,6 +3799,8 @@ const Services = () => {
     switch (activeSection) {
       case "overview":
         return renderOverviewSection();
+      case "timeline":
+        return renderTimelineSection();
       case "meals":
         return renderMealsSection();
       case "showers":

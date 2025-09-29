@@ -2472,6 +2472,58 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const updateLaundryBagNumber = async (recordId, bagNumber) => {
+    let updatedRecordRef = null;
+    setLaundryRecords((prev) =>
+      prev.map((record) => {
+        if (record.id !== recordId) return record;
+        const updated = {
+          ...record,
+          bagNumber: bagNumber || "",
+          lastUpdated: new Date().toISOString(),
+        };
+        updatedRecordRef = updated;
+        return updated;
+      }),
+    );
+
+    // Update laundry slots as well
+    setLaundrySlots((prev) =>
+      prev.map((slot) => {
+        const r = updatedRecordRef;
+        if (r && slot.guestId === r.guestId && slot.time === r.time) {
+          return { ...slot, bagNumber: bagNumber || "" };
+        }
+        return slot;
+      }),
+    );
+
+    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
+      try {
+        const timestamp = new Date().toISOString();
+        const { data, error } = await supabase
+          .from("laundry_bookings")
+          .update({ 
+            bag_number: bagNumber || null, 
+            updated_at: timestamp 
+          })
+          .eq("id", recordId)
+          .select()
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          const mapped = mapLaundryRow(data);
+          setLaundryRecords((prev) =>
+            prev.map((r) => (r.id === recordId ? mapped : r)),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to update bag number in Supabase:", error);
+        toast.error("Failed to sync bag number. Changes saved locally.");
+      }
+    }
+  };
+
   const getTodayMetrics = () => {
     const today = todayPacificDateString();
 
@@ -3581,6 +3633,7 @@ export const AppProvider = ({ children }) => {
     laundryPickerGuest,
     bicyclePickerGuest,
     settings,
+  supabaseEnabled,
 
     LAUNDRY_STATUS,
     HOUSING_STATUSES,
@@ -3617,6 +3670,7 @@ export const AppProvider = ({ children }) => {
     addShowerWaitlist,
     addLaundryRecord,
     updateLaundryStatus,
+    updateLaundryBagNumber,
     addBicycleRecord,
     updateBicycleRecord,
     deleteBicycleRecord,
