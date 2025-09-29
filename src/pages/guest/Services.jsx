@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
 import toast from "react-hot-toast";
+import enhancedToast from "../../utils/toast";
 import {
   ClipboardList,
   ShowerHead,
@@ -42,6 +43,7 @@ import {
 import { useAppContext } from "../../context/useAppContext";
 import ShowerBooking from "../../components/ShowerBooking";
 import LaundryBooking from "../../components/LaundryBooking";
+import StickyQuickActions from "../../components/StickyQuickActions";
 import Selectize from "../../components/Selectize";
 import DonutCard from "../../components/charts/DonutCard";
 import TrendLine from "../../components/charts/TrendLine";
@@ -152,6 +154,10 @@ const Services = () => {
   } = useAppContext();
 
   const [activeSection, setActiveSection] = useState("overview");
+  
+  // Sticky Quick Actions state
+  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -195,6 +201,48 @@ const Services = () => {
       console.warn("Failed to read saved Services filters", error);
       return null;
     }
+  }, []);
+
+  // Scroll detection for quick actions visibility
+  useEffect(() => {
+    let timeoutId;
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      
+      // Show quick actions when user scrolls down past 100px
+      // Hide when near top or on desktop
+      const shouldShow = scrollY > 100 && window.innerWidth < 768;
+      setQuickActionsVisible(shouldShow);
+      
+      // Auto-hide after 3 seconds of no scrolling
+      clearTimeout(timeoutId);
+      if (shouldShow) {
+        timeoutId = setTimeout(() => {
+          setQuickActionsVisible(false);
+        }, 3000);
+      }
+    };
+
+    const handleResize = () => {
+      // Hide on desktop/tablet
+      if (window.innerWidth >= 768) {
+        setQuickActionsVisible(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+    
+    // Initial check
+    handleScroll();
+    handleResize();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const [showerStatusFilter, setShowerStatusFilter] = useState(
@@ -1272,7 +1320,7 @@ const Services = () => {
 
   const handleAddRvMeals = () => {
     if (!rvMealCount || isNaN(rvMealCount) || parseInt(rvMealCount) <= 0) {
-      toast.error("Please enter a valid number of RV meals");
+      enhancedToast.validationError("Please enter a valid number of RV meals");
       return;
     }
 
@@ -1292,7 +1340,7 @@ const Services = () => {
 
   const handleAddUeMeals = () => {
     if (!ueMealCount || isNaN(ueMealCount) || parseInt(ueMealCount) <= 0) {
-      toast.error("Please enter a valid number of United Effort meals");
+      enhancedToast.validationError("Please enter a valid number of United Effort meals");
       return;
     }
 
@@ -1316,7 +1364,7 @@ const Services = () => {
       isNaN(extraMealCount) ||
       parseInt(extraMealCount) <= 0
     ) {
-      toast.error("Please enter a valid number of extra meals");
+      enhancedToast.validationError("Please enter a valid number of extra meals");
       return;
     }
 
@@ -1337,7 +1385,7 @@ const Services = () => {
   const handleStatusChange = (recordId, newStatus) => {
     updateLaundryStatus(recordId, newStatus);
     const info = getLaundryStatusInfo(newStatus);
-    toast.success(`Laundry status updated to ${info.label}`);
+    enhancedToast.success(`Laundry status updated to ${info.label}`);
   };
 
   const handleBagNumberUpdate = async (recordId, bagNumber) => {
@@ -1345,10 +1393,32 @@ const Services = () => {
       await updateLaundryBagNumber(recordId, bagNumber);
       setEditingBagNumber(null);
       setNewBagNumber("");
-      toast.success("Bag number updated");
+      enhancedToast.success("Bag number updated");
     } catch (error) {
-      toast.error("Failed to update bag number");
+      enhancedToast.error("Failed to update bag number");
     }
+  };
+
+  // Quick Actions handlers
+  const handleQuickShower = () => {
+    setActiveSection('showers');
+    setQuickActionsVisible(false);
+    // Scroll to top to show shower booking
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleQuickLaundry = () => {
+    setActiveSection('laundry');
+    setQuickActionsVisible(false);
+    // Scroll to top to show laundry booking
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleQuickDonation = () => {
+    setActiveSection('overview'); // Navigate to overview where donations are
+    setQuickActionsVisible(false);
+    // Scroll to top to show overview
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const attemptLaundryStatusChange = (record, newStatus) => {
@@ -5124,6 +5194,15 @@ const Services = () => {
           </Animated.div>
         </div>
       )}
+
+      {/* Sticky Quick Actions for Mobile */}
+      <StickyQuickActions
+        isVisible={quickActionsVisible && showQuickActions}
+        onShowerClick={handleQuickShower}
+        onLaundryClick={handleQuickLaundry}
+        onDonationClick={handleQuickDonation}
+        onClose={() => setQuickActionsVisible(false)}
+      />
     </div>
   );
 };

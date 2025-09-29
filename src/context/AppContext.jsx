@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase, isSupabaseEnabled } from "../supabaseClient";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
+import enhancedToast from "../utils/toast";
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
@@ -1094,11 +1095,11 @@ export const AppProvider = ({ children }) => {
           },
           ...prev.slice(0, 49),
         ]);
-        toast.success("Bicycle repair logged");
+        enhancedToast.success("Bicycle repair logged");
         return mapped;
       } catch (error) {
         console.error("Failed to log bicycle repair:", error);
-        toast.error("Unable to log bicycle repair.");
+        enhancedToast.error("Unable to log bicycle repair.");
         throw error;
       }
     }

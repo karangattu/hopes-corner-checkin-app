@@ -20,6 +20,60 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Safe area utilities for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Touch optimization */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Enhanced toast animations */
+@keyframes enter {
+  0% {
+    transform: translate3d(0, -200%, 0) scale(0.6);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes leave {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+.animate-enter {
+  animation: enter 0.35s ease-out;
+}
+
+.animate-leave {
+  animation: leave 0.4s ease-in forwards;
+}
+
 @layer components {
   .input-icon-wrapper {
     @apply flex items-center justify-center w-10 bg-gray-100 border border-gray-200 border-r-0 rounded-l-md;
