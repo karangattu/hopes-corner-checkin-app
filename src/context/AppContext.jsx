@@ -2812,17 +2812,26 @@ export const AppProvider = ({ children }) => {
     trays = 0,
     weightLbs = 0,
     donor,
+    date,
   }) => {
     const now = new Date();
-    const { timestamp, dateKey } = resolveDonationDateParts(now);
+    const { timestamp: resolvedTimestamp, dateKey } = resolveDonationDateParts(
+      date,
+      now,
+    );
+    const recordedAt = resolvedTimestamp ?? now.toISOString();
+    const recordedDateKey =
+      dateKey ??
+      (recordedAt ? pacificDateStringFrom(new Date(recordedAt)) : null);
+    const actionTimestamp = now.toISOString();
     const clean = {
       type: normalizeDonation(type),
       itemName: normalizeDonation(itemName),
       trays: Number(trays) || 0,
       weightLbs: Number(weightLbs) || 0,
       donor: normalizeDonation(donor),
-      date: timestamp,
-      dateKey,
+      date: recordedAt,
+      dateKey: recordedDateKey,
     };
     if (!isValidDonationType(clean.type)) {
       throw new Error(
@@ -2841,7 +2850,7 @@ export const AppProvider = ({ children }) => {
             trays: clean.trays,
             weight_lbs: clean.weightLbs,
             donor: clean.donor,
-            donated_at: timestamp,
+            donated_at: recordedAt,
           })
           .select()
           .single();
@@ -2852,7 +2861,7 @@ export const AppProvider = ({ children }) => {
           {
             id: Date.now() + Math.random(),
             type: "DONATION_ADDED",
-            timestamp: timestamp,
+            timestamp: actionTimestamp,
             data: { recordId: mapped.id },
             description: `Donation: ${clean.itemName} (${clean.type})`,
           },
@@ -2873,7 +2882,7 @@ export const AppProvider = ({ children }) => {
       {
         id: Date.now() + Math.random(),
         type: "DONATION_ADDED",
-        timestamp: timestamp,
+        timestamp: actionTimestamp,
         data: { recordId: fallback.id },
         description: `Donation: ${clean.itemName} (${clean.type})`,
       },

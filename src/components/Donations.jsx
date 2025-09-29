@@ -240,6 +240,10 @@ const Donations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedDate) {
+      toast.error("Pick a date before logging a donation");
+      return;
+    }
     setLoading(true);
     try {
       await addDonation({
@@ -248,6 +252,7 @@ const Donations = () => {
         trays: Number(form.trays || 0),
         weightLbs: Number(form.weightLbs || 0),
         donor: form.donor,
+        date: selectedDate,
       });
 
       setForm((prev) => ({ ...prev, trays: "", weightLbs: "" }));
