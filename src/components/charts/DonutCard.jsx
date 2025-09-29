@@ -1,8 +1,12 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Doughnut } from "react-chartjs-2";
+import { Download } from "lucide-react";
 import { palette, defaultAnimations } from "./ChartTheme";
+import { useChartExport } from "../../hooks/useChartExport";
 
 const DonutCard = ({ title, subtitle, dataMap }) => {
+  const chartRef = useRef(null);
+  const { exportToPNG } = useChartExport();
   const labels = Object.keys(dataMap || {});
   const values = Object.values(dataMap || {});
   const colors = [
@@ -42,8 +46,17 @@ const DonutCard = ({ title, subtitle, dataMap }) => {
 
   const total = values.reduce((a, b) => a + b, 0);
 
+  const safeTitle = title?.toLowerCase().replace(/\s+/g, "-") || "chart";
+
   return (
-    <div className="bg-white border rounded-lg p-4 h-64 relative">
+    <div className="bg-white border rounded-lg p-4 h-64 relative group" ref={chartRef}>
+      <button
+        onClick={() => exportToPNG(chartRef, safeTitle)}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-sm z-10"
+        title="Download as PNG"
+      >
+        <Download size={16} className="text-gray-600" />
+      </button>
       <div className="absolute inset-0 p-4">
         <Doughnut data={data} options={options} />
       </div>

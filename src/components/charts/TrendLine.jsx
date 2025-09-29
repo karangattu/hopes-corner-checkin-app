@@ -1,8 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Line } from "react-chartjs-2";
+import { Download } from "lucide-react";
 import { palette, defaultAnimations } from "./ChartTheme";
+import { useChartExport } from "../../hooks/useChartExport";
 
 const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
+  const chartRef = useRef(null);
+  const { exportToPNG } = useChartExport();
   const sorted = useMemo(() => {
     return [...(days || [])].sort(
       (a, b) => new Date(a.date) - new Date(b.date),
@@ -56,7 +60,14 @@ const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
   };
 
   return (
-    <div className="bg-white border rounded-lg p-4 h-72">
+    <div className="bg-white border rounded-lg p-4 h-72 relative group" ref={chartRef}>
+      <button
+        onClick={() => exportToPNG(chartRef, "30-day-activity-trend")}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-sm z-10"
+        title="Download as PNG"
+      >
+        <Download size={16} className="text-gray-600" />
+      </button>
       <Line data={data} options={options} />
     </div>
   );

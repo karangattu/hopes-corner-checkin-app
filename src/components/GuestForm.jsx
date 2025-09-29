@@ -108,13 +108,19 @@ const GuestForm = () => {
         <div className="space-y-2">
           <label
             htmlFor="guest-name-input"
-            className="block text-sm font-semibold text-gray-700"
+            className="block text-sm font-semibold text-gray-700 flex items-center gap-2"
           >
             Guest Name*
+            <span className="text-xs font-normal text-gray-500">
+              (Required)
+            </span>
           </label>
-          <div className="relative">
+          <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User size={18} className="text-gray-400" />
+              <User
+                size={18}
+                className="text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              />
             </div>
             <input
               type="text"
@@ -122,7 +128,7 @@ const GuestForm = () => {
               value={formData.name}
               onChange={handleChange}
               id="guest-name-input"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-gray-400"
               placeholder="Enter guest name"
               required
               disabled={isSubmitting}
@@ -133,20 +139,26 @@ const GuestForm = () => {
         <div className="space-y-2">
           <label
             htmlFor="housing-status-select"
-            className="block text-sm font-semibold text-gray-700"
+            className="block text-sm font-semibold text-gray-700 flex items-center gap-2"
           >
             Housing Status
+            <span className="text-xs font-normal text-gray-500">
+              (Optional)
+            </span>
           </label>
-          <div className="relative">
+          <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Home size={18} className="text-gray-400" />
+              <Home
+                size={18}
+                className="text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              />
             </div>
             <select
               name="housingStatus"
               value={formData.housingStatus}
               onChange={handleChange}
               id="housing-status-select"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none bg-white"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white hover:border-gray-400 cursor-pointer"
               disabled={isSubmitting}
             >
               <option value="Unhoused">Unhoused</option>
@@ -159,12 +171,18 @@ const GuestForm = () => {
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
+          <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
             Location
+            <span className="text-xs font-normal text-gray-500">
+              (Optional)
+            </span>
           </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MapPin size={18} className="text-gray-400" />
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+              <MapPin
+                size={18}
+                className="text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              />
             </div>
             <Selectize
               options={[
@@ -176,7 +194,7 @@ const GuestForm = () => {
               placeholder="Select location"
               size="sm"
               className="w-full"
-              buttonClassName="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-left"
+              buttonClassName="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-left hover:border-gray-400 transition-all"
               searchable
             />
           </div>
@@ -185,16 +203,19 @@ const GuestForm = () => {
         <div className="space-y-2">
           <label
             htmlFor="notes-textarea"
-            className="block text-sm font-semibold text-gray-700"
+            className="block text-sm font-semibold text-gray-700 flex items-center gap-2"
           >
             Notes
+            <span className="text-xs font-normal text-gray-500">
+              (Optional)
+            </span>
           </label>
           <textarea
             name="notes"
             value={formData.notes}
             onChange={handleChange}
             id="notes-textarea"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none hover:border-gray-400"
             rows="3"
             placeholder="Any additional information"
             disabled={isSubmitting}
@@ -204,35 +225,44 @@ const GuestForm = () => {
         <div className="space-y-2">
           <label
             htmlFor="bicycle-description"
-            className="block text-sm font-semibold text-gray-700"
+            className="block text-sm font-semibold text-gray-700 flex items-center gap-2"
           >
             Bicycle description
+            <span className="text-xs font-normal text-gray-500">
+              (Optional)
+            </span>
           </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Bike size={18} className="text-gray-400" />
+          <div className="relative group">
+            <div className="absolute top-3 left-3 flex items-start pointer-events-none">
+              <Bike
+                size={18}
+                className="text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              />
             </div>
             <textarea
               name="bicycleDescription"
               value={formData.bicycleDescription}
               onChange={handleChange}
               id="bicycle-description"
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none hover:border-gray-400"
               rows="2"
               placeholder="Bike make, color, or identifying details"
               disabled={isSubmitting}
             />
           </div>
-          <p className="text-xs text-gray-500">
-            Capturing bike details helps ensure each guest registers only one
-            bicycle for repairs.
+          <p className="text-xs text-gray-500 flex items-start gap-1.5">
+            <span className="text-blue-500 font-medium">💡</span>
+            <span>
+              Capturing bike details helps ensure each guest registers only one
+              bicycle for repairs.
+            </span>
           </p>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm hover:shadow-md"
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
         >
           <Plus size={18} />
           {isSubmitting ? "Registering..." : "Register Guest"}
