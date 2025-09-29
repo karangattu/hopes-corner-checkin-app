@@ -154,7 +154,7 @@ const Services = () => {
   } = useAppContext();
 
   const [activeSection, setActiveSection] = useState("overview");
-  
+
   // Sticky Quick Actions state
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
@@ -209,12 +209,12 @@ const Services = () => {
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const windowHeight = window.innerHeight;
-      
+
       // Show quick actions when user scrolls down past 100px
       // Hide when near top or on desktop
       const shouldShow = scrollY > 100 && window.innerWidth < 768;
       setQuickActionsVisible(shouldShow);
-      
+
       // Auto-hide after 3 seconds of no scrolling
       clearTimeout(timeoutId);
       if (shouldShow) {
@@ -231,16 +231,16 @@ const Services = () => {
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleResize, { passive: true });
-    
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleResize, { passive: true });
+
     // Initial check
     handleScroll();
     handleResize();
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
       clearTimeout(timeoutId);
     };
   }, []);
@@ -254,8 +254,8 @@ const Services = () => {
   const [showerSort, setShowerSort] = useState(
     () => savedFilters?.showerSort ?? "time-asc",
   );
-  const [showCompletedShowers, setShowCompletedShowers] = useState(
-    () => Boolean(savedFilters?.showCompletedShowers),
+  const [showCompletedShowers, setShowCompletedShowers] = useState(() =>
+    Boolean(savedFilters?.showCompletedShowers),
   );
 
   const [laundryTypeFilter, setLaundryTypeFilter] = useState(
@@ -267,8 +267,8 @@ const Services = () => {
   const [laundrySort, setLaundrySort] = useState(
     () => savedFilters?.laundrySort ?? "time-asc",
   );
-  const [showCompletedLaundry, setShowCompletedLaundry] = useState(
-    () => Boolean(savedFilters?.showCompletedLaundry),
+  const [showCompletedLaundry, setShowCompletedLaundry] = useState(() =>
+    Boolean(savedFilters?.showCompletedLaundry),
   );
   const [expandedCompletedBicycleCards, setExpandedCompletedBicycleCards] =
     useState({});
@@ -286,10 +286,7 @@ const Services = () => {
       showCompletedLaundry,
     };
     try {
-      window.localStorage.setItem(
-        FILTER_STORAGE_KEY,
-        JSON.stringify(payload),
-      );
+      window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(payload));
     } catch (error) {
       console.warn("Failed to persist Services filters", error);
     }
@@ -930,7 +927,9 @@ const Services = () => {
         id: `shower-${record.id}`,
         type: "shower",
         title: nameDetails.primaryName,
-        subtitle: nameDetails.hasPreferred ? `Legal: ${nameDetails.legalName}` : "Shower booking",
+        subtitle: nameDetails.hasPreferred
+          ? `Legal: ${nameDetails.legalName}`
+          : "Shower booking",
         timeLabel: formatShowerSlotLabel(record.time) || "No slot",
         detail:
           record.status === "done"
@@ -1016,18 +1015,16 @@ const Services = () => {
       });
     });
 
-    return events
-      .filter(Boolean)
-      .sort((a, b) => {
-        const aVal = Number.isFinite(a.sortValue)
-          ? a.sortValue
-          : Number.MAX_SAFE_INTEGER;
-        const bVal = Number.isFinite(b.sortValue)
-          ? b.sortValue
-          : Number.MAX_SAFE_INTEGER;
-        if (aVal !== bVal) return aVal - bVal;
-        return a.type.localeCompare(b.type);
-      });
+    return events.filter(Boolean).sort((a, b) => {
+      const aVal = Number.isFinite(a.sortValue)
+        ? a.sortValue
+        : Number.MAX_SAFE_INTEGER;
+      const bVal = Number.isFinite(b.sortValue)
+        ? b.sortValue
+        : Number.MAX_SAFE_INTEGER;
+      if (aVal !== bVal) return aVal - bVal;
+      return a.type.localeCompare(b.type);
+    });
   }, [
     todayBookedShowers,
     todayWaitlisted,
@@ -1340,7 +1337,9 @@ const Services = () => {
 
   const handleAddUeMeals = () => {
     if (!ueMealCount || isNaN(ueMealCount) || parseInt(ueMealCount) <= 0) {
-      enhancedToast.validationError("Please enter a valid number of United Effort meals");
+      enhancedToast.validationError(
+        "Please enter a valid number of United Effort meals",
+      );
       return;
     }
 
@@ -1364,7 +1363,9 @@ const Services = () => {
       isNaN(extraMealCount) ||
       parseInt(extraMealCount) <= 0
     ) {
-      enhancedToast.validationError("Please enter a valid number of extra meals");
+      enhancedToast.validationError(
+        "Please enter a valid number of extra meals",
+      );
       return;
     }
 
@@ -1401,24 +1402,24 @@ const Services = () => {
 
   // Quick Actions handlers
   const handleQuickShower = () => {
-    setActiveSection('showers');
+    setActiveSection("showers");
     setQuickActionsVisible(false);
     // Scroll to top to show shower booking
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleQuickLaundry = () => {
-    setActiveSection('laundry');
+    setActiveSection("laundry");
     setQuickActionsVisible(false);
     // Scroll to top to show laundry booking
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleQuickDonation = () => {
-    setActiveSection('overview'); // Navigate to overview where donations are
+    setActiveSection("overview"); // Navigate to overview where donations are
     setQuickActionsVisible(false);
     // Scroll to top to show overview
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const attemptLaundryStatusChange = (record, newStatus) => {
@@ -1443,16 +1444,16 @@ const Services = () => {
       setBagPromptOpen(false);
       return;
     }
-    
+
     try {
       // Update bag number first
       await updateLaundryBagNumber(bagPromptRecord.id, val);
-      
+
       // Then update status if needed
       if (bagPromptNextStatus) {
         handleStatusChange(bagPromptRecord.id, bagPromptNextStatus);
       }
-      
+
       setBagPromptOpen(false);
       setBagPromptRecord(null);
       setBagPromptNextStatus(null);
@@ -1533,10 +1534,10 @@ const Services = () => {
   // Timeline action renderers
   const renderShowerActions = (event) => {
     if (!event.originalRecord) return null;
-    
+
     const record = event.originalRecord;
     const isCompleted = record.status === "done";
-    
+
     return (
       <div className="flex items-center gap-1">
         {/* Reschedule button */}
@@ -1548,7 +1549,7 @@ const Services = () => {
         >
           <Calendar size={14} />
         </button>
-        
+
         {/* Toggle completion status */}
         <button
           type="button"
@@ -1556,7 +1557,7 @@ const Services = () => {
             const nextStatus = isCompleted ? "awaiting" : "done";
             updateShowerStatus(record.id, nextStatus);
             toast.success(
-              nextStatus === "done" ? "Marked as completed" : "Reopened shower"
+              nextStatus === "done" ? "Marked as completed" : "Reopened shower",
             );
           }}
           className={`p-1 rounded text-xs px-2 py-1 ${
@@ -1566,7 +1567,11 @@ const Services = () => {
           }`}
           title={isCompleted ? "Reopen shower" : "Mark as done"}
         >
-          {isCompleted ? <RotateCcw size={12} /> : <CheckCircle2Icon size={12} />}
+          {isCompleted ? (
+            <RotateCcw size={12} />
+          ) : (
+            <CheckCircle2Icon size={12} />
+          )}
         </button>
       </div>
     );
@@ -1574,14 +1579,14 @@ const Services = () => {
 
   const renderLaundryActions = (event) => {
     if (!event.originalRecord) return null;
-    
+
     const record = event.originalRecord;
     const statusInfo = getLaundryStatusInfo(record.status);
-    
+
     // Get available status transitions based on current status and laundry type
     const getStatusButtons = () => {
       const buttons = [];
-      
+
       if (record.laundryType === "onsite") {
         // Onsite laundry workflow
         if (record.status === LAUNDRY_STATUS.WAITING) {
@@ -1590,7 +1595,7 @@ const Services = () => {
             label: "Start Wash",
             icon: DropletIcon,
             activeClass: "bg-blue-100 text-blue-700",
-            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100"
+            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100",
           });
         } else if (record.status === LAUNDRY_STATUS.WASHER) {
           buttons.push({
@@ -1598,7 +1603,7 @@ const Services = () => {
             label: "To Dryer",
             icon: FanIcon,
             activeClass: "bg-orange-100 text-orange-700",
-            idleClass: "bg-orange-50 text-orange-600 hover:bg-orange-100"
+            idleClass: "bg-orange-50 text-orange-600 hover:bg-orange-100",
           });
         } else if (record.status === LAUNDRY_STATUS.DRYER) {
           buttons.push({
@@ -1606,7 +1611,7 @@ const Services = () => {
             label: "Done",
             icon: CheckCircle2Icon,
             activeClass: "bg-green-100 text-green-700",
-            idleClass: "bg-green-50 text-green-600 hover:bg-green-100"
+            idleClass: "bg-green-50 text-green-600 hover:bg-green-100",
           });
         } else if (record.status === LAUNDRY_STATUS.DONE) {
           buttons.push({
@@ -1614,7 +1619,7 @@ const Services = () => {
             label: "Picked Up",
             icon: LogOutIcon,
             activeClass: "bg-purple-100 text-purple-700",
-            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100"
+            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100",
           });
         }
       } else {
@@ -1625,7 +1630,7 @@ const Services = () => {
             label: "Transport",
             icon: Truck,
             activeClass: "bg-blue-100 text-blue-700",
-            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100"
+            idleClass: "bg-blue-50 text-blue-600 hover:bg-blue-100",
           });
         } else if (record.status === LAUNDRY_STATUS.TRANSPORTED) {
           buttons.push({
@@ -1633,7 +1638,7 @@ const Services = () => {
             label: "Returned",
             icon: CheckCircle2Icon,
             activeClass: "bg-green-100 text-green-700",
-            idleClass: "bg-green-50 text-green-600 hover:bg-green-100"
+            idleClass: "bg-green-50 text-green-600 hover:bg-green-100",
           });
         } else if (record.status === LAUNDRY_STATUS.RETURNED) {
           buttons.push({
@@ -1641,16 +1646,16 @@ const Services = () => {
             label: "Picked Up",
             icon: LogOutIcon,
             activeClass: "bg-purple-100 text-purple-700",
-            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100"
+            idleClass: "bg-purple-50 text-purple-600 hover:bg-purple-100",
           });
         }
       }
-      
+
       return buttons;
     };
 
     const statusButtons = getStatusButtons();
-    
+
     return (
       <div className="flex items-center gap-1">
         {/* Bag number edit */}
@@ -1662,7 +1667,7 @@ const Services = () => {
         >
           <Edit3 size={12} />
         </button>
-        
+
         {/* Status progression buttons */}
         {statusButtons.map((buttonConfig) => {
           const Icon = buttonConfig.icon;
@@ -1670,7 +1675,9 @@ const Services = () => {
             <button
               key={buttonConfig.value}
               type="button"
-              onClick={() => attemptLaundryStatusChange(record, buttonConfig.value)}
+              onClick={() =>
+                attemptLaundryStatusChange(record, buttonConfig.value)
+              }
               className={`text-xs font-medium px-2 py-1 rounded border transition-colors ${buttonConfig.idleClass}`}
               title={buttonConfig.label}
             >
@@ -1678,7 +1685,7 @@ const Services = () => {
             </button>
           );
         })}
-        
+
         {/* Reschedule button */}
         <button
           type="button"
@@ -1694,9 +1701,15 @@ const Services = () => {
 
   const renderTimelineSection = () => {
     const totalEvents = timelineEvents.length;
-    const showerEvents = timelineEvents.filter((event) => event.type === "shower");
-    const waitlistEvents = timelineEvents.filter((event) => event.type === "waitlist");
-    const laundryEvents = timelineEvents.filter((event) => event.type === "laundry");
+    const showerEvents = timelineEvents.filter(
+      (event) => event.type === "shower",
+    );
+    const waitlistEvents = timelineEvents.filter(
+      (event) => event.type === "waitlist",
+    );
+    const laundryEvents = timelineEvents.filter(
+      (event) => event.type === "laundry",
+    );
     const showerCompleted = showerEvents.filter(
       (event) => event.statusLabel === "Completed",
     ).length;
@@ -1717,28 +1730,28 @@ const Services = () => {
           </h3>
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setActiveSection('showers')}
+              onClick={() => setActiveSection("showers")}
               className="flex items-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm font-medium transition-colors"
             >
               <ShowerHead size={14} />
               Add Shower
             </button>
             <button
-              onClick={() => setActiveSection('laundry')}
+              onClick={() => setActiveSection("laundry")}
               className="flex items-center gap-2 px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-sm font-medium transition-colors"
             >
               <WashingMachine size={14} />
               Add Laundry
             </button>
             <button
-              onClick={() => setActiveSection('meals')}
+              onClick={() => setActiveSection("meals")}
               className="flex items-center gap-2 px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-sm font-medium transition-colors"
             >
               <Utensils size={14} />
               Add Meal
             </button>
             <button
-              onClick={() => setActiveSection('bicycles')}
+              onClick={() => setActiveSection("bicycles")}
               className="flex items-center gap-2 px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg text-sm font-medium transition-colors"
             >
               <Bike size={14} />
@@ -1757,7 +1770,9 @@ const Services = () => {
               </p>
               <h2 className="text-2xl font-semibold mt-2">Today's timeline</h2>
               <p className="text-sm text-white/80 mt-3 max-w-xl">
-                Follow showers and laundry from the first slot to the last pickup. Use the stats below to balance staff coverage and keep the queues moving.
+                Follow showers and laundry from the first slot to the last
+                pickup. Use the stats below to balance staff coverage and keep
+                the queues moving.
               </p>
             </div>
             <div className="flex flex-wrap gap-4">
@@ -1813,7 +1828,8 @@ const Services = () => {
               label: "Total tracked",
               value: totalEvents,
               description: "Includes showers, waitlist, laundry",
-              accent: "bg-emerald-50 border border-emerald-100 text-emerald-700",
+              accent:
+                "bg-emerald-50 border border-emerald-100 text-emerald-700",
             },
           ].map(({ label, value, description, accent }) => (
             <div
@@ -1823,8 +1839,12 @@ const Services = () => {
               <p className="text-xs uppercase tracking-wide font-semibold">
                 {label}
               </p>
-              <p className="text-xl md:text-2xl font-semibold mt-1 md:mt-2">{value}</p>
-              <p className="text-xs mt-1 md:mt-2 text-current/80">{description}</p>
+              <p className="text-xl md:text-2xl font-semibold mt-1 md:mt-2">
+                {value}
+              </p>
+              <p className="text-xs mt-1 md:mt-2 text-current/80">
+                {description}
+              </p>
             </div>
           ))}
         </Animated.div>
@@ -1835,7 +1855,8 @@ const Services = () => {
         >
           {totalEvents === 0 ? (
             <div className="py-12 text-center text-sm text-gray-500">
-              No shower or laundry activity recorded yet today. Log bookings from the other tabs to populate this view.
+              No shower or laundry activity recorded yet today. Log bookings
+              from the other tabs to populate this view.
             </div>
           ) : (
             <ol className="relative border-l border-gray-200">
@@ -1849,7 +1870,9 @@ const Services = () => {
                     className="ml-6 pb-4 md:pb-6 last:pb-0 relative"
                   >
                     <span className="absolute -left-[21px] top-2 flex items-center justify-center">
-                      <span className={`h-3 w-3 rounded-full ${event.accentClass}`} />
+                      <span
+                        className={`h-3 w-3 rounded-full ${event.accentClass}`}
+                      />
                     </span>
                     <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 md:px-4 md:py-3 shadow-sm">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1884,8 +1907,10 @@ const Services = () => {
                             {event.timeLabel}
                           </div>
                           {/* Action buttons for timeline entries */}
-                          {event.type === 'shower' && renderShowerActions(event)}
-                          {event.type === 'laundry' && renderLaundryActions(event)}
+                          {event.type === "shower" &&
+                            renderShowerActions(event)}
+                          {event.type === "laundry" &&
+                            renderLaundryActions(event)}
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
@@ -2381,7 +2406,7 @@ const Services = () => {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
+                    if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       onClick();
                     }

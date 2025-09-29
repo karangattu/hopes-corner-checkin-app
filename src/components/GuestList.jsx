@@ -123,14 +123,14 @@ const GuestList = () => {
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       // Cmd/Ctrl + K to focus search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
     };
 
-    document.addEventListener('keydown', handleGlobalKeyDown);
-    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
   const filteredGuests = useMemo(() => {
@@ -370,30 +370,74 @@ const GuestList = () => {
       }
     };
 
-    mealRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Meal", Utensils, "text-green-600")
+    mealRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Meal",
+        Utensils,
+        "text-green-600",
+      ),
     );
-    extraMealRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Extra", Utensils, "text-green-500")
+    extraMealRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Extra",
+        Utensils,
+        "text-green-500",
+      ),
     );
-    showerRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Shower", ShowerHead, "text-emerald-600")
+    showerRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Shower",
+        ShowerHead,
+        "text-emerald-600",
+      ),
     );
-    laundryRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Laundry", WashingMachine, "text-emerald-700")
+    laundryRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Laundry",
+        WashingMachine,
+        "text-emerald-700",
+      ),
     );
-    holidayRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Holiday", Gift, "text-amber-500")
+    holidayRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Holiday",
+        Gift,
+        "text-amber-500",
+      ),
     );
-    haircutRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Haircut", Scissors, "text-pink-500")
+    haircutRecords.forEach((record) =>
+      addTodayService(
+        record.guestId,
+        record,
+        "Haircut",
+        Scissors,
+        "text-pink-500",
+      ),
     );
-    bicycleRecords.forEach(record =>
-      addTodayService(record.guestId, record, "Bicycle", Bike, "text-sky-500")
+    bicycleRecords.forEach((record) =>
+      addTodayService(record.guestId, record, "Bicycle", Bike, "text-sky-500"),
     );
 
     return map;
-  }, [mealRecords, extraMealRecords, showerRecords, laundryRecords, holidayRecords, haircutRecords, bicycleRecords]);
+  }, [
+    mealRecords,
+    extraMealRecords,
+    showerRecords,
+    laundryRecords,
+    holidayRecords,
+    haircutRecords,
+    bicycleRecords,
+  ]);
 
   const latestServiceByGuest = useMemo(() => {
     const map = new Map();
@@ -511,17 +555,17 @@ const GuestList = () => {
 
   const validateField = (name, value) => {
     switch (name) {
-      case 'firstName':
-      case 'lastName':
-        return value.trim().length < 1 ? 'This field is required' : '';
-      case 'location':
-        return value.trim().length < 1 ? 'Location is required' : '';
-      case 'age':
-        return !value ? 'Please select an age group' : '';
-      case 'gender':
-        return !value ? 'Please select a gender' : '';
+      case "firstName":
+      case "lastName":
+        return value.trim().length < 1 ? "This field is required" : "";
+      case "location":
+        return value.trim().length < 1 ? "Location is required" : "";
+      case "age":
+        return !value ? "Please select an age group" : "";
+      case "gender":
+        return !value ? "Please select a gender" : "";
       default:
-        return '';
+        return "";
     }
   };
 
@@ -533,7 +577,7 @@ const GuestList = () => {
     const error = validateField(name, value);
     setFieldErrors((prev) => ({
       ...prev,
-      [name]: error
+      [name]: error,
     }));
   };
 
@@ -548,20 +592,23 @@ const GuestList = () => {
 
     // Check for potential duplicates when both names are available
     if (name === "firstName" || name === "lastName") {
-      const firstName = name === "firstName" ? value.trim() : createFormData.firstName;
-      const lastName = name === "lastName" ? value.trim() : createFormData.lastName;
+      const firstName =
+        name === "firstName" ? value.trim() : createFormData.firstName;
+      const lastName =
+        name === "lastName" ? value.trim() : createFormData.lastName;
 
       if (firstName && lastName) {
         const fullName = `${firstName} ${lastName}`.toLowerCase();
-        const possibleDuplicate = guests.find(guest =>
-          guest.name?.toLowerCase() === fullName ||
-          (guest.firstName?.toLowerCase() === firstName.toLowerCase() &&
-           guest.lastName?.toLowerCase() === lastName.toLowerCase())
+        const possibleDuplicate = guests.find(
+          (guest) =>
+            guest.name?.toLowerCase() === fullName ||
+            (guest.firstName?.toLowerCase() === firstName.toLowerCase() &&
+              guest.lastName?.toLowerCase() === lastName.toLowerCase()),
         );
 
         if (possibleDuplicate) {
           setDuplicateWarning(
-            `A guest named "${possibleDuplicate.name}" already exists. Please verify this is a different person.`
+            `A guest named "${possibleDuplicate.name}" already exists. Please verify this is a different person.`,
           );
         } else {
           setDuplicateWarning("");
@@ -746,15 +793,19 @@ const GuestList = () => {
                 handleShowCreateForm();
               } else if (e.key === "ArrowDown" && filteredGuests.length > 0) {
                 e.preventDefault();
-                setSelectedGuestIndex(prev =>
-                  prev < filteredGuests.length - 1 ? prev + 1 : 0
+                setSelectedGuestIndex((prev) =>
+                  prev < filteredGuests.length - 1 ? prev + 1 : 0,
                 );
               } else if (e.key === "ArrowUp" && filteredGuests.length > 0) {
                 e.preventDefault();
-                setSelectedGuestIndex(prev =>
-                  prev > 0 ? prev - 1 : filteredGuests.length - 1
+                setSelectedGuestIndex((prev) =>
+                  prev > 0 ? prev - 1 : filteredGuests.length - 1,
                 );
-              } else if (e.key === "Enter" && selectedGuestIndex >= 0 && filteredGuests[selectedGuestIndex]) {
+              } else if (
+                e.key === "Enter" &&
+                selectedGuestIndex >= 0 &&
+                filteredGuests[selectedGuestIndex]
+              ) {
                 e.preventDefault();
                 toggleExpanded(filteredGuests[selectedGuestIndex].id);
               } else if (e.key === "Escape") {
@@ -783,7 +834,8 @@ const GuestList = () => {
           )}
         </div>
         <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
-          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first + last name to create new guest • Use ↑↓ arrows to navigate results
+          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first + last
+          name to create new guest • Use ↑↓ arrows to navigate results
         </div>
       </div>
 
@@ -819,7 +871,10 @@ const GuestList = () => {
           aria-describedby="create-guest-description"
         >
           <div className="flex justify-between items-center mb-6">
-            <h3 id="create-guest-title" className="text-lg font-semibold flex items-center gap-2">
+            <h3
+              id="create-guest-title"
+              className="text-lg font-semibold flex items-center gap-2"
+            >
               <UserPlus size={20} className="text-blue-600" /> Create New Guest
             </h3>
             <button
@@ -856,15 +911,17 @@ const GuestList = () => {
                   onBlur={handleNameBlur}
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                     fieldErrors.firstName
-                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                   }`}
                   placeholder="Enter first name"
                   required
                   disabled={isCreating}
                 />
                 {fieldErrors.firstName && (
-                  <p className="mt-1 text-sm text-red-600">{fieldErrors.firstName}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.firstName}
+                  </p>
                 )}
               </div>
               <div>
@@ -879,15 +936,17 @@ const GuestList = () => {
                   onBlur={handleNameBlur}
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                     fieldErrors.lastName
-                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
                   }`}
                   placeholder="Enter last name"
                   required
                   disabled={isCreating}
                 />
                 {fieldErrors.lastName && (
-                  <p className="mt-1 text-sm text-red-600">{fieldErrors.lastName}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {fieldErrors.lastName}
+                  </p>
                 )}
               </div>
               <div>
@@ -1173,7 +1232,10 @@ const GuestList = () => {
                                       className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border"
                                       title={`${service.serviceType} today`}
                                     >
-                                      <Icon size={12} className={service.iconClass} />
+                                      <Icon
+                                        size={12}
+                                        className={service.iconClass}
+                                      />
                                     </div>
                                   );
                                 })}
@@ -1557,12 +1619,14 @@ const GuestList = () => {
                               const actionKey = `haircut-${guest.id}`;
                               if (pendingActions.has(actionKey)) return;
 
-                              setPendingActions(prev => new Set(prev).add(actionKey));
+                              setPendingActions((prev) =>
+                                new Set(prev).add(actionKey),
+                              );
                               try {
                                 const rec = await addHaircutRecord(guest.id);
                                 if (rec) toast.success("Haircut logged");
                               } finally {
-                                setPendingActions(prev => {
+                                setPendingActions((prev) => {
                                   const next = new Set(prev);
                                   next.delete(actionKey);
                                   return next;
@@ -1572,14 +1636,16 @@ const GuestList = () => {
                             disabled={pendingActions.has(`haircut-${guest.id}`)}
                             className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
                               pendingActions.has(`haircut-${guest.id}`)
-                                ? 'bg-pink-200 text-pink-600 cursor-not-allowed'
-                                : 'bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800'
+                                ? "bg-pink-200 text-pink-600 cursor-not-allowed"
+                                : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800"
                             }`}
                             title="Log haircut for today"
                           >
                             <Scissors size={16} />
                             <span className="hidden sm:inline">
-                              {pendingActions.has(`haircut-${guest.id}`) ? 'Saving...' : 'Haircut'}
+                              {pendingActions.has(`haircut-${guest.id}`)
+                                ? "Saving..."
+                                : "Haircut"}
                             </span>
                           </button>
                           <button
@@ -1596,15 +1662,17 @@ const GuestList = () => {
                           <button
                             onClick={() => {
                               if (!guest.bicycleDescription?.trim()) {
-                                toast.error("Please add a bicycle description to this guest's profile before logging repairs.");
+                                toast.error(
+                                  "Please add a bicycle description to this guest's profile before logging repairs.",
+                                );
                                 return;
                               }
                               setBicyclePickerGuest(guest);
                             }}
                             className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
                               !guest.bicycleDescription?.trim()
-                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                                : 'bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800'
+                                ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800"
                             }`}
                             title={
                               !guest.bicycleDescription?.trim()
@@ -1623,7 +1691,8 @@ const GuestList = () => {
                             <SpringIcon>
                               <ShowerHead size={16} />
                             </SpringIcon>
-                            <span className="hidden sm:inline">Book </span>Shower
+                            <span className="hidden sm:inline">Book </span>
+                            Shower
                           </button>
                           <button
                             onClick={() => setLaundryPickerGuest(guest)}
@@ -1632,7 +1701,8 @@ const GuestList = () => {
                             <SpringIcon>
                               <WashingMachine size={16} />
                             </SpringIcon>
-                            <span className="hidden sm:inline">Book </span>Laundry
+                            <span className="hidden sm:inline">Book </span>
+                            Laundry
                           </button>
                         </div>
                       </div>

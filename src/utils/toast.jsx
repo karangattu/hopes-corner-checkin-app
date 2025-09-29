@@ -1,10 +1,10 @@
 import toast from "react-hot-toast";
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle, 
+import {
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
   Info,
-  AlertCircle 
+  AlertCircle,
 } from "lucide-react";
 
 // Enhanced toast with context-specific icons and colors
@@ -63,7 +63,7 @@ const createToast = (type, message, options = {}) => {
     (t) => (
       <div
         className={`${
-          t.visible ? 'animate-enter' : 'animate-leave'
+          t.visible ? "animate-enter" : "animate-leave"
         } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
         style={typeConfig.style}
         role="alert"
@@ -72,13 +72,9 @@ const createToast = (type, message, options = {}) => {
       >
         <div className="flex-1 w-0 p-4">
           <div className="flex items-start">
-            <div className="flex-shrink-0 pt-0.5">
-              {typeConfig.icon}
-            </div>
+            <div className="flex-shrink-0 pt-0.5">{typeConfig.icon}</div>
             <div className="ml-3 flex-1">
-              <p className="text-sm font-medium">
-                {message}
-              </p>
+              <p className="text-sm font-medium">{message}</p>
             </div>
           </div>
         </div>
@@ -95,42 +91,50 @@ const createToast = (type, message, options = {}) => {
     ),
     {
       duration: options.duration || 4000,
-      position: options.position || 'top-right',
+      position: options.position || "top-right",
       ...options,
-    }
+    },
   );
 };
 
 // Enhanced toast methods with accessibility and context
 export const enhancedToast = {
-  success: (message, options) => createToast('success', message, options),
-  error: (message, options) => createToast('error', message, options),
-  warning: (message, options) => createToast('warning', message, options),
-  info: (message, options) => createToast('info', message, options),
-  loading: (message, options) => createToast('loading', message, { duration: Infinity, ...options }),
-  
+  success: (message, options) => createToast("success", message, options),
+  error: (message, options) => createToast("error", message, options),
+  warning: (message, options) => createToast("warning", message, options),
+  info: (message, options) => createToast("info", message, options),
+  loading: (message, options) =>
+    createToast("loading", message, { duration: Infinity, ...options }),
+
   // Quick access methods for common scenarios
-  saved: (item = "Changes") => createToast('success', `${item} saved successfully`),
-  deleted: (item = "Item") => createToast('success', `${item} deleted successfully`),
-  updated: (item = "Item") => createToast('success', `${item} updated successfully`),
-  
-  networkError: () => createToast('error', 'Network error. Changes saved locally.'),
-  validationError: (field = "Field") => createToast('warning', `${field} is required`),
-  permissionError: () => createToast('error', 'Permission denied'),
-  
+  saved: (item = "Changes") =>
+    createToast("success", `${item} saved successfully`),
+  deleted: (item = "Item") =>
+    createToast("success", `${item} deleted successfully`),
+  updated: (item = "Item") =>
+    createToast("success", `${item} updated successfully`),
+
+  networkError: () =>
+    createToast("error", "Network error. Changes saved locally."),
+  validationError: (field = "Field") =>
+    createToast("warning", `${field} is required`),
+  permissionError: () => createToast("error", "Permission denied"),
+
   // Promise-based toast for async operations
   promise: (promise, messages) => {
-    const loadingToast = enhancedToast.loading(messages.loading || 'Processing...');
-    
+    const loadingToast = enhancedToast.loading(
+      messages.loading || "Processing...",
+    );
+
     return promise
       .then((result) => {
         toast.dismiss(loadingToast);
-        enhancedToast.success(messages.success || 'Operation completed');
+        enhancedToast.success(messages.success || "Operation completed");
         return result;
       })
       .catch((error) => {
         toast.dismiss(loadingToast);
-        enhancedToast.error(messages.error || 'Operation failed');
+        enhancedToast.error(messages.error || "Operation failed");
         throw error;
       });
   },

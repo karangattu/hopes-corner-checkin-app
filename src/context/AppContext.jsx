@@ -2504,9 +2504,9 @@ export const AppProvider = ({ children }) => {
         const timestamp = new Date().toISOString();
         const { data, error } = await supabase
           .from("laundry_bookings")
-          .update({ 
-            bag_number: bagNumber || null, 
-            updated_at: timestamp 
+          .update({
+            bag_number: bagNumber || null,
+            updated_at: timestamp,
           })
           .eq("id", recordId)
           .select()
@@ -3634,7 +3634,7 @@ export const AppProvider = ({ children }) => {
     laundryPickerGuest,
     bicyclePickerGuest,
     settings,
-  supabaseEnabled,
+    supabaseEnabled,
 
     LAUNDRY_STATUS,
     HOUSING_STATUSES,
