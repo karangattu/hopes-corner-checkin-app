@@ -28,6 +28,13 @@ const BicycleRepairBooking = () => {
 
   const handleCreate = () => {
     if (!bicyclePickerGuest) return;
+
+    // Require bicycle description before logging repair
+    if (!bikeDescription) {
+      toast.error("Please add a bicycle description to this guest's profile before logging repairs.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       addBicycleRecord(bicyclePickerGuest.id, { repairType, notes });
@@ -68,9 +75,9 @@ const BicycleRepairBooking = () => {
               {bikeDescription}
             </div>
           ) : (
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              No bicycle description saved for this guest. Consider updating
-              their profile to keep repairs tied to a single bike.
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <div className="font-semibold mb-1">⚠️ Bicycle Description Required</div>
+              <div>This guest needs a bicycle description in their profile before repairs can be logged. Please edit their profile and add bike details (make, model, color, etc.) to proceed.</div>
             </div>
           )}
           <div>
@@ -110,9 +117,10 @@ const BicycleRepairBooking = () => {
               Cancel
             </button>
             <button
-              disabled={submitting || (repairType === "Other" && !notes.trim())}
+              disabled={submitting || (repairType === "Other" && !notes.trim()) || !bikeDescription}
               onClick={handleCreate}
               className="px-4 py-2 text-sm rounded bg-sky-600 text-white disabled:opacity-50 hover:bg-sky-700"
+              title={!bikeDescription ? "Bicycle description required in guest profile" : ""}
             >
               {submitting ? "Saving..." : "Log Repair"}
             </button>

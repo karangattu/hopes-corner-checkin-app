@@ -1594,9 +1594,24 @@ const GuestList = () => {
                             <span className="hidden sm:inline">Holiday</span>
                           </button>
                           <button
-                            onClick={() => setBicyclePickerGuest(guest)}
-                            className="bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
-                            title="Log bicycle repair for today"
+                            onClick={() => {
+                              if (!guest.bicycleDescription?.trim()) {
+                                toast.error("Please add a bicycle description to this guest's profile before logging repairs.");
+                                return;
+                              }
+                              setBicyclePickerGuest(guest);
+                            }}
+                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                              !guest.bicycleDescription?.trim()
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                : 'bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800'
+                            }`}
+                            title={
+                              !guest.bicycleDescription?.trim()
+                                ? "Add bicycle description to guest profile first"
+                                : "Log bicycle repair for today"
+                            }
+                            disabled={!guest.bicycleDescription?.trim()}
                           >
                             <Bike size={16} />
                             <span className="hidden sm:inline">Bicycle</span>
