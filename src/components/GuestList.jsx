@@ -24,6 +24,7 @@ import {
   Scissors,
   Gift,
   Bike,
+  RotateCcw,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
@@ -45,6 +46,8 @@ const GuestList = () => {
     addExtraMealRecord,
     addGuest,
     setBicyclePickerGuest,
+    actionHistory,
+    undoAction,
   } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
@@ -1593,118 +1596,297 @@ const GuestList = () => {
                                   </div>
 
                                   {alreadyHasMeal && (
-                                    <div className="space-x-1 relative">
-                                      {[1, 2, 3].map((count) => (
-                                        <button
-                                          key={`extra-${count}`}
-                                          onClick={() =>
-                                            handleAddExtraMeals(guest.id, count)
-                                          }
-                                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800"
-                                          title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
-                                        >
-                                          <SpringIcon>
-                                            <PlusCircle size={16} />
-                                          </SpringIcon>
-                                          {count} Extra
-                                        </button>
-                                      ))}
-                                    </div>
+                                    <>
+                                      <div className="space-x-1 relative">
+                                        {[1, 2, 3].map((count) => (
+                                          <button
+                                            key={`extra-${count}`}
+                                            onClick={() =>
+                                              handleAddExtraMeals(guest.id, count)
+                                            }
+                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800"
+                                            title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
+                                          >
+                                            <SpringIcon>
+                                              <PlusCircle size={16} />
+                                            </SpringIcon>
+                                            {count} Extra
+                                          </button>
+                                        ))}
+                                      </div>
+                                      
+                                      {(() => {
+                                        // Find the most recent meal action for this guest today
+                                        const today = todayPacificDateString();
+                                        const guestMealAction = actionHistory.find(
+                                          (action) =>
+                                            action.type === "MEAL_ADDED" &&
+                                            action.data?.guestId === guest.id &&
+                                            pacificDateStringFrom(new Date(action.timestamp)) === today
+                                        );
+                                        
+                                        if (!guestMealAction) return null;
+                                        
+                                        return (
+                                          <button
+                                            onClick={async () => {
+                                              const success = await undoAction(guestMealAction.id);
+                                              if (success) {
+                                                toast.success("Check-in undone successfully");
+                                                setPendingMealGuests((prev) => {
+                                                  const next = new Set(prev);
+                                                  next.delete(guest.id);
+                                                  return next;
+                                                });
+                                              }
+                                            }}
+                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                            title="Undo today's check-in"
+                                          >
+                                            <SpringIcon>
+                                              <RotateCcw size={16} />
+                                            </SpringIcon>
+                                            <span className="hidden sm:inline">Undo Check-In</span>
+                                            <span className="sm:hidden">Undo</span>
+                                          </button>
+                                        );
+                                      })()}
+                                    </>
                                   )}
                                 </div>
                               );
                             })()}
                           </div>
-                          <button
-                            onClick={async () => {
-                              const actionKey = `haircut-${guest.id}`;
-                              if (pendingActions.has(actionKey)) return;
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={async () => {
+                                const actionKey = `haircut-${guest.id}`;
+                                if (pendingActions.has(actionKey)) return;
 
-                              setPendingActions((prev) =>
-                                new Set(prev).add(actionKey),
-                              );
-                              try {
-                                const rec = await addHaircutRecord(guest.id);
-                                if (rec) toast.success("Haircut logged");
-                              } finally {
-                                setPendingActions((prev) => {
-                                  const next = new Set(prev);
-                                  next.delete(actionKey);
-                                  return next;
-                                });
-                              }
-                            }}
-                            disabled={pendingActions.has(`haircut-${guest.id}`)}
-                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
-                              pendingActions.has(`haircut-${guest.id}`)
-                                ? "bg-pink-200 text-pink-600 cursor-not-allowed"
-                                : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800"
-                            }`}
-                            title="Log haircut for today"
-                          >
-                            <Scissors size={16} />
-                            <span className="hidden sm:inline">
-                              {pendingActions.has(`haircut-${guest.id}`)
-                                ? "Saving..."
-                                : "Haircut"}
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              const rec = addHolidayRecord(guest.id);
-                              if (rec) toast.success("Holiday logged");
-                            }}
-                            className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
-                            title="Log holiday service for today"
-                          >
-                            <Gift size={16} />
-                            <span className="hidden sm:inline">Holiday</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (!guest.bicycleDescription?.trim()) {
-                                toast.error(
-                                  "Please add a bicycle description to this guest's profile before logging repairs.",
+                                setPendingActions((prev) =>
+                                  new Set(prev).add(actionKey),
                                 );
-                                return;
+                                try {
+                                  const rec = await addHaircutRecord(guest.id);
+                                  if (rec) toast.success("Haircut logged");
+                                } finally {
+                                  setPendingActions((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(actionKey);
+                                    return next;
+                                  });
+                                }
+                              }}
+                              disabled={pendingActions.has(`haircut-${guest.id}`)}
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                                pendingActions.has(`haircut-${guest.id}`)
+                                  ? "bg-pink-200 text-pink-600 cursor-not-allowed"
+                                  : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800"
+                              }`}
+                              title="Log haircut for today"
+                            >
+                              <Scissors size={16} />
+                              <span className="hidden sm:inline">
+                                {pendingActions.has(`haircut-${guest.id}`)
+                                  ? "Saving..."
+                                  : "Haircut"}
+                              </span>
+                            </button>
+                            
+                            {(() => {
+                              const today = todayPacificDateString();
+                              const haircutAction = actionHistory.find(
+                                (action) =>
+                                  action.type === "HAIRCUT_LOGGED" &&
+                                  action.data?.guestId === guest.id &&
+                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                              );
+                              
+                              if (!haircutAction) return null;
+                              
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    const success = await undoAction(haircutAction.id);
+                                    if (success) toast.success("Haircut undone");
+                                  }}
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  title="Undo haircut"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={() => {
+                                const rec = addHolidayRecord(guest.id);
+                                if (rec) toast.success("Holiday logged");
+                              }}
+                              className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                              title="Log holiday service for today"
+                            >
+                              <Gift size={16} />
+                              <span className="hidden sm:inline">Holiday</span>
+                            </button>
+                            
+                            {(() => {
+                              const today = todayPacificDateString();
+                              const holidayAction = actionHistory.find(
+                                (action) =>
+                                  action.type === "HOLIDAY_LOGGED" &&
+                                  action.data?.guestId === guest.id &&
+                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                              );
+                              
+                              if (!holidayAction) return null;
+                              
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    const success = await undoAction(holidayAction.id);
+                                    if (success) toast.success("Holiday undone");
+                                  }}
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  title="Undo holiday"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={() => {
+                                if (!guest.bicycleDescription?.trim()) {
+                                  toast.error(
+                                    "Please add a bicycle description to this guest's profile before logging repairs.",
+                                  );
+                                  return;
+                                }
+                                setBicyclePickerGuest(guest);
+                              }}
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                                !guest.bicycleDescription?.trim()
+                                  ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                  : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800"
+                              }`}
+                              title={
+                                !guest.bicycleDescription?.trim()
+                                  ? "Add bicycle description to guest profile first"
+                                  : "Log bicycle repair for today"
                               }
-                              setBicyclePickerGuest(guest);
-                            }}
-                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
-                              !guest.bicycleDescription?.trim()
-                                ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800"
-                            }`}
-                            title={
-                              !guest.bicycleDescription?.trim()
-                                ? "Add bicycle description to guest profile first"
-                                : "Log bicycle repair for today"
-                            }
-                            disabled={!guest.bicycleDescription?.trim()}
-                          >
-                            <Bike size={16} />
-                            <span className="hidden sm:inline">Bicycle</span>
-                          </button>
-                          <button
-                            onClick={() => setShowerPickerGuest(guest)}
-                            className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
-                          >
-                            <SpringIcon>
-                              <ShowerHead size={16} />
-                            </SpringIcon>
-                            <span className="hidden sm:inline">Book </span>
-                            Shower
-                          </button>
-                          <button
-                            onClick={() => setLaundryPickerGuest(guest)}
-                            className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
-                          >
-                            <SpringIcon>
-                              <WashingMachine size={16} />
-                            </SpringIcon>
-                            <span className="hidden sm:inline">Book </span>
-                            Laundry
-                          </button>
+                              disabled={!guest.bicycleDescription?.trim()}
+                            >
+                              <Bike size={16} />
+                              <span className="hidden sm:inline">Bicycle</span>
+                            </button>
+                            
+                            {(() => {
+                              const today = todayPacificDateString();
+                              const bicycleAction = actionHistory.find(
+                                (action) =>
+                                  action.type === "BICYCLE_LOGGED" &&
+                                  action.data?.guestId === guest.id &&
+                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                              );
+                              
+                              if (!bicycleAction) return null;
+                              
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    const success = await undoAction(bicycleAction.id);
+                                    if (success) toast.success("Bicycle repair undone");
+                                  }}
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  title="Undo bicycle repair"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={() => setShowerPickerGuest(guest)}
+                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                            >
+                              <SpringIcon>
+                                <ShowerHead size={16} />
+                              </SpringIcon>
+                              <span className="hidden sm:inline">Book </span>
+                              Shower
+                            </button>
+                            
+                            {(() => {
+                              const today = todayPacificDateString();
+                              const showerAction = actionHistory.find(
+                                (action) =>
+                                  action.type === "SHOWER_BOOKED" &&
+                                  action.data?.guestId === guest.id &&
+                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                              );
+                              
+                              if (!showerAction) return null;
+                              
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    const success = await undoAction(showerAction.id);
+                                    if (success) toast.success("Shower booking undone");
+                                  }}
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  title="Undo shower booking"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              );
+                            })()}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={() => setLaundryPickerGuest(guest)}
+                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                            >
+                              <SpringIcon>
+                                <WashingMachine size={16} />
+                              </SpringIcon>
+                              <span className="hidden sm:inline">Book </span>
+                              Laundry
+                            </button>
+                            
+                            {(() => {
+                              const today = todayPacificDateString();
+                              const laundryAction = actionHistory.find(
+                                (action) =>
+                                  action.type === "LAUNDRY_BOOKED" &&
+                                  action.data?.guestId === guest.id &&
+                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                              );
+                              
+                              if (!laundryAction) return null;
+                              
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    const success = await undoAction(laundryAction.id);
+                                    if (success) toast.success("Laundry booking undone");
+                                  }}
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  title="Undo laundry booking"
+                                >
+                                  <RotateCcw size={14} />
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     )}

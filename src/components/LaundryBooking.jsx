@@ -178,21 +178,35 @@ const LaundryBooking = () => {
   if (!laundryPickerGuest) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white rounded-t-2xl md:rounded-lg w-full md:max-w-2xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-xl">
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
-              <WashingMachine /> Book Laundry for {laundryPickerGuest.name}
-            </h2>
-            <button
-              onClick={() => setLaundryPickerGuest(null)}
-              className="p-2 md:p-1 rounded-full hover:bg-gray-100"
-            >
-              <X size={20} />
-            </button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
+        <div className="sticky top-0 bg-gradient-to-br from-purple-50 to-indigo-50 border-b border-purple-100 p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-500 text-white p-3 rounded-xl shadow-md">
+              <WashingMachine size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Book Laundry Service
+              </h2>
+              <p className="text-sm text-gray-600">
+                Schedule laundry for{" "}
+                <span className="font-semibold">
+                  {laundryPickerGuest?.name}
+                </span>
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setLaundryPickerGuest(null)}
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all hover:scale-110 active:scale-95"
+            aria-label="Close dialog"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
+        <div className="p-6">
           {error && (
             <div className="p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
               <AlertCircle size={18} />
@@ -443,13 +457,13 @@ const LaundryBooking = () => {
               <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
                 <button
                   onClick={() => handleBookLaundry()}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 order-2 sm:order-1"
+                  className="bg-purple-500 hover:bg-purple-600 active:scale-95 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 order-2 sm:order-1 transition-all hover:shadow-md"
                 >
                   Book Off-site Laundry
                 </button>
                 <button
                   onClick={() => setLaundryPickerGuest(null)}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center justify-center gap-2 order-1 sm:order-2"
+                  className="bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-800 px-4 py-2 rounded-lg flex items-center justify-center gap-2 order-1 sm:order-2 transition-all"
                 >
                   Cancel
                 </button>

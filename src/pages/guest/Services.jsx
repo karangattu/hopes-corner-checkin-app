@@ -48,6 +48,8 @@ import Selectize from "../../components/Selectize";
 import DonutCard from "../../components/charts/DonutCard";
 import TrendLine from "../../components/charts/TrendLine";
 import BicycleKanban from "../../components/lanes/BicycleKanban";
+import ShowerKanban from "../../components/lanes/ShowerKanban";
+import LaundryKanban from "../../components/lanes/LaundryKanban";
 import {
   useFadeInUp,
   useScaleIn,
@@ -276,6 +278,12 @@ const Services = () => {
   const [bicycleViewMode, setBicycleViewMode] = useState(
     () => savedFilters?.bicycleViewMode ?? "kanban",
   );
+  const [showerViewMode, setShowerViewMode] = useState(
+    () => savedFilters?.showerViewMode ?? "list",
+  );
+  const [laundryViewMode, setLaundryViewMode] = useState(
+    () => savedFilters?.laundryViewMode ?? "list",
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -289,6 +297,8 @@ const Services = () => {
       laundrySort,
       showCompletedLaundry,
       bicycleViewMode,
+      showerViewMode,
+      laundryViewMode,
     };
     try {
       window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(payload));
@@ -305,6 +315,8 @@ const Services = () => {
     laundrySort,
     showCompletedLaundry,
     bicycleViewMode,
+    showerViewMode,
+    laundryViewMode,
   ]);
 
   const todayMetrics = getTodayMetrics();
@@ -681,8 +693,7 @@ const Services = () => {
       sumCount((rvMealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((unitedEffortMealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((extraMealRecords || []).filter((r) => inMonth(r.date))) +
-      sumCount((dayWorkerMealRecords || []).filter((r) => inMonth(r.date))) +
-      sumCount((lunchBagRecords || []).filter((r) => inMonth(r.date)));
+      sumCount((dayWorkerMealRecords || []).filter((r) => inMonth(r.date)));
 
     return {
       mealsServed: mealTotal,
@@ -704,7 +715,6 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
-    lunchBagRecords,
     showerRecords,
     laundryRecords,
     haircutRecords,
@@ -738,8 +748,7 @@ const Services = () => {
       sumCount((rvMealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((unitedEffortMealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((extraMealRecords || []).filter((r) => inYear(r.date))) +
-      sumCount((dayWorkerMealRecords || []).filter((r) => inYear(r.date))) +
-      sumCount((lunchBagRecords || []).filter((r) => inYear(r.date)));
+      sumCount((dayWorkerMealRecords || []).filter((r) => inYear(r.date)));
 
     return {
       mealsServed: mealTotal,
@@ -761,7 +770,6 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
-    lunchBagRecords,
     showerRecords,
     laundryRecords,
     haircutRecords,
@@ -813,9 +821,6 @@ const Services = () => {
       addValue(record?.date, "meals", toCountValue(record?.count)),
     );
     (dayWorkerMealRecords || []).forEach((record) =>
-      addValue(record?.date, "meals", toCountValue(record?.count)),
-    );
-    (lunchBagRecords || []).forEach((record) =>
       addValue(record?.date, "meals", toCountValue(record?.count)),
     );
 
@@ -880,7 +885,6 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
-    lunchBagRecords,
     showerRecords,
     laundryRecords,
     haircutRecords,
@@ -4405,89 +4409,127 @@ const Services = () => {
                   essentials stocked.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                <span className="bg-blue-100 text-blue-700 font-medium px-3 py-1 rounded-full">
-                  {todayShowerRecords.length} total bookings
-                </span>
-                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                  Showing {filteredShowers.length}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <span className="bg-blue-100 text-blue-700 font-medium px-3 py-1 rounded-full">
+                    {todayShowerRecords.length} total bookings
+                  </span>
+                  <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                    Showing {filteredShowers.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowerViewMode("kanban")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                      showerViewMode === "kanban"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Kanban
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowerViewMode("list")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                      showerViewMode === "list"
+                        ? "bg-white text-blue-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    List
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
-              <select
-                value={showerStatusFilter}
-                onChange={(event) => setShowerStatusFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="all">Status: All</option>
-                <option value="awaiting">Status: Awaiting</option>
-                <option value="done">Status: Done</option>
-              </select>
-              <select
-                value={showerLaundryFilter}
-                onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="any">Laundry: Any</option>
-                <option value="with">Laundry: With</option>
-                <option value="without">Laundry: Without</option>
-              </select>
-              <select
-                value={showerSort}
-                onChange={(event) => setShowerSort(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="time-asc">Sort: Time ↑</option>
-                <option value="time-desc">Sort: Time ↓</option>
-                <option value="status">Sort: Status</option>
-                <option value="name">Sort: Name</option>
-              </select>
-            </div>
-
-            {filteredShowers.length === 0 ? (
-              <div className="border border-dashed border-blue-200 rounded-lg text-center py-12 text-sm text-blue-700 bg-blue-50">
-                No shower bookings match your filters.
-              </div>
+            {showerViewMode === "kanban" ? (
+              <ShowerKanban
+                showerRecords={filteredShowers}
+                guests={guests}
+                updateShowerStatus={updateShowerStatus}
+                cancelShowerRecord={cancelShowerRecord}
+                formatShowerSlotLabel={formatShowerSlotLabel}
+              />
             ) : (
-              <div className="space-y-5">
-                {activeShowers.length > 0 ? (
-                  <div className="space-y-4">
-                    {activeShowers.map((record, idx) =>
-                      renderShowerCard(record, activeShowersTrail[idx]),
-                    )}
+              <>
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
+                  <select
+                    value={showerStatusFilter}
+                    onChange={(event) => setShowerStatusFilter(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="all">Status: All</option>
+                    <option value="awaiting">Status: Awaiting</option>
+                    <option value="done">Status: Done</option>
+                  </select>
+                  <select
+                    value={showerLaundryFilter}
+                    onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="any">Laundry: Any</option>
+                    <option value="with">Laundry: With</option>
+                    <option value="without">Laundry: Without</option>
+                  </select>
+                  <select
+                    value={showerSort}
+                    onChange={(event) => setShowerSort(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  >
+                    <option value="time-asc">Sort: Time ↑</option>
+                    <option value="time-desc">Sort: Time ↓</option>
+                    <option value="status">Sort: Status</option>
+                    <option value="name">Sort: Name</option>
+                  </select>
+                </div>
+
+                {filteredShowers.length === 0 ? (
+                  <div className="border border-dashed border-blue-200 rounded-lg text-center py-12 text-sm text-blue-700 bg-blue-50">
+                    No shower bookings match your filters.
                   </div>
                 ) : (
-                  <div className="border border-dashed border-blue-200 rounded-lg text-center py-10 text-sm text-blue-600 bg-blue-50">
-                    No active shower bookings.
-                  </div>
-                )}
+                  <div className="space-y-5">
+                    {activeShowers.length > 0 ? (
+                      <div className="space-y-4">
+                        {activeShowers.map((record, idx) =>
+                          renderShowerCard(record, activeShowersTrail[idx]),
+                        )}
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-blue-200 rounded-lg text-center py-10 text-sm text-blue-600 bg-blue-50">
+                        No active shower bookings.
+                      </div>
+                    )}
 
-                {completedShowers.length > 0 && (
-                  <div className="pt-4 border-t border-blue-100">
-                    <button
-                      type="button"
-                      onClick={() => setShowCompletedShowers((prev) => !prev)}
-                      className="w-full flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-4 py-2 transition-colors"
-                    >
-                      <span>Completed showers ({completedShowers.length})</span>
-                      {isCompletedShowersOpen ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </button>
-                    {isCompletedShowersOpen && (
-                      <div className="mt-3 space-y-3">
-                        {completedShowers.map((record, idx) =>
-                          renderShowerCard(record, completedShowersTrail[idx]),
+                    {completedShowers.length > 0 && (
+                      <div className="pt-4 border-t border-blue-100">
+                        <button
+                          type="button"
+                          onClick={() => setShowCompletedShowers((prev) => !prev)}
+                          className="w-full flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-4 py-2 transition-colors"
+                        >
+                          <span>Completed showers ({completedShowers.length})</span>
+                          {isCompletedShowersOpen ? (
+                            <ChevronUp size={16} />
+                          ) : (
+                            <ChevronDown size={16} />
+                          )}
+                        </button>
+                        {isCompletedShowersOpen && (
+                          <div className="mt-3 space-y-3">
+                            {completedShowers.map((record, idx) =>
+                              renderShowerCard(record, completedShowersTrail[idx]),
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -5038,98 +5080,136 @@ const Services = () => {
                   place.
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                <span className="bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
-                  {todayLaundryWithGuests.length} records
-                </span>
-                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                  Showing {filteredLaundry.length}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <span className="bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
+                    {todayLaundryWithGuests.length} records
+                  </span>
+                  <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                    Showing {filteredLaundry.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLaundryViewMode("kanban")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                      laundryViewMode === "kanban"
+                        ? "bg-white text-purple-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Kanban
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLaundryViewMode("list")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                      laundryViewMode === "list"
+                        ? "bg-white text-purple-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    List
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
-              <select
-                value={laundryTypeFilter}
-                onChange={(event) => setLaundryTypeFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-              >
-                <option value="any">Type: Any</option>
-                <option value="onsite">Type: On-site</option>
-                <option value="offsite">Type: Off-site</option>
-              </select>
-              <select
-                value={laundryStatusFilter}
-                onChange={(event) => setLaundryStatusFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-              >
-                <option value="any">Status: Any</option>
-                <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
-                <option value={LAUNDRY_STATUS.WASHER}>In Washer</option>
-                <option value={LAUNDRY_STATUS.DRYER}>In Dryer</option>
-                <option value={LAUNDRY_STATUS.DONE}>Done</option>
-                <option value={LAUNDRY_STATUS.PICKED_UP}>Picked Up</option>
-                <option value={LAUNDRY_STATUS.PENDING}>Off-site Waiting</option>
-                <option value={LAUNDRY_STATUS.TRANSPORTED}>Transported</option>
-                <option value={LAUNDRY_STATUS.RETURNED}>Returned</option>
-                <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>
-                  Off-site Picked Up
-                </option>
-              </select>
-              <select
-                value={laundrySort}
-                onChange={(event) => setLaundrySort(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-              >
-                <option value="time-asc">Sort: Time ↑</option>
-                <option value="time-desc">Sort: Time ↓</option>
-                <option value="status">Sort: Status</option>
-                <option value="name">Sort: Name</option>
-              </select>
-            </div>
-
-            {filteredLaundry.length === 0 ? (
-              <div className="border border-dashed border-purple-200 rounded-lg text-center py-12 text-sm text-purple-700 bg-purple-50">
-                No laundry bookings match your filters.
-              </div>
+            {laundryViewMode === "kanban" ? (
+              <LaundryKanban
+                laundryRecords={filteredLaundry}
+                guests={guests}
+                updateLaundryStatus={updateLaundryStatus}
+                updateLaundryBagNumber={updateLaundryBagNumber}
+                cancelLaundryRecord={cancelLaundryRecord}
+              />
             ) : (
-              <div className="space-y-5">
-                {activeLaundry.length > 0 ? (
-                  <div className="space-y-4">
-                    {activeLaundry.map((record, idx) =>
-                      renderLaundryCard(record, activeLaundryTrail[idx]),
-                    )}
+              <>
+                <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
+                  <select
+                    value={laundryTypeFilter}
+                    onChange={(event) => setLaundryTypeFilter(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    <option value="any">Type: Any</option>
+                    <option value="onsite">Type: On-site</option>
+                    <option value="offsite">Type: Off-site</option>
+                  </select>
+                  <select
+                    value={laundryStatusFilter}
+                    onChange={(event) => setLaundryStatusFilter(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    <option value="any">Status: Any</option>
+                    <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
+                    <option value={LAUNDRY_STATUS.WASHER}>In Washer</option>
+                    <option value={LAUNDRY_STATUS.DRYER}>In Dryer</option>
+                    <option value={LAUNDRY_STATUS.DONE}>Done</option>
+                    <option value={LAUNDRY_STATUS.PICKED_UP}>Picked Up</option>
+                    <option value={LAUNDRY_STATUS.PENDING}>Off-site Waiting</option>
+                    <option value={LAUNDRY_STATUS.TRANSPORTED}>Transported</option>
+                    <option value={LAUNDRY_STATUS.RETURNED}>Returned</option>
+                    <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>
+                      Off-site Picked Up
+                    </option>
+                  </select>
+                  <select
+                    value={laundrySort}
+                    onChange={(event) => setLaundrySort(event.target.value)}
+                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    <option value="time-asc">Sort: Time ↑</option>
+                    <option value="time-desc">Sort: Time ↓</option>
+                    <option value="status">Sort: Status</option>
+                    <option value="name">Sort: Name</option>
+                  </select>
+                </div>
+
+                {filteredLaundry.length === 0 ? (
+                  <div className="border border-dashed border-purple-200 rounded-lg text-center py-12 text-sm text-purple-700 bg-purple-50">
+                    No laundry bookings match your filters.
                   </div>
                 ) : (
-                  <div className="border border-dashed border-purple-200 rounded-lg text-center py-10 text-sm text-purple-600 bg-purple-50">
-                    No active laundry loads.
-                  </div>
-                )}
+                  <div className="space-y-5">
+                    {activeLaundry.length > 0 ? (
+                      <div className="space-y-4">
+                        {activeLaundry.map((record, idx) =>
+                          renderLaundryCard(record, activeLaundryTrail[idx]),
+                        )}
+                      </div>
+                    ) : (
+                      <div className="border border-dashed border-purple-200 rounded-lg text-center py-10 text-sm text-purple-600 bg-purple-50">
+                        No active laundry loads.
+                      </div>
+                    )}
 
-                {completedLaundry.length > 0 && (
-                  <div className="pt-4 border-t border-purple-100">
-                    <button
-                      type="button"
-                      onClick={() => setShowCompletedLaundry((prev) => !prev)}
-                      className="w-full flex items-center justify-between text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg px-4 py-2 transition-colors"
-                    >
-                      <span>Completed laundry ({completedLaundry.length})</span>
-                      {isCompletedLaundryOpen ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </button>
-                    {isCompletedLaundryOpen && (
-                      <div className="mt-3 space-y-3">
-                        {completedLaundry.map((record, idx) =>
-                          renderLaundryCard(record, completedLaundryTrail[idx]),
+                    {completedLaundry.length > 0 && (
+                      <div className="pt-4 border-t border-purple-100">
+                        <button
+                          type="button"
+                          onClick={() => setShowCompletedLaundry((prev) => !prev)}
+                          className="w-full flex items-center justify-between text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg px-4 py-2 transition-colors"
+                        >
+                          <span>Completed laundry ({completedLaundry.length})</span>
+                          {isCompletedLaundryOpen ? (
+                            <ChevronUp size={16} />
+                          ) : (
+                            <ChevronDown size={16} />
+                          )}
+                        </button>
+                        {isCompletedLaundryOpen && (
+                          <div className="mt-3 space-y-3">
+                            {completedLaundry.map((record, idx) =>
+                              renderLaundryCard(record, completedLaundryTrail[idx]),
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>

@@ -245,6 +245,33 @@ const OverviewDashboard = ({
     }, {});
   }, [guests]);
 
+  // Calculate age group breakdown
+  const ageGroupCounts = useMemo(() => {
+    return guests.reduce((acc, guest) => {
+      const age = guest.age || "Unknown";
+      acc[age] = (acc[age] || 0) + 1;
+      return acc;
+    }, {});
+  }, [guests]);
+
+  // Calculate gender breakdown
+  const genderCounts = useMemo(() => {
+    return guests.reduce((acc, guest) => {
+      const gender = guest.gender || "Unknown";
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {});
+  }, [guests]);
+
+  // Calculate location breakdown
+  const locationCounts = useMemo(() => {
+    return guests.reduce((acc, guest) => {
+      const location = guest.location || "Unknown";
+      acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {});
+  }, [guests]);
+
   const completedLaundryStatuses = useMemo(
     () =>
       new Set([
@@ -555,6 +582,30 @@ const OverviewDashboard = ({
               title="Guests"
               subtitle="Housing Status"
               dataMap={housingStatusCounts}
+            />
+          </div>
+
+          <div className="hidden sm:block">
+            <DonutCard
+              title="Demographics"
+              subtitle="Age Groups"
+              dataMap={ageGroupCounts}
+            />
+          </div>
+
+          <div className="hidden sm:block">
+            <DonutCard
+              title="Demographics"
+              subtitle="Gender"
+              dataMap={genderCounts}
+            />
+          </div>
+
+          <div className="hidden sm:block">
+            <DonutCard
+              title="Demographics"
+              subtitle="Location"
+              dataMap={locationCounts}
             />
           </div>
 

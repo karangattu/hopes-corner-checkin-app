@@ -174,21 +174,32 @@ const ShowerBooking = () => {
   if (!showerPickerGuest) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className="bg-white rounded-t-2xl md:rounded-lg w-full md:max-w-2xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-xl">
-        <div className="p-4 md:p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg md:text-xl font-bold flex items-center gap-2">
-              <ShowerHead /> Book Shower for {showerPickerGuest.name}
-            </h2>
-            <button
-              onClick={() => setShowerPickerGuest(null)}
-              className="p-2 md:p-1 rounded-full hover:bg-gray-100"
-            >
-              <X size={20} />
-            </button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50 animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-2xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-4 md:slide-in-from-bottom-2 duration-300">
+        <div className="sticky top-0 bg-gradient-to-br from-sky-50 to-blue-50 border-b border-blue-100 p-4 md:p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-500 text-white p-2.5 md:p-3 rounded-xl shadow-md">
+              <ShowerHead size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">
+                Book a Shower
+              </h2>
+              <p className="text-xs md:text-sm text-gray-600">
+                Schedule for{" "}
+                <span className="font-semibold">{showerPickerGuest?.name}</span>
+              </p>
+            </div>
           </div>
-
+          <button
+            onClick={() => setShowerPickerGuest(null)}
+            className="text-gray-400 hover:text-gray-600 hover:bg-white/80 p-2 rounded-lg transition-all hover:scale-110 active:scale-95"
+            aria-label="Close dialog"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-4 md:p-6 space-y-6">
           {error && (
             <div className="p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
               <AlertCircle size={18} />
@@ -278,12 +289,12 @@ const ShowerBooking = () => {
                     !slot.isFull && handleBookShower(slot.slotTime)
                   }
                   disabled={slot.isFull}
-                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all text-sm w-full min-h-[100px] ${
+                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${
                     slot.isFull
                       ? "bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200"
                       : slot.isNearlyFull
-                        ? "bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-gray-800 shadow-sm"
-                        : "bg-white hover:bg-blue-50 text-gray-800 hover:border-blue-500 shadow-sm"
+                        ? "bg-yellow-50 hover:bg-yellow-100 hover:shadow-md active:scale-98 border-yellow-300 text-gray-800 shadow-sm"
+                        : "bg-white hover:bg-blue-50 hover:shadow-md active:scale-98 text-gray-800 hover:border-blue-500 shadow-sm"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
