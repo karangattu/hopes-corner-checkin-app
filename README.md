@@ -8,6 +8,7 @@ An app to manage guest check‑ins, services (meals, showers, laundry), donation
 - **Services**: Meals tracking, showers booking, laundry scheduling
 - **Donations**: Record, consolidate, export
 - **Admin Dashboard**: Charts, metrics, exports
+- **Progressive Web App**: Install on smartphones and tablets for native app-like experience with offline support
 
 ## Getting Started
 
@@ -92,6 +93,14 @@ The app automatically syncs to Supabase when `VITE_SUPABASE_URL` and `VITE_SUPAB
 4. **Restart the app**: Restart `npm run dev` (or rebuild for production) so Vite picks up the new variables. The admin dashboard will reflect cloud-only actions (like clearing Supabase data) once the credentials are detected.
 
    The command runs `vite build` and then calls `firebase deploy` with the configuration in `firebase.json` and `firestore.rules`.
+
+## Installing as a Mobile App (PWA)
+
+This app can be installed on smartphones and tablets as a Progressive Web App (PWA). Once deployed to Firebase:
+
+- **Android/Chrome**: Visit the app URL → tap the "Install" banner or menu (⋮) → "Add to Home screen"
+- **iOS/Safari**: Visit the app URL → tap Share (□↑) → "Add to Home Screen"
+- **Desktop**: Visit the app URL → click the install icon in the address bar
 
 ## Changelog
 

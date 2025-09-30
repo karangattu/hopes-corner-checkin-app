@@ -3,6 +3,7 @@ import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { animated as Animated } from "@react-spring/web";
 import { useStagger, SpringIcon } from "../utils/animations";
 import toast from "react-hot-toast";
+import haptics from "../utils/haptics";
 import {
   User,
   Home,
@@ -263,6 +264,7 @@ const GuestList = () => {
     filteredGuests.length === 0;
 
   const toggleExpanded = (guestId) => {
+    haptics.selection();
     setExpandedGuest(expandedGuest === guestId ? null : guestId);
   };
 
@@ -279,6 +281,7 @@ const GuestList = () => {
     );
 
     if (alreadyHasMeal) {
+      haptics.warning();
       toast.error(
         "Guest already received meals today. Only one meal per day is allowed.",
       );
@@ -286,24 +289,31 @@ const GuestList = () => {
     }
 
     try {
+      haptics.buttonPress();
       setPendingMealGuests((prev) => {
         const next = new Set(prev);
         next.add(guestId);
         return next;
       });
       const rec = addMealRecord(guestId, count);
-      if (rec)
+      if (rec) {
+        haptics.success();
         toast.success(`${count} meal${count > 1 ? "s" : ""} logged for guest!`);
+      }
     } catch (error) {
+      haptics.error();
       toast.error(`Error logging meals: ${error.message}`);
     }
   };
 
   const handleAddExtraMeals = (guestId, count) => {
     try {
+      haptics.buttonPress();
       addExtraMealRecord(guestId, count);
+      haptics.success();
       toast.success(`${count} extra meal${count > 1 ? "s" : ""} added!`);
     } catch (error) {
+      haptics.error();
       toast.error(`Error adding extra meals: ${error.message}`);
     }
   };
@@ -1649,14 +1659,18 @@ const GuestList = () => {
                                         return (
                                           <button
                                             onClick={async () => {
+                                              haptics.undo();
                                               const success = await undoAction(guestMealAction.id);
                                               if (success) {
+                                                haptics.success();
                                                 toast.success("Check-in undone successfully");
                                                 setPendingMealGuests((prev) => {
                                                   const next = new Set(prev);
                                                   next.delete(guest.id);
                                                   return next;
                                                 });
+                                              } else {
+                                                haptics.error();
                                               }
                                             }}
                                             className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
@@ -1683,12 +1697,18 @@ const GuestList = () => {
                                 const actionKey = `haircut-${guest.id}`;
                                 if (pendingActions.has(actionKey)) return;
 
+                                haptics.buttonPress();
                                 setPendingActions((prev) =>
                                   new Set(prev).add(actionKey),
                                 );
                                 try {
                                   const rec = await addHaircutRecord(guest.id);
-                                  if (rec) toast.success("Haircut logged");
+                                  if (rec) {
+                                    haptics.success();
+                                    toast.success("Haircut logged");
+                                  }
+                                } catch {
+                                  haptics.error();
                                 } finally {
                                   setPendingActions((prev) => {
                                     const next = new Set(prev);
@@ -1727,8 +1747,14 @@ const GuestList = () => {
                               return (
                                 <button
                                   onClick={async () => {
+                                    haptics.undo();
                                     const success = await undoAction(haircutAction.id);
-                                    if (success) toast.success("Haircut undone");
+                                    if (success) {
+                                      haptics.success();
+                                      toast.success("Haircut undone");
+                                    } else {
+                                      haptics.error();
+                                    }
                                   }}
                                   className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo haircut"
@@ -1742,8 +1768,12 @@ const GuestList = () => {
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => {
+                                haptics.buttonPress();
                                 const rec = addHolidayRecord(guest.id);
-                                if (rec) toast.success("Holiday logged");
+                                if (rec) {
+                                  haptics.success();
+                                  toast.success("Holiday logged");
+                                }
                               }}
                               className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                               title="Log holiday service for today"
@@ -1766,8 +1796,14 @@ const GuestList = () => {
                               return (
                                 <button
                                   onClick={async () => {
+                                    haptics.undo();
                                     const success = await undoAction(holidayAction.id);
-                                    if (success) toast.success("Holiday undone");
+                                    if (success) {
+                                      haptics.success();
+                                      toast.success("Holiday undone");
+                                    } else {
+                                      haptics.error();
+                                    }
                                   }}
                                   className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo holiday"
@@ -1782,11 +1818,13 @@ const GuestList = () => {
                             <button
                               onClick={() => {
                                 if (!guest.bicycleDescription?.trim()) {
+                                  haptics.warning();
                                   toast.error(
                                     "Please add a bicycle description to this guest's profile before logging repairs.",
                                   );
                                   return;
                                 }
+                                haptics.buttonPress();
                                 setBicyclePickerGuest(guest);
                               }}
                               className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
@@ -1819,8 +1857,14 @@ const GuestList = () => {
                               return (
                                 <button
                                   onClick={async () => {
+                                    haptics.undo();
                                     const success = await undoAction(bicycleAction.id);
-                                    if (success) toast.success("Bicycle repair undone");
+                                    if (success) {
+                                      haptics.success();
+                                      toast.success("Bicycle repair undone");
+                                    } else {
+                                      haptics.error();
+                                    }
                                   }}
                                   className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo bicycle repair"
@@ -1833,7 +1877,10 @@ const GuestList = () => {
                           
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
-                              onClick={() => setShowerPickerGuest(guest)}
+                              onClick={() => {
+                                haptics.buttonPress();
+                                setShowerPickerGuest(guest);
+                              }}
                               className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                             >
                               <SpringIcon>
@@ -1857,8 +1904,14 @@ const GuestList = () => {
                               return (
                                 <button
                                   onClick={async () => {
+                                    haptics.undo();
                                     const success = await undoAction(showerAction.id);
-                                    if (success) toast.success("Shower booking undone");
+                                    if (success) {
+                                      haptics.success();
+                                      toast.success("Shower booking undone");
+                                    } else {
+                                      haptics.error();
+                                    }
                                   }}
                                   className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo shower booking"
@@ -1871,7 +1924,10 @@ const GuestList = () => {
                           
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
-                              onClick={() => setLaundryPickerGuest(guest)}
+                              onClick={() => {
+                                haptics.buttonPress();
+                                setLaundryPickerGuest(guest);
+                              }}
                               className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                             >
                               <SpringIcon>
@@ -1895,8 +1951,14 @@ const GuestList = () => {
                               return (
                                 <button
                                   onClick={async () => {
+                                    haptics.undo();
                                     const success = await undoAction(laundryAction.id);
-                                    if (success) toast.success("Laundry booking undone");
+                                    if (success) {
+                                      haptics.success();
+                                      toast.success("Laundry booking undone");
+                                    } else {
+                                      haptics.error();
+                                    }
                                   }}
                                   className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo laundry booking"
