@@ -817,8 +817,13 @@ const GuestList = () => {
               }
             }}
             ref={searchInputRef}
-            className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
           />
+          {searchTerm && filteredGuests.length > 0 && (
+            <div className="absolute left-12 bottom-[-24px] text-xs text-gray-500 font-medium">
+              {filteredGuests.length} {filteredGuests.length === 1 ? 'guest' : 'guests'} found
+            </div>
+          )}
           {searchTerm && (
             <button
               type="button"
@@ -1226,25 +1231,37 @@ const GuestList = () => {
                                 guest.name
                               )}
                             </h3>
-                            {todayServices.length > 0 && (
-                              <div className="flex gap-1 ml-2">
-                                {todayServices.map((service, idx) => {
-                                  const Icon = service.icon;
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border"
-                                      title={`${service.serviceType} today`}
-                                    >
-                                      <Icon
-                                        size={12}
-                                        className={service.iconClass}
-                                      />
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            <div className="flex gap-1 ml-2 items-center">
+                              {(() => {
+                                const isNewGuest = guest.createdAt && 
+                                  pacificDateStringFrom(new Date(guest.createdAt)) === todayPacificDateString();
+                                
+                                return isNewGuest ? (
+                                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
+                                    NEW
+                                  </span>
+                                ) : null;
+                              })()}
+                              {todayServices.length > 0 && (
+                                <>
+                                  {todayServices.map((service, idx) => {
+                                    const Icon = service.icon;
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
+                                        title={`${service.serviceType} today`}
+                                      >
+                                        <Icon
+                                          size={12}
+                                          className={service.iconClass}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </>
+                              )}
+                            </div>
                           </div>
                           {guest.preferredName && (
                             <p className="text-xs text-gray-500 mt-1">
@@ -1575,11 +1592,13 @@ const GuestList = () => {
                                         onClick={() =>
                                           handleMealSelection(guest.id, count)
                                         }
-                                        disabled={alreadyHasMeal}
-                                        className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                                        disabled={alreadyHasMeal || pendingMealGuests.has(guest.id)}
+                                        className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
                                           alreadyHasMeal
                                             ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                            : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300"
+                                            : pendingMealGuests.has(guest.id)
+                                            ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                            : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
                                         }`}
                                         title={
                                           alreadyHasMeal
@@ -1604,7 +1623,7 @@ const GuestList = () => {
                                             onClick={() =>
                                               handleAddExtraMeals(guest.id, count)
                                             }
-                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800"
+                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
                                             title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
                                           >
                                             <SpringIcon>
@@ -1640,7 +1659,7 @@ const GuestList = () => {
                                                 });
                                               }
                                             }}
-                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
                                             title="Undo today's check-in"
                                           >
                                             <SpringIcon>
@@ -1679,10 +1698,10 @@ const GuestList = () => {
                                 }
                               }}
                               disabled={pendingActions.has(`haircut-${guest.id}`)}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
                                 pendingActions.has(`haircut-${guest.id}`)
-                                  ? "bg-pink-200 text-pink-600 cursor-not-allowed"
-                                  : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800"
+                                  ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                                  : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
                               }`}
                               title="Log haircut for today"
                             >
@@ -1711,7 +1730,7 @@ const GuestList = () => {
                                     const success = await undoAction(haircutAction.id);
                                     if (success) toast.success("Haircut undone");
                                   }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo haircut"
                                 >
                                   <RotateCcw size={14} />
@@ -1726,7 +1745,7 @@ const GuestList = () => {
                                 const rec = addHolidayRecord(guest.id);
                                 if (rec) toast.success("Holiday logged");
                               }}
-                              className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                              className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                               title="Log holiday service for today"
                             >
                               <Gift size={16} />
@@ -1750,7 +1769,7 @@ const GuestList = () => {
                                     const success = await undoAction(holidayAction.id);
                                     if (success) toast.success("Holiday undone");
                                   }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo holiday"
                                 >
                                   <RotateCcw size={14} />
@@ -1770,10 +1789,10 @@ const GuestList = () => {
                                 }
                                 setBicyclePickerGuest(guest);
                               }}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation ${
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
                                 !guest.bicycleDescription?.trim()
                                   ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                  : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800"
+                                  : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
                               }`}
                               title={
                                 !guest.bicycleDescription?.trim()
@@ -1803,7 +1822,7 @@ const GuestList = () => {
                                     const success = await undoAction(bicycleAction.id);
                                     if (success) toast.success("Bicycle repair undone");
                                   }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo bicycle repair"
                                 >
                                   <RotateCcw size={14} />
@@ -1815,7 +1834,7 @@ const GuestList = () => {
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => setShowerPickerGuest(guest)}
-                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                             >
                               <SpringIcon>
                                 <ShowerHead size={16} />
@@ -1841,7 +1860,7 @@ const GuestList = () => {
                                     const success = await undoAction(showerAction.id);
                                     if (success) toast.success("Shower booking undone");
                                   }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo shower booking"
                                 >
                                   <RotateCcw size={14} />
@@ -1853,7 +1872,7 @@ const GuestList = () => {
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => setLaundryPickerGuest(guest)}
-                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-colors touch-manipulation"
+                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
                             >
                               <SpringIcon>
                                 <WashingMachine size={16} />
@@ -1879,7 +1898,7 @@ const GuestList = () => {
                                     const success = await undoAction(laundryAction.id);
                                     if (success) toast.success("Laundry booking undone");
                                   }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-colors touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800"
+                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
                                   title="Undo laundry booking"
                                 >
                                   <RotateCcw size={14} />
