@@ -79,7 +79,7 @@ const ShowerKanban = ({
 
   const groupedRecords = {
     [SHOWER_STATUS.AWAITING]: showerRecords.filter(
-      (r) => r.status === SHOWER_STATUS.AWAITING,
+      (r) => r.status !== SHOWER_STATUS.DONE && r.status !== "waitlisted",
     ),
     [SHOWER_STATUS.DONE]: showerRecords.filter(
       (r) => r.status === SHOWER_STATUS.DONE,
