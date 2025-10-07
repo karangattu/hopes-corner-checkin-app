@@ -19,24 +19,86 @@ const ensureFirebaseAuth = async (firebaseEnabled) => {
 export const AuthProvider = ({ children, useFirebaseOverride }) => {
   const firebaseEnabled = useFirebaseOverride ?? envUseFirebase;
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
+  // Listen to Firebase Auth state changes
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("hc-auth-user");
-      if (saved) setUser(JSON.parse(saved));
-    } catch (e) {
-      console.error("Auth load error", e);
+    if (!firebaseEnabled) {
+      // Non-Firebase mode: load from localStorage
+      try {
+        const saved = localStorage.getItem("hc-auth-user");
+        if (saved) setUser(JSON.parse(saved));
+      } catch (e) {
+        console.error("Auth load error", e);
+      }
+      setAuthLoading(false);
+      return;
     }
-  }, []);
 
+    let unsubscribe = () => {};
+
+    const setupAuthListener = async () => {
+      try {
+        const auth = await ensureFirebaseAuth(firebaseEnabled);
+        if (!auth) {
+          setAuthLoading(false);
+          return;
+        }
+
+        const { onAuthStateChanged } = await import("firebase/auth");
+
+        unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            // User is signed in with Firebase
+            const email = firebaseUser.email || "";
+            let role = inferRole(email);
+
+            try {
+              const token = await firebaseUser.getIdTokenResult(true);
+              if (token?.claims?.role) role = token.claims.role;
+            } catch {
+              // Ignore token claim errors
+            }
+
+            const userData = {
+              username: email,
+              role,
+              name: email.split("@")[0] || "User",
+            };
+
+            setUser(userData);
+            localStorage.setItem("hc-auth-user", JSON.stringify(userData));
+          } else {
+            // User is signed out
+            setUser(null);
+            localStorage.removeItem("hc-auth-user");
+          }
+          setAuthLoading(false);
+        });
+      } catch (error) {
+        console.error("Auth listener setup error:", error);
+        setAuthLoading(false);
+      }
+    };
+
+    setupAuthListener();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [firebaseEnabled]);
+
+  // Sync user to localStorage (for non-Firebase mode)
   useEffect(() => {
+    if (firebaseEnabled) return; // Firebase mode handles this in onAuthStateChanged
+
     try {
       if (user) localStorage.setItem("hc-auth-user", JSON.stringify(user));
       else localStorage.removeItem("hc-auth-user");
     } catch (e) {
       console.error("Auth save error", e);
     }
-  }, [user]);
+  }, [user, firebaseEnabled]);
 
   const inferRole = (emailLike) => {
     const base = (emailLike || "").toLowerCase();
@@ -104,6 +166,7 @@ export const AuthProvider = ({ children, useFirebaseOverride }) => {
     logout,
     resetPassword,
     useFirebase: firebaseEnabled,
+    authLoading,
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

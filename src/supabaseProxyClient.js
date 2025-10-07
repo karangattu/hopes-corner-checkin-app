@@ -208,6 +208,19 @@ class TableQueryBuilder {
       };
     } catch (error) {
       console.error("Supabase proxy error:", error);
+
+      // Check for authentication errors
+      if (error.code === "functions/unauthenticated") {
+        console.error("⚠️ Not authenticated with Firebase. Please log in to sync data.");
+        return {
+          data: null,
+          error: {
+            message: "Authentication required. Please log in to access the database.",
+            code: "UNAUTHENTICATED",
+          },
+        };
+      }
+
       return {
         data: null,
         error: {

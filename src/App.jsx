@@ -18,7 +18,19 @@ const AppContent = () => {
     laundryPickerGuest,
     bicyclePickerGuest,
   } = useAppContext();
-  const { user } = useAuth();
+  const { user, authLoading } = useAuth();
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4" />
+          <p className="text-emerald-700 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Login />;
