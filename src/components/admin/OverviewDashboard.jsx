@@ -14,6 +14,7 @@ import {
 import { Scissors, Gift, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import DonutCard from "../charts/DonutCard";
+import StackedBarCard from "../charts/StackedBarCard";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
 
@@ -268,6 +269,36 @@ const OverviewDashboard = ({
     return guests.reduce((acc, guest) => {
       const location = guest.location || "Unknown";
       acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {});
+  }, [guests]);
+
+  // Calculate Age Group by City (cross-tabulation)
+  const ageGroupByCity = useMemo(() => {
+    return guests.reduce((acc, guest) => {
+      const city = guest.location || "Unknown";
+      const ageGroup = guest.age || "Unknown";
+      
+      if (!acc[city]) {
+        acc[city] = {};
+      }
+      acc[city][ageGroup] = (acc[city][ageGroup] || 0) + 1;
+      
+      return acc;
+    }, {});
+  }, [guests]);
+
+  // Calculate Housing Status by City (cross-tabulation)
+  const housingStatusByCity = useMemo(() => {
+    return guests.reduce((acc, guest) => {
+      const city = guest.location || "Unknown";
+      const status = guest.housingStatus || "Unknown";
+      
+      if (!acc[city]) {
+        acc[city] = {};
+      }
+      acc[city][status] = (acc[city][status] || 0) + 1;
+      
       return acc;
     }, {});
   }, [guests]);
@@ -577,7 +608,10 @@ const OverviewDashboard = ({
             </div>
           </div>
 
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Guests by Housing Status
+            </h3>
             <DonutCard
               title="Guests"
               subtitle="Housing Status"
@@ -585,7 +619,10 @@ const OverviewDashboard = ({
             />
           </div>
 
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Guests by Age Group
+            </h3>
             <DonutCard
               title="Demographics"
               subtitle="Age Groups"
@@ -593,7 +630,10 @@ const OverviewDashboard = ({
             />
           </div>
 
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Guests by Gender
+            </h3>
             <DonutCard
               title="Demographics"
               subtitle="Gender"
@@ -601,7 +641,10 @@ const OverviewDashboard = ({
             />
           </div>
 
-          <div className="hidden sm:block">
+          <div className="hidden sm:flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Guests by City
+            </h3>
             <DonutCard
               title="Demographics"
               subtitle="Location"
@@ -623,6 +666,26 @@ const OverviewDashboard = ({
             colorClass="blue"
           />
         </Animated.div>
+      </div>
+
+      {/* Cross-Tabulated Demographics */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Users size={18} />
+          Demographics by City
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <StackedBarCard
+            title="Age Group by City"
+            subtitle="Distribution of age groups across cities"
+            crossTabData={ageGroupByCity}
+          />
+          <StackedBarCard
+            title="Housing Status by City"
+            subtitle="Distribution of housing status across cities"
+            crossTabData={housingStatusByCity}
+          />
+        </div>
       </div>
 
       {/* Monthly Progress */}

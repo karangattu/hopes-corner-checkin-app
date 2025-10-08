@@ -57,3 +57,67 @@ export const hoverAnimation = {
   mode: "nearest",
   intersect: false,
 };
+
+const componentToHex = (value) => value.toString(16).padStart(2, "0");
+
+const hslToRgb = (h, s, l) => {
+  const hue = h / 360;
+  const saturation = s / 100;
+  const lightness = l / 100;
+
+  if (saturation === 0) {
+    const val = Math.round(lightness * 255);
+    return [val, val, val];
+  }
+
+  const q =
+    lightness < 0.5
+      ? lightness * (1 + saturation)
+      : lightness + saturation - lightness * saturation;
+  const p = 2 * lightness - q;
+
+  const hueToRgb = (t) => {
+    let temp = t;
+    if (temp < 0) temp += 1;
+    if (temp > 1) temp -= 1;
+    if (temp < 1 / 6) return p + (q - p) * 6 * temp;
+    if (temp < 1 / 2) return q;
+    if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
+    return p;
+  };
+
+  const r = Math.round(hueToRgb(hue + 1 / 3) * 255);
+  const g = Math.round(hueToRgb(hue) * 255);
+  const b = Math.round(hueToRgb(hue - 1 / 3) * 255);
+
+  return [r, g, b];
+};
+
+export const hslToHex = (h, s, l) => {
+  const [r, g, b] = hslToRgb(h, s, l);
+  return `#${componentToHex(r)}${componentToHex(g)}${componentToHex(b)}`;
+};
+
+export const generateColorPalette = (
+  count,
+  { saturation = 65, lightness = 55, offset = 0 } = {},
+) => {
+  const colors = [];
+  const goldenAngle = 137.50776405003785;
+
+  for (let i = 0; i < count; i += 1) {
+    const hue = (offset + i * goldenAngle) % 360;
+    colors.push(hslToHex(hue, saturation, lightness));
+  }
+
+  return colors;
+};
+
+export const applyAlpha = (hex, alpha = 0.7) => {
+  const normalized = hex.replace("#", "");
+  const bigint = parseInt(normalized, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};

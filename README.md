@@ -74,6 +74,7 @@ This repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) 
 Supabase credentials are stored securely in Firebase Functions and never exposed to the client.
 
 **Requirements:**
+
 - Firebase Blaze plan (for Cloud Functions with outbound network requests)
 - Firebase Functions deployed
 
@@ -86,12 +87,14 @@ Supabase credentials are stored securely in Firebase Functions and never exposed
    - `holiday_visits`, `haircut_visits`, `items_distributed`, `donations`, `app_settings`
 
 3. **Store credentials in Firebase secrets**:
+
    ```bash
    firebase functions:secrets:set SUPABASE_URL
    firebase functions:secrets:set SUPABASE_ANON_KEY
    ```
 
 4. **Deploy Firebase Functions**:
+
    ```bash
    cd functions && npm install && cd ..
    firebase deploy --only functions

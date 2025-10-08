@@ -76,6 +76,8 @@ const Dashboard = () => {
     period: null,
   }));
 
+  const [selectedExportGuest, setSelectedExportGuest] = useState("");
+
   const handleDateRangeSearch = () => {
     const periodMetrics = getDateRangeMetrics(startDate, endDate);
     setMetrics({
@@ -226,6 +228,7 @@ const Dashboard = () => {
       })),
     ];
     exportDataAsCSV(rows, `guest-${target.guestId}-services.csv`);
+    setSelectedExportGuest("");
   };
 
   const exportMetricsData = () => {
@@ -541,19 +544,31 @@ const Dashboard = () => {
           <h3 className="text-sm font-semibold mb-2">
             Export a single guest's service history
           </h3>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <Selectize
               options={guests.map((g) => ({
                 value: String(g.id),
                 label: `${g.name} (${g.guestId || "-"})`,
               }))}
-              value={""}
-              onChange={(val) => val && exportGuestMetrics(Number(val))}
+              value={selectedExportGuest}
+              onChange={(val) => setSelectedExportGuest(val || "")}
               placeholder="Search guest by name or ID…"
               size="sm"
               searchable
               className="flex-1"
             />
+            <button
+              type="button"
+              onClick={() =>
+                selectedExportGuest &&
+                exportGuestMetrics(Number(selectedExportGuest))
+              }
+              disabled={!selectedExportGuest}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-colors border disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+            >
+              <Download size={16} />
+              Export History
+            </button>
           </div>
         </div>
       </div>

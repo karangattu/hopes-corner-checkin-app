@@ -2,29 +2,25 @@ import React, { useRef } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Download } from "lucide-react";
 import toast from "react-hot-toast";
-import { palette, defaultAnimations } from "./ChartTheme";
+import {
+  defaultAnimations,
+  generateColorPalette,
+  applyAlpha,
+} from "./ChartTheme";
 
 const DonutCard = ({ title, subtitle, dataMap }) => {
   const chartRef = useRef(null);
   const labels = Object.keys(dataMap || {});
   const values = Object.values(dataMap || {});
-  const colors = [
-    palette.blue,
-    palette.green,
-    palette.purple,
-    palette.amber,
-    palette.sky,
-    palette.rose,
-    palette.gray,
-  ];
+  const baseColors = generateColorPalette(labels.length);
 
   const data = {
     labels,
     datasets: [
       {
         data: values,
-        backgroundColor: labels.map((_, i) => colors[i % colors.length] + "B3"),
-        borderColor: labels.map((_, i) => colors[i % colors.length]),
+        backgroundColor: baseColors.map((hex) => applyAlpha(hex, 0.7)),
+        borderColor: baseColors,
         borderWidth: 2,
         hoverOffset: 8,
       },
