@@ -203,12 +203,23 @@ const Dashboard = () => {
     );
   };
 
-  const exportGuestMetrics = (guestId) => {
-    const target = guests.find((g) => g.id === guestId);
-    if (!target) return;
-    const meals = mealRecords.filter((r) => r.guestId === guestId);
-    const showers = showerRecords.filter((r) => r.guestId === guestId);
-    const laundry = laundryRecords.filter((r) => r.guestId === guestId);
+  const exportGuestMetrics = (guestIdValue) => {
+    if (!guestIdValue) {
+      toast.error("Please select a guest to export");
+      return;
+    }
+
+    const target = guests.find((g) => String(g.id) === String(guestIdValue));
+    if (!target) {
+      toast.error("Guest not found in roster");
+      return;
+    }
+
+    const guestKey = String(target.id);
+    const meals = mealRecords.filter((r) => String(r.guestId) === guestKey);
+    const showers = showerRecords.filter((r) => String(r.guestId) === guestKey);
+    const laundry = laundryRecords.filter((r) => String(r.guestId) === guestKey);
+
     const rows = [
       ...meals.map((r) => ({
         Date: new Date(r.date).toLocaleDateString(),
@@ -218,35 +229,57 @@ const Dashboard = () => {
       ...showers.map((r) => ({
         Date: new Date(r.date).toLocaleDateString(),
         Service: "Shower",
-        Time: r.time,
+        Time: r.time || "-",
       })),
       ...laundry.map((r) => ({
         Date: new Date(r.date).toLocaleDateString(),
         Service: "Laundry",
-        Type: r.laundryType,
+        Type: r.laundryType || "-",
         Time: r.time || "-",
       })),
     ];
-    exportDataAsCSV(rows, `guest-${target.guestId}-services.csv`);
+
+    if (rows.length === 0) {
+      toast.error("No service history found for this guest");
+      return;
+    }
+
+    const filenameId = target.guestId || target.id;
+    exportDataAsCSV(rows, `guest-${filenameId}-services.csv`);
+    toast.success(`Exported service history for ${target.name || "guest"}`);
     setSelectedExportGuest("");
   };
 
   const exportMetricsData = () => {
-    if (!metrics.period) {
-      handleDateRangeSearch();
+    const periodMetrics =
+      metrics.period || getDateRangeMetrics(startDate, endDate);
+
+    if (!periodMetrics || !Array.isArray(periodMetrics.dailyBreakdown)) {
+      toast.error("No metrics available for the selected range");
+      return;
     }
 
-    const metricsData = metrics.period.dailyBreakdown.map((day) => ({
+    if (!metrics.period) {
+      setMetrics((prev) => ({ ...prev, period: periodMetrics }));
+    }
+
+    const metricsData = periodMetrics.dailyBreakdown.map((day) => ({
       Date: day.date,
       "Meals Served": day.meals,
       "Showers Taken": day.showers,
       "Laundry Loads": day.laundry,
     }));
 
+    if (metricsData.length === 0) {
+      toast.error("No daily breakdown records to export");
+      return;
+    }
+
     exportDataAsCSV(
       metricsData,
       `hopes-corner-metrics-${startDate}-to-${endDate}.csv`,
     );
+    toast.success("Metrics export created");
   };
 
   const exportDonations = () => {
@@ -561,7 +594,7 @@ const Dashboard = () => {
               type="button"
               onClick={() =>
                 selectedExportGuest &&
-                exportGuestMetrics(Number(selectedExportGuest))
+                exportGuestMetrics(selectedExportGuest)
               }
               disabled={!selectedExportGuest}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-colors border disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"

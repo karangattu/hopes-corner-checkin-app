@@ -15,7 +15,6 @@ let supabaseClient = null;
 if (useProxy) {
   // Use Firebase Functions proxy to avoid exposing Supabase credentials
   supabaseClient = supabaseProxy;
-  console.log("Supabase proxy mode enabled - credentials secured via Firebase Functions");
 } else if (supabaseUrl && supabaseAnonKey) {
   // Direct connection (legacy mode - exposes credentials on client)
   supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -29,9 +28,6 @@ if (useProxy) {
       },
     },
   });
-  console.warn(
-    "Supabase direct connection mode - credentials are exposed on client. Consider using VITE_USE_SUPABASE_PROXY=true"
-  );
 } else {
   if (import.meta.env.DEV) {
     console.warn(
