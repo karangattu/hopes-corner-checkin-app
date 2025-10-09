@@ -141,6 +141,8 @@ const ShowerBooking = () => {
   const handleBookShower = (slotTime) => {
     if (!showerPickerGuest) return;
 
+    console.log("handleBookShower called", slotTime, "guest:", showerPickerGuest?.id);
+
     try {
       addShowerRecord(showerPickerGuest.id, slotTime);
       setSuccess(true);
