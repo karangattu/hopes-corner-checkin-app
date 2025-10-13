@@ -120,6 +120,11 @@ class SyncManager {
         priority: "low",
         businessHours: true,
       },
+      shelterMeals: {
+        interval: SYNC_INTERVALS.LOW_PRIORITY,
+        priority: "low",
+        businessHours: true,
+      },
       unitedEffortMeals: {
         interval: SYNC_INTERVALS.LOW_PRIORITY,
         priority: "low",
@@ -245,6 +250,12 @@ const COLLECTION_FILTERS = {
     orderBy: "date",
   },
   rvMeals: { dateField: "date", since: getToday(), limit: 20, orderBy: "date" },
+  shelterMeals: {
+    dateField: "date",
+    since: getToday(),
+    limit: 20,
+    orderBy: "date",
+  },
   unitedEffortMeals: {
     dateField: "date",
     since: getToday(),

@@ -66,6 +66,7 @@ const MEAL_REPORT_TYPE_ORDER = [
   "guest",
   "dayWorker",
   "rv",
+  "shelter",
   "unitedEffort",
   "extras",
   "lunchBags",
@@ -75,6 +76,7 @@ const MEAL_REPORT_TYPE_LABELS = {
   guest: "Guest meals",
   dayWorker: "Day Worker Center meals",
   rv: "RV meals",
+  shelter: "Shelter meals",
   unitedEffort: "United Effort meals",
   extras: "Extra meals",
   lunchBags: "Lunch bags",
@@ -84,6 +86,7 @@ const createDefaultMealReportTypes = () => ({
   guest: true,
   dayWorker: true,
   rv: true,
+  shelter: true,
   unitedEffort: true,
   extras: true,
   lunchBags: false,
@@ -112,6 +115,8 @@ const Services = () => {
     mealRecords,
     rvMealRecords,
     addRvMealRecord,
+    shelterMealRecords,
+    addShelterMealRecord,
     addUnitedEffortMealRecord,
     unitedEffortMealRecords,
     extraMealRecords,
@@ -172,6 +177,8 @@ const Services = () => {
   const [bagPromptValue, setBagPromptValue] = useState("");
   const [rvMealCount, setRvMealCount] = useState("");
   const [isAddingRvMeals, setIsAddingRvMeals] = useState(false);
+  const [shelterMealCount, setShelterMealCount] = useState("");
+  const [isAddingShelterMeals, setIsAddingShelterMeals] = useState(false);
   const [ueMealCount, setUeMealCount] = useState("");
   const [isAddingUeMeals, setIsAddingUeMeals] = useState(false);
   const [extraMealCount, setExtraMealCount] = useState("");
@@ -691,6 +698,7 @@ const Services = () => {
     const mealTotal =
       sumCount((mealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((rvMealRecords || []).filter((r) => inMonth(r.date))) +
+      sumCount((shelterMealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((unitedEffortMealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((extraMealRecords || []).filter((r) => inMonth(r.date))) +
       sumCount((dayWorkerMealRecords || []).filter((r) => inMonth(r.date)));
@@ -712,6 +720,7 @@ const Services = () => {
   }, [
     mealRecords,
     rvMealRecords,
+    shelterMealRecords,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
@@ -746,6 +755,7 @@ const Services = () => {
     const mealTotal =
       sumCount((mealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((rvMealRecords || []).filter((r) => inYear(r.date))) +
+      sumCount((shelterMealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((unitedEffortMealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((extraMealRecords || []).filter((r) => inYear(r.date))) +
       sumCount((dayWorkerMealRecords || []).filter((r) => inYear(r.date)));
@@ -767,6 +777,7 @@ const Services = () => {
   }, [
     mealRecords,
     rvMealRecords,
+    shelterMealRecords,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
@@ -1058,6 +1069,10 @@ const Services = () => {
   }, []);
 
   const selectedRvMealRecords = rvMealRecords.filter(
+    (record) => pacificDateStringFrom(record.date || "") === selectedDate,
+  );
+
+  const selectedShelterMealRecords = shelterMealRecords.filter(
     (record) => pacificDateStringFrom(record.date || "") === selectedDate,
   );
 
@@ -1395,6 +1410,26 @@ const Services = () => {
       toast.error(`Error adding RV meals: ${error.message}`);
     } finally {
       setIsAddingRvMeals(false);
+    }
+  };
+
+  const handleAddShelterMeals = () => {
+    if (!shelterMealCount || isNaN(shelterMealCount) || parseInt(shelterMealCount) <= 0) {
+      enhancedToast.validationError("Please enter a valid number of Shelter meals");
+      return;
+    }
+
+    setIsAddingShelterMeals(true);
+    try {
+      addShelterMealRecord(shelterMealCount, selectedDate);
+      toast.success(
+        `Added ${shelterMealCount} Shelter meals for ${new Date(selectedDate + "T00:00:00").toLocaleDateString()}!`,
+      );
+      setShelterMealCount("");
+    } catch (error) {
+      toast.error(`Error adding Shelter meals: ${error.message}`);
+    } finally {
+      setIsAddingShelterMeals(false);
     }
   };
 
@@ -3278,6 +3313,10 @@ const Services = () => {
       (sum, record) => sum + record.count,
       0,
     );
+    const totalShelterMeals = selectedShelterMealRecords.reduce(
+      (sum, record) => sum + record.count,
+      0,
+    );
     const selectedUeMealRecords = (unitedEffortMealRecords || []).filter(
       (record) => pacificDateStringFrom(record.date || "") === selectedDate,
     );
@@ -3366,6 +3405,14 @@ const Services = () => {
         Icon: Caravan,
         chip: `${selectedRvMealRecords.length} logs`,
         tone: "bg-orange-100 text-orange-700",
+      },
+      {
+        id: "shelter-meals",
+        title: "Shelter meals",
+        value: totalShelterMeals,
+        Icon: Bed,
+        chip: `${selectedShelterMealRecords.length} logs`,
+        tone: "bg-purple-100 text-purple-700",
       },
       {
         id: "united-effort",
@@ -3640,6 +3687,70 @@ const Services = () => {
                 )}
               </div>
 
+              <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
+                      <Bed size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-purple-900">
+                        Shelter meals
+                      </h3>
+                      <p className="text-xs text-purple-600">
+                        Shelter delivery
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">
+                    {totalShelterMeals.toLocaleString()} today
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="number"
+                    value={shelterMealCount}
+                    onChange={(event) => setShelterMealCount(event.target.value)}
+                    placeholder="Number of Shelter meals"
+                    className="flex-1 px-3 py-2 border border-purple-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    min="1"
+                    disabled={isAddingShelterMeals}
+                  />
+                  <button
+                    onClick={handleAddShelterMeals}
+                    disabled={isAddingShelterMeals || !shelterMealCount}
+                    className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm font-semibold hover:bg-purple-500 disabled:bg-purple-300"
+                  >
+                    {isAddingShelterMeals ? "Saving…" : "Add Shelter meals"}
+                  </button>
+                </div>
+                {selectedShelterMealRecords.length > 0 ? (
+                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-xs text-purple-700 space-y-1">
+                    <div className="font-semibold text-purple-800">
+                      Entries for {selectedDateLabel}
+                    </div>
+                    <ul className="space-y-1">
+                      {selectedShelterMealRecords.map((record) => (
+                        <li key={record.id} className="flex justify-between">
+                          <span>
+                            {new Date(record.date).toLocaleTimeString()}
+                          </span>
+                          <span className="font-semibold">
+                            {record.count} meals
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-purple-500">
+                    No Shelter meals logged yet for this date.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-5 space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">

@@ -197,6 +197,7 @@ export const AppProvider = ({ children }) => {
 
   const [mealRecords, setMealRecords] = useState([]);
   const [rvMealRecords, setRvMealRecords] = useState([]);
+  const [shelterMealRecords, setShelterMealRecords] = useState([]);
   const [unitedEffortMealRecords, setUnitedEffortMealRecords] = useState([]);
   const [extraMealRecords, setExtraMealRecords] = useState([]);
   const [dayWorkerMealRecords, setDayWorkerMealRecords] = useState([]);
@@ -503,6 +504,7 @@ export const AppProvider = ({ children }) => {
         const allMealRows = mealsRes.data?.map(mapMealRow) || [];
         setMealRecords(allMealRows.filter((r) => r.type === "guest"));
         setRvMealRecords(allMealRows.filter((r) => r.type === "rv"));
+        setShelterMealRecords(allMealRows.filter((r) => r.type === "shelter"));
         setUnitedEffortMealRecords(
           allMealRows.filter((r) => r.type === "united_effort"),
         );
@@ -1634,6 +1636,62 @@ export const AppProvider = ({ children }) => {
       timestamp: iso,
       data: { recordId: record.id, count: quantity },
       description: `Added ${quantity} RV meals`,
+    };
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+    return record;
+  };
+
+  const addShelterMealRecord = async (count, dateOverride = null) => {
+    const makeISOForDate = (dateStr) =>
+      new Date(`${dateStr}T12:00:00`).toISOString();
+    const iso = dateOverride
+      ? makeISOForDate(dateOverride)
+      : new Date().toISOString();
+    const servedOn = iso.slice(0, 10);
+    const quantity = Number(count) || 0;
+    if (quantity <= 0) throw new Error("Invalid meal count");
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const inserted = await insertMealAttendance({
+          meal_type: "shelter",
+          quantity,
+          served_on: servedOn,
+          recorded_at: iso,
+        });
+        if (!inserted) throw new Error("Insert returned no data");
+        setShelterMealRecords((prev) => [...prev, inserted]);
+        const action = {
+          id: Date.now() + Math.random(),
+          type: "SHELTER_MEALS_ADDED",
+          timestamp: iso,
+          data: { recordId: inserted.id, count: quantity },
+          description: `Added ${quantity} Shelter meals`,
+        };
+        setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+        return inserted;
+      } catch (error) {
+        console.error("Failed to log Shelter meals in Supabase:", error);
+        toast.error("Unable to record Shelter meals.");
+        return null;
+      }
+    }
+
+    const record = {
+      id: `local-${Date.now()}`,
+      count: quantity,
+      date: iso,
+      recordedAt: iso,
+      servedOn: iso.slice(0, 10),
+      type: "shelter",
+    };
+    setShelterMealRecords((prev) => [...prev, record]);
+    const action = {
+      id: Date.now() + Math.random(),
+      type: "SHELTER_MEALS_ADDED",
+      timestamp: iso,
+      data: { recordId: record.id, count: quantity },
+      description: `Added ${quantity} Shelter meals`,
     };
     setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
     return record;
@@ -3064,6 +3122,18 @@ export const AppProvider = ({ children }) => {
           break;
         }
 
+        case "SHELTER_MEALS_ADDED": {
+          const recordId = action.data?.recordId;
+          const deleted = await deleteSupabaseRecord(
+            "meal_attendance",
+            recordId,
+            "Unable to undo Shelter meal entry.",
+          );
+          if (!deleted) return false;
+          setShelterMealRecords((prev) => prev.filter((r) => r.id !== recordId));
+          break;
+        }
+
         case "UNITED_EFFORT_MEALS_ADDED": {
           const recordId = action.data?.recordId;
           const deleted = await deleteSupabaseRecord(
@@ -3625,6 +3695,7 @@ export const AppProvider = ({ children }) => {
     guests,
     mealRecords,
     rvMealRecords,
+    shelterMealRecords,
     showerRecords,
     laundryRecords,
     showerSlots,
@@ -3671,6 +3742,7 @@ export const AppProvider = ({ children }) => {
     removeGuest,
     addMealRecord,
     addRvMealRecord,
+    addShelterMealRecord,
     addUnitedEffortMealRecord,
     addExtraMealRecord,
     addDayWorkerMealRecord,

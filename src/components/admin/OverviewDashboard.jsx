@@ -178,6 +178,7 @@ const OverviewDashboard = ({
     updateSettings,
     mealRecords,
     rvMealRecords,
+    shelterMealRecords,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
@@ -349,6 +350,7 @@ const OverviewDashboard = ({
     const monthMeals = [
       ...mealRecords,
       ...rvMealRecords,
+      ...shelterMealRecords,
       ...unitedEffortMealRecords,
       ...extraMealRecords,
       ...dayWorkerMealRecords,
@@ -359,6 +361,7 @@ const OverviewDashboard = ({
     const yearMeals = [
       ...mealRecords,
       ...rvMealRecords,
+      ...shelterMealRecords,
       ...unitedEffortMealRecords,
       ...extraMealRecords,
       ...dayWorkerMealRecords,
@@ -422,6 +425,7 @@ const OverviewDashboard = ({
   }, [
     mealRecords,
     rvMealRecords,
+    shelterMealRecords,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,

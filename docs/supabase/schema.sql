@@ -25,6 +25,7 @@ create type public.meal_type_enum as enum (
   'guest',          -- primary meal tied to a guest
   'extra',          -- extra meal with optional guest
   'rv',
+  'shelter',
   'united_effort',
   'day_worker',
   'lunch_bag'
