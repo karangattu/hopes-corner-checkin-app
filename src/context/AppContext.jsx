@@ -811,24 +811,24 @@ export const AppProvider = ({ children }) => {
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
 
-    // Monday and Wednesday (day 1 or day 3) or any day that's not Saturday
-    if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek !== 6) {
-      return [
-        "07:30 - 08:30",
-        "08:00 - 09:00",
-        "08:30 - 09:45",
-        "09:00 - 10:15",
-        "09:30 - 11:45",
-      ];
-    }
     // Saturday (day 6)
-    else {
+    if (dayOfWeek === 6) {
       return [
         "08:30 - 10:00",
         "09:00 - 10:30",
         "09:30 - 11:00",
         "10:00 - 11:30",
         "10:30 - 12:00",
+      ];
+    }
+    // Monday, Wednesday, and all other days
+    else {
+      return [
+        "07:30 - 08:30",
+        "08:00 - 09:00",
+        "08:30 - 09:45",
+        "09:00 - 10:15",
+        "09:30 - 11:45",
       ];
     }
   };
