@@ -12,6 +12,11 @@ const AttendanceBatchUpload = () => {
   const {
     guests,
     addMealRecord,
+    addRvMealRecord,
+    addShelterMealRecord,
+    addExtraMealRecord,
+    addDayWorkerMealRecord,
+    addLunchBagRecord,
     addShowerRecord,
     addLaundryRecord,
     addBicycleRecord,
@@ -22,6 +27,15 @@ const AttendanceBatchUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Special guest IDs that map to specific meal types (no guest profile created)
+  const SPECIAL_GUEST_IDS = {
+    M91834859: { type: "extra", handler: "addExtraMealRecord", label: "Extra meals" },
+    M94816825: { type: "rv", handler: "addRvMealRecord", label: "RV meals" },
+    M47721243: { type: "lunch_bag", handler: "addLunchBagRecord", label: "Lunch bags" },
+    M29017132: { type: "day_worker", handler: "addDayWorkerMealRecord", label: "Day Worker Center meals" },
+    M61706731: { type: "shelter", handler: "addShelterMealRecord", label: "Shelter meals" },
+  };
 
   // Program type mapping for CSV import
   const PROGRAM_TYPES = {
@@ -149,20 +163,34 @@ const AttendanceBatchUpload = () => {
           );
         }
 
-        // For guest-specific programs, validate guest exists (all programs require Guest_ID)
+        // For guest-specific programs, validate guest exists
+        // Exception: Special guest IDs that map to meal types (only for Meal program)
         if (!guestId) {
           throw new Error(
             `Guest_ID is required for program "${program}" on row ${rowIndex + 2}`,
           );
         }
 
-        const guest = guests.find(
-          (g) => String(g.id) === String(guestId) || g.guest_id === guestId,
-        );
-        if (!guest) {
+        // Check if this is a special guest ID (only valid for Meal program)
+        const specialMapping = SPECIAL_GUEST_IDS[guestId];
+        const isSpecialId = specialMapping !== undefined;
+
+        if (isSpecialId && normalizedProgram !== "Meal") {
           throw new Error(
-            `Guest with ID "${guestId}" not found on row ${rowIndex + 2}`,
+            `Special guest ID "${guestId}" can only be used with Meal program, not "${program}" on row ${rowIndex + 2}`,
           );
+        }
+
+        // For regular guest IDs (not special), validate guest exists
+        if (!isSpecialId) {
+          const guest = guests.find(
+            (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+          );
+          if (!guest) {
+            throw new Error(
+              `Guest with ID "${guestId}" not found on row ${rowIndex + 2}`,
+            );
+          }
         }
 
         return {
@@ -173,6 +201,8 @@ const AttendanceBatchUpload = () => {
           programType: PROGRAM_TYPES[normalizedProgram],
           dateSubmitted: parsedDate.toISOString(),
           originalDate: dateSubmitted,
+          isSpecialId,
+          specialMapping,
         };
       });
     } catch (e) {
@@ -184,11 +214,47 @@ const AttendanceBatchUpload = () => {
     let successCount = 0;
     let errorCount = 0;
     const errors = [];
+    const specialMealCounts = {}; // Track special meal types for summary
 
     records.forEach((record, index) => {
       try {
-        const { guestId, programType } = record;
+        const { guestId, programType, isSpecialId, specialMapping, count, dateSubmitted } = record;
 
+        // Handle special guest IDs that map to meal types
+        if (isSpecialId && specialMapping) {
+          // Extract date in YYYY-MM-DD format for meal records
+          const dateOnly = dateSubmitted.slice(0, 10);
+          
+          switch (specialMapping.type) {
+            case "extra":
+              addExtraMealRecord(count, dateOnly);
+              break;
+            case "rv":
+              addRvMealRecord(count, dateOnly);
+              break;
+            case "lunch_bag":
+              addLunchBagRecord(count, dateOnly);
+              break;
+            case "day_worker":
+              addDayWorkerMealRecord(count, dateOnly);
+              break;
+            case "shelter":
+              addShelterMealRecord(count, dateOnly);
+              break;
+            default:
+              throw new Error(`Unknown special meal type: ${specialMapping.type}`);
+          }
+          
+          // Track for summary (no individual notification to avoid fatigue)
+          if (!specialMealCounts[specialMapping.label]) {
+            specialMealCounts[specialMapping.label] = 0;
+          }
+          specialMealCounts[specialMapping.label] += count;
+          successCount++;
+          return;
+        }
+
+        // Handle regular guest-based records
         switch (programType) {
           case "meals":
             addMealRecord(parseInt(guestId), record.count);
@@ -229,7 +295,7 @@ const AttendanceBatchUpload = () => {
       }
     });
 
-    return { successCount, errorCount, errors };
+    return { successCount, errorCount, errors, specialMealCounts };
   };
 
   const handleFileUpload = (event) => {
@@ -253,18 +319,27 @@ const AttendanceBatchUpload = () => {
         const content = e.target.result;
         const parsedRecords = parseCSV(content);
 
-        const { successCount, errorCount, errors } =
+        const { successCount, errorCount, errors, specialMealCounts } =
           importAttendanceRecords(parsedRecords);
+
+        // Build message with special meal counts if any
+        let specialMealsSummary = "";
+        if (specialMealCounts && Object.keys(specialMealCounts).length > 0) {
+          const mealDetails = Object.entries(specialMealCounts)
+            .map(([label, count]) => `${count} ${label}`)
+            .join(", ");
+          specialMealsSummary = ` (including ${mealDetails})`;
+        }
 
         if (errorCount === 0) {
           setUploadResult({
             success: true,
-            message: `Successfully imported ${successCount} attendance records`,
+            message: `Successfully imported ${successCount} attendance records${specialMealsSummary}`,
           });
         } else if (successCount > 0) {
           setUploadResult({
             success: false,
-            message: `Imported ${successCount} records with ${errorCount} errors: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`,
+            message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`,
           });
         } else {
           setUploadResult({
@@ -303,7 +378,10 @@ ATT002,456,1,Shower,2024-01-15
 ATT003,789,1,Laundry,01/15/2024
 ATT004,123,1,Bicycle,4/29/2024 11:53:58 AM
 ATT005,456,1,Hair Cut,2024-01-15
-ATT006,789,1,Holiday,01/16/2024`;
+ATT006,789,1,Holiday,01/16/2024
+ATT007,M94816825,10,Meal,2024-01-15
+ATT008,M61706731,8,Meal,2024-01-15
+ATT009,M29017132,15,Meal,2024-01-15`;
 
     const blob = new Blob([templateContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);

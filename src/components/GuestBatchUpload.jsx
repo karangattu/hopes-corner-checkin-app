@@ -8,6 +8,16 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 
+// Special guest IDs that should not create guest profiles
+// These represent aggregate meal types, not individual guests
+const SPECIAL_GUEST_IDS = [
+  "M91834859", // Extra meals
+  "M94816825", // RV meals
+  "M47721243", // Lunch Bag
+  "M29017132", // Day Worker meals
+  "M61706731", // Shelter meals
+];
+
 const GuestBatchUpload = () => {
   const { importGuestsFromCSV } = useAppContext();
   const [isUploading, setIsUploading] = useState(false);
@@ -129,11 +139,23 @@ const GuestBatchUpload = () => {
         const content = e.target.result;
         const parsedData = parseCSV(content);
 
-        const importedGuests = importGuestsFromCSV(parsedData);
+        // Filter out special guest IDs that should not create profiles
+        const validGuests = parsedData.filter(
+          (guest) => !SPECIAL_GUEST_IDS.includes(guest.guest_id)
+        );
+        
+        const skippedCount = parsedData.length - validGuests.length;
+
+        const importedGuests = importGuestsFromCSV(validGuests);
+
+        let message = `Successfully imported ${importedGuests.length} guests`;
+        if (skippedCount > 0) {
+          message += ` (skipped ${skippedCount} special meal ID${skippedCount > 1 ? "s" : ""})`;
+        }
 
         setUploadResult({
           success: true,
-          message: `Successfully imported ${importedGuests.length} guests`,
+          message,
         });
       } catch (error) {
         setUploadResult({
@@ -246,6 +268,10 @@ const GuestBatchUpload = () => {
           <li>
             Housing_status must be one of configured statuses; invalid entries
             default to Unhoused.
+          </li>
+          <li className="text-amber-600 font-medium">
+            Note: Special meal IDs (M91834859, M94816825, M47721243, M29017132, M61706731) 
+            will be automatically skipped as they represent aggregate meal types, not individual guests.
           </li>
         </ul>
       </div>
