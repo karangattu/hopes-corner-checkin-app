@@ -255,32 +255,43 @@ const AttendanceBatchUpload = () => {
         }
 
         // Handle regular guest-based records
+        // Find the guest object to get the internal numeric ID
+        const guest = guests.find(
+          (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+        );
+        
+        if (!guest) {
+          throw new Error(`Guest with ID "${guestId}" not found`);
+        }
+
+        const numericGuestId = guest.id;
+
         switch (programType) {
           case "meals":
-            addMealRecord(parseInt(guestId), record.count);
+            addMealRecord(numericGuestId, record.count);
             successCount++;
             break;
           case "showers":
-            addShowerRecord(parseInt(guestId), { override: true });
+            addShowerRecord(numericGuestId, { override: true });
             successCount++;
             break;
           case "laundry":
-            addLaundryRecord(parseInt(guestId), { override: true });
+            addLaundryRecord(numericGuestId, { override: true });
             successCount++;
             break;
           case "bicycle":
-            addBicycleRecord(parseInt(guestId), {
+            addBicycleRecord(numericGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
             });
             successCount++;
             break;
           case "haircuts":
-            addHaircutRecord(parseInt(guestId));
+            addHaircutRecord(numericGuestId);
             successCount++;
             break;
           case "holiday":
-            addHolidayRecord(parseInt(guestId));
+            addHolidayRecord(numericGuestId);
             successCount++;
             break;
           default:
