@@ -21,41 +21,58 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
+const REQUIRED_CONFIG_KEYS = ["apiKey", "authDomain", "projectId", "appId"];
+const isTestEnv = import.meta.env.MODE === "test";
+const missingConfigKeys = REQUIRED_CONFIG_KEYS.filter(
+  (key) => !firebaseConfig[key],
+);
+
+if (missingConfigKeys.length && !isTestEnv) {
+  throw new Error(
+    `Firebase configuration is incomplete. Missing: ${missingConfigKeys.join(", ")}`,
+  );
+}
+
+const hasValidConfig = missingConfigKeys.length === 0;
+
+export const app = hasValidConfig ? initializeApp(firebaseConfig) : null;
 
 export let analytics;
-if (import.meta.env.PROD) {
+if (hasValidConfig && import.meta.env.PROD) {
   analyticsSupported().then((ok) => {
     if (ok) analytics = getAnalytics(app);
   });
 }
 
-export const auth = getAuth(app);
+export const auth = hasValidConfig ? getAuth(app) : null;
 
-let dbInstance;
-try {
-  dbInstance = initializeFirestore(app, {
-    localCache: persistentLocalCache(),
-  });
-} catch {
-  dbInstance = getFirestore(app);
+let dbInstance = null;
+if (hasValidConfig) {
+  try {
+    dbInstance = initializeFirestore(app, {
+      localCache: persistentLocalCache(),
+    });
+  } catch {
+    dbInstance = getFirestore(app);
+  }
 }
 export const db = dbInstance;
 
 if (
+  hasValidConfig &&
   import.meta.env.DEV &&
   import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"
 ) {
   try {
     connectFirestoreEmulator(db, "127.0.0.1", 8080);
   } catch {
-    // ignore
+    // ignore emulator wiring errors in dev
   }
   try {
     connectAuthEmulator(auth, "http://127.0.0.1:9099", {
       disableWarnings: true,
     });
   } catch {
-    // ignore
+    // ignore emulator wiring errors in dev
   }
 }

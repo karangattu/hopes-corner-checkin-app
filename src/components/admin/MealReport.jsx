@@ -145,6 +145,47 @@ const MealReport = () => {
     months,
   ]);
 
+  const selectedDayLabels = useMemo(
+    () =>
+      selectedDays
+        .map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label)
+        .filter(Boolean),
+    [selectedDays],
+  );
+
+  const chartNarrative = useMemo(() => {
+    if (!calculateMealData.length) return null;
+    const currentMonth = calculateMealData[calculateMealData.length - 1];
+    const previousMonth =
+      calculateMealData.length > 1
+        ? calculateMealData[calculateMealData.length - 2]
+        : null;
+
+    const averagePerServiceDay = currentMonth.validDaysCount
+      ? Math.round(currentMonth.totalMeals / currentMonth.validDaysCount)
+      : currentMonth.totalMeals;
+
+    const changeText = (() => {
+      if (!previousMonth) return null;
+      const delta = currentMonth.totalMeals - previousMonth.totalMeals;
+      if (delta === 0) {
+        return `unchanged compared to ${previousMonth.month}`;
+      }
+      const magnitude = Math.abs(delta);
+      const noun = magnitude === 1 ? "meal" : "meals";
+      return `${magnitude} ${noun} ${delta > 0 ? "more" : "fewer"} than ${previousMonth.month}`;
+    })();
+
+    return {
+      monthLabel: currentMonth.month,
+      totalMeals: currentMonth.totalMeals,
+      validDays: currentMonth.validDaysCount,
+      averagePerServiceDay,
+      uniqueGuests: currentMonth.uniqueGuests,
+      changeText,
+    };
+  }, [calculateMealData]);
+
   const exportCSV = () => {
     if (calculateMealData.length === 0) {
       toast.error("No data to export");
@@ -350,7 +391,7 @@ const MealReport = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <TrendingUp size={18} className="text-green-600" />
-                Monthly Comparison - {selectedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(', ')}
+                Monthly Comparison - {selectedDayLabels.join(', ')}
               </h3>
               <button
                 onClick={exportChart}
@@ -360,6 +401,21 @@ const MealReport = () => {
                 Export Chart
               </button>
             </div>
+
+            {chartNarrative && (
+              <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                <p>
+                  Totals reflect every {selectedDayLabels.join(
+                    ", ",
+                  )} in {chartNarrative.monthLabel}. We served
+                  <span className="font-semibold"> {chartNarrative.totalMeals.toLocaleString()}</span> meals
+                  across <span className="font-semibold">{chartNarrative.validDays}</span>{" "}
+                  service days (≈{chartNarrative.averagePerServiceDay.toLocaleString()} meals per day) to
+                  <span className="font-semibold"> {chartNarrative.uniqueGuests.toLocaleString()}</span> unique guests.
+                  {chartNarrative.changeText ? ` This is ${chartNarrative.changeText}.` : ""}
+                </p>
+              </div>
+            )}
 
             <div ref={chartRef} className="bg-white p-4">
               <ResponsiveContainer width="100%" height={400}>
