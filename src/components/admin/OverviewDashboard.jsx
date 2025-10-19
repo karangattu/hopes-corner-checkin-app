@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { Scissors, Gift, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
-import DonutCard from "../charts/DonutCard";
-import StackedBarCard from "../charts/StackedBarCard";
+import PieCardRecharts from "../charts/PieCardRecharts";
+import StackedBarCardRecharts from "../charts/StackedBarCardRecharts";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
 
@@ -616,7 +616,7 @@ const OverviewDashboard = ({
             <h3 className="text-sm font-semibold text-gray-700">
               Guests by Housing Status
             </h3>
-            <DonutCard
+            <PieCardRecharts
               title="Guests"
               subtitle="Housing Status"
               dataMap={housingStatusCounts}
@@ -627,7 +627,7 @@ const OverviewDashboard = ({
             <h3 className="text-sm font-semibold text-gray-700">
               Guests by Age Group
             </h3>
-            <DonutCard
+            <PieCardRecharts
               title="Demographics"
               subtitle="Age Groups"
               dataMap={ageGroupCounts}
@@ -638,7 +638,7 @@ const OverviewDashboard = ({
             <h3 className="text-sm font-semibold text-gray-700">
               Guests by Gender
             </h3>
-            <DonutCard
+            <PieCardRecharts
               title="Demographics"
               subtitle="Gender"
               dataMap={genderCounts}
@@ -649,7 +649,7 @@ const OverviewDashboard = ({
             <h3 className="text-sm font-semibold text-gray-700">
               Guests by City
             </h3>
-            <DonutCard
+            <PieCardRecharts
               title="Demographics"
               subtitle="Location"
               dataMap={locationCounts}
@@ -679,12 +679,12 @@ const OverviewDashboard = ({
           Demographics by City
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <StackedBarCard
+          <StackedBarCardRecharts
             title="Age Group by City"
             subtitle="Distribution of age groups across cities"
             crossTabData={ageGroupByCity}
           />
-          <StackedBarCard
+          <StackedBarCardRecharts
             title="Housing Status by City"
             subtitle="Distribution of housing status across cities"
             crossTabData={housingStatusByCity}

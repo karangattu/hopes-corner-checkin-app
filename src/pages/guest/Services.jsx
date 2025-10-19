@@ -45,8 +45,8 @@ import ShowerBooking from "../../components/ShowerBooking";
 import LaundryBooking from "../../components/LaundryBooking";
 import StickyQuickActions from "../../components/StickyQuickActions";
 import Selectize from "../../components/Selectize";
-import DonutCard from "../../components/charts/DonutCard";
-import TrendLine from "../../components/charts/TrendLine";
+import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
+import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
 import BicycleKanban from "../../components/lanes/BicycleKanban";
 import ShowerKanban from "../../components/lanes/ShowerKanban";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
@@ -2488,7 +2488,7 @@ const Services = () => {
                 )}
               </div>
               <div className="sm:pl-2">
-                <DonutCard
+                <DonutCardRecharts
                   title="Housing mix"
                   subtitle="Share of registered guests"
                   dataMap={housingStatusCounts}
@@ -2825,7 +2825,7 @@ const Services = () => {
               </span>
             </div>
             {chartHasData ? (
-              <TrendLine
+              <TrendLineRecharts
                 days={dailyServiceTotals}
                 metrics={["meals", "showers", "laundry"]}
               />

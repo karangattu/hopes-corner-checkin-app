@@ -117,6 +117,8 @@ const AttendanceBatchUpload = () => {
         const program = get("program").trim();
         const dateSubmitted = get("date_submitted").trim();
 
+        const csvRowNumber = rowIndex + 2;
+
         // Validate program type
         const normalizedProgram = Object.keys(PROGRAM_TYPES).find(
           (key) => key.toLowerCase() === program.toLowerCase(),
@@ -124,7 +126,7 @@ const AttendanceBatchUpload = () => {
 
         if (!normalizedProgram) {
           throw new Error(
-            `Invalid program type "${program}" on row ${rowIndex + 2}. Valid types: ${Object.keys(PROGRAM_TYPES).join(", ")}`,
+            `Invalid program type "${program}" (Row: ${csvRowNumber}). Valid types: ${Object.keys(PROGRAM_TYPES).join(", ")}`,
           );
         }
 
@@ -132,10 +134,8 @@ const AttendanceBatchUpload = () => {
         let parsedDate;
         try {
           if (dateSubmitted.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            // YYYY-MM-DD format
             parsedDate = new Date(`${dateSubmitted}T12:00:00`);
           } else if (dateSubmitted.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-            // M/D/YYYY or MM/DD/YYYY format
             const [month, day, year] = dateSubmitted.split("/");
             parsedDate = new Date(
               `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T12:00:00`,
@@ -145,52 +145,43 @@ const AttendanceBatchUpload = () => {
               /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i,
             )
           ) {
-            // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/2024 11:53:58 AM")
             parsedDate = new Date(dateSubmitted);
           } else {
-            // Try generic Date parsing as fallback
             parsedDate = new Date(dateSubmitted);
           }
 
           if (isNaN(parsedDate.getTime())) {
             throw new Error(
-              `Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
+              `Invalid date format "${dateSubmitted}" (Row: ${csvRowNumber}). Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
             );
           }
         } catch {
           throw new Error(
-            `Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
+            `Invalid date format "${dateSubmitted}" (Row: ${csvRowNumber}). Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
           );
         }
 
-        // For guest-specific programs, validate guest exists
-        // Exception: Special guest IDs that map to meal types (only for Meal program)
         if (!guestId) {
           throw new Error(
-            `Guest_ID is required for program "${program}" on row ${rowIndex + 2}`,
+            `Guest_ID is required for program "${program}" (Row: ${csvRowNumber})`,
           );
         }
 
-        // Check if this is a special guest ID (only valid for Meal program)
         const specialMapping = SPECIAL_GUEST_IDS[guestId];
-        const isSpecialId = specialMapping !== undefined;
+        const isSpecialId = specialMapping !== undefined && normalizedProgram === "Meal";
 
-        if (isSpecialId && normalizedProgram !== "Meal") {
+        if (SPECIAL_GUEST_IDS[guestId] && normalizedProgram !== "Meal") {
           throw new Error(
-            `Special guest ID "${guestId}" can only be used with Meal program, not "${program}" on row ${rowIndex + 2}`,
+            `Guest ID "${guestId}" is reserved for special meal tracking (${SPECIAL_GUEST_IDS[guestId].label}) and cannot be used for "${program}" (Row: ${csvRowNumber}). Please use a different guest ID or import this as a Meal record.`,
           );
         }
 
-        // For regular guest IDs (not special), validate guest exists
+        let guestFound = true;
         if (!isSpecialId) {
           const guest = guests.find(
             (g) => String(g.id) === String(guestId) || g.guestId === guestId,
           );
-          if (!guest) {
-            throw new Error(
-              `Guest with ID "${guestId}" not found on row ${rowIndex + 2}`,
-            );
-          }
+          guestFound = !!guest;
         }
 
         return {
@@ -203,6 +194,8 @@ const AttendanceBatchUpload = () => {
           originalDate: dateSubmitted,
           isSpecialId,
           specialMapping,
+          guestFound,
+          csvRowNumber,
         };
       });
     } catch (e) {
@@ -213,16 +206,26 @@ const AttendanceBatchUpload = () => {
   const importAttendanceRecords = (records) => {
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
     const errors = [];
-    const specialMealCounts = {}; // Track special meal types for summary
+    const skippedGuests = [];
+    const specialMealCounts = {};
 
     records.forEach((record, index) => {
       try {
-        const { guestId, programType, isSpecialId, specialMapping, count, dateSubmitted } = record;
+        const { guestId, programType, isSpecialId, specialMapping, count, dateSubmitted, guestFound, csvRowNumber } = record;
 
-        // Handle special guest IDs that map to meal types
+        if (!guestFound && !isSpecialId) {
+          skippedCount++;
+          skippedGuests.push({
+            guestId,
+            program: record.program,
+            row: csvRowNumber,
+          });
+          return;
+        }
+
         if (isSpecialId && specialMapping) {
-          // Extract date in YYYY-MM-DD format for meal records
           const dateOnly = dateSubmitted.slice(0, 10);
           
           switch (specialMapping.type) {
@@ -245,7 +248,6 @@ const AttendanceBatchUpload = () => {
               throw new Error(`Unknown special meal type: ${specialMapping.type}`);
           }
           
-          // Track for summary (no individual notification to avoid fatigue)
           if (!specialMealCounts[specialMapping.label]) {
             specialMealCounts[specialMapping.label] = 0;
           }
@@ -254,59 +256,64 @@ const AttendanceBatchUpload = () => {
           return;
         }
 
-        // Handle regular guest-based records
-        // Find the guest object to get the internal numeric ID
         const guest = guests.find(
           (g) => String(g.id) === String(guestId) || g.guestId === guestId,
         );
         
         if (!guest) {
-          throw new Error(`Guest with ID "${guestId}" not found`);
+          skippedCount++;
+          skippedGuests.push({
+            guestId,
+            program: record.program,
+            row: csvRowNumber,
+          });
+          return;
         }
 
         const numericGuestId = guest.id;
 
         switch (programType) {
           case "meals":
-            addMealRecord(numericGuestId, record.count);
+            addMealRecord(numericGuestId, record.count, dateSubmitted);
             successCount++;
             break;
           case "showers":
-            addShowerRecord(numericGuestId, { override: true });
+            addShowerRecord(numericGuestId, "12:00 PM", dateSubmitted);
             successCount++;
             break;
           case "laundry":
-            addLaundryRecord(numericGuestId, { override: true });
+            addLaundryRecord(numericGuestId, "Drop-off", "dropoff", "", dateSubmitted);
             successCount++;
             break;
           case "bicycle":
             addBicycleRecord(numericGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
+              dateOverride: dateSubmitted,
             });
             successCount++;
             break;
           case "haircuts":
-            addHaircutRecord(numericGuestId);
+            addHaircutRecord(numericGuestId, dateSubmitted);
             successCount++;
             break;
           case "holiday":
-            addHolidayRecord(numericGuestId);
+            addHolidayRecord(numericGuestId, dateSubmitted);
             successCount++;
             break;
           default:
             errors.push(
-              `Unknown program type: ${programType} on row ${index + 2}`,
+              `Unknown program type: ${programType} (Row: ${csvRowNumber})`,
             );
             errorCount++;
         }
       } catch (error) {
-        errors.push(`Error processing row ${index + 2}: ${error.message}`);
+        errors.push(`Error processing Row ${record.csvRowNumber || index + 2}: ${error.message}`);
         errorCount++;
       }
     });
 
-    return { successCount, errorCount, errors, specialMealCounts };
+    return { successCount, errorCount, skippedCount, errors, skippedGuests, specialMealCounts };
   };
 
   const handleFileUpload = (event) => {
@@ -330,10 +337,9 @@ const AttendanceBatchUpload = () => {
         const content = e.target.result;
         const parsedRecords = parseCSV(content);
 
-        const { successCount, errorCount, errors, specialMealCounts } =
+        const { successCount, errorCount, skippedCount, errors, skippedGuests, specialMealCounts } =
           importAttendanceRecords(parsedRecords);
 
-        // Build message with special meal counts if any
         let specialMealsSummary = "";
         if (specialMealCounts && Object.keys(specialMealCounts).length > 0) {
           const mealDetails = Object.entries(specialMealCounts)
@@ -342,20 +348,29 @@ const AttendanceBatchUpload = () => {
           specialMealsSummary = ` (including ${mealDetails})`;
         }
 
-        if (errorCount === 0) {
+        let skippedSummary = "";
+        if (skippedCount > 0) {
+          const uniqueGuestIds = [...new Set(skippedGuests.map(g => g.guestId))];
+          const guestIdsList = uniqueGuestIds.slice(0, 3).join(", ");
+          const moreCount = uniqueGuestIds.length > 3 ? ` and ${uniqueGuestIds.length - 3} more` : "";
+          skippedSummary = `. Skipped ${skippedCount} record${skippedCount > 1 ? 's' : ''} for guest${uniqueGuestIds.length > 1 ? 's' : ''} not in system: ${guestIdsList}${moreCount}`;
+        }
+
+        if (errorCount === 0 && skippedCount === 0) {
           setUploadResult({
             success: true,
             message: `Successfully imported ${successCount} attendance records${specialMealsSummary}`,
           });
         } else if (successCount > 0) {
           setUploadResult({
-            success: false,
-            message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`,
+            success: skippedCount > 0 && errorCount === 0,
+            message: `Imported ${successCount} records${specialMealsSummary}${skippedSummary}${errorCount > 0 ? `. ${errorCount} error${errorCount > 1 ? 's' : ''}: ${errors.slice(0, 2).join("; ")}${errors.length > 2 ? "..." : ""}` : ""}`,
+            warnings: skippedCount > 0 ? skippedGuests : undefined,
           });
         } else {
           setUploadResult({
             success: false,
-            message: `Failed to import records: ${errors.slice(0, 3).join("; ")}`,
+            message: `Failed to import records${skippedSummary}${errorCount > 0 ? `. Errors: ${errors.slice(0, 3).join("; ")}` : ""}`,
           });
         }
       } catch (error) {
@@ -412,19 +427,49 @@ ATT009,M29017132,15,Meal,2024-01-15`;
       </h2>
 
       {uploadResult && (
-        <div
-          className={`mb-4 p-3 rounded flex items-center gap-2 ${
-            uploadResult.success
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-red-100 text-red-700 border border-red-200"
-          }`}
-        >
-          {uploadResult.success ? (
-            <CheckCircle size={18} />
-          ) : (
-            <AlertCircle size={18} />
-          )}
-          {uploadResult.message}
+        <div>
+          <div
+            className={`mb-2 p-3 rounded flex items-start gap-2 ${
+              uploadResult.success
+                ? "bg-green-100 text-green-700 border border-green-200"
+                : uploadResult.warnings
+                ? "bg-yellow-100 text-yellow-800 border border-yellow-300"
+                : "bg-red-100 text-red-700 border border-red-200"
+            }`}
+          >
+            <div className="mt-0.5">
+              {uploadResult.success ? (
+                <CheckCircle size={18} />
+              ) : (
+                <AlertCircle size={18} />
+              )}
+            </div>
+            <div className="flex-1">
+              <p>{uploadResult.message}</p>
+              {uploadResult.warnings && uploadResult.warnings.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-medium hover:underline">
+                    View skipped records ({uploadResult.warnings.length})
+                  </summary>
+                  <div className="mt-2 pl-2 border-l-2 border-yellow-400">
+                    <p className="text-xs mb-2 font-semibold">
+                      These guests were not found in the system. Please add them via Batch Import Guests first:
+                    </p>
+                    <ul className="text-xs space-y-1 max-h-40 overflow-y-auto">
+                      {uploadResult.warnings.map((warning, idx) => (
+                        <li key={idx} className="flex gap-2">
+                          <span className="font-mono">{warning.guestId}</span>
+                          <span className="text-gray-600">
+                            ({warning.program}, Row: {warning.row})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

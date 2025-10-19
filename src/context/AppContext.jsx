@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase, isSupabaseEnabled } from "../supabaseClient";
+import { supabase, isSupabaseEnabled, checkIfSupabaseConfigured } from "../supabaseClient";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
@@ -253,7 +253,8 @@ export const AppProvider = ({ children }) => {
     });
   };
 
-  const supabaseEnabled = isSupabaseEnabled;
+  const supabaseEnabled = isSupabaseEnabled();
+  const supabaseConfigured = checkIfSupabaseConfigured();
 
   const mapGuestRow = useCallback(
     (row) => ({
@@ -957,15 +958,22 @@ export const AppProvider = ({ children }) => {
     const normalizeKey = (k) => k.toLowerCase().replace(/\s+/g, "_");
 
     const takenIds = new Set(guests.map((g) => g.guestId));
-    const newGuests = csvData.map((rawRow) => {
+    const newGuests = csvData.map((rawRow, rowIndex) => {
       const row = Object.keys(rawRow).reduce((acc, key) => {
         acc[normalizeKey(key)] = rawRow[key];
         return acc;
       }, {});
 
+      const csvRowNumber = rowIndex + 2;
+      const guestIdFromCSV = (row.guest_id || "").trim();
+      const recordIdentifier = guestIdFromCSV 
+        ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
+        : `Row: ${csvRowNumber}`;
+
       let firstName = toTitleCase((row.first_name || "").trim());
       let lastName = toTitleCase((row.last_name || "").trim());
       let fullName = (row.full_name || "").trim();
+      
       if (!fullName) {
         fullName = `${firstName} ${lastName}`.trim();
       } else {
@@ -975,11 +983,18 @@ export const AppProvider = ({ children }) => {
           lastName = lastName || toTitleCase(parts.slice(1).join(" ") || "");
         }
       }
-      if (!firstName || !lastName) {
+      
+      if (!firstName) {
         throw new Error(
-          `Missing name fields in CSV row: ${JSON.stringify(rawRow)}`,
+          `Missing first name (${recordIdentifier}). Data: ${JSON.stringify(rawRow)}`,
         );
       }
+      
+      if (!lastName) {
+        lastName = firstName.charAt(0).toUpperCase();
+      }
+      
+      fullName = `${firstName} ${lastName}`.trim();
 
       const housingStatusRaw = (row.housing_status || "").trim();
       const housingStatus = normalizeHousingStatus(housingStatusRaw);
@@ -989,16 +1004,18 @@ export const AppProvider = ({ children }) => {
       const location =
         (row.city || row.location || "").trim() || "Mountain View";
       if (!AGE_GROUPS.includes(age)) {
-        throw new Error(`Invalid or missing Age value '${age}'.`);
+        throw new Error(
+          `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`
+        );
       }
       if (!GENDERS.includes(gender)) {
         throw new Error(
-          `Invalid Gender value '${gender}'. Allowed: ${GENDERS.join(", ")}`,
+          `Invalid Gender value '${gender}' (${recordIdentifier}). Allowed: ${GENDERS.join(", ")}`,
         );
       }
 
       const guestId = generateUniqueGuestId(
-        (row.guest_id || "").trim() || null,
+        guestIdFromCSV || null,
         takenIds,
       );
       return {
@@ -1064,10 +1081,9 @@ export const AppProvider = ({ children }) => {
   const isSameDay = (iso1, iso2) => iso1.split("T")[0] === iso2.split("T")[0];
   const addBicycleRecord = async (
     guestId,
-    { repairType = "Flat Tire", notes = "" } = {},
+    { repairType = "Flat Tire", notes = "", dateOverride = null } = {},
   ) => {
-    const now = new Date().toISOString();
-    // Allow multiple repairs per day; no uniqueness constraint.
+    const now = dateOverride || new Date().toISOString();
     const priority = (bicycleRecords[0]?.priority || 0) + 1;
 
     if (supabaseEnabled && supabase) {
@@ -1217,8 +1233,8 @@ export const AppProvider = ({ children }) => {
       return list;
     });
   };
-  const addHolidayRecord = async (guestId) => {
-    const now = new Date().toISOString();
+  const addHolidayRecord = async (guestId, dateOverride = null) => {
+    const now = dateOverride || new Date().toISOString();
     const already = holidayRecords.some(
       (r) => r.guestId === guestId && isSameDay(r.date, now),
     );
@@ -1275,8 +1291,8 @@ export const AppProvider = ({ children }) => {
     toast.success("Holiday logged");
     return record;
   };
-  const addHaircutRecord = async (guestId) => {
-    const now = new Date().toISOString();
+  const addHaircutRecord = async (guestId, dateOverride = null) => {
+    const now = dateOverride || new Date().toISOString();
     const already = haircutRecords.some(
       (r) => r.guestId === guestId && isSameDay(r.date, now),
     );
@@ -1520,13 +1536,13 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const addMealRecord = async (guestId, count) => {
-    const today = pacificDateStringFrom(new Date());
+  const addMealRecord = async (guestId, count, dateOverride = null) => {
+    const timestamp = dateOverride || new Date().toISOString();
+    const today = pacificDateStringFrom(timestamp);
     const already = mealRecords.some(
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
     if (already) return null;
-    const timestamp = new Date().toISOString();
 
     if (supabaseEnabled && supabase) {
       try {
@@ -1934,13 +1950,14 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addShowerRecord = async (guestId, time) => {
+  const addShowerRecord = async (guestId, time, dateOverride = null) => {
     const count = showerSlots.filter((s) => s.time === time).length;
     if (count >= 2) {
       throw new Error("That time slot is full.");
     }
 
-    const today = todayPacificDateString();
+    const timestamp = dateOverride || new Date().toISOString();
+    const today = dateOverride ? pacificDateStringFrom(dateOverride) : todayPacificDateString();
     const alreadyBooked = showerRecords.some(
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
@@ -1949,7 +1966,6 @@ export const AppProvider = ({ children }) => {
       throw new Error("Guest already has a shower booking today.");
     }
 
-    const timestamp = new Date().toISOString();
     const scheduledFor = today;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, time);
 
@@ -2218,6 +2234,7 @@ export const AppProvider = ({ children }) => {
     time,
     laundryType,
     bagNumber = "",
+    dateOverride = null,
   ) => {
     if (laundryType === "onsite") {
       const slotTaken = laundrySlots.some((slot) => slot.time === time);
@@ -2233,7 +2250,8 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const today = todayPacificDateString();
+    const timestamp = dateOverride || new Date().toISOString();
+    const today = dateOverride ? pacificDateStringFrom(dateOverride) : todayPacificDateString();
     const alreadyBooked = laundryRecords.some(
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
@@ -2242,7 +2260,6 @@ export const AppProvider = ({ children }) => {
       throw new Error("Guest already has a laundry booking today.");
     }
 
-    const timestamp = new Date().toISOString();
     const scheduledFor = today;
     const slotStart =
       laundryType === "onsite" ? extractLaundrySlotStart(time) : null;
@@ -3581,10 +3598,10 @@ export const AppProvider = ({ children }) => {
       } = options || {};
 
       if (local) {
-        // Clear in-memory state
         if (!keepGuests) setGuests([]);
         setMealRecords([]);
         setRvMealRecords([]);
+        setShelterMealRecords([]);
         setUnitedEffortMealRecords([]);
         setExtraMealRecords([]);
         setDayWorkerMealRecords([]);
@@ -3714,7 +3731,6 @@ export const AppProvider = ({ children }) => {
     laundryPickerGuest,
     bicyclePickerGuest,
     settings,
-    supabaseEnabled,
 
     LAUNDRY_STATUS,
     HOUSING_STATUSES,
@@ -3782,6 +3798,8 @@ export const AppProvider = ({ children }) => {
     undoAction,
     clearActionHistory,
     resetAllData,
+    supabaseEnabled,
+    supabaseConfigured,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,22 +1,36 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseProxy } from "./supabaseProxyClient";
 
-// Check if we should use the proxy (Firebase Functions) instead of direct connection
 const useProxy = import.meta.env.VITE_USE_SUPABASE_PROXY === "true";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Supabase is configured if we're using the proxy OR if we have direct credentials
 const isSupabaseConfigured = useProxy || Boolean(supabaseUrl && supabaseAnonKey);
+
+const getSupabaseSyncPreference = () => {
+  if (!isSupabaseConfigured) return false;
+  
+  const savedPreference = localStorage.getItem("hopes-corner-enable-supabase-sync");
+  
+  if (savedPreference !== null) {
+    return savedPreference === "true";
+  }
+  
+  if (import.meta.env.DEV) {
+    return false;
+  }
+  
+  return isSupabaseConfigured;
+};
+
+let supabaseSyncEnabled = getSupabaseSyncPreference();
 
 let supabaseClient = null;
 
 if (useProxy) {
-  // Use Firebase Functions proxy to avoid exposing Supabase credentials
   supabaseClient = supabaseProxy;
 } else if (supabaseUrl && supabaseAnonKey) {
-  // Direct connection (legacy mode - exposes credentials on client)
   supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
@@ -30,15 +44,28 @@ if (useProxy) {
   });
 } else {
   if (import.meta.env.DEV) {
-    console.warn(
-      "Supabase is not configured. Either set VITE_USE_SUPABASE_PROXY=true for proxy mode, or set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for direct mode.",
+    console.info(
+      "Supabase sync is disabled. Using localStorage only. To enable cloud sync, configure Supabase credentials in .env.local",
     );
   }
 }
 
 export const supabase = supabaseClient;
-export const isSupabaseEnabled = isSupabaseConfigured;
+export const isSupabaseEnabled = () => supabaseSyncEnabled && isSupabaseConfigured;
+export const checkIfSupabaseConfigured = () => isSupabaseConfigured;
 export const isUsingProxy = useProxy;
+
+export const setSupabaseSyncEnabled = (enabled) => {
+  if (!isSupabaseConfigured && enabled) {
+    console.warn("Cannot enable Supabase sync: Supabase is not configured");
+    return false;
+  }
+  supabaseSyncEnabled = enabled;
+  localStorage.setItem("hopes-corner-enable-supabase-sync", enabled.toString());
+  return true;
+};
+
+export const getSupabaseSyncEnabled = () => supabaseSyncEnabled;
 
 export const assertSupabase = () => {
   if (!supabaseClient) {
@@ -50,3 +77,4 @@ export const assertSupabase = () => {
 };
 
 export default supabaseClient;
+

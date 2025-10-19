@@ -27,7 +27,9 @@ import { useAppContext } from "../../context/useAppContext";
 import GuestBatchUpload from "../../components/GuestBatchUpload";
 import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
-import TrendLine from "../../components/charts/TrendLine";
+import MealReport from "../../components/admin/MealReport";
+import DateRangeTrendChart from "../../components/charts/DateRangeTrendChart";
+import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import Selectize from "../../components/Selectize";
 import { animated as Animated } from "@react-spring/web";
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
@@ -54,6 +56,7 @@ const Dashboard = () => {
     bicycleRecords,
     donationRecords,
     resetAllData,
+    supabaseConfigured,
   } = useAppContext();
 
   const [activeSection, setActiveSection] = useState("overview");
@@ -78,6 +81,7 @@ const Dashboard = () => {
   }));
 
   const [selectedExportGuest, setSelectedExportGuest] = useState("");
+  const [selectedPrograms, setSelectedPrograms] = useState(["meals", "showers", "laundry"]);
 
   const handleDateRangeSearch = () => {
     const periodMetrics = getDateRangeMetrics(startDate, endDate);
@@ -307,6 +311,7 @@ const Dashboard = () => {
   const sections = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "reports", label: "Reports", icon: BarChart3 },
+    { id: "meal-report", label: "Meal Report", icon: Utensils },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "donations", label: "Donations", icon: FileText },
     { id: "export", label: "Data Export", icon: Download },
@@ -319,6 +324,8 @@ const Dashboard = () => {
         return renderOverviewSection();
       case "reports":
         return renderReportsSection();
+      case "meal-report":
+        return renderMealReportSection();
       case "batch-upload":
         return renderBatchUploadSection();
       case "export":
@@ -339,6 +346,20 @@ const Dashboard = () => {
       yearGridAnim={yearGridAnim}
     />
   );
+
+  const renderMealReportSection = () => (
+    <div className="space-y-6">
+      <MealReport />
+    </div>
+  );
+
+  const toggleProgram = (programValue) => {
+    setSelectedPrograms(prev =>
+      prev.includes(programValue)
+        ? prev.filter(p => p !== programValue)
+        : [...prev, programValue]
+    );
+  };
 
   const renderReportsSection = () => (
     <div className="space-y-6">
@@ -378,57 +399,134 @@ const Dashboard = () => {
           </button>
         </div>
 
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Select Programs to Display
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "meals", label: "Meals", icon: Utensils },
+              { value: "showers", label: "Showers", icon: ShowerHead },
+              { value: "laundry", label: "Laundry", icon: WashingMachine },
+              { value: "haircuts", label: "Haircuts", icon: Users },
+              { value: "holidays", label: "Holidays", icon: Calendar },
+              { value: "bicycles", label: "Bicycles", icon: Users },
+            ].map(program => {
+              const Icon = program.icon;
+              return (
+                <button
+                  key={program.value}
+                  onClick={() => toggleProgram(program.value)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all text-sm ${
+                    selectedPrograms.includes(program.value)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {program.label}
+                </button>
+              );
+            })}
+          </div>
+          {selectedPrograms.length === 0 && (
+            <p className="text-red-600 text-sm mt-2">Please select at least one program type</p>
+          )}
+        </div>
+
         {metrics.period && (
           <div className="mt-4 border-t pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div className="bg-gray-50 rounded p-3">
-                <div className="flex items-center gap-2 text-gray-600 mb-1">
-                  <Utensils size={16} /> Meals Served
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+              {selectedPrograms.includes('meals') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <Utensils size={16} /> Meals Served
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.mealsServed}
+                  </div>
                 </div>
-                <div className="text-2xl font-bold">
-                  {metrics.period.mealsServed}
-                </div>
-              </div>
+              )}
 
-              <div className="bg-gray-50 rounded p-3">
-                <div className="flex items-center gap-2 text-gray-600 mb-1">
-                  <ShowerHead size={16} /> Showers Booked
+              {selectedPrograms.includes('showers') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <ShowerHead size={16} /> Showers Booked
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.showersBooked}
+                  </div>
                 </div>
-                <div className="text-2xl font-bold">
-                  {metrics.period.showersBooked}
-                </div>
-              </div>
+              )}
 
-              <div className="bg-gray-50 rounded p-3">
-                <div className="flex items-center gap-2 text-gray-600 mb-1">
-                  <WashingMachine size={16} /> Laundry Loads
+              {selectedPrograms.includes('laundry') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <WashingMachine size={16} /> Laundry Loads
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.laundryLoads}
+                  </div>
                 </div>
-                <div className="text-2xl font-bold">
-                  {metrics.period.laundryLoads}
+              )}
+
+              {selectedPrograms.includes('haircuts') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <Users size={16} /> Haircuts
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.haircuts || 0}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {selectedPrograms.includes('holidays') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <Calendar size={16} /> Holidays
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.holidays || 0}
+                  </div>
+                </div>
+              )}
+
+              {selectedPrograms.includes('bicycles') && (
+                <div className="bg-gray-50 rounded p-3">
+                  <div className="flex items-center gap-2 text-gray-600 mb-1">
+                    <Users size={16} /> Bicycles
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {metrics.period.bicycles || 0}
+                  </div>
+                </div>
+              )}
             </div>
-            <Animated.div
-              style={reportsChartAnim}
-              className="mt-4 will-change-transform"
-            >
-              <TrendLine
-                days={metrics.period.dailyBreakdown}
-                metrics={["meals", "showers", "laundry"]}
-              />
-            </Animated.div>
+            
+            {selectedPrograms.length > 0 && (
+              <Animated.div
+                style={reportsChartAnim}
+                className="mt-4 will-change-transform"
+              >
+                <DateRangeTrendChart
+                  days={metrics.period.dailyBreakdown}
+                  selectedPrograms={selectedPrograms}
+                />
+              </Animated.div>
+            )}
 
             <div className="mt-4 mb-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-4 py-2 text-left">Date</th>
-                    <th className="px-4 py-2 text-right">Meals</th>
-                    <th className="px-4 py-2 text-right">Showers</th>
-                    <th className="px-4 py-2 text-right">Laundry</th>
-                    <th className="px-4 py-2 text-right">Haircuts</th>
-                    <th className="px-4 py-2 text-right">Holiday</th>
-                    <th className="px-4 py-2 text-right">Bicycle</th>
+                    {selectedPrograms.includes('meals') && <th className="px-4 py-2 text-right">Meals</th>}
+                    {selectedPrograms.includes('showers') && <th className="px-4 py-2 text-right">Showers</th>}
+                    {selectedPrograms.includes('laundry') && <th className="px-4 py-2 text-right">Laundry</th>}
+                    {selectedPrograms.includes('haircuts') && <th className="px-4 py-2 text-right">Haircuts</th>}
+                    {selectedPrograms.includes('holidays') && <th className="px-4 py-2 text-right">Holidays</th>}
+                    {selectedPrograms.includes('bicycles') && <th className="px-4 py-2 text-right">Bicycles</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -439,18 +537,12 @@ const Dashboard = () => {
                         <td className="px-4 py-2">
                           {new Date(day.date).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-2 text-right">{day.meals}</td>
-                        <td className="px-4 py-2 text-right">{day.showers}</td>
-                        <td className="px-4 py-2 text-right">{day.laundry}</td>
-                        <td className="px-4 py-2 text-right">
-                          {day.haircuts || 0}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {day.holidays || 0}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {day.bicycles || 0}
-                        </td>
+                        {selectedPrograms.includes('meals') && <td className="px-4 py-2 text-right">{day.meals}</td>}
+                        {selectedPrograms.includes('showers') && <td className="px-4 py-2 text-right">{day.showers}</td>}
+                        {selectedPrograms.includes('laundry') && <td className="px-4 py-2 text-right">{day.laundry}</td>}
+                        {selectedPrograms.includes('haircuts') && <td className="px-4 py-2 text-right">{day.haircuts || 0}</td>}
+                        {selectedPrograms.includes('holidays') && <td className="px-4 py-2 text-right">{day.holidays || 0}</td>}
+                        {selectedPrograms.includes('bicycles') && <td className="px-4 py-2 text-right">{day.bicycles || 0}</td>}
                       </tr>
                     ))}
                 </tbody>
@@ -623,9 +715,6 @@ const Dashboard = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
-  const supabaseConfigured = Boolean(
-    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
-  );
 
   const localCounts = useMemo(
     () => ({
@@ -694,6 +783,8 @@ const Dashboard = () => {
 
     return (
       <div className="space-y-6">
+        <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />
+        
         <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-3">
