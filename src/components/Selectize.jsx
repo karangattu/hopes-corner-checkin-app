@@ -16,9 +16,18 @@ export default function Selectize({
   const containerRef = useRef(null);
 
   const normalized = useMemo(() => {
-    return options.map((opt) =>
-      typeof opt === "string" ? { value: opt, label: opt } : opt,
-    );
+    return options.map((opt) => {
+      if (typeof opt === "string") {
+        return { value: opt, label: opt, searchText: opt };
+      }
+      const label = opt.label ?? String(opt.value ?? "");
+      const searchText = opt.searchText || `${label}`;
+      return {
+        ...opt,
+        label,
+        searchText,
+      };
+    });
   }, [options]);
 
   const selected = useMemo(() => {
@@ -28,7 +37,9 @@ export default function Selectize({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return normalized;
-    return normalized.filter((o) => o.label.toLowerCase().includes(q));
+    return normalized.filter((o) =>
+      (o.searchText || o.label || "").toLowerCase().includes(q),
+    );
   }, [normalized, query]);
 
   useEffect(() => {

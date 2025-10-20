@@ -670,10 +670,24 @@ const Dashboard = () => {
           </h3>
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <Selectize
-              options={guests.map((g) => ({
-                value: String(g.id),
-                label: `${g.name} (${g.guestId || "-"})`,
-              }))}
+              options={guests.map((g) => {
+                const parts = [g.name, g.preferredName, g.firstName, g.lastName]
+                  .map((part) => (part || "").trim())
+                  .filter(Boolean);
+                const searchFields = new Set(
+                  [...parts, g.guestId, g.email].filter(Boolean).map(String),
+                );
+                const searchText = Array.from(searchFields)
+                  .join(" ")
+                  .toLowerCase();
+                const displayName = g.name || parts[0] || g.guestId || "Unknown";
+
+                return {
+                  value: String(g.id),
+                  label: `${displayName} (${g.guestId || "-"})`,
+                  searchText,
+                };
+              })}
               value={selectedExportGuest}
               onChange={(val) => setSelectedExportGuest(val || "")}
               placeholder="Search guest by name or ID…"

@@ -1,7 +1,20 @@
 import React, { useState, useMemo, useRef } from "react";
 import { useAppContext } from "../../context/useAppContext";
 import { Download, Calendar, TrendingUp } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  ComposedChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Line,
+  ScatterChart,
+  Scatter,
+  Cell,
+} from "recharts";
 import html2canvas from "html2canvas";
 import toast from "react-hot-toast";
 
@@ -106,11 +119,23 @@ const MealReport = () => {
       const dayWorkerMealsCount = monthDayWorkerMeals.reduce((sum, r) => sum + (r.count || 0), 0);
 
       const uniqueGuestIds = new Set(
-        [...monthMeals, ...monthRvMeals, ...monthShelterMeals, 
+        [...monthMeals, ...monthRvMeals, ...monthShelterMeals,
          ...monthUnitedEffortMeals, ...monthExtraMeals, ...monthDayWorkerMeals]
           .map(r => r.guestId)
           .filter(Boolean)
       );
+
+      const totalMealsServed =
+        guestMealsCount +
+        extraMealsCount +
+        rvMealsCount +
+        dayWorkerMealsCount +
+        shelterMealsCount +
+        unitedEffortMealsCount;
+
+      const avgMealsPerServiceDay = validDaysCount
+        ? totalMealsServed / validDaysCount
+        : totalMealsServed;
 
       results.push({
         month: monthLabel,
@@ -122,8 +147,8 @@ const MealReport = () => {
         dayWorkerMeals: dayWorkerMealsCount,
         shelterMeals: shelterMealsCount,
         unitedEffortMeals: unitedEffortMealsCount,
-        totalMeals: guestMealsCount + extraMealsCount + rvMealsCount + 
-                    dayWorkerMealsCount + shelterMealsCount + unitedEffortMealsCount,
+        totalMeals: totalMealsServed,
+        avgMealsPerServiceDay,
         uniqueGuests: uniqueGuestIds.size,
         validDaysCount,
         isCurrentMonth: monthOffset === 0,
@@ -161,9 +186,9 @@ const MealReport = () => {
         ? calculateMealData[calculateMealData.length - 2]
         : null;
 
-    const averagePerServiceDay = currentMonth.validDaysCount
-      ? Math.round(currentMonth.totalMeals / currentMonth.validDaysCount)
-      : currentMonth.totalMeals;
+    const averagePerServiceDay = Math.round(
+      currentMonth.avgMealsPerServiceDay ?? currentMonth.totalMeals,
+    );
 
     const changeText = (() => {
       if (!previousMonth) return null;
@@ -185,6 +210,144 @@ const MealReport = () => {
       changeText,
     };
   }, [calculateMealData]);
+
+  const categorizeScatterPoint = (totalMeals, extrasShare) => {
+    if (totalMeals >= 260) {
+      return { color: "#dc2626", label: "Peak service day" };
+    }
+    if (extrasShare >= 0.35) {
+      return { color: "#f97316", label: "High extras mix" };
+    }
+    if (extrasShare <= 0.1) {
+      return { color: "#2563eb", label: "Guest-focused" };
+    }
+    return { color: "#10b981", label: "Balanced service" };
+  };
+
+  const dailyScatterData = useMemo(() => {
+    if (!calculateMealData.length) return [];
+    const currentMonth = calculateMealData[calculateMealData.length - 1];
+    if (!currentMonth) return [];
+
+    const targetYear = currentMonth.year;
+    const targetMonthIndex = currentMonth.monthIndex;
+    if (
+      typeof targetYear !== "number" ||
+      typeof targetMonthIndex !== "number"
+    ) {
+      return [];
+    }
+
+    const daysInMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
+    const points = [];
+    let serviceIndex = 0;
+
+    const recordsForDay = (records, day) =>
+      records.filter((record) => {
+        const recordDate = getDateFromRecord(record);
+        if (!recordDate) return false;
+        return (
+          recordDate.getFullYear() === targetYear &&
+          recordDate.getMonth() === targetMonthIndex &&
+          recordDate.getDate() === day
+        );
+      });
+
+    const sumCounts = (records) =>
+      records.reduce((sum, record) => sum + (record.count || 0), 0);
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(targetYear, targetMonthIndex, day);
+      const dayOfWeek = getDayOfWeek(date);
+      if (!selectedDays.includes(dayOfWeek)) continue;
+
+      serviceIndex += 1;
+
+      const dayMeals = recordsForDay(mealRecords, day);
+      const dayRvMeals = recordsForDay(rvMealRecords, day);
+      const dayShelterMeals = recordsForDay(shelterMealRecords, day);
+      const dayUnitedEffortMeals = recordsForDay(unitedEffortMealRecords, day);
+      const dayExtraMeals = recordsForDay(extraMealRecords, day);
+      const dayDayWorkerMeals = recordsForDay(dayWorkerMealRecords, day);
+
+      const guestMealsTotal = sumCounts(dayMeals);
+      const rvMealsTotal = sumCounts(dayRvMeals);
+      const shelterMealsTotal = sumCounts(dayShelterMeals);
+      const unitedEffortMealsTotal = sumCounts(dayUnitedEffortMeals);
+      const extraMealsTotal = sumCounts(dayExtraMeals);
+      const dayWorkerMealsTotal = sumCounts(dayDayWorkerMeals);
+
+      const totalMeals =
+        guestMealsTotal +
+        rvMealsTotal +
+        shelterMealsTotal +
+        unitedEffortMealsTotal +
+        extraMealsTotal +
+        dayWorkerMealsTotal;
+
+      const extrasShare = totalMeals
+        ? extraMealsTotal / totalMeals
+        : 0;
+
+      const uniqueGuests = new Set(
+        [...dayMeals, ...dayRvMeals, ...dayShelterMeals, ...dayUnitedEffortMeals]
+          .map((record) => record.guestId)
+          .filter(Boolean),
+      ).size;
+
+      const { color, label } = categorizeScatterPoint(
+        totalMeals,
+        extrasShare,
+      );
+
+      points.push({
+        timestamp: date.getTime(),
+        serviceIndex,
+        dateLabel: date.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        }),
+        weekdayLabel: date.toLocaleDateString(undefined, {
+          weekday: "long",
+        }),
+        totalMeals,
+        guestMeals: guestMealsTotal,
+        extrasMeals: extraMealsTotal,
+        rvMeals: rvMealsTotal,
+        dayWorkerMeals: dayWorkerMealsTotal,
+        shelterMeals: shelterMealsTotal,
+        unitedEffortMeals: unitedEffortMealsTotal,
+        uniqueGuests,
+        color,
+        categoryLabel: label,
+        extrasShare,
+      });
+    }
+
+    return points.sort((a, b) => a.timestamp - b.timestamp);
+  }, [
+    calculateMealData,
+    selectedDays,
+    mealRecords,
+    rvMealRecords,
+    shelterMealRecords,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+  ]);
+
+  const scatterLegend = useMemo(() => {
+    const categoryMap = new Map();
+    dailyScatterData.forEach((point) => {
+      if (!categoryMap.has(point.categoryLabel)) {
+        categoryMap.set(point.categoryLabel, point.color);
+      }
+    });
+    return Array.from(categoryMap.entries()).map(([label, color]) => ({
+      label,
+      color,
+    }));
+  }, [dailyScatterData]);
 
   const exportCSV = () => {
     if (calculateMealData.length === 0) {
@@ -275,7 +438,8 @@ const MealReport = () => {
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || !payload.length) return null;
 
-    const data = payload[0].payload;
+    const data = payload[0]?.payload;
+    if (!data) return null;
     
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
@@ -288,8 +452,35 @@ const MealReport = () => {
           <p className="text-pink-600">Shelter: {data.shelterMeals}</p>
           <p className="text-indigo-600">United Effort: {data.unitedEffortMeals}</p>
           <p className="font-semibold text-gray-800 mt-2 pt-2 border-t">Total: {data.totalMeals}</p>
+          <p className="text-gray-700">
+            Avg Meals / Service Day: {Math.round(data.avgMealsPerServiceDay || 0)}
+          </p>
           <p className="text-gray-600">Unique Guests: {data.uniqueGuests}</p>
           <p className="text-gray-500 text-xs mt-1">Days: {data.validDaysCount}</p>
+        </div>
+      </div>
+    );
+  };
+
+  const ScatterTooltip = ({ active, payload }) => {
+    if (!active || !payload || !payload.length) return null;
+    const point = payload[0]?.payload;
+    if (!point) return null;
+
+    return (
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <p className="font-semibold text-gray-800 mb-2">
+          {point.weekdayLabel}, {point.dateLabel}
+        </p>
+        <div className="space-y-1 text-sm">
+          <p>Total Meals: {point.totalMeals}</p>
+          <p>Guest Meals: {point.guestMeals}</p>
+          <p>Extras: {point.extrasMeals}</p>
+          <p>RV Meals: {point.rvMeals}</p>
+          <p>Day Worker: {point.dayWorkerMeals}</p>
+          <p>Shelter: {point.shelterMeals}</p>
+          <p>United Effort: {point.unitedEffortMeals}</p>
+          <p>Unique Guests: {point.uniqueGuests}</p>
         </div>
       </div>
     );
@@ -419,28 +610,163 @@ const MealReport = () => {
 
             <div ref={chartRef} className="bg-white p-4">
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={calculateMealData}>
+                <ComposedChart
+                  data={calculateMealData}
+                  margin={{ top: 16, right: 40, bottom: 40, left: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="month" 
+                  <XAxis
+                    dataKey="month"
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
                     height={80}
+                    label={{ value: "Month", position: "insideBottom", offset: -20 }}
                   />
-                  <YAxis tick={{ fontSize: 12 }} />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 12 }}
+                    label={{
+                      value: "Total Meals",
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 10,
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    label={{
+                      value: "Avg Meals / Service Day",
+                      angle: -90,
+                      position: "insideRight",
+                      offset: -5,
+                    }}
+                  />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="guestMeals" stackId="a" fill="#3b82f6" name="Guest Meals" />
-                  <Bar dataKey="extras" stackId="a" fill="#f97316" name="Extras" />
-                  <Bar dataKey="rvMeals" stackId="a" fill="#a855f7" name="RV Meals" />
-                  <Bar dataKey="dayWorkerMeals" stackId="a" fill="#22c55e" name="Day Worker" />
-                  <Bar dataKey="shelterMeals" stackId="a" fill="#ec4899" name="Shelter" />
-                  <Bar dataKey="unitedEffortMeals" stackId="a" fill="#6366f1" name="United Effort" />
-                </BarChart>
+                  <Legend wrapperStyle={{ paddingTop: "20px" }} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="guestMeals"
+                    stackId="a"
+                    fill="#3b82f6"
+                    name="Guest Meals"
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="extras"
+                    stackId="a"
+                    fill="#f97316"
+                    name="Extras"
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="rvMeals"
+                    stackId="a"
+                    fill="#a855f7"
+                    name="RV Meals"
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="dayWorkerMeals"
+                    stackId="a"
+                    fill="#22c55e"
+                    name="Day Worker"
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="shelterMeals"
+                    stackId="a"
+                    fill="#ec4899"
+                    name="Shelter"
+                  />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="unitedEffortMeals"
+                    stackId="a"
+                    fill="#6366f1"
+                    name="United Effort"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="avgMealsPerServiceDay"
+                    stroke="#0f172a"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    name="Avg Meals / Service Day"
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
+
+            {dailyScatterData.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  Daily Service Mix
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Each dot represents a selected service day this month. Colors highlight
+                  when extras dominate, guests dominate, or we hit peak volume.
+                </p>
+                {scatterLegend.length > 0 && (
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {scatterLegend.map(({ label, color }) => (
+                      <span
+                        key={label}
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ height: "320px" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 16, right: 24, bottom: 40, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis
+                        type="number"
+                        dataKey="timestamp"
+                        scale="time"
+                        domain={["auto", "auto"]}
+                        tickFormatter={(value) =>
+                          new Date(value).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })
+                        }
+                        label={{ value: "Service Day", position: "insideBottom", offset: -20 }}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="totalMeals"
+                        tick={{ fontSize: 12 }}
+                        label={{
+                          value: "Total Meals",
+                          angle: -90,
+                          position: "insideLeft",
+                          offset: 10,
+                        }}
+                      />
+                      <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<ScatterTooltip />} />
+                      <Scatter data={dailyScatterData} name="Total Meals">
+                        {dailyScatterData.map((point, index) => (
+                          <Cell key={`${point.timestamp}-${index}`} fill={point.color} />
+                        ))}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold mb-4">Summary Statistics</h3>
@@ -456,6 +782,7 @@ const MealReport = () => {
                     <th className="px-4 py-3 text-right font-semibold">Shelter</th>
                     <th className="px-4 py-3 text-right font-semibold">United Effort</th>
                     <th className="px-4 py-3 text-right font-semibold">Total</th>
+                    <th className="px-4 py-3 text-right font-semibold">Avg/Day</th>
                     <th className="px-4 py-3 text-right font-semibold">Unique Guests</th>
                     <th className="px-4 py-3 text-right font-semibold">Days</th>
                   </tr>
@@ -474,6 +801,9 @@ const MealReport = () => {
                       <td className="px-4 py-3 text-right">{data.shelterMeals}</td>
                       <td className="px-4 py-3 text-right">{data.unitedEffortMeals}</td>
                       <td className="px-4 py-3 text-right font-semibold">{data.totalMeals}</td>
+                      <td className="px-4 py-3 text-right text-slate-700">
+                        {Math.round(data.avgMealsPerServiceDay || 0)}
+                      </td>
                       <td className="px-4 py-3 text-right text-green-700">{data.uniqueGuests}</td>
                       <td className="px-4 py-3 text-right text-gray-600">{data.validDaysCount}</td>
                     </tr>

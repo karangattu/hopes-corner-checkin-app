@@ -75,6 +75,11 @@ const fallbackIsoFromDateOnly = (dateStr) => {
   return candidate.toISOString();
 };
 
+const createLocalId = (prefix) =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+
 const extractLaundrySlotStart = (slotLabel) => {
   if (!slotLabel) return null;
   const [start] = slotLabel.split("-");
@@ -958,6 +963,7 @@ export const AppProvider = ({ children }) => {
     const normalizeKey = (k) => k.toLowerCase().replace(/\s+/g, "_");
 
     const takenIds = new Set(guests.map((g) => g.guestId));
+    const baseTimestamp = Date.now();
     const newGuests = csvData.map((rawRow, rowIndex) => {
       const row = Object.keys(rawRow).reduce((acc, key) => {
         acc[normalizeKey(key)] = rawRow[key];
@@ -1019,7 +1025,7 @@ export const AppProvider = ({ children }) => {
         takenIds,
       );
       return {
-        id: Date.now() + Math.floor(Math.random() * 1000),
+        id: baseTimestamp + rowIndex * 1000 + Math.floor(Math.random() * 100),
         guestId,
         firstName,
         lastName,
@@ -2002,7 +2008,7 @@ export const AppProvider = ({ children }) => {
     }
 
     const record = {
-      id: `local-${Date.now()}`,
+      id: createLocalId("local-shower"),
       guestId,
       time,
       scheduledFor,
@@ -2308,7 +2314,7 @@ export const AppProvider = ({ children }) => {
     }
 
     const record = {
-      id: `local-${Date.now()}`,
+      id: createLocalId("local-laundry"),
       guestId,
       time: laundryType === "onsite" ? time : null,
       laundryType,
@@ -2546,6 +2552,90 @@ export const AppProvider = ({ children }) => {
         toast.error("Unable to update laundry status.");
       }
     }
+  };
+
+  const importShowerAttendanceRecord = (
+    guestId,
+    {
+      dateSubmitted = null,
+      count = 1,
+      status = "done",
+    } = {},
+  ) => {
+    const timestampIso =
+      normalizeDateInputToISO(dateSubmitted) ?? new Date().toISOString();
+    const scheduledFor = pacificDateStringFrom(timestampIso);
+
+    const importedRecords = Array.from({ length: Math.max(count, 1) }, () => ({
+      id: createLocalId("import-shower"),
+      guestId,
+      time: null,
+      scheduledFor,
+      date: timestampIso,
+      status,
+      createdAt: timestampIso,
+      lastUpdated: timestampIso,
+      source: "import",
+    }));
+
+    setShowerRecords((prev) => [...prev, ...importedRecords]);
+
+    const action = {
+      id: createLocalId("action"),
+      type: "SHOWER_IMPORTED",
+      timestamp: timestampIso,
+      data: { guestId, count: importedRecords.length },
+      description: `Imported ${importedRecords.length} shower record${
+        importedRecords.length === 1 ? "" : "s"
+      }`,
+    };
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+    return importedRecords;
+  };
+
+  const importLaundryAttendanceRecord = (
+    guestId,
+    {
+      dateSubmitted = null,
+      count = 1,
+      status = LAUNDRY_STATUS.DONE,
+      laundryType = "offsite",
+      bagNumber = "",
+    } = {},
+  ) => {
+    const timestampIso =
+      normalizeDateInputToISO(dateSubmitted) ?? new Date().toISOString();
+    const scheduledFor = pacificDateStringFrom(timestampIso);
+
+    const importedRecords = Array.from({ length: Math.max(count, 1) }, () => ({
+      id: createLocalId("import-laundry"),
+      guestId,
+      time: null,
+      laundryType,
+      bagNumber,
+      scheduledFor,
+      date: timestampIso,
+      status,
+      createdAt: timestampIso,
+      lastUpdated: timestampIso,
+      source: "import",
+    }));
+
+    setLaundryRecords((prev) => [...prev, ...importedRecords]);
+
+    const action = {
+      id: createLocalId("action"),
+      type: "LAUNDRY_IMPORTED",
+      timestamp: timestampIso,
+      data: { guestId, count: importedRecords.length },
+      description: `Imported ${importedRecords.length} laundry record${
+        importedRecords.length === 1 ? "" : "s"
+      }`,
+    };
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+    return importedRecords;
   };
 
   const updateLaundryBagNumber = async (recordId, bagNumber) => {
@@ -3765,8 +3855,10 @@ export const AppProvider = ({ children }) => {
     addLunchBagRecord,
     removeMealAttendanceRecord,
     addShowerRecord,
+  importShowerAttendanceRecord,
     addShowerWaitlist,
     addLaundryRecord,
+  importLaundryAttendanceRecord,
     updateLaundryStatus,
     updateLaundryBagNumber,
     addBicycleRecord,

@@ -7,6 +7,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { pacificDateStringFrom } from "../utils/date";
 
 const AttendanceBatchUpload = () => {
   const {
@@ -17,8 +18,8 @@ const AttendanceBatchUpload = () => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
-    addShowerRecord,
-    addLaundryRecord,
+    importShowerAttendanceRecord,
+    importLaundryAttendanceRecord,
     addBicycleRecord,
     addHaircutRecord,
     addHolidayRecord,
@@ -45,6 +46,31 @@ const AttendanceBatchUpload = () => {
     Bicycle: "bicycle",
     "Hair Cut": "haircuts",
     Holiday: "holiday",
+  };
+
+  const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+  const normalizeDateInputToISO = (value) => {
+    if (!value) return null;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString();
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    if (DATE_ONLY_REGEX.test(raw)) {
+      const [year, month, day] = raw.split("-").map(Number);
+      if ([year, month, day].some((n) => Number.isNaN(n))) return null;
+      const isoDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+      return Number.isNaN(isoDate.getTime()) ? null : isoDate.toISOString();
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+    return null;
   };
 
   const parseCSV = (content) => {
@@ -111,9 +137,11 @@ const AttendanceBatchUpload = () => {
           return i === -1 ? "" : (values[i] || "").trim();
         };
 
-        const attendanceId = get("attendance_id");
-        const guestId = get("guest_id");
-        const count = parseInt(get("count")) || 1;
+  const attendanceId = get("attendance_id");
+  const guestId = get("guest_id");
+  const rawCount = get("count");
+  const parsedCount = Number.parseInt(rawCount, 10);
+  const count = Number.isNaN(parsedCount) ? 1 : Math.max(parsedCount, 1);
         const program = get("program").trim();
         const dateSubmitted = get("date_submitted").trim();
 
@@ -163,6 +191,9 @@ const AttendanceBatchUpload = () => {
           );
         }
 
+        const normalizedDateIso =
+          normalizeDateInputToISO(parsedDate) ?? parsedDate.toISOString();
+
         // For guest-specific programs, validate guest exists
         // Exception: Special guest IDs that map to meal types (only for Meal program)
         if (!guestId) {
@@ -199,8 +230,9 @@ const AttendanceBatchUpload = () => {
           count,
           program: normalizedProgram,
           programType: PROGRAM_TYPES[normalizedProgram],
-          dateSubmitted: parsedDate.toISOString(),
+          dateSubmitted: normalizedDateIso,
           originalDate: dateSubmitted,
+          rawCount,
           isSpecialId,
           specialMapping,
         };
@@ -218,16 +250,23 @@ const AttendanceBatchUpload = () => {
 
     records.forEach((record, index) => {
       try {
-        const { guestId, programType, isSpecialId, specialMapping, count, dateSubmitted } = record;
+        const {
+          guestId,
+          programType,
+          isSpecialId,
+          specialMapping,
+          count,
+          dateSubmitted,
+        } = record;
 
         // Handle special guest IDs that map to meal types
         if (isSpecialId && specialMapping) {
           // Extract date in YYYY-MM-DD format for meal records
-          const dateOnly = dateSubmitted.slice(0, 10);
-          
+          const dateOnly = pacificDateStringFrom(dateSubmitted);
+
           switch (specialMapping.type) {
             case "extra":
-              addExtraMealRecord(count, dateOnly);
+              addExtraMealRecord(null, count, dateOnly);
               break;
             case "rv":
               addRvMealRecord(count, dateOnly);
@@ -257,17 +296,37 @@ const AttendanceBatchUpload = () => {
         // Handle regular guest-based records
         switch (programType) {
           case "meals":
-            addMealRecord(parseInt(guestId), record.count);
+            addMealRecord(Number.parseInt(guestId, 10), count, dateSubmitted);
             successCount++;
             break;
-          case "showers":
-            addShowerRecord(parseInt(guestId), { override: true });
-            successCount++;
+          case "showers": {
+            if (!guestId) {
+              throw new Error("Missing guest ID for shower record");
+            }
+            const importedShowers = importShowerAttendanceRecord(
+              parseInt(guestId, 10),
+              {
+                dateSubmitted,
+                count,
+              },
+            );
+            successCount += importedShowers.length;
             break;
-          case "laundry":
-            addLaundryRecord(parseInt(guestId), { override: true });
-            successCount++;
+          }
+          case "laundry": {
+            if (!guestId) {
+              throw new Error("Missing guest ID for laundry record");
+            }
+            const importedLaundry = importLaundryAttendanceRecord(
+              parseInt(guestId, 10),
+              {
+                dateSubmitted,
+                count,
+              },
+            );
+            successCount += importedLaundry.length;
             break;
+          }
           case "bicycle":
             addBicycleRecord(parseInt(guestId), {
               repairType: "Legacy Import",
