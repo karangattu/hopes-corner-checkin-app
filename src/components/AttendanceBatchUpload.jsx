@@ -7,7 +7,10 @@ import {
   FileText,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
-import { pacificDateStringFrom } from "../utils/date";
+import {
+  pacificDateStringFrom,
+  isoFromPacificDateString,
+} from "../utils/date";
 
 const AttendanceBatchUpload = () => {
   const {
@@ -261,24 +264,26 @@ const AttendanceBatchUpload = () => {
 
         // Handle special guest IDs that map to meal types
         if (isSpecialId && specialMapping) {
-          // Extract date in YYYY-MM-DD format for meal records
-          const dateOnly = pacificDateStringFrom(dateSubmitted);
+          // Convert ISO timestamp to a Pacific date string, then back to ISO
+          // This ensures the date is correctly represented in Pacific time
+          const pacificDateStr = pacificDateStringFrom(dateSubmitted);
+          const dateIso = isoFromPacificDateString(pacificDateStr);
 
           switch (specialMapping.type) {
             case "extra":
-              addExtraMealRecord(null, count, dateOnly);
+              addExtraMealRecord(null, count, dateIso);
               break;
             case "rv":
-              addRvMealRecord(count, dateOnly);
+              addRvMealRecord(count, dateIso);
               break;
             case "lunch_bag":
-              addLunchBagRecord(count, dateOnly);
+              addLunchBagRecord(count, dateIso);
               break;
             case "day_worker":
-              addDayWorkerMealRecord(count, dateOnly);
+              addDayWorkerMealRecord(count, dateIso);
               break;
             case "shelter":
-              addShelterMealRecord(count, dateOnly);
+              addShelterMealRecord(count, dateIso);
               break;
             default:
               throw new Error(`Unknown special meal type: ${specialMapping.type}`);
@@ -305,10 +310,14 @@ const AttendanceBatchUpload = () => {
         }
         
         const internalGuestId = guest.id;
+        
+        // Ensure the date is correctly represented in Pacific time
+        const pacificDateStr = pacificDateStringFrom(dateSubmitted);
+        const dateIso = isoFromPacificDateString(pacificDateStr);
 
         switch (programType) {
           case "meals":
-            addMealRecord(internalGuestId, count, dateSubmitted);
+            addMealRecord(internalGuestId, count, dateIso);
             successCount++;
             break;
           case "showers": {
@@ -318,7 +327,7 @@ const AttendanceBatchUpload = () => {
             const importedShowers = importShowerAttendanceRecord(
               internalGuestId,
               {
-                dateSubmitted,
+                dateSubmitted: dateIso,
                 count,
               },
             );
@@ -332,7 +341,7 @@ const AttendanceBatchUpload = () => {
             const importedLaundry = importLaundryAttendanceRecord(
               internalGuestId,
               {
-                dateSubmitted,
+                dateSubmitted: dateIso,
                 count,
               },
             );
@@ -343,7 +352,7 @@ const AttendanceBatchUpload = () => {
             addBicycleRecord(internalGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
-              dateOverride: dateSubmitted,
+              dateOverride: dateIso,
             });
             successCount++;
             break;

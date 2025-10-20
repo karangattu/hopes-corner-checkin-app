@@ -11,6 +11,38 @@ const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
+// Mock Firebase modules
+vi.mock("firebase/app", () => ({
+  initializeApp: vi.fn(() => ({})),
+  getApp: vi.fn(() => ({})),
+}));
+
+vi.mock("firebase/auth", () => ({
+  getAuth: vi.fn(() => ({})),
+  onAuthStateChanged: vi.fn(),
+}));
+
+vi.mock("firebase/firestore", () => ({
+  getFirestore: vi.fn(() => ({})),
+  collection: vi.fn(),
+  query: vi.fn(),
+  onSnapshot: vi.fn(),
+}));
+
+vi.mock("firebase/functions", () => ({
+  getFunctions: vi.fn(() => ({})),
+  httpsCallable: vi.fn(() => vi.fn()),
+}));
+
+// Mock supabaseProxyClient to prevent Firebase Functions initialization
+vi.mock("../../../supabaseProxyClient", () => ({
+  supabaseProxy: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => Promise.resolve({ data: [], error: null })),
+    })),
+  },
+}));
+
 vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContext,
 }));
