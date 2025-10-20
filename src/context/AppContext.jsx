@@ -1608,8 +1608,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const addRvMealRecord = async (count, dateOverride = null) => {
-    const makeISOForDate = (dateStr) =>
-      new Date(`${dateStr}T12:00:00`).toISOString();
+    const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
+      return new Date(`${dateStr}T12:00:00`).toISOString();
+    };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
       : new Date().toISOString();
@@ -1664,8 +1670,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const addShelterMealRecord = async (count, dateOverride = null) => {
-    const makeISOForDate = (dateStr) =>
-      new Date(`${dateStr}T12:00:00`).toISOString();
+    const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
+      return new Date(`${dateStr}T12:00:00`).toISOString();
+    };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
       : new Date().toISOString();
@@ -1720,8 +1732,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const addUnitedEffortMealRecord = async (count, dateOverride = null) => {
-    const makeISOForDate = (dateStr) =>
-      new Date(`${dateStr}T12:00:00`).toISOString();
+    const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
+      return new Date(`${dateStr}T12:00:00`).toISOString();
+    };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
       : new Date().toISOString();
@@ -1785,8 +1803,14 @@ export const AppProvider = ({ children }) => {
       count = guestId;
       guestId = null;
     }
-    const makeISOForDate = (dateStr) =>
-      new Date(`${dateStr}T12:00:00`).toISOString();
+    const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
+      return new Date(`${dateStr}T12:00:00`).toISOString();
+    };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
       : new Date().toISOString();
@@ -1843,8 +1867,14 @@ export const AppProvider = ({ children }) => {
   };
 
   const addDayWorkerMealRecord = async (count, dateOverride = null) => {
-    const makeISOForDate = (dateStr) =>
-      new Date(`${dateStr}T12:00:00`).toISOString();
+    const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
+      return new Date(`${dateStr}T12:00:00`).toISOString();
+    };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
       : new Date().toISOString();
@@ -1900,6 +1930,11 @@ export const AppProvider = ({ children }) => {
 
   const addLunchBagRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
+      // If already an ISO string, return as-is
+      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+        return dateStr;
+      }
+      // Otherwise assume YYYY-MM-DD format
       const d = new Date(`${dateStr}T12:00:00`);
       return d.toISOString();
     };
