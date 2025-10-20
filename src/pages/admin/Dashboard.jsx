@@ -80,6 +80,15 @@ const Dashboard = () => {
 
   const [selectedExportGuest, setSelectedExportGuest] = useState("");
   const [selectedPrograms, setSelectedPrograms] = useState(["meals", "showers", "laundry"]);
+  const [selectedMealTypes, setSelectedMealTypes] = useState([
+    "guest",
+    "rv",
+    "shelter",
+    "unitedEffort",
+    "extras",
+    "dayWorker",
+    "lunchBags",
+  ]);
 
   const handleDateRangeSearch = () => {
     const periodMetrics = getDateRangeMetrics(startDate, endDate);
@@ -359,6 +368,14 @@ const Dashboard = () => {
     );
   };
 
+  const toggleMealType = (mealType) => {
+    setSelectedMealTypes(prev =>
+      prev.includes(mealType)
+        ? prev.filter(t => t !== mealType)
+        : [...prev, mealType]
+    );
+  };
+
   const renderReportsSection = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -432,18 +449,130 @@ const Dashboard = () => {
           )}
         </div>
 
+        {selectedPrograms.includes('meals') && (
+          <div className="mb-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Select Meal Types to Include
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "guest", label: "Guest Meals" },
+                { value: "rv", label: "RV Meals" },
+                { value: "shelter", label: "Shelter Meals" },
+                { value: "unitedEffort", label: "United Effort" },
+                { value: "extras", label: "Extra Meals" },
+                { value: "dayWorker", label: "Day Worker" },
+                { value: "lunchBags", label: "Lunch Bags" },
+              ].map(mealType => (
+                <button
+                  key={mealType.value}
+                  onClick={() => toggleMealType(mealType.value)}
+                  className={`px-3 py-1.5 rounded border transition-all text-xs ${
+                    selectedMealTypes.includes(mealType.value)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {mealType.label}
+                </button>
+              ))}
+            </div>
+            {selectedMealTypes.length === 0 && selectedPrograms.includes('meals') && (
+              <p className="text-orange-600 text-xs mt-2">
+                Select at least one meal type to see meal data
+              </p>
+            )}
+          </div>
+        )}
+
         {metrics.period && (
           <div className="mt-4 border-t pt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
               {selectedPrograms.includes('meals') && (
-                <div className="bg-gray-50 rounded p-3">
-                  <div className="flex items-center gap-2 text-gray-600 mb-1">
-                    <Utensils size={16} /> Meals Served
-                  </div>
-                  <div className="text-2xl font-bold">
-                    {metrics.period.mealsServed}
-                  </div>
-                </div>
+                <>
+                  {selectedMealTypes.includes('guest') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> Guest Meals
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.guest}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('rv') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> RV Meals
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.rv}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('shelter') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> Shelter Meals
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.shelter}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('unitedEffort') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> United Effort
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.unitedEffort}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('extras') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> Extra Meals
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.extras}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('dayWorker') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> Day Worker
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.dayWorker}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.includes('lunchBags') && (
+                    <div className="bg-blue-50 rounded p-3 border border-blue-200">
+                      <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
+                        <Utensils size={14} /> Lunch Bags
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {metrics.period.mealsByType.lunchBags}
+                      </div>
+                    </div>
+                  )}
+                  {selectedMealTypes.length > 0 && (
+                    <div className="bg-blue-100 rounded p-3 border-2 border-blue-400">
+                      <div className="flex items-center gap-2 text-blue-800 mb-1 text-xs font-semibold">
+                        <Utensils size={14} /> Total Meals
+                      </div>
+                      <div className="text-xl font-bold text-blue-900">
+                        {selectedMealTypes.reduce((sum, type) => 
+                          sum + (metrics.period.mealsByType[type] || 0), 0
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {selectedPrograms.includes('showers') && (
@@ -510,6 +639,7 @@ const Dashboard = () => {
                 <DateRangeTrendChart
                   days={metrics.period.dailyBreakdown}
                   selectedPrograms={selectedPrograms}
+                  selectedMealTypes={selectedMealTypes}
                 />
               </Animated.div>
             )}
@@ -529,20 +659,29 @@ const Dashboard = () => {
                 </thead>
                 <tbody>
                   {metrics.period.dailyBreakdown
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .map((day) => (
-                      <tr key={day.date} className="border-b">
-                        <td className="px-4 py-2">
-                          {new Date(day.date).toLocaleDateString()}
-                        </td>
-                        {selectedPrograms.includes('meals') && <td className="px-4 py-2 text-right">{day.meals}</td>}
-                        {selectedPrograms.includes('showers') && <td className="px-4 py-2 text-right">{day.showers}</td>}
-                        {selectedPrograms.includes('laundry') && <td className="px-4 py-2 text-right">{day.laundry}</td>}
-                        {selectedPrograms.includes('haircuts') && <td className="px-4 py-2 text-right">{day.haircuts || 0}</td>}
-                        {selectedPrograms.includes('holidays') && <td className="px-4 py-2 text-right">{day.holidays || 0}</td>}
-                        {selectedPrograms.includes('bicycles') && <td className="px-4 py-2 text-right">{day.bicycles || 0}</td>}
-                      </tr>
-                    ))}
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map((day) => {
+                      // Calculate filtered meal total based on selected meal types
+                      const filteredMealTotal = selectedPrograms.includes('meals') && day.mealsByType
+                        ? selectedMealTypes.reduce((sum, type) => sum + (day.mealsByType[type] || 0), 0)
+                        : day.meals;
+                      
+                      return (
+                        <tr key={day.date} className="border-b">
+                          <td className="px-4 py-2">
+                            {new Date(day.date).toLocaleDateString()}
+                          </td>
+                          {selectedPrograms.includes('meals') && (
+                            <td className="px-4 py-2 text-right">{filteredMealTotal}</td>
+                          )}
+                          {selectedPrograms.includes('showers') && <td className="px-4 py-2 text-right">{day.showers}</td>}
+                          {selectedPrograms.includes('laundry') && <td className="px-4 py-2 text-right">{day.laundry}</td>}
+                          {selectedPrograms.includes('haircuts') && <td className="px-4 py-2 text-right">{day.haircuts || 0}</td>}
+                          {selectedPrograms.includes('holidays') && <td className="px-4 py-2 text-right">{day.holidays || 0}</td>}
+                          {selectedPrograms.includes('bicycles') && <td className="px-4 py-2 text-right">{day.bicycles || 0}</td>}
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>

@@ -8,6 +8,12 @@ import AuthContext, { AuthProvider } from "../AuthContext";
 const mockSignIn = vi.fn();
 const mockSignOut = vi.fn();
 const mockResetPassword = vi.fn();
+const mockOnAuthStateChanged = vi.fn((auth, callback) => {
+  // Immediately call callback with no user (logged out state)
+  callback(null);
+  // Return unsubscribe function
+  return vi.fn();
+});
 
 vi.mock("firebase/auth", () => ({
   getAuth: vi.fn(() => ({
@@ -18,6 +24,7 @@ vi.mock("firebase/auth", () => ({
   signInWithEmailAndPassword: mockSignIn,
   signOut: mockSignOut,
   sendPasswordResetEmail: mockResetPassword,
+  onAuthStateChanged: mockOnAuthStateChanged,
 }));
 
 vi.mock("firebase/app", () => ({

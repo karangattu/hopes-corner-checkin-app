@@ -74,7 +74,7 @@ describe("ShowerBooking", () => {
 
   it("displays slot details correctly", () => {
     mockContext.showerRecords = [
-      { guestId: "1", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec1", guestId: "1", time: "08:00", date: "2025-10-09", status: "booked" },
     ];
     render(<ShowerBooking />);
 
@@ -118,14 +118,14 @@ describe("ShowerBooking", () => {
 
   it("allows adding to waitlist when all slots full", () => {
     mockContext.showerRecords = [
-      { guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
-      { guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
-      { guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
-      { guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
-      { guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
-      { guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
-      { guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
+      { id: "rec2", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec3", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec4", guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
+      { id: "rec5", guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
+      { id: "rec6", guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
+      { id: "rec7", guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
+      { id: "rec8", guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
+      { id: "rec9", guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
     ];
     render(<ShowerBooking />);
 
@@ -138,8 +138,8 @@ describe("ShowerBooking", () => {
 
   it("displays guest shower history", () => {
     mockContext.showerRecords = [
-      { guestId: "1", time: "08:00", date: "2025-10-08", status: "done" },
-      { guestId: "1", time: "09:00", date: "2025-10-07", status: "booked" },
+      { id: "rec10", guestId: "1", time: "08:00", date: "2025-10-08", status: "done" },
+      { id: "rec11", guestId: "1", time: "09:00", date: "2025-10-07", status: "booked" },
     ];
     render(<ShowerBooking />);
 
@@ -159,7 +159,7 @@ describe("ShowerBooking", () => {
 
   it("shows capacity progress", () => {
     mockContext.showerRecords = [
-      { guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec12", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
     ];
     render(<ShowerBooking />);
 
@@ -169,8 +169,8 @@ describe("ShowerBooking", () => {
 
   it("sorts slots with available first", () => {
     mockContext.showerRecords = [
-      { guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" }, // Full
+      { id: "rec13", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec14", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" }, // Full
     ];
     render(<ShowerBooking />);
 
@@ -183,14 +183,14 @@ describe("ShowerBooking", () => {
     });
     // Make all slots full so the waitlist UI appears
     mockContext.showerRecords = [
-      { guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
-      { guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
-      { guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
-      { guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
-      { guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
-      { guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
-      { guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
+      { id: "rec15", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec16", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
+      { id: "rec17", guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
+      { id: "rec18", guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
+      { id: "rec19", guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
+      { id: "rec20", guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
+      { id: "rec21", guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
+      { id: "rec22", guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
     ];
     render(<ShowerBooking />);
 

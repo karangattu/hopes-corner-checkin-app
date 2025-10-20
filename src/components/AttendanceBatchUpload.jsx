@@ -294,9 +294,21 @@ const AttendanceBatchUpload = () => {
         }
 
         // Handle regular guest-based records
+        // Look up the guest by their guestId (from CSV, like M30343542 or G12345)
+        // to get their internal database id
+        const guest = guests.find(
+          (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+        );
+        
+        if (!guest) {
+          throw new Error(`Guest with ID "${guestId}" not found`);
+        }
+        
+        const internalGuestId = guest.id;
+
         switch (programType) {
           case "meals":
-            addMealRecord(Number.parseInt(guestId, 10), count, dateSubmitted);
+            addMealRecord(internalGuestId, count, dateSubmitted);
             successCount++;
             break;
           case "showers": {
@@ -304,7 +316,7 @@ const AttendanceBatchUpload = () => {
               throw new Error("Missing guest ID for shower record");
             }
             const importedShowers = importShowerAttendanceRecord(
-              parseInt(guestId, 10),
+              internalGuestId,
               {
                 dateSubmitted,
                 count,
@@ -318,7 +330,7 @@ const AttendanceBatchUpload = () => {
               throw new Error("Missing guest ID for laundry record");
             }
             const importedLaundry = importLaundryAttendanceRecord(
-              parseInt(guestId, 10),
+              internalGuestId,
               {
                 dateSubmitted,
                 count,
@@ -328,18 +340,18 @@ const AttendanceBatchUpload = () => {
             break;
           }
           case "bicycle":
-            addBicycleRecord(parseInt(guestId), {
+            addBicycleRecord(internalGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
             });
             successCount++;
             break;
           case "haircuts":
-            addHaircutRecord(parseInt(guestId));
+            addHaircutRecord(internalGuestId);
             successCount++;
             break;
           case "holiday":
-            addHolidayRecord(parseInt(guestId));
+            addHolidayRecord(internalGuestId);
             successCount++;
             break;
           default:

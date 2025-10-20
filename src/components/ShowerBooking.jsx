@@ -79,7 +79,10 @@ const ShowerBooking = () => {
         const count = todaysRecords.length;
         const guestsInSlot = todaysRecords.map((record) => {
           const guest = guests?.find((g) => g.id === record.guestId);
-          return guest?.name || "Guest";
+          return {
+            id: record.id,
+            name: guest?.name || "Guest",
+          };
         });
         const statuses = todaysRecords.map((record) => record.status);
         return {
@@ -310,12 +313,12 @@ const ShowerBooking = () => {
                   </div>
                   <div className="flex flex-wrap gap-1 w-full">
                     {slot.guests.length > 0 ? (
-                      slot.guests.map((name, idx) => (
+                      slot.guests.map((guest) => (
                         <span
-                          key={`${slot.slotTime}-${idx}`}
+                          key={guest.id}
                           className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 max-w-full truncate"
                         >
-                          {name}
+                          {guest.name}
                         </span>
                       ))
                     ) : (

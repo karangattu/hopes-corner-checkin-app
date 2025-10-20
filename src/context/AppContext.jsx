@@ -2765,6 +2765,7 @@ export const AppProvider = ({ children }) => {
 
     const periodMeals = mealRecords.filter((r) => inRange(r.date));
     const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
+    const periodShelterMeals = shelterMealRecords.filter((r) => inRange(r.date));
     const periodUeMeals = unitedEffortMealRecords.filter((r) =>
       inRange(r.date),
     );
@@ -2772,6 +2773,7 @@ export const AppProvider = ({ children }) => {
     const periodDayWorkerMeals = dayWorkerMealRecords.filter((r) =>
       inRange(r.date),
     );
+    const periodLunchBags = lunchBagRecords.filter((r) => inRange(r.date));
     const periodShowers = showerRecords.filter((r) => inRange(r.date));
     const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
     const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
@@ -2794,72 +2796,111 @@ export const AppProvider = ({ children }) => {
       return true;
     };
 
-    [
-      ...periodMeals,
-      ...periodRvMeals,
-      ...periodUeMeals,
-      ...periodExtraMeals,
-      ...periodDayWorkerMeals,
-      ...periodShowers,
-      ...periodLaundry,
-    ].forEach((record) => {
-      const date = pacificDateStringFrom(record.date);
-      if (!dailyMetrics[date]) {
-        dailyMetrics[date] = {
-          meals: 0,
-          showers: 0,
-          laundry: 0,
-          haircuts: 0,
-          holidays: 0,
-          bicycles: 0,
-        };
-      }
-
-      if ("count" in record) {
-        dailyMetrics[date].meals += record.count;
-      } else if (periodShowers.some((s) => s.id === record.id)) {
-        dailyMetrics[date].showers += 1;
-      } else if (periodLaundry.some((l) => l.id === record.id)) {
-        if (countsAsLaundryLoad(record)) dailyMetrics[date].laundry += 1;
-      }
+    const initDailyMetric = () => ({
+      meals: 0,
+      mealsByType: {
+        guest: 0,
+        rv: 0,
+        shelter: 0,
+        unitedEffort: 0,
+        extras: 0,
+        dayWorker: 0,
+        lunchBags: 0,
+      },
+      showers: 0,
+      laundry: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
     });
+
+    // Process guest meals
+    periodMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count;
+      dailyMetrics[date].mealsByType.guest += record.count;
+    });
+
+    // Process RV meals
+    periodRvMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.rv += record.count || 0;
+    });
+
+    // Process shelter meals
+    periodShelterMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.shelter += record.count || 0;
+    });
+
+    // Process united effort meals
+    periodUeMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.unitedEffort += record.count || 0;
+    });
+
+    // Process extra meals
+    periodExtraMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.extras += record.count || 0;
+    });
+
+    // Process day worker meals
+    periodDayWorkerMeals.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.dayWorker += record.count || 0;
+    });
+
+    // Process lunch bags
+    periodLunchBags.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].meals += record.count || 0;
+      dailyMetrics[date].mealsByType.lunchBags += record.count || 0;
+    });
+
+    // Process showers
+    periodShowers.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      dailyMetrics[date].showers += 1;
+    });
+
+    // Process laundry
+    periodLaundry.forEach((record) => {
+      const date = pacificDateStringFrom(record.date);
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+      if (countsAsLaundryLoad(record)) dailyMetrics[date].laundry += 1;
+    });
+    // Process haircuts
     periodHaircuts.forEach((r) => {
       const date = pacificDateStringFrom(r.date);
-      if (!dailyMetrics[date])
-        dailyMetrics[date] = {
-          meals: 0,
-          showers: 0,
-          laundry: 0,
-          haircuts: 0,
-          holidays: 0,
-          bicycles: 0,
-        };
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
       dailyMetrics[date].haircuts += 1;
     });
+
+    // Process holidays
     periodHolidays.forEach((r) => {
       const date = pacificDateStringFrom(r.date);
-      if (!dailyMetrics[date])
-        dailyMetrics[date] = {
-          meals: 0,
-          showers: 0,
-          laundry: 0,
-          haircuts: 0,
-          holidays: 0,
-          bicycles: 0,
-        };
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
       dailyMetrics[date].holidays += 1;
     });
+
+    // Process bicycles
     periodBicycles.forEach((r) => {
       const date = pacificDateStringFrom(r.date);
-      if (!dailyMetrics[date])
-        dailyMetrics[date] = {
-          meals: 0,
-          showers: 0,
-          laundry: 0,
-          haircuts: 0,
-          holidays: 0,
-          bicycles: 0,
-        };
+      if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
       dailyMetrics[date].bicycles += 1;
     });
 
@@ -2867,13 +2908,32 @@ export const AppProvider = ({ children }) => {
       .map(([date, metrics]) => ({ date, ...metrics }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    const guestMealsCount = periodMeals.reduce((sum, record) => sum + record.count, 0);
+    const rvMealsCount = periodRvMeals.reduce((s, r) => s + (r.count || 0), 0);
+    const shelterMealsCount = periodShelterMeals.reduce((s, r) => s + (r.count || 0), 0);
+    const unitedEffortMealsCount = periodUeMeals.reduce((s, r) => s + (r.count || 0), 0);
+    const extraMealsCount = periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0);
+    const dayWorkerMealsCount = periodDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0);
+    const lunchBagsCount = periodLunchBags.reduce((s, r) => s + (r.count || 0), 0);
+
     return {
       mealsServed:
-        periodMeals.reduce((sum, record) => sum + record.count, 0) +
-        periodRvMeals.reduce((s, r) => s + (r.count || 0), 0) +
-        periodUeMeals.reduce((s, r) => s + (r.count || 0), 0) +
-        periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0) +
-        periodDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0),
+        guestMealsCount +
+        rvMealsCount +
+        shelterMealsCount +
+        unitedEffortMealsCount +
+        extraMealsCount +
+        dayWorkerMealsCount +
+        lunchBagsCount,
+      mealsByType: {
+        guest: guestMealsCount,
+        rv: rvMealsCount,
+        shelter: shelterMealsCount,
+        unitedEffort: unitedEffortMealsCount,
+        extras: extraMealsCount,
+        dayWorker: dayWorkerMealsCount,
+        lunchBags: lunchBagsCount,
+      },
       showersBooked: periodShowers.length,
       laundryLoads: periodLaundry.reduce(
         (sum, r) => sum + (countsAsLaundryLoad(r) ? 1 : 0),

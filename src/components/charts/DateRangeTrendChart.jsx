@@ -13,14 +13,22 @@ const PROGRAM_TYPES = [
   { value: "bicycles", label: "Bicycles", color: "#06b6d4" },
 ];
 
-const DateRangeTrendChart = ({ days, selectedPrograms }) => {
+const DateRangeTrendChart = ({ days, selectedPrograms, selectedMealTypes = [] }) => {
   const chartRef = useRef(null);
 
-  const chartData = days.map(day => ({
-    date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    fullDate: day.date,
-    ...day,
-  }));
+  const chartData = days.map(day => {
+    // Calculate filtered meal total based on selected meal types
+    const filteredMealTotal = day.mealsByType && selectedMealTypes.length > 0
+      ? selectedMealTypes.reduce((sum, type) => sum + (day.mealsByType[type] || 0), 0)
+      : day.meals;
+
+    return {
+      date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      fullDate: day.date,
+      ...day,
+      meals: filteredMealTotal, // Override meals with filtered total
+    };
+  });
 
   const handleExportChart = async () => {
     try {
