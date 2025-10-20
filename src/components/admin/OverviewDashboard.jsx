@@ -194,6 +194,16 @@ const OverviewDashboard = ({
     formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
   );
 
+  // Date range filters for demographic visualizations
+  const [demographicsStartDate, setDemographicsStartDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-01-01`;
+  });
+  const [demographicsEndDate, setDemographicsEndDate] = useState(() => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  });
+
   // Keep temp targets in sync when not actively editing
   React.useEffect(() => {
     if (!isEditingTargets) {
@@ -236,47 +246,62 @@ const OverviewDashboard = ({
     }
   }, [isEditingTargets, settings.targets]);
 
+  // Helper function to check if guest's creation date falls within the filter range
+  const isGuestInDateRange = useCallback((guest, startDate, endDate) => {
+    // If guest has no createdAt, use start of year (2025-01-01)
+    const guestDate = guest.createdAt 
+      ? new Date(guest.createdAt).toISOString().split('T')[0]
+      : `${new Date().getFullYear()}-01-01`;
+    
+    return guestDate >= startDate && guestDate <= endDate;
+  }, []);
+
   const todayMetrics = getTodayMetrics();
+
+  // Filter guests by date range
+  const filteredGuestsForDemographics = useMemo(() => {
+    return guests.filter(guest => isGuestInDateRange(guest, demographicsStartDate, demographicsEndDate));
+  }, [guests, demographicsStartDate, demographicsEndDate, isGuestInDateRange]);
 
   // Calculate housing status breakdown
   const housingStatusCounts = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const status = guest.housingStatus || "Unknown";
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   // Calculate age group breakdown
   const ageGroupCounts = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const age = guest.age || "Unknown";
       acc[age] = (acc[age] || 0) + 1;
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   // Calculate gender breakdown
   const genderCounts = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const gender = guest.gender || "Unknown";
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   // Calculate location breakdown
   const locationCounts = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const location = guest.location || "Unknown";
       acc[location] = (acc[location] || 0) + 1;
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   // Calculate Age Group by City (cross-tabulation)
   const ageGroupByCity = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const city = guest.location || "Unknown";
       const ageGroup = guest.age || "Unknown";
       
@@ -287,11 +312,11 @@ const OverviewDashboard = ({
       
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   // Calculate Housing Status by City (cross-tabulation)
   const housingStatusByCity = useMemo(() => {
-    return guests.reduce((acc, guest) => {
+    return filteredGuestsForDemographics.reduce((acc, guest) => {
       const city = guest.location || "Unknown";
       const status = guest.housingStatus || "Unknown";
       
@@ -302,7 +327,7 @@ const OverviewDashboard = ({
       
       return acc;
     }, {});
-  }, [guests]);
+  }, [filteredGuestsForDemographics]);
 
   const completedLaundryStatuses = useMemo(
     () =>
@@ -670,6 +695,42 @@ const OverviewDashboard = ({
             colorClass="blue"
           />
         </Animated.div>
+      </div>
+
+      {/* Demographics Date Range Filter */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Filter Demographics by Date Range
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="demo-start-date" className="block text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <input
+              id="demo-start-date"
+              type="date"
+              value={demographicsStartDate}
+              onChange={(e) => setDemographicsStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="demo-end-date" className="block text-sm font-medium text-gray-700 mb-1">
+              End Date
+            </label>
+            <input
+              id="demo-end-date"
+              type="date"
+              value={demographicsEndDate}
+              onChange={(e) => setDemographicsEndDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Showing {filteredGuestsForDemographics.length} guest(s) in selected date range
+        </p>
       </div>
 
       {/* Cross-Tabulated Demographics */}

@@ -16,6 +16,7 @@ const SPECIAL_GUEST_IDS = [
   "M47721243", // Lunch Bag
   "M29017132", // Day Worker meals
   "M61706731", // Shelter meals
+  "M65842216", // United Effort meals
 ];
 
 const GuestBatchUpload = () => {

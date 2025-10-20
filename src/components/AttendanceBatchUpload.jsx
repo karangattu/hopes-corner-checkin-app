@@ -18,6 +18,7 @@ const AttendanceBatchUpload = () => {
     addMealRecord,
     addRvMealRecord,
     addShelterMealRecord,
+    addUnitedEffortMealRecord,
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
@@ -39,6 +40,7 @@ const AttendanceBatchUpload = () => {
     M47721243: { type: "lunch_bag", handler: "addLunchBagRecord", label: "Lunch bags" },
     M29017132: { type: "day_worker", handler: "addDayWorkerMealRecord", label: "Day Worker Center meals" },
     M61706731: { type: "shelter", handler: "addShelterMealRecord", label: "Shelter meals" },
+    M65842216: { type: "united_effort", handler: "addUnitedEffortMealRecord", label: "United Effort meals" },
   };
 
   // Program type mapping for CSV import
@@ -284,6 +286,9 @@ const AttendanceBatchUpload = () => {
               break;
             case "shelter":
               addShelterMealRecord(count, dateIso);
+              break;
+            case "united_effort":
+              addUnitedEffortMealRecord(count, dateIso);
               break;
             default:
               throw new Error(`Unknown special meal type: ${specialMapping.type}`);
