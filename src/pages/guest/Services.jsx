@@ -168,6 +168,9 @@ const Services = () => {
   const [showQuickActions] = useState(true);
   const [quickActionsVisible, setQuickActionsVisible] = useState(false);
 
+  // Timeline filter state
+  const [timelineViewFilter, setTimelineViewFilter] = useState("all");
+
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
   const [showUndoPanel, setShowUndoPanel] = useState(false);
@@ -1569,6 +1572,43 @@ const Services = () => {
     setNewBagNumber(currentBagNumber || "");
   };
 
+  const handleBagNumberChange = useCallback((value) => {
+    setNewBagNumber(value);
+  }, []);
+
+  const handleBagNumberKeyDown = useCallback((e, event) => {
+    if (e.key === "Enter") {
+      if (event.originalRecord && newBagNumber) {
+        updateLaundryBagNumber(event.originalRecord.id, parseInt(newBagNumber, 10));
+        setEditingBagNumber(null);
+        setNewBagNumber("");
+        toast.success(`Bag #${newBagNumber} updated`);
+      }
+    } else if (e.key === "Escape") {
+      setEditingBagNumber(null);
+      setNewBagNumber("");
+    }
+  }, [newBagNumber, updateLaundryBagNumber]);
+
+  const handleBagNumberSave = useCallback((event) => {
+    if (event.originalRecord && newBagNumber) {
+      updateLaundryBagNumber(event.originalRecord.id, parseInt(newBagNumber, 10));
+      setEditingBagNumber(null);
+      setNewBagNumber("");
+      toast.success(`Bag #${newBagNumber} updated`);
+    }
+  }, [newBagNumber, updateLaundryBagNumber]);
+
+  const handleBagNumberCancel = useCallback(() => {
+    setEditingBagNumber(null);
+    setNewBagNumber("");
+  }, []);
+
+  const handleBagNumberEdit = useCallback((eventId, bagNumber) => {
+    setEditingBagNumber(eventId);
+    setNewBagNumber(bagNumber?.toString() || "");
+  }, []);
+
   const handleUndoAction = async (actionId) => {
     const success = await undoAction(actionId);
     if (success) {
@@ -1639,15 +1679,16 @@ const Services = () => {
     const isCompleted = record.status === "done";
 
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         {/* Reschedule button */}
         <button
           type="button"
           onClick={() => setShowerPickerGuest(record.guestId)}
-          className="p-1 rounded hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 transition-all font-medium text-sm"
           title="Reschedule shower"
         >
-          <Calendar size={14} />
+          <Calendar size={18} />
+          <span className="hidden sm:inline">Reschedule</span>
         </button>
 
         {/* Toggle completion status */}
@@ -1660,17 +1701,23 @@ const Services = () => {
               nextStatus === "done" ? "Marked as completed" : "Reopened shower",
             );
           }}
-          className={`p-1 rounded text-xs px-2 py-1 ${
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${
             isCompleted
-              ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+              ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300"
+              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300"
           }`}
           title={isCompleted ? "Reopen shower" : "Mark as done"}
         >
           {isCompleted ? (
-            <RotateCcw size={12} />
+            <>
+              <RotateCcw size={18} />
+              <span className="hidden sm:inline">Reopen</span>
+            </>
           ) : (
-            <CheckCircle2Icon size={12} />
+            <>
+              <CheckCircle2Icon size={18} />
+              <span className="hidden sm:inline">Complete</span>
+            </>
           )}
         </button>
       </div>
@@ -1761,7 +1808,7 @@ const Services = () => {
 
     return (
       <div
-        className="flex items-center gap-1"
+        className="flex items-center gap-2 flex-wrap"
         title={statusTooltip}
         aria-label={statusTooltip}
       >
@@ -1769,10 +1816,11 @@ const Services = () => {
         <button
           type="button"
           onClick={() => startEditingBagNumber(record.id, record.bagNumber)}
-          className="p-1 rounded hover:bg-purple-50 text-purple-600 hover:text-purple-700"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-purple-50 text-purple-600 hover:text-purple-700 border border-purple-200 hover:border-purple-300 transition-all font-medium text-sm"
           title="Edit bag number"
         >
-          <Edit3 size={12} />
+          <Edit3 size={18} />
+          <span className="hidden sm:inline">Bag</span>
         </button>
 
         {/* Status progression buttons */}
@@ -1785,10 +1833,11 @@ const Services = () => {
               onClick={() =>
                 attemptLaundryStatusChange(record, buttonConfig.value)
               }
-              className={`text-xs font-medium px-2 py-1 rounded border transition-colors ${buttonConfig.idleClass}`}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${buttonConfig.idleClass}`}
               title={buttonConfig.label}
             >
-              <Icon size={12} />
+              <Icon size={18} />
+              <span className="hidden sm:inline">{buttonConfig.label}</span>
             </button>
           );
         })}
@@ -1797,10 +1846,11 @@ const Services = () => {
         <button
           type="button"
           onClick={() => setLaundryPickerGuest(record.guestId)}
-          className="p-1 rounded hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 transition-all font-medium text-sm"
           title="Reschedule laundry"
         >
-          <Calendar size={14} />
+          <Calendar size={18} />
+          <span className="hidden sm:inline">Reschedule</span>
         </button>
       </div>
     );
@@ -1832,36 +1882,36 @@ const Services = () => {
         {/* Quick Actions Section */}
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4 border border-blue-100">
           <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <SquarePlus size={16} className="text-blue-600" />
+            <SquarePlus size={18} className="text-blue-600" />
             Quick Add Services
           </h3>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveSection("showers")}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg text-sm font-medium transition-colors"
             >
-              <ShowerHead size={14} />
+              <ShowerHead size={18} />
               Add Shower
             </button>
             <button
               onClick={() => setActiveSection("laundry")}
-              className="flex items-center gap-2 px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-sm font-medium transition-colors"
             >
-              <WashingMachine size={14} />
+              <WashingMachine size={18} />
               Add Laundry
             </button>
             <button
               onClick={() => setActiveSection("meals")}
-              className="flex items-center gap-2 px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-sm font-medium transition-colors"
             >
-              <Utensils size={14} />
+              <Utensils size={18} />
               Add Meal
             </button>
             <button
               onClick={() => setActiveSection("bicycles")}
-              className="flex items-center gap-2 px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-sky-100 hover:bg-sky-200 text-sky-800 rounded-lg text-sm font-medium transition-colors"
             >
-              <Bike size={14} />
+              <Bike size={18} />
               Add Bicycle
             </button>
           </div>
@@ -1875,35 +1925,77 @@ const Services = () => {
               <p className="text-xs uppercase tracking-[0.2em] text-white/70 font-semibold">
                 Field operations
               </p>
-              <h2 className="text-2xl font-semibold mt-2">Today's timeline</h2>
+              <h2 className="text-2xl font-semibold mt-2">Today's services at a glance</h2>
               <p className="text-sm text-white/80 mt-3 max-w-xl">
-                Follow showers and laundry from the first slot to the last
-                pickup. Use the stats below to balance staff coverage and keep
-                the queues moving.
+                Track and manage all showers, laundry, and other services. Use tabs below to filter by type, or view all touchpoints together.
               </p>
             </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[150px]">
+            <div className="flex flex-wrap gap-3 md:gap-4">
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[140px]">
                 <div className="text-xs uppercase tracking-wide text-white/70">
-                  Logged touchpoints
+                  All touchpoints
                 </div>
                 <div className="text-lg font-semibold">
                   {totalEvents.toLocaleString()}
                 </div>
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[150px]">
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[140px]">
                 <div className="text-xs uppercase tracking-wide text-white/70">
-                  Shower queue
+                  Showers
                 </div>
                 <div className="text-lg font-semibold">
-                  {waitlistEvents.length > 0
-                    ? `${waitlistEvents.length} waiting`
-                    : "No waitlist"}
+                  {showerActive.toLocaleString()} active
                 </div>
               </div>
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[140px]">
+                <div className="text-xs uppercase tracking-wide text-white/70">
+                  Laundry
+                </div>
+                <div className="text-lg font-semibold">
+                  {laundryActive.toLocaleString()} in progress
+                </div>
+              </div>
+              {waitlistEvents.length > 0 && (
+                <div className="bg-amber-500/20 backdrop-blur rounded-xl px-4 py-3 min-w-[140px] border border-amber-400/30">
+                  <div className="text-xs uppercase tracking-wide text-amber-100">
+                    Shower queue
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {waitlistEvents.length} waiting
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Animated.div>
+
+        {/* View Filter Tabs */}
+        <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-200">
+          {[
+            { id: "all", label: "All Events", count: totalEvents, icon: null },
+            { id: "showers", label: "Showers", count: showerEvents.length, icon: ShowerHead },
+            { id: "laundry", label: "Laundry", count: laundryEvents.length, icon: WashingMachine },
+            { id: "waitlist", label: "Shower Queue", count: waitlistEvents.length, icon: Clock },
+          ].map(({ id, label, count, icon: TabIcon }) => (
+            <button
+              key={id}
+              onClick={() => setTimelineViewFilter(id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all text-sm font-medium ${
+                timelineViewFilter === id
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
+              }`}
+            >
+              {TabIcon && <TabIcon size={16} />}
+              {label}
+              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                timelineViewFilter === id ? "bg-white/20" : "bg-gray-100"
+              }`}>
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
 
         <Animated.div
           style={timelineStatsSpring}
@@ -1966,8 +2058,42 @@ const Services = () => {
               from the other tabs to populate this view.
             </div>
           ) : (
-            <ol className="relative border-l border-gray-200">
-              {timelineEvents.map((event, index) => {
+            <>
+              {(() => {
+                const filteredEvents = timelineEvents.filter((event) => {
+                  if (timelineViewFilter === "all") return true;
+                  if (timelineViewFilter === "showers") return event.type === "shower";
+                  if (timelineViewFilter === "laundry") return event.type === "laundry";
+                  if (timelineViewFilter === "waitlist") return event.type === "waitlist";
+                  return true;
+                });
+
+                if (filteredEvents.length === 0) {
+                  const suggestions = {
+                    all: "Add showers, laundry, or other services to get started.",
+                    showers: "Head to the Showers tab to book a new shower slot.",
+                    laundry: "Visit the Laundry tab to add a new load.",
+                    waitlist: "The shower waitlist is empty — all guests are scheduled or completed.",
+                  };
+
+                  return (
+                    <div className="py-8 text-center">
+                      <div className="mx-auto w-fit rounded-full bg-gray-100 p-3 mb-3">
+                        <Clock size={24} className="text-gray-400" />
+                      </div>
+                      <p className="font-semibold text-gray-700">
+                        No {timelineViewFilter === "all" ? "events" : `${timelineViewFilter}`} today
+                      </p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {suggestions[timelineViewFilter]}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <ol className="relative border-l border-gray-200">
+                    {filteredEvents.map((event, index) => {
                 const style = timelineTrail[index] || {};
                 const Icon = event.icon;
                 return (
@@ -1985,9 +2111,9 @@ const Services = () => {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex items-start gap-3">
                           <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${event.iconWrapperClass}`}
+                            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${event.iconWrapperClass}`}
                           >
-                            <Icon size={18} />
+                            <Icon size={26} />
                           </span>
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -2029,11 +2155,57 @@ const Services = () => {
                               : "Shower"}
                         </span>
                         {event.detail ? <span>{event.detail}</span> : null}
-                        {event.meta?.bagNumber ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 border border-purple-200 px-2 py-0.5 text-xs font-semibold text-purple-800">
-                            <ShoppingBag size={10} />
-                            Bag #{event.meta.bagNumber}
-                          </span>
+                        {event.meta?.bagNumber || (event.type === "laundry" && editingBagNumber === event.id) ? (
+                          editingBagNumber === event.id ? (
+                            <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-400 px-3 py-1 text-sm font-semibold text-purple-800">
+                              <input
+                                type="number"
+                                value={newBagNumber}
+                                onChange={(e) => handleBagNumberChange(e.target.value)}
+                                onKeyDown={(e) => handleBagNumberKeyDown(e, event)}
+                                autoFocus
+                                className="w-14 text-center bg-white/90 text-purple-900 rounded border border-purple-300 text-sm font-semibold placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="Bag #"
+                                min="1"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleBagNumberSave(event)}
+                                className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
+                                title="Save (Enter)"
+                              >
+                                <CheckCircle2Icon size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleBagNumberCancel}
+                                className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
+                                title="Cancel (Esc)"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleBagNumberEdit(event.id, event.meta?.bagNumber)}
+                              className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-200 hover:border-purple-300 hover:bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-800 cursor-pointer transition-colors"
+                              title="Click to edit bag number"
+                            >
+                              <ShoppingBag size={14} />
+                              Bag #{event.meta.bagNumber}
+                            </button>
+                          )
+                        ) : event.type === "laundry" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleBagNumberEdit(event.id, null)}
+                            className="inline-flex items-center gap-2 rounded-full bg-purple-50 border border-purple-200 hover:border-purple-300 hover:bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-700 cursor-pointer transition-colors"
+                            title="Click to add bag number"
+                          >
+                            <ShoppingBag size={14} />
+                            Add bag #
+                          </button>
                         ) : null}
                         {event.meta?.position ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
@@ -2042,10 +2214,13 @@ const Services = () => {
                         ) : null}
                       </div>
                     </div>
-                  </Animated.li>
+                    </Animated.li>
+                  );
+                })}
+                  </ol>
                 );
-              })}
-            </ol>
+              })()}
+            </>
           )}
         </Animated.div>
       </div>
@@ -5444,33 +5619,40 @@ const Services = () => {
           />
           <Animated.div
             style={modalSpring}
-            className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100"
+            className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-100"
           >
-            <h3 className="text-lg font-semibold mb-1">Bag number required</h3>
-            <p className="text-sm text-gray-600 mb-3">
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">Bag number required</h3>
+            <p className="text-sm text-gray-600 mb-6">
               Please enter a bag number before changing laundry status. This
               helps track a guest's laundry.
             </p>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="mb-6">
               <input
                 type="text"
                 value={bagPromptValue}
                 onChange={(e) => setBagPromptValue(e.target.value)}
-                className="flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    confirmBagPrompt();
+                  } else if (e.key === "Escape") {
+                    setBagPromptOpen(false);
+                  }
+                }}
+                className="w-full border-2 border-gray-200 rounded-lg px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 placeholder="e.g., 33 or 54 or Green 45"
                 autoFocus
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setBagPromptOpen(false)}
-                className="px-3 py-2 text-sm rounded-md border"
+                className="px-4 py-2.5 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmBagPrompt}
-                className="px-3 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                className="px-4 py-2.5 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
               >
                 Save & Continue
               </button>
