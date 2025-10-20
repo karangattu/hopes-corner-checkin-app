@@ -27,6 +27,9 @@ import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
 import DateRangeTrendChart from "../../components/charts/DateRangeTrendChart";
+import MealsChart from "../../components/charts/MealsChart";
+import ShowerLaundryChart from "../../components/charts/ShowerLaundryChart";
+import BicyclesChart from "../../components/charts/BicyclesChart";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import Selectize from "../../components/Selectize";
 import { animated as Animated } from "@react-spring/web";
@@ -631,15 +634,37 @@ const Dashboard = () => {
               )}
             </div>
             
-            {selectedPrograms.length > 0 && (
+            {/* Render specialized charts based on selected programs */}
+            {selectedPrograms.includes('meals') && selectedMealTypes.length > 0 && (
               <Animated.div
                 style={reportsChartAnim}
-                className="mt-4 will-change-transform"
+                className="mt-6 will-change-transform"
               >
-                <DateRangeTrendChart
+                <MealsChart
                   days={metrics.period.dailyBreakdown}
-                  selectedPrograms={selectedPrograms}
                   selectedMealTypes={selectedMealTypes}
+                />
+              </Animated.div>
+            )}
+
+            {(selectedPrograms.includes('showers') || selectedPrograms.includes('laundry')) && (
+              <Animated.div
+                style={reportsChartAnim}
+                className="mt-6 will-change-transform"
+              >
+                <ShowerLaundryChart
+                  days={metrics.period.dailyBreakdown}
+                />
+              </Animated.div>
+            )}
+
+            {selectedPrograms.includes('bicycles') && (
+              <Animated.div
+                style={reportsChartAnim}
+                className="mt-6 will-change-transform"
+              >
+                <BicyclesChart
+                  days={metrics.period.dailyBreakdown}
                 />
               </Animated.div>
             )}
