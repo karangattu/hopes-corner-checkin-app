@@ -343,6 +343,7 @@ const AttendanceBatchUpload = () => {
             addBicycleRecord(internalGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
+              dateOverride: dateSubmitted,
             });
             successCount++;
             break;
