@@ -35,7 +35,6 @@ import { todayPacificDateString } from "../../utils/date";
 const Analytics = () => {
   const {
     getUniversalTimeRangeMetrics,
-    getTodayMetrics,
     guests,
     settings,
   } = useAppContext();
@@ -70,7 +69,7 @@ const Analytics = () => {
   ]);
 
   // Selected meal types
-  const [selectedMealTypes, setSelectedMealTypes] = useState([
+  const [selectedMealTypes] = useState([
     "guest",
     "rv",
     "shelter",
@@ -112,8 +111,6 @@ const Analytics = () => {
     selectedPrograms,
     getUniversalTimeRangeMetrics,
   ]);
-
-  const todayMetrics = getTodayMetrics();
 
   // Calculate demographics
   const demographics = useMemo(() => {

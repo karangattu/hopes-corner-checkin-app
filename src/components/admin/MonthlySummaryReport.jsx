@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useAppContext } from "../../context/useAppContext";
 import { Download, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
@@ -24,14 +24,14 @@ const MonthlySummaryReport = () => {
   } = useAppContext();
 
   // Helper: Get day of week from date string (0=Sunday, 1=Monday, ..., 6=Saturday)
-  const getDayOfWeek = (dateString) => {
+  const getDayOfWeek = useCallback((dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
     return date.getDay();
-  };
+  }, []);
 
   // Helper: Filter records by year, month, and optionally specific days
-  const filterRecords = (records, year, month, daysOfWeek = null) => {
+  const filterRecords = useCallback((records, year, month, daysOfWeek = null) => {
     return records.filter((record) => {
       if (!record.date) return false;
       const date = new Date(record.date);
@@ -47,7 +47,7 @@ const MonthlySummaryReport = () => {
 
       return true;
     });
-  };
+  }, [getDayOfWeek]);
 
   // Helper: Sum quantities from filtered records
   const sumQuantities = (records) => {
@@ -156,6 +156,7 @@ const MonthlySummaryReport = () => {
     extraMealRecords,
     dayWorkerMealRecords,
     lunchBagRecords,
+    filterRecords,
   ]);
 
   // Export data to CSV
