@@ -15,6 +15,7 @@ import { Scissors, Gift, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import PieCardRecharts from "../charts/PieCardRecharts";
 import StackedBarCardRecharts from "../charts/StackedBarCardRecharts";
+import OnsiteMealDemographics from "./OnsiteMealDemographics";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
 import { getBicycleServiceCount } from "../../utils/bicycles";
@@ -753,6 +754,8 @@ const OverviewDashboard = ({
           />
         </div>
       </div>
+
+      <OnsiteMealDemographics />
 
       {/* Monthly Progress */}
       <div>
