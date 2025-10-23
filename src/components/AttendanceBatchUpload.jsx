@@ -28,10 +28,23 @@ const AttendanceBatchUpload = () => {
     addHaircutRecord,
     addHolidayRecord,
     supabaseEnabled,
+    insertMealAttendanceBatch,
+    insertShowerReservationsBatch,
+    insertLaundryBookingsBatch,
+    insertBicycleRepairsBatch,
+    insertHaircutVisitsBatch,
+    insertHolidayVisitsBatch,
+    setMealRecords,
+    setShowerRecords,
+    setLaundryRecords,
+    setBicycleRecords,
+    setHaircutRecords,
+    setHolidayRecords,
   } = useAppContext();
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
 
   // Special guest IDs that map to specific meal types (no guest profile created)
@@ -248,12 +261,24 @@ const AttendanceBatchUpload = () => {
     }
   };
 
-  const importAttendanceRecords = (records) => {
+  const importAttendanceRecords = async (records) => {
     let successCount = 0;
     let errorCount = 0;
     const errors = [];
     const specialMealCounts = {}; // Track special meal types for summary
 
+    // Group records by type for batch processing
+    const recordsByType = {
+      meals: [],
+      showers: [],
+      laundry: [],
+      bicycles: [],
+      haircuts: [],
+      holidays: [],
+      specialMeals: [],
+    };
+
+    // Pre-validate and group records
     records.forEach((record, index) => {
       try {
         const {
@@ -261,52 +286,18 @@ const AttendanceBatchUpload = () => {
           programType,
           isSpecialId,
           specialMapping,
-          count,
-          dateSubmitted,
         } = record;
 
         // Handle special guest IDs that map to meal types
         if (isSpecialId && specialMapping) {
-          // Convert ISO timestamp to a Pacific date string, then back to ISO
-          // This ensures the date is correctly represented in Pacific time
-          const pacificDateStr = pacificDateStringFrom(dateSubmitted);
-          const dateIso = isoFromPacificDateString(pacificDateStr);
-
-          switch (specialMapping.type) {
-            case "extra":
-              addExtraMealRecord(null, count, dateIso);
-              break;
-            case "rv":
-              addRvMealRecord(count, dateIso);
-              break;
-            case "lunch_bag":
-              addLunchBagRecord(count, dateIso);
-              break;
-            case "day_worker":
-              addDayWorkerMealRecord(count, dateIso);
-              break;
-            case "shelter":
-              addShelterMealRecord(count, dateIso);
-              break;
-            case "united_effort":
-              addUnitedEffortMealRecord(count, dateIso);
-              break;
-            default:
-              throw new Error(`Unknown special meal type: ${specialMapping.type}`);
-          }
-          
-          // Track for summary (no individual notification to avoid fatigue)
-          if (!specialMealCounts[specialMapping.label]) {
-            specialMealCounts[specialMapping.label] = 0;
-          }
-          specialMealCounts[specialMapping.label] += count;
-          successCount++;
+          recordsByType.specialMeals.push({
+            ...record,
+            rowIndex: index,
+          });
           return;
         }
 
         // Handle regular guest-based records
-        // Look up the guest by their guestId (from CSV, like M30343542 or G12345)
-        // to get their internal database id
         const guest = guests.find(
           (g) => String(g.id) === String(guestId) || g.guestId === guestId,
         );
@@ -315,8 +306,6 @@ const AttendanceBatchUpload = () => {
           throw new Error(`Guest with ID "${guestId}" not found`);
         }
 
-        // Check if the guest has a local ID (starts with "local-") or a Supabase UUID
-        // If it's a local ID and Supabase is enabled, we can't upload the record
         const internalGuestId = guest.id;
 
         // Validate that if Supabase is being used, the guest has a valid UUID
@@ -325,77 +314,267 @@ const AttendanceBatchUpload = () => {
             `Guest "${guest.name}" (${guest.guestId}) was created locally and cannot be synced to Supabase. Please re-register this guest in the system first.`,
           );
         }
-        
-        // Ensure the date is correctly represented in Pacific time
+
+        // Add to appropriate group with enriched data
+        recordsByType[programType]?.push({
+          ...record,
+          internalGuestId,
+          guest,
+          rowIndex: index,
+        });
+      } catch (error) {
+        const errorMsg = `Row ${index + 2} (Guest: ${record.guestId || "unknown"}): ${error.message}`;
+        errors.push(errorMsg);
+        errorCount++;
+      }
+    });
+
+    // Process special meals (non-batched as they use different handlers)
+    for (const record of recordsByType.specialMeals) {
+      try {
+        const { specialMapping, count, dateSubmitted } = record;
         const pacificDateStr = pacificDateStringFrom(dateSubmitted);
         const dateIso = isoFromPacificDateString(pacificDateStr);
 
-        switch (programType) {
-          case "meals":
-            addMealRecord(internalGuestId, count, dateIso);
+        switch (specialMapping.type) {
+          case "extra":
+            await addExtraMealRecord(null, count, dateIso);
+            break;
+          case "rv":
+            await addRvMealRecord(count, dateIso);
+            break;
+          case "lunch_bag":
+            await addLunchBagRecord(count, dateIso);
+            break;
+          case "day_worker":
+            await addDayWorkerMealRecord(count, dateIso);
+            break;
+          case "shelter":
+            await addShelterMealRecord(count, dateIso);
+            break;
+          case "united_effort":
+            await addUnitedEffortMealRecord(count, dateIso);
+            break;
+          default:
+            throw new Error(`Unknown special meal type: ${specialMapping.type}`);
+        }
+
+        if (!specialMealCounts[specialMapping.label]) {
+          specialMealCounts[specialMapping.label] = 0;
+        }
+        specialMealCounts[specialMapping.label] += count;
+        successCount++;
+      } catch (error) {
+        errors.push(`Row ${record.rowIndex + 2}: ${error.message}`);
+        errorCount++;
+      }
+    }
+
+    // Batch process meals
+    if (recordsByType.meals.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.meals.length} meal records...`);
+      try {
+        if (supabaseEnabled && insertMealAttendanceBatch) {
+          const mealPayloads = recordsByType.meals.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              meal_type: "guest",
+              guest_id: record.internalGuestId,
+              quantity: record.count,
+              served_on: dateIso.slice(0, 10),
+              recorded_at: dateIso,
+            };
+          });
+
+          const inserted = await insertMealAttendanceBatch(mealPayloads);
+          setMealRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          // Fallback to individual inserts if batch not available
+          for (const record of recordsByType.meals) {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            await addMealRecord(record.internalGuestId, record.count, dateIso);
             successCount++;
-            break;
-          case "showers": {
-            if (!guestId) {
-              throw new Error("Missing guest ID for shower record");
-            }
-            const importedShowers = importShowerAttendanceRecord(
-              internalGuestId,
-              {
-                dateSubmitted: dateIso,
-                count,
-              },
-            );
-            successCount += importedShowers.length;
-            break;
           }
-          case "laundry": {
-            if (!guestId) {
-              throw new Error("Missing guest ID for laundry record");
-            }
-            const importedLaundry = importLaundryAttendanceRecord(
-              internalGuestId,
-              {
-                dateSubmitted: dateIso,
-                count,
-              },
-            );
-            successCount += importedLaundry.length;
-            break;
+        }
+      } catch (error) {
+        errors.push(`Batch meal insert error: ${error.message}`);
+        errorCount += recordsByType.meals.length;
+      }
+    }
+
+    // Batch process showers
+    if (recordsByType.showers.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.showers.length} shower records...`);
+      try {
+        if (supabaseEnabled && insertShowerReservationsBatch) {
+          const showerPayloads = recordsByType.showers.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              guest_id: record.internalGuestId,
+              scheduled_time: null,
+              scheduled_for: dateIso.slice(0, 10),
+              status: "completed",
+            };
+          });
+
+          const inserted = await insertShowerReservationsBatch(showerPayloads);
+          setShowerRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          for (const record of recordsByType.showers) {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            const imported = importShowerAttendanceRecord(record.internalGuestId, {
+              dateSubmitted: dateIso,
+              count: record.count,
+            });
+            successCount += imported.length;
           }
-          case "bicycle":
-            addBicycleRecord(internalGuestId, {
+        }
+      } catch (error) {
+        errors.push(`Batch shower insert error: ${error.message}`);
+        errorCount += recordsByType.showers.length;
+      }
+    }
+
+    // Batch process laundry
+    if (recordsByType.laundry.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.laundry.length} laundry records...`);
+      try {
+        if (supabaseEnabled && insertLaundryBookingsBatch) {
+          const laundryPayloads = recordsByType.laundry.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              guest_id: record.internalGuestId,
+              slot_label: null,
+              laundry_type: "offsite",
+              bag_number: null,
+              scheduled_for: dateIso.slice(0, 10),
+              status: "completed",
+            };
+          });
+
+          const inserted = await insertLaundryBookingsBatch(laundryPayloads);
+          setLaundryRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          for (const record of recordsByType.laundry) {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            const imported = importLaundryAttendanceRecord(record.internalGuestId, {
+              dateSubmitted: dateIso,
+              count: record.count,
+            });
+            successCount += imported.length;
+          }
+        }
+      } catch (error) {
+        errors.push(`Batch laundry insert error: ${error.message}`);
+        errorCount += recordsByType.laundry.length;
+      }
+    }
+
+    // Batch process bicycles
+    if (recordsByType.bicycles.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.bicycles.length} bicycle records...`);
+      try {
+        if (supabaseEnabled && insertBicycleRepairsBatch) {
+          const bicyclePayloads = recordsByType.bicycles.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              guest_id: record.internalGuestId,
+              repair_type: "Legacy Import",
+              notes: "Imported from legacy system",
+              status: "completed",
+              priority: "normal",
+              completed_at: dateIso,
+            };
+          });
+
+          const inserted = await insertBicycleRepairsBatch(bicyclePayloads);
+          setBicycleRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          for (const record of recordsByType.bicycles) {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            await addBicycleRecord(record.internalGuestId, {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
               dateOverride: dateIso,
             });
             successCount++;
-            break;
-          case "haircuts":
-            addHaircutRecord(internalGuestId);
-            successCount++;
-            break;
-          case "holiday":
-            addHolidayRecord(internalGuestId);
-            successCount++;
-            break;
-          default:
-            errors.push(
-              `Unknown program type: ${programType} on row ${index + 2}`,
-            );
-            errorCount++;
+          }
         }
       } catch (error) {
-        const errorMsg = `Row ${index + 2} (Guest: ${record.guestId || "unknown"}): ${error.message}`;
-        errors.push(errorMsg);
-        errorCount++;
-        // Log to console for debugging
-        console.error(`Batch upload error on row ${index + 2}:`, {
-          record,
-          error: error.message,
-        });
+        errors.push(`Batch bicycle insert error: ${error.message}`);
+        errorCount += recordsByType.bicycles.length;
       }
-    });
+    }
+
+    // Batch process haircuts
+    if (recordsByType.haircuts.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.haircuts.length} haircut records...`);
+      try {
+        if (supabaseEnabled && insertHaircutVisitsBatch) {
+          const haircutPayloads = recordsByType.haircuts.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              guest_id: record.internalGuestId,
+              served_at: dateIso,
+            };
+          });
+
+          const inserted = await insertHaircutVisitsBatch(haircutPayloads);
+          setHaircutRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          for (const record of recordsByType.haircuts) {
+            await addHaircutRecord(record.internalGuestId);
+            successCount++;
+          }
+        }
+      } catch (error) {
+        errors.push(`Batch haircut insert error: ${error.message}`);
+        errorCount += recordsByType.haircuts.length;
+      }
+    }
+
+    // Batch process holidays
+    if (recordsByType.holidays.length > 0) {
+      setUploadProgress(`Processing ${recordsByType.holidays.length} holiday records...`);
+      try {
+        if (supabaseEnabled && insertHolidayVisitsBatch) {
+          const holidayPayloads = recordsByType.holidays.map((record) => {
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            return {
+              guest_id: record.internalGuestId,
+              served_at: dateIso,
+            };
+          });
+
+          const inserted = await insertHolidayVisitsBatch(holidayPayloads);
+          setHolidayRecords((prev) => [...inserted, ...prev]);
+          successCount += inserted.length;
+        } else {
+          for (const record of recordsByType.holidays) {
+            await addHolidayRecord(record.internalGuestId);
+            successCount++;
+          }
+        }
+      } catch (error) {
+        errors.push(`Batch holiday insert error: ${error.message}`);
+        errorCount += recordsByType.holidays.length;
+      }
+    }
 
     return { successCount, errorCount, errors, specialMealCounts };
   };
@@ -414,15 +593,18 @@ const AttendanceBatchUpload = () => {
 
     setIsUploading(true);
     setUploadResult(null);
+    setUploadProgress(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target.result;
+        setUploadProgress("Parsing CSV file...");
         const parsedRecords = parseCSV(content);
 
+        setUploadProgress(`Preparing to import ${parsedRecords.length} records...`);
         const { successCount, errorCount, errors, specialMealCounts } =
-          importAttendanceRecords(parsedRecords);
+          await importAttendanceRecords(parsedRecords);
 
         // Build message with special meal counts if any
         let specialMealsSummary = "";
@@ -466,6 +648,7 @@ const AttendanceBatchUpload = () => {
         });
       } finally {
         setIsUploading(false);
+        setUploadProgress(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -478,6 +661,7 @@ const AttendanceBatchUpload = () => {
         message: "Failed to read the file",
       });
       setIsUploading(false);
+      setUploadProgress(null);
     };
 
     reader.readAsText(file);
@@ -511,6 +695,13 @@ ATT009,M29017132,15,Meal,2024-01-15`;
       <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
         <FileText size={20} /> Batch Import Attendance Records
       </h2>
+
+      {uploadProgress && (
+        <div className="mb-4 p-3 rounded flex items-center gap-2 bg-blue-100 text-blue-700 border border-blue-200">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+          {uploadProgress}
+        </div>
+      )}
 
       {uploadResult && (
         <div

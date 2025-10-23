@@ -434,6 +434,206 @@ export const AppProvider = ({ children }) => {
     return data ? mapMealRow(data) : null;
   };
 
+  /**
+   * Batch insert meal attendance records
+   * Supabase has a limit of ~1000 rows per insert, so we chunk the data
+   * @param {Array} payloads - Array of meal attendance payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertMealAttendanceBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500; // Conservative batch size to avoid Supabase limits
+    const results = [];
+
+    // Process in chunks
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("meal_attendance")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapMealRow));
+      }
+    }
+
+    return results;
+  };
+
+  /**
+   * Batch insert shower reservations
+   * @param {Array} payloads - Array of shower reservation payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertShowerReservationsBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500;
+    const results = [];
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("shower_reservations")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapShowerRow));
+      }
+    }
+
+    return results;
+  };
+
+  /**
+   * Batch insert laundry bookings
+   * @param {Array} payloads - Array of laundry booking payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertLaundryBookingsBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500;
+    const results = [];
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("laundry_bookings")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapLaundryRow));
+      }
+    }
+
+    return results;
+  };
+
+  /**
+   * Batch insert bicycle repairs
+   * @param {Array} payloads - Array of bicycle repair payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertBicycleRepairsBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500;
+    const results = [];
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("bicycle_repairs")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapBicycleRow));
+      }
+    }
+
+    return results;
+  };
+
+  /**
+   * Batch insert haircut visits
+   * @param {Array} payloads - Array of haircut visit payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertHaircutVisitsBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500;
+    const results = [];
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("haircut_visits")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapHaircutRow));
+      }
+    }
+
+    return results;
+  };
+
+  /**
+   * Batch insert holiday visits
+   * @param {Array} payloads - Array of holiday visit payloads
+   * @returns {Promise<Array>} - Array of inserted records
+   */
+  const insertHolidayVisitsBatch = async (payloads) => {
+    if (!supabaseEnabled || !supabase) return [];
+    if (!payloads || payloads.length === 0) return [];
+
+    const BATCH_SIZE = 500;
+    const results = [];
+
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      const { data, error } = await supabase
+        .from("holiday_visits")
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        throw error;
+      }
+
+      if (data) {
+        results.push(...data.map(mapHolidayRow));
+      }
+    }
+
+    return results;
+  };
+
   useEffect(() => {
     if (!supabaseEnabled || !supabase) return;
 
@@ -4218,6 +4418,13 @@ export const AppProvider = ({ children }) => {
     moveBicycleRecord,
     addHolidayRecord,
     addHaircutRecord,
+    // Batch insert functions
+    insertMealAttendanceBatch,
+    insertShowerReservationsBatch,
+    insertLaundryBookingsBatch,
+    insertBicycleRepairsBatch,
+    insertHaircutVisitsBatch,
+    insertHolidayVisitsBatch,
     giveItem,
     canGiveItem,
     getLastGivenItem,
