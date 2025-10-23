@@ -17,6 +17,7 @@ import PieCardRecharts from "../charts/PieCardRecharts";
 import StackedBarCardRecharts from "../charts/StackedBarCardRecharts";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
+import { getBicycleServiceCount } from "../../utils/bicycles";
 
 // Helper functions defined outside component to avoid hoisting issues
 const calculateProgress = (current, target) => {
@@ -408,12 +409,12 @@ const OverviewDashboard = ({
       (r) => isCurrentYear(r.date) && isLaundryCompleted(r.status),
     ).length;
 
-    const monthBicycles = bicycleRecords.filter(
-      (r) => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status),
-    ).length;
-    const yearBicycles = bicycleRecords.filter(
-      (r) => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status),
-    ).length;
+    const monthBicycles = bicycleRecords
+      .filter((r) => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status))
+      .reduce((sum, record) => sum + getBicycleServiceCount(record), 0);
+    const yearBicycles = bicycleRecords
+      .filter((r) => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status))
+      .reduce((sum, record) => sum + getBicycleServiceCount(record), 0);
 
     const monthHaircuts = haircutRecords.filter((r) =>
       isCurrentMonth(r.date),

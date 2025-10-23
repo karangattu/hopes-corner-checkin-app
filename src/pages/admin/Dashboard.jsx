@@ -37,6 +37,7 @@ import Selectize from "../../components/Selectize";
 import { animated as Animated } from "@react-spring/web";
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
 import { todayPacificDateString } from "../../utils/date";
+import { getBicycleServiceCount } from "../../utils/bicycles";
 
 const Dashboard = () => {
   const {
@@ -927,10 +928,11 @@ const Dashboard = () => {
       items: itemGivenRecords?.length || 0,
       haircuts: haircutRecords?.length || 0,
       holidays: holidayRecords?.length || 0,
-      bicycles: bicycleRecords?.reduce(
-        (total, record) => total + (record.repairTypes?.length || 1),
-        0
-      ) || 0,
+      bicycles:
+        bicycleRecords?.reduce(
+          (total, record) => total + getBicycleServiceCount(record),
+          0
+        ) || 0,
       donations: donationRecords?.length || 0,
     }),
     [

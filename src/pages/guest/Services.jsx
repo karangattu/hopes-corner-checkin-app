@@ -61,6 +61,7 @@ import {
   todayPacificDateString,
   pacificDateStringFrom,
 } from "../../utils/date";
+import { getBicycleServiceCount } from "../../utils/bicycles";
 
 const MEAL_REPORT_TYPE_ORDER = [
   "guest",
@@ -717,9 +718,12 @@ const Services = () => {
       ).length,
       haircuts: (haircutRecords || []).filter((r) => inMonth(r.date)).length,
       holidays: (holidayRecords || []).filter((r) => inMonth(r.date)).length,
-      bicycles: (bicycleRecords || []).filter(
-        (r) => inMonth(r.date) && isCompletedBicycleStatus(r.status),
-      ).length,
+      bicycles: (bicycleRecords || [])
+        .filter((r) => inMonth(r.date) && isCompletedBicycleStatus(r.status))
+        .reduce(
+          (sum, record) => sum + getBicycleServiceCount(record),
+          0,
+        ),
     };
   }, [
     mealRecords,
@@ -774,9 +778,12 @@ const Services = () => {
       ).length,
       haircuts: (haircutRecords || []).filter((r) => inYear(r.date)).length,
       holidays: (holidayRecords || []).filter((r) => inYear(r.date)).length,
-      bicycles: (bicycleRecords || []).filter(
-        (r) => inYear(r.date) && isCompletedBicycleStatus(r.status),
-      ).length,
+      bicycles: (bicycleRecords || [])
+        .filter((r) => inYear(r.date) && isCompletedBicycleStatus(r.status))
+        .reduce(
+          (sum, record) => sum + getBicycleServiceCount(record),
+          0,
+        ),
     };
   }, [
     mealRecords,
@@ -859,7 +866,11 @@ const Services = () => {
     );
     (bicycleRecords || []).forEach((record) => {
       if (isCompletedBicycleStatus(record?.status)) {
-        addValue(record?.date, "bicycles", 1);
+        addValue(
+          record?.date,
+          "bicycles",
+          getBicycleServiceCount(record)
+        );
       }
     });
 

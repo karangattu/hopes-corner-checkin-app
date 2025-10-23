@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase, isSupabaseEnabled, checkIfSupabaseConfigured } from "../supabaseClient";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+import { getBicycleServiceCount } from "../utils/bicycles";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
 import {
@@ -2984,6 +2985,10 @@ export const AppProvider = ({ children }) => {
         pacificDateStringFrom(r.date) === today &&
         (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
     );
+    const todayBicycleCount = todayBicycles.reduce(
+      (sum, record) => sum + getBicycleServiceCount(record),
+      0,
+    );
 
     return {
       mealsServed:
@@ -2999,7 +3004,7 @@ export const AppProvider = ({ children }) => {
       ),
       haircuts: todayHaircuts.length,
       holidays: todayHolidays.length,
-      bicycles: todayBicycles.length,
+      bicycles: todayBicycleCount,
     };
   };
 
@@ -3147,8 +3152,7 @@ export const AppProvider = ({ children }) => {
     periodBicycles.forEach((r) => {
       const date = pacificDateStringFrom(r.date);
       if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
-      const repairCount = r.repairTypes?.length || 1;
-      dailyMetrics[date].bicycles += repairCount;
+      dailyMetrics[date].bicycles += getBicycleServiceCount(r);
     });
 
     const dailyBreakdown = Object.entries(dailyMetrics)
@@ -3189,7 +3193,7 @@ export const AppProvider = ({ children }) => {
       haircuts: periodHaircuts.length,
       holidays: periodHolidays.length,
       bicycles: periodBicycles.reduce(
-        (sum, r) => sum + (r.repairTypes?.length || 1),
+        (sum, r) => sum + getBicycleServiceCount(r),
         0,
       ),
       dailyBreakdown,
@@ -3369,7 +3373,7 @@ export const AppProvider = ({ children }) => {
       periodBicycles.forEach((r) => {
         const date = pacificDateStringFrom(r.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
-        dailyMetrics[date].bicycles += 1;
+        dailyMetrics[date].bicycles += getBicycleServiceCount(r);
       });
     }
 
