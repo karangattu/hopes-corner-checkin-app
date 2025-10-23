@@ -116,17 +116,17 @@ const BicycleRepairBooking = () => {
             <label className="block text-sm font-medium mb-2">
               Repair Types <span className="text-gray-500 text-xs">(select all that apply)</span>
             </label>
-            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+            <div className="space-y-0.5 max-h-48 overflow-y-auto border rounded-lg p-2 bg-gray-50">
               {repairTypes.map((type) => (
                 <label
                   key={type}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors"
+                  className="flex items-center gap-2.5 cursor-pointer hover:bg-white px-3 py-2 rounded transition-colors"
                 >
                   <input
                     type="checkbox"
                     checked={selectedRepairTypes.includes(type)}
                     onChange={() => toggleRepairType(type)}
-                    className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+                    className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
                   />
                   <span className="text-sm">{type}</span>
                 </label>

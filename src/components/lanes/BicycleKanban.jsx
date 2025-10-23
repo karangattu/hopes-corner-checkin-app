@@ -18,7 +18,6 @@ const BicycleKanban = ({
   updateBicycleRecord,
   deleteBicycleRecord,
   setBicycleStatus,
-  repairTypes,
 }) => {
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
@@ -176,10 +175,64 @@ const BicycleKanban = ({
             </div>
           )}
 
-          <div className="text-xs">
-            <span className="font-semibold text-gray-700">Repair: </span>
-            <span className="text-gray-600">{record.repairType || "—"}</span>
-          </div>
+          {/* Repair types checklist */}
+          {record.repairTypes && record.repairTypes.length > 0 ? (
+            <div className="space-y-0.5 bg-gray-50 rounded-lg p-2 border border-gray-200">
+              <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide px-1.5 mb-1">
+                Repairs ({record.completedRepairs?.length || 0}/{record.repairTypes.length})
+              </div>
+              {record.repairTypes.map((type, index) => {
+                const isCompleted = record.completedRepairs?.includes(type) || false;
+                return (
+                  <label
+                    key={`${record.id}-${type}-${index}`}
+                    className="flex items-center gap-2 text-xs cursor-pointer hover:bg-white px-2 py-1.5 rounded transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentCompleted = record.completedRepairs || [];
+                      const newCompleted = isCompleted
+                        ? currentCompleted.filter((t) => t !== type)
+                        : [...currentCompleted, type];
+
+                      // Determine new status based on completion
+                      let newStatus = record.status;
+                      if (newCompleted.length === 0) {
+                        newStatus = BICYCLE_REPAIR_STATUS.PENDING;
+                      } else if (newCompleted.length === record.repairTypes.length) {
+                        newStatus = BICYCLE_REPAIR_STATUS.DONE;
+                      } else if (newCompleted.length > 0) {
+                        newStatus = BICYCLE_REPAIR_STATUS.IN_PROGRESS;
+                      }
+
+                      updateBicycleRecord(record.id, {
+                        completedRepairs: newCompleted,
+                      });
+
+                      // Auto-move if status changed
+                      if (newStatus !== record.status) {
+                        setBicycleStatus(record.id, newStatus);
+                      }
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isCompleted}
+                      onChange={() => {}} // Handled by label click
+                      className="w-3.5 h-3.5 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
+                    />
+                    <span className={isCompleted ? "line-through text-gray-400" : "text-gray-700"}>
+                      {type}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-xs">
+              <span className="font-semibold text-gray-700">Repair: </span>
+              <span className="text-gray-600">{record.repairType || "—"}</span>
+            </div>
+          )}
 
           {record.notes && (
             <div className="text-xs">
@@ -190,26 +243,61 @@ const BicycleKanban = ({
 
           {isExpanded && (
             <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Repair Type
-                </label>
-                <select
-                  value={record.repairType}
-                  onChange={(e) =>
-                    updateBicycleRecord(record.id, {
-                      repairType: e.target.value,
-                    })
-                  }
-                  className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400"
-                >
-                  {repairTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Show repair types checklist in expanded view if available */}
+              {record.repairTypes && record.repairTypes.length > 0 && (
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+                    Repair Types Progress
+                  </label>
+                  <div className="space-y-0.5 bg-gray-50 rounded-lg p-2 border border-gray-200">
+                    {record.repairTypes.map((type, index) => {
+                      const isCompleted = record.completedRepairs?.includes(type) || false;
+                      return (
+                        <label
+                          key={`expanded-${record.id}-${type}-${index}`}
+                          className="flex items-center gap-2 text-xs cursor-pointer hover:bg-white px-2.5 py-2 rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const currentCompleted = record.completedRepairs || [];
+                            const newCompleted = isCompleted
+                              ? currentCompleted.filter((t) => t !== type)
+                              : [...currentCompleted, type];
+
+                            // Determine new status based on completion
+                            let newStatus = record.status;
+                            if (newCompleted.length === 0) {
+                              newStatus = BICYCLE_REPAIR_STATUS.PENDING;
+                            } else if (newCompleted.length === record.repairTypes.length) {
+                              newStatus = BICYCLE_REPAIR_STATUS.DONE;
+                            } else if (newCompleted.length > 0) {
+                              newStatus = BICYCLE_REPAIR_STATUS.IN_PROGRESS;
+                            }
+
+                            updateBicycleRecord(record.id, {
+                              completedRepairs: newCompleted,
+                            });
+
+                            // Auto-move if status changed
+                            if (newStatus !== record.status) {
+                              setBicycleStatus(record.id, newStatus);
+                            }
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isCompleted}
+                            onChange={() => {}} // Handled by label click
+                            className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
+                          />
+                          <span className={`flex-1 ${isCompleted ? "line-through text-gray-400" : "text-gray-700 font-medium"}`}>
+                            {type}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">

@@ -170,6 +170,7 @@ const Services = () => {
 
   // Timeline filter state
   const [timelineViewFilter, setTimelineViewFilter] = useState("all");
+  const [showCompletedTimeline, setShowCompletedTimeline] = useState(false);
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -2081,13 +2082,28 @@ const Services = () => {
           ) : (
             <>
               {(() => {
-                const filteredEvents = timelineEvents.filter((event) => {
+                const laundryCompletedLabels = new Set(["Done", "Picked Up", "Returned"]);
+                const isEventCompleted = (event) => {
+                  if (event.type === "shower") return event.statusLabel === "Completed";
+                  if (event.type === "laundry") return laundryCompletedLabels.has(event.statusLabel);
+                  return false;
+                };
+
+                const matchesViewFilter = (event) => {
                   if (timelineViewFilter === "all") return true;
                   if (timelineViewFilter === "showers") return event.type === "shower";
                   if (timelineViewFilter === "laundry") return event.type === "laundry";
                   if (timelineViewFilter === "waitlist") return event.type === "waitlist";
                   return true;
-                });
+                };
+
+                const filteredEvents = timelineEvents.filter(
+                  (event) => matchesViewFilter(event) && !isEventCompleted(event),
+                );
+
+                const completedEvents = timelineEvents.filter(
+                  (event) => matchesViewFilter(event) && isEventCompleted(event),
+                );
 
                 if (filteredEvents.length === 0) {
                   const suggestions = {
@@ -2113,132 +2129,210 @@ const Services = () => {
                 }
 
                 return (
-                  <ol className="relative border-l border-gray-200">
-                    {filteredEvents.map((event, index) => {
-                const style = timelineTrail[index] || {};
-                const Icon = event.icon;
-                return (
-                  <Animated.li
-                    key={event.id}
-                    style={style}
-                    className="ml-6 pb-4 md:pb-6 last:pb-0 relative"
-                  >
-                    <span className="absolute -left-[21px] top-2 flex items-center justify-center">
-                      <span
-                        className={`h-3 w-3 rounded-full ${event.accentClass}`}
-                      />
-                    </span>
-                    <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 md:px-4 md:py-3 shadow-sm">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${event.iconWrapperClass}`}
+                  <div className="space-y-6">
+                    <ol className="relative border-l border-gray-200">
+                      {filteredEvents.map((event, index) => {
+                        const style = timelineTrail[index] || {};
+                        const Icon = event.icon;
+                        return (
+                          <Animated.li
+                            key={event.id}
+                            style={style}
+                            className="ml-6 pb-4 md:pb-6 last:pb-0 relative"
                           >
-                            <Icon size={26} />
-                          </span>
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-sm font-semibold text-gray-900">
-                                {event.title}
-                              </p>
-                              {event.statusLabel ? (
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}
-                                >
-                                  {event.statusLabel}
-                                </span>
-                              ) : null}
-                            </div>
-                            {event.subtitle ? (
-                              <p className="text-xs text-gray-500">
-                                {event.subtitle}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                            {event.timeLabel}
-                          </div>
-                          {/* Action buttons for timeline entries */}
-                          {event.type === "shower" &&
-                            renderShowerActions(event)}
-                          {event.type === "laundry" &&
-                            renderLaundryActions(event)}
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 font-medium text-gray-600">
-                          {event.type === "laundry"
-                            ? "Laundry"
-                            : event.type === "waitlist"
-                              ? "Shower waitlist"
-                              : "Shower"}
-                        </span>
-                        {event.detail ? <span>{event.detail}</span> : null}
-                        {event.meta?.bagNumber || (event.type === "laundry" && editingBagNumber === event.id) ? (
-                          editingBagNumber === event.id ? (
-                            <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-400 px-3 py-1 text-sm font-semibold text-purple-800">
-                              <input
-                                type="number"
-                                value={newBagNumber}
-                                onChange={(e) => handleBagNumberChange(e.target.value)}
-                                onKeyDown={(e) => handleBagNumberKeyDown(e, event)}
-                                autoFocus
-                                className="w-14 text-center bg-white/90 text-purple-900 rounded border border-purple-300 text-sm font-semibold placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                placeholder="Bag #"
-                                min="1"
+                            <span className="absolute -left-[21px] top-2 flex items-center justify-center">
+                              <span
+                                className={`h-3 w-3 rounded-full ${event.accentClass}`}
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleBagNumberSave(event)}
-                                className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
-                                title="Save (Enter)"
-                              >
-                                <CheckCircle2Icon size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleBagNumberCancel}
-                                className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
-                                title="Cancel (Esc)"
-                              >
-                                <X size={16} />
-                              </button>
+                            </span>
+                            <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 md:px-4 md:py-3 shadow-sm">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex items-start gap-3">
+                                  <span
+                                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${event.iconWrapperClass}`}
+                                  >
+                                    <Icon size={26} />
+                                  </span>
+                                  <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {event.title}
+                                      </p>
+                                      {event.statusLabel ? (
+                                        <span
+                                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}
+                                        >
+                                          {event.statusLabel}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {event.subtitle ? (
+                                      <p className="text-xs text-gray-500">
+                                        {event.subtitle}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                    {event.timeLabel}
+                                  </div>
+                                  {/* Action buttons for timeline entries */}
+                                  {event.type === "shower" &&
+                                    renderShowerActions(event)}
+                                  {event.type === "laundry" &&
+                                    renderLaundryActions(event)}
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 font-medium text-gray-600">
+                                  {event.type === "laundry"
+                                    ? "Laundry"
+                                    : event.type === "waitlist"
+                                      ? "Shower waitlist"
+                                      : "Shower"}
+                                </span>
+                                {event.detail ? <span>{event.detail}</span> : null}
+                                {event.meta?.bagNumber || (event.type === "laundry" && editingBagNumber === event.id) ? (
+                                  editingBagNumber === event.id ? (
+                                    <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-400 px-3 py-1 text-sm font-semibold text-purple-800">
+                                      <input
+                                        type="number"
+                                        value={newBagNumber}
+                                        onChange={(e) => handleBagNumberChange(e.target.value)}
+                                        onKeyDown={(e) => handleBagNumberKeyDown(e, event)}
+                                        autoFocus
+                                        className="w-14 text-center bg-white/90 text-purple-900 rounded border border-purple-300 text-sm font-semibold placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        placeholder="Bag #"
+                                        min="1"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleBagNumberSave(event)}
+                                        className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
+                                        title="Save (Enter)"
+                                      >
+                                        <CheckCircle2Icon size={16} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleBagNumberCancel}
+                                        className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
+                                        title="Cancel (Esc)"
+                                      >
+                                        <X size={16} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleBagNumberEdit(event.id, event.meta?.bagNumber)}
+                                      className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-200 hover:border-purple-300 hover:bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-800 cursor-pointer transition-colors"
+                                      title="Click to edit bag number"
+                                    >
+                                      <ShoppingBag size={14} />
+                                      Bag #{event.meta.bagNumber}
+                                    </button>
+                                  )
+                                ) : event.type === "laundry" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBagNumberEdit(event.id, null)}
+                                    className="inline-flex items-center gap-2 rounded-full bg-purple-50 border border-purple-200 hover:border-purple-300 hover:bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-700 cursor-pointer transition-colors"
+                                    title="Click to add bag number"
+                                  >
+                                    <ShoppingBag size={14} />
+                                    Add bag #
+                                  </button>
+                                ) : null}
+                                {event.meta?.position ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
+                                    Queue #{event.meta.position}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleBagNumberEdit(event.id, event.meta?.bagNumber)}
-                              className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-200 hover:border-purple-300 hover:bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-800 cursor-pointer transition-colors"
-                              title="Click to edit bag number"
-                            >
-                              <ShoppingBag size={14} />
-                              Bag #{event.meta.bagNumber}
-                            </button>
-                          )
-                        ) : event.type === "laundry" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleBagNumberEdit(event.id, null)}
-                            className="inline-flex items-center gap-2 rounded-full bg-purple-50 border border-purple-200 hover:border-purple-300 hover:bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-700 cursor-pointer transition-colors"
-                            title="Click to add bag number"
-                          >
-                            <ShoppingBag size={14} />
-                            Add bag #
-                          </button>
-                        ) : null}
-                        {event.meta?.position ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-700">
-                            Queue #{event.meta.position}
-                          </span>
-                        ) : null}
+                          </Animated.li>
+                        );
+                      })}
+                    </ol>
+
+                    {completedEvents.length > 0 && (
+                      <div className="mt-6 border-t border-gray-200 pt-4">
+                        <button
+                          onClick={() => setShowCompletedTimeline((prev) => !prev)}
+                          className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-green-50 hover:from-emerald-100 hover:to-green-100 border border-emerald-200 rounded-lg transition-colors group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2Icon size={20} className="text-emerald-600" />
+                            <div className="text-left">
+                              <h3 className="text-sm font-semibold text-emerald-900">Completed Today</h3>
+                              <p className="text-xs text-emerald-700">
+                                {completedEvents.length} service{completedEvents.length > 1 ? "s" : ""} finished
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-semibold">
+                              {completedEvents.length}
+                            </span>
+                            {showCompletedTimeline ? (
+                              <ChevronUp size={20} className="text-emerald-600 group-hover:text-emerald-700" />
+                            ) : (
+                              <ChevronDown size={20} className="text-emerald-600 group-hover:text-emerald-700" />
+                            )}
+                          </div>
+                        </button>
+
+                        {showCompletedTimeline && (
+                          <ol className="relative border-l border-emerald-200 mt-4">
+                            {completedEvents.map((event) => {
+                              const Icon = event.icon;
+                              return (
+                                <li
+                                  key={event.id}
+                                  className="ml-6 pb-4 md:pb-6 last:pb-0 relative opacity-75"
+                                >
+                                  <span className="absolute -left-[21px] top-2 flex items-center justify-center">
+                                    <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                                  </span>
+                                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 px-3 py-2 md:px-4 md:py-3">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                      <div className="flex items-start gap-3">
+                                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                                          <Icon size={26} />
+                                        </span>
+                                        <div className="space-y-1">
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <p className="text-sm font-semibold text-gray-900">
+                                              {event.title}
+                                            </p>
+                                            {event.statusLabel && (
+                                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}>
+                                                {event.statusLabel}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {event.subtitle && (
+                                            <p className="text-xs text-gray-500">
+                                              {event.subtitle}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                        {event.timeLabel}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        )}
                       </div>
-                    </div>
-                    </Animated.li>
-                  );
-                })}
-                  </ol>
+                    )}
+                  </div>
                 );
               })()}
             </>

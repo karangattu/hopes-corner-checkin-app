@@ -355,6 +355,7 @@ export const AppProvider = ({ children }) => {
       type: "bicycle",
       repairType: row.repair_type, // Keep for backward compatibility
       repairTypes: row.repair_types || (row.repair_type ? [row.repair_type] : []),
+      completedRepairs: row.completed_repairs || [],
       notes: row.notes,
       status: row.status,
       priority: row.priority || 0,
@@ -1339,6 +1340,7 @@ export const AppProvider = ({ children }) => {
       date: now,
       type: "bicycle",
       repairTypes: typesToInsert,
+      completedRepairs: [],
       notes,
       status: BICYCLE_REPAIR_STATUS.PENDING,
       priority,
@@ -1372,6 +1374,8 @@ export const AppProvider = ({ children }) => {
           payload.repair_type = mergedUpdates.repairType;
         if (mergedUpdates.repairTypes !== undefined)
           payload.repair_types = mergedUpdates.repairTypes;
+        if (mergedUpdates.completedRepairs !== undefined)
+          payload.completed_repairs = mergedUpdates.completedRepairs;
         if (mergedUpdates.notes !== undefined)
           payload.notes = mergedUpdates.notes;
         if (mergedUpdates.status !== undefined)

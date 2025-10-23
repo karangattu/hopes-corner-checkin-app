@@ -564,7 +564,22 @@ textarea {
   border: 1px solid var(--neutral-200);
   border-radius: 0.25rem;
   outline: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]) {
   width: 100%;
+}
+
+select,
+textarea {
+  width: 100%;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  height: auto;
+  padding: 0;
 }
 
 input[type="text"].pl-12,
