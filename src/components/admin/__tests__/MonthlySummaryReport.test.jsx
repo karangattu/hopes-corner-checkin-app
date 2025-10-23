@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MonthlySummaryReport from "../MonthlySummaryReport";
 import { LAUNDRY_STATUS } from "../../../context/constants";
@@ -55,16 +55,27 @@ const setupMockContext = (overrides = {}) => {
   };
 };
 
+const DEFAULT_REPORT_DATE = new Date("2025-10-23T12:00:00Z");
+
 describe("MonthlySummaryReport", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DEFAULT_REPORT_DATE);
     vi.clearAllMocks();
     setupMockContext();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders the table with correct headers", () => {
     render(<MonthlySummaryReport />);
 
-    expect(screen.getByText("Monthly Summary Report - 2025")).toBeInTheDocument();
+    const yearLabel = new Date().getFullYear();
+    expect(
+      screen.getByText(`Monthly Summary Report - ${yearLabel}`),
+    ).toBeInTheDocument();
 
     // Check for table headers in the thead
   const [mealsTable] = screen.getAllByRole("table");
@@ -231,8 +242,9 @@ describe("MonthlySummaryReport", () => {
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [csvData, filename] = exportDataAsCSVMock.mock.calls[0];
 
-    expect(csvData.length).toBeGreaterThan(0);
-    expect(filename).toMatch(/monthly-summary-2025/);
+  expect(csvData.length).toBeGreaterThan(0);
+  const yearLabel = new Date().getFullYear();
+  expect(filename).toContain(`monthly-summary-${yearLabel}-`);
 
     // Check that CSV has correct columns
     expect(csvData[0]).toHaveProperty("Month");
@@ -276,7 +288,8 @@ describe("MonthlySummaryReport", () => {
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [csvData, filename] = exportDataAsCSVMock.mock.calls[0];
-    expect(filename).toMatch(/bicycle-summary-2025/);
+  const yearLabel = new Date().getFullYear();
+  expect(filename).toContain(`bicycle-summary-${yearLabel}-`);
     expect(csvData[0]).toHaveProperty("Month");
     expect(csvData[0]).toHaveProperty("New Bikes");
   });
@@ -301,7 +314,8 @@ describe("MonthlySummaryReport", () => {
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [csvData, filename] = exportDataAsCSVMock.mock.calls[0];
-    expect(filename).toMatch(/shower-laundry-summary-2025/);
+  const yearLabel = new Date().getFullYear();
+  expect(filename).toContain(`shower-laundry-summary-${yearLabel}-`);
     expect(csvData[0]).toHaveProperty("Program Days in Month");
     expect(csvData[csvData.length - 1]["YTD Total Unduplicated Laundry Users"]).toBeDefined();
   });
@@ -346,9 +360,9 @@ describe("MonthlySummaryReport", () => {
 
     // Bicycle summary always displays full year
     expect(bicycleTable.textContent).toContain("February");
-  expect(showerLaundryTable.textContent).toContain("December");
+    expect(showerLaundryTable.textContent).toContain("December");
 
-    vi.useRealTimers();
+    vi.setSystemTime(DEFAULT_REPORT_DATE);
   });
 
   it("shows bicycle new vs service counts with year-to-date totals", () => {

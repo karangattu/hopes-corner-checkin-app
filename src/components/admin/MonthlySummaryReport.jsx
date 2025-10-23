@@ -4,10 +4,25 @@ import { Download, Calendar, ShowerHead } from "lucide-react";
 import toast from "react-hot-toast";
 import { BICYCLE_REPAIR_STATUS, LAUNDRY_STATUS } from "../../context/constants";
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 /**
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
  *
- * Displays a breakdown of meals by month and type for 2025, including:
+ * Displays a breakdown of meals by month and type for the current year, including:
  * - Weekday-specific guest meals (Mon/Wed/Sat/Fri)
  * - Special meal types (Day Worker, Extra, RV, Lunch Bags)
  * - Calculated totals and onsite meal counts
@@ -27,6 +42,17 @@ const MonthlySummaryReport = () => {
     bicycleRecords,
     exportDataAsCSV,
   } = useAppContext();
+
+  const reportMetadata = useMemo(() => {
+    const now = new Date();
+    return {
+      reportYear: now.getFullYear(),
+      currentMonth: now.getMonth(),
+    };
+  }, []);
+
+  const reportYear = reportMetadata.reportYear;
+  const currentMonth = reportMetadata.currentMonth;
 
   // Helper: Get day of week from date string (0=Sunday, 1=Monday, ..., 6=Saturday)
   const getDayOfWeek = useCallback((dateString) => {
@@ -76,44 +102,33 @@ const MonthlySummaryReport = () => {
     return status === BICYCLE_REPAIR_STATUS.DONE;
   }, []);
 
-  // Calculate monthly data for all months from Jan 2025 to current month
+  // Calculate monthly data for all months from January of the report year to the current month
   const monthlyData = useMemo(() => {
-    const currentDate = new Date();
-    const currentYear = 2025;
-    const currentMonth = currentDate.getFullYear() === currentYear ? currentDate.getMonth() : 11;
-
     const months = [];
-    const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
+    const effectiveLastMonth = Math.min(
+      Math.max(currentMonth, 0),
+      MONTH_NAMES.length - 1,
+    );
 
-    // Generate data for each month from January to current month
-    for (let month = 0; month <= currentMonth; month++) {
-      const monthName = monthNames[month];
+    for (let month = 0; month <= effectiveLastMonth; month++) {
+      const monthName = MONTH_NAMES[month];
 
-      // Guest meals by specific days
-      const mondayMeals = sumQuantities(filterRecords(mealRecords, currentYear, month, [1]));
-      const wednesdayMeals = sumQuantities(filterRecords(mealRecords, currentYear, month, [3]));
-      const saturdayMeals = sumQuantities(filterRecords(mealRecords, currentYear, month, [6]));
-      const fridayMeals = sumQuantities(filterRecords(mealRecords, currentYear, month, [5]));
+      const mondayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [1]));
+      const wednesdayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [3]));
+      const saturdayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [6]));
+      const fridayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [5]));
 
-      // Special meal types (all days)
-      const dayWorkerMeals = sumQuantities(filterRecords(dayWorkerMealRecords, currentYear, month));
-      const extraMeals = sumQuantities(filterRecords(extraMealRecords, currentYear, month));
+      const dayWorkerMeals = sumQuantities(filterRecords(dayWorkerMealRecords, reportYear, month));
+      const extraMeals = sumQuantities(filterRecords(extraMealRecords, reportYear, month));
 
-      // RV meals split by day groups
-      const rvWedSat = sumQuantities(filterRecords(rvMealRecords, currentYear, month, [3, 6]));
-      const rvMonThu = sumQuantities(filterRecords(rvMealRecords, currentYear, month, [1, 4]));
+      const rvWedSat = sumQuantities(filterRecords(rvMealRecords, reportYear, month, [3, 6]));
+      const rvMonThu = sumQuantities(filterRecords(rvMealRecords, reportYear, month, [1, 4]));
 
-      // Lunch bags
-      const lunchBags = sumQuantities(filterRecords(lunchBagRecords, currentYear, month));
+      const lunchBags = sumQuantities(filterRecords(lunchBagRecords, reportYear, month));
 
-      // Shelter and United Effort meals (for total hot meals)
-      const shelterMeals = sumQuantities(filterRecords(shelterMealRecords, currentYear, month));
-      const unitedEffortMeals = sumQuantities(filterRecords(unitedEffortMealRecords, currentYear, month));
+      const shelterMeals = sumQuantities(filterRecords(shelterMealRecords, reportYear, month));
+      const unitedEffortMeals = sumQuantities(filterRecords(unitedEffortMealRecords, reportYear, month));
 
-      // Calculated totals
       const totalHotMeals =
         mondayMeals +
         wednesdayMeals +
@@ -128,12 +143,19 @@ const MonthlySummaryReport = () => {
 
       const totalWithLunchBags = totalHotMeals + lunchBags;
 
-      // Onsite hot meals = (guest meals + extra meals) on Mon/Wed/Sat/Fri
-      const onsiteMondayMeals = mondayMeals + sumQuantities(filterRecords(extraMealRecords, currentYear, month, [1]));
-      const onsiteWednesdayMeals = wednesdayMeals + sumQuantities(filterRecords(extraMealRecords, currentYear, month, [3]));
-      const onsiteSaturdayMeals = saturdayMeals + sumQuantities(filterRecords(extraMealRecords, currentYear, month, [6]));
-      const onsiteFridayMeals = fridayMeals + sumQuantities(filterRecords(extraMealRecords, currentYear, month, [5]));
-      const onsiteHotMeals = onsiteMondayMeals + onsiteWednesdayMeals + onsiteSaturdayMeals + onsiteFridayMeals;
+      const onsiteMondayMeals = mondayMeals +
+        sumQuantities(filterRecords(extraMealRecords, reportYear, month, [1]));
+      const onsiteWednesdayMeals = wednesdayMeals +
+        sumQuantities(filterRecords(extraMealRecords, reportYear, month, [3]));
+      const onsiteSaturdayMeals = saturdayMeals +
+        sumQuantities(filterRecords(extraMealRecords, reportYear, month, [6]));
+      const onsiteFridayMeals = fridayMeals +
+        sumQuantities(filterRecords(extraMealRecords, reportYear, month, [5]));
+      const onsiteHotMeals =
+        onsiteMondayMeals +
+        onsiteWednesdayMeals +
+        onsiteSaturdayMeals +
+        onsiteFridayMeals;
 
       months.push({
         month: monthName,
@@ -152,7 +174,6 @@ const MonthlySummaryReport = () => {
       });
     }
 
-    // Calculate totals row
     const totals = {
       month: "TOTAL",
       mondayMeals: months.reduce((sum, m) => sum + m.mondayMeals, 0),
@@ -179,33 +200,17 @@ const MonthlySummaryReport = () => {
     dayWorkerMealRecords,
     lunchBagRecords,
     filterRecords,
+    reportYear,
+    currentMonth,
   ]);
 
   const bicycleSummary = useMemo(() => {
-    const currentDate = new Date();
-    const currentYear = 2025;
-    const currentMonth = currentDate.getFullYear() === currentYear ? currentDate.getMonth() : 11;
-    const monthNames = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-
-    const rows = monthNames.map((monthName, monthIndex) => {
+    const rows = MONTH_NAMES.map((monthName, monthIndex) => {
       const recordsForMonth = (bicycleRecords || []).filter((record) => {
         if (!record?.date) return false;
         const date = new Date(record.date);
         return (
-          date.getFullYear() === currentYear &&
+          date.getFullYear() === reportYear &&
           date.getMonth() === monthIndex &&
           isCompletedBicycleStatus(record.status)
         );
@@ -248,28 +253,15 @@ const MonthlySummaryReport = () => {
       rows,
       totals,
     };
-  }, [bicycleRecords, isCompletedBicycleStatus, normalizeRepairTypes]);
+  }, [
+    bicycleRecords,
+    isCompletedBicycleStatus,
+    normalizeRepairTypes,
+    reportYear,
+    currentMonth,
+  ]);
 
   const showerLaundrySummary = useMemo(() => {
-    const currentDate = new Date();
-    const currentYear = 2025;
-    const currentMonth =
-      currentDate.getFullYear() === currentYear ? currentDate.getMonth() : 11;
-    const monthNames = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
-    ];
-
     const guestMap = new Map();
     (guests || []).forEach((guest) => {
       if (!guest) return;
@@ -316,7 +308,7 @@ const MonthlySummaryReport = () => {
     const completedShowerRecords = (showerRecords || []).reduce((acc, record) => {
       if (!record?.date) return acc;
       const date = new Date(record.date);
-      if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) {
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== reportYear) {
         return acc;
       }
       const status = (record.status || "").toString().toLowerCase();
@@ -333,7 +325,7 @@ const MonthlySummaryReport = () => {
       (acc, record) => {
         if (!record?.date) return acc;
         const date = new Date(record.date);
-        if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) {
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== reportYear) {
           return acc;
         }
         const status = (record.status || "").toString().toLowerCase();
@@ -384,7 +376,7 @@ const MonthlySummaryReport = () => {
       laundryLoadsProcessed: 0,
     };
 
-    monthNames.forEach((monthName, monthIndex) => {
+    MONTH_NAMES.forEach((monthName, monthIndex) => {
       const showersForMonth = completedShowerRecords.filter(
         (record) => record.monthIndex === monthIndex,
       );
@@ -508,7 +500,13 @@ const MonthlySummaryReport = () => {
       rows,
       totals,
     };
-  }, [guests, laundryRecords, showerRecords]);
+  }, [
+    guests,
+    laundryRecords,
+    showerRecords,
+    reportYear,
+    currentMonth,
+  ]);
 
   // Export data to CSV
   const handleExportCSV = () => {
@@ -609,7 +607,10 @@ const MonthlySummaryReport = () => {
         showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
     });
 
-    exportDataAsCSV(csvData, `monthly-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`);
+    exportDataAsCSV(
+      csvData,
+      `monthly-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
     toast.success("Monthly summary exported to CSV");
   };
 
@@ -631,7 +632,7 @@ const MonthlySummaryReport = () => {
 
     exportDataAsCSV(
       csvData,
-      `bicycle-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`,
+  `bicycle-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
     toast.success("Bicycle services summary exported to CSV");
   };
@@ -684,7 +685,7 @@ const MonthlySummaryReport = () => {
 
     exportDataAsCSV(
       csvData,
-      `shower-laundry-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`,
+  `shower-laundry-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
     toast.success("Shower & laundry summary exported to CSV");
   };
@@ -698,7 +699,7 @@ const MonthlySummaryReport = () => {
             <Calendar className="text-blue-600" size={24} />
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Monthly Summary Report - 2025
+                Monthly Summary Report - {reportYear}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 Comprehensive breakdown of meals by month and type
@@ -893,7 +894,7 @@ const MonthlySummaryReport = () => {
                 Bicycle Services Summary
               </h3>
               <p className="text-sm text-gray-600">
-                Year-to-date breakdown of new bicycles and service types provided in 2025
+                Year-to-date breakdown of new bicycles and service types provided in {reportYear}
               </p>
             </div>
           </div>
@@ -969,7 +970,7 @@ const MonthlySummaryReport = () => {
                 Shower & Laundry Services Summary
               </h3>
               <p className="text-sm text-gray-600">
-                Participant trends and laundry loads from January through YTD 2025
+                Participant trends and laundry loads from January through YTD {reportYear}
               </p>
             </div>
           </div>
