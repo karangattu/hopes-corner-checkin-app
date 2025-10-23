@@ -125,12 +125,15 @@ create table public.bicycle_repairs (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete set null,
   requested_at timestamptz not null default now(),
-  repair_type text not null default 'Flat Tire',
+  repair_type text,
+  repair_types text[] not null,
+  completed_repairs text[] not null default array[]::text[],
   notes text,
   status public.bicycle_repair_status_enum not null default 'pending',
   priority integer not null default 0,
   completed_at timestamptz,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint bicycle_repairs_requires_repair_types check (cardinality(repair_types) > 0)
 );
 
 create trigger trg_bicycle_repairs_updated_at
