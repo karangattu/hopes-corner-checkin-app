@@ -46,7 +46,10 @@ ChartJS.defaults.font.size = 12;
 ChartJS.defaults.plugins.legend.position = "bottom";
 ChartJS.defaults.plugins.tooltip.mode = "index";
 ChartJS.defaults.plugins.tooltip.intersect = false;
-ChartJS.defaults.datasets.line.tension = 0.35; // smooth curves
+// Only set line tension if line dataset defaults exist
+if (ChartJS.defaults.datasets.line) {
+  ChartJS.defaults.datasets.line.tension = 0.35; // smooth curves
+}
 
 export const defaultAnimations = {
   duration: 900,
@@ -121,3 +124,15 @@ export const applyAlpha = (hex, alpha = 0.7) => {
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+
+// Recharts color palette for consistent styling across all charts
+export const CHART_COLORS = [
+  palette.blue,     // #3b82f6
+  palette.green,    // #22c55e
+  palette.purple,   // #a855f7
+  palette.amber,    // #f59e0b
+  palette.sky,      // #38bdf8
+  palette.rose,     // #fb7185
+  palette.slate,    // #64748b
+  palette.gray,     // #94a3b8
+];

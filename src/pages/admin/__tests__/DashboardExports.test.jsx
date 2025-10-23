@@ -301,4 +301,319 @@ describe("Dashboard data exports", () => {
     expect(filename).toMatch(/metrics/);
   expect(toastMock.success).toHaveBeenCalledWith("Metrics export created");
   });
+
+  it("exports bicycle records in service data", () => {
+    const dateString = new Date("2025-03-15").toISOString();
+    setupMockContext({
+      bicycleRecords: [
+        {
+          guestId: "guest-1",
+          date: dateString,
+          repairType: "Flat tire",
+          status: "completed",
+          notes: "Fixed front tire",
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Service Records/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Service: "Bicycle Repair",
+          "Repair Type": "Flat tire",
+          "Repair Status": "completed",
+          Notes: "Fixed front tire",
+        }),
+      ]),
+    );
+  });
+
+  it("exports haircut records in service data", () => {
+    const dateString = new Date("2025-03-15").toISOString();
+    setupMockContext({
+      haircutRecords: [
+        {
+          guestId: "guest-1",
+          date: dateString,
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Service Records/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Service: "Haircut",
+          "Guest ID": "guest-1",
+        }),
+      ]),
+    );
+  });
+
+  it("exports holiday records in service data", () => {
+    const dateString = new Date("2025-12-25").toISOString();
+    setupMockContext({
+      holidayRecords: [
+        {
+          guestId: "guest-1",
+          date: dateString,
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Service Records/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Service: "Holiday",
+          "Guest ID": "guest-1",
+        }),
+      ]),
+    );
+  });
+
+  it("exports supplies/items given data", () => {
+    const dateString = new Date("2025-03-15").toISOString();
+    setupMockContext({
+      itemGivenRecords: [
+        {
+          guestId: "guest-1",
+          date: dateString,
+          item: "sleeping_bag",
+        },
+        {
+          guestId: "guest-1",
+          date: dateString,
+          item: "blanket",
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Supplies/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Item: "sleeping bag",
+          "Guest ID": "guest-1",
+        }),
+        expect.objectContaining({
+          Item: "blanket",
+          "Guest ID": "guest-1",
+        }),
+      ]),
+    );
+    expect(filename).toMatch(/supplies/);
+  });
+
+  it("exports donation records", () => {
+    const dateString = new Date("2025-03-15").toISOString();
+    setupMockContext({
+      donationRecords: [
+        {
+          date: dateString,
+          type: "Food",
+          itemName: "Canned goods",
+          trays: 5,
+          weightLbs: 50,
+          donor: "Community Church",
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Donations/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Type: "Food",
+          Item: "Canned goods",
+          Trays: 5,
+          "Weight (lbs)": 50,
+          Donor: "Community Church",
+        }),
+      ]),
+    );
+    expect(filename).toMatch(/donations/);
+  });
+
+  it("exports day worker meal records in service data", () => {
+    const dateString = new Date("2025-03-15").toISOString();
+    setupMockContext({
+      dayWorkerMealRecords: [
+        {
+          date: dateString,
+          count: 5,
+        },
+      ],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Service Records/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          Service: "Day Worker Meal",
+          "Guest ID": "-",
+          "Guest Name": "-",
+          Quantity: 5,
+        }),
+      ]),
+    );
+  });
+
+  it("handles guest export when no guests exist", () => {
+    setupMockContext({
+      guests: [],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Guest List/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows).toEqual([]);
+  });
+
+  it("shows error when exporting metrics with no data", () => {
+    setupMockContext({
+      getDateRangeMetrics: vi.fn(() => ({
+        mealsServed: 0,
+        showersBooked: 0,
+        laundryLoads: 0,
+        dailyBreakdown: [],
+      })),
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Current Metrics/i }),
+    );
+
+    expect(exportDataAsCSVMock).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalledWith(
+      "No daily breakdown records to export",
+    );
+  });
+
+  it("shows error when exporting single guest with no service history", () => {
+    setupMockContext({
+      mealRecords: [],
+      showerRecords: [],
+      laundryRecords: [],
+    });
+
+    renderDashboard();
+
+    const select = screen.getByTestId("selectize");
+    fireEvent.change(select, { target: { value: "guest-1" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /Export History/i }));
+
+    expect(exportDataAsCSVMock).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalledWith(
+      "No service history found for this guest",
+    );
+  });
+
+  it("disables export button when no guest is selected", () => {
+    renderDashboard();
+
+    const exportButton = screen.getByRole("button", { name: /Export History/i });
+    expect(exportButton).toBeDisabled();
+
+    // Button is disabled so clicking won't do anything
+    fireEvent.click(exportButton);
+    expect(exportDataAsCSVMock).not.toHaveBeenCalled();
+  });
+
+  it("exports guest details with all fields", () => {
+    const guestWithAllFields = {
+      id: "guest-2",
+      guestId: "G-002",
+      name: "Bob Smith",
+      firstName: "Bob",
+      lastName: "Smith",
+      preferredName: "Bobby",
+      housingStatus: "Unsheltered",
+      location: "Downtown",
+      age: "36-45",
+      gender: "Male",
+      phone: "555-1234",
+      birthdate: "1980-01-15",
+      createdAt: new Date("2025-01-15").toISOString(),
+    };
+
+    setupMockContext({
+      guests: [guestWithAllFields],
+    });
+
+    renderDashboard();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Export Guest List/i }),
+    );
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [rows] = exportDataAsCSVMock.mock.calls[0];
+    expect(rows[0]).toEqual({
+      Guest_ID: "G-002",
+      "First Name": "Bob",
+      "Last Name": "Smith",
+      "Preferred Name": "Bobby",
+      Name: "Bob Smith",
+      "Housing Status": "Unsheltered",
+      Location: "Downtown",
+      Age: "36-45",
+      Gender: "Male",
+      Phone: "555-1234",
+      "Birth Date": "1980-01-15",
+      "Registration Date": expect.any(String),
+    });
+  });
 });

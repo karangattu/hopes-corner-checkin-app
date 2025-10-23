@@ -26,6 +26,8 @@ import GuestBatchUpload from "../../components/GuestBatchUpload";
 import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
+import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
+import Analytics from "./Analytics";
 import DateRangeTrendChart from "../../components/charts/DateRangeTrendChart";
 import MealsChart from "../../components/charts/MealsChart";
 import ShowerLaundryChart from "../../components/charts/ShowerLaundryChart";
@@ -320,8 +322,10 @@ const Dashboard = () => {
 
   const sections = [
     { id: "overview", label: "Overview", icon: Home },
-    { id: "reports", label: "Reports", icon: BarChart3 },
+    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "reports", label: "Legacy Reports", icon: BarChart3 },
     { id: "meal-report", label: "Meal Report", icon: Utensils },
+    { id: "monthly-summary", label: "Monthly Summary", icon: ClipboardList },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "donations", label: "Donations", icon: FileText },
     { id: "export", label: "Data Export", icon: Download },
@@ -332,10 +336,14 @@ const Dashboard = () => {
     switch (activeSection) {
       case "overview":
         return renderOverviewSection();
+      case "analytics":
+        return renderAnalyticsSection();
       case "reports":
         return renderReportsSection();
       case "meal-report":
         return renderMealReportSection();
+      case "monthly-summary":
+        return renderMonthlySummarySection();
       case "batch-upload":
         return renderBatchUploadSection();
       case "export":
@@ -349,6 +357,12 @@ const Dashboard = () => {
     }
   };
 
+  const renderAnalyticsSection = () => (
+    <div className="space-y-6">
+      <Analytics />
+    </div>
+  );
+
   const renderOverviewSection = () => (
     <OverviewDashboard
       overviewGridAnim={overviewGridAnim}
@@ -360,6 +374,12 @@ const Dashboard = () => {
   const renderMealReportSection = () => (
     <div className="space-y-6">
       <MealReport />
+    </div>
+  );
+
+  const renderMonthlySummarySection = () => (
+    <div className="space-y-6">
+      <MonthlySummaryReport />
     </div>
   );
 

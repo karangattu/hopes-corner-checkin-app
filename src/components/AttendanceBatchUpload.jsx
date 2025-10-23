@@ -27,6 +27,7 @@ const AttendanceBatchUpload = () => {
     addBicycleRecord,
     addHaircutRecord,
     addHolidayRecord,
+    supabaseEnabled,
   } = useAppContext();
 
   const [isUploading, setIsUploading] = useState(false);
@@ -309,12 +310,21 @@ const AttendanceBatchUpload = () => {
         const guest = guests.find(
           (g) => String(g.id) === String(guestId) || g.guestId === guestId,
         );
-        
+
         if (!guest) {
           throw new Error(`Guest with ID "${guestId}" not found`);
         }
-        
+
+        // Check if the guest has a local ID (starts with "local-") or a Supabase UUID
+        // If it's a local ID and Supabase is enabled, we can't upload the record
         const internalGuestId = guest.id;
+
+        // Validate that if Supabase is being used, the guest has a valid UUID
+        if (supabaseEnabled && internalGuestId && String(internalGuestId).startsWith("local-")) {
+          throw new Error(
+            `Guest "${guest.name}" (${guest.guestId}) was created locally and cannot be synced to Supabase. Please re-register this guest in the system first.`,
+          );
+        }
         
         // Ensure the date is correctly represented in Pacific time
         const pacificDateStr = pacificDateStringFrom(dateSubmitted);
@@ -376,8 +386,14 @@ const AttendanceBatchUpload = () => {
             errorCount++;
         }
       } catch (error) {
-        errors.push(`Error processing row ${index + 2}: ${error.message}`);
+        const errorMsg = `Row ${index + 2} (Guest: ${record.guestId || "unknown"}): ${error.message}`;
+        errors.push(errorMsg);
         errorCount++;
+        // Log to console for debugging
+        console.error(`Batch upload error on row ${index + 2}:`, {
+          record,
+          error: error.message,
+        });
       }
     });
 
@@ -423,15 +439,25 @@ const AttendanceBatchUpload = () => {
             message: `Successfully imported ${successCount} attendance records${specialMealsSummary}`,
           });
         } else if (successCount > 0) {
+          const errorSummary = errors.slice(0, 5).join("; ");
+          const moreErrors = errors.length > 5 ? ` (and ${errors.length - 5} more errors - check console for full details)` : "";
           setUploadResult({
             success: false,
-            message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? "..." : ""}`,
+            message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors. First errors: ${errorSummary}${moreErrors}`,
           });
+          // Log all errors to console for debugging
+          if (errors.length > 5) {
+            console.error("All batch upload errors:", errors);
+          }
         } else {
+          const errorSummary = errors.slice(0, 5).join("; ");
+          const moreErrors = errors.length > 5 ? ` (and ${errors.length - 5} more errors - check console)` : "";
           setUploadResult({
             success: false,
-            message: `Failed to import records: ${errors.slice(0, 3).join("; ")}`,
+            message: `Failed to import records: ${errorSummary}${moreErrors}`,
           });
+          // Log all errors to console for debugging
+          console.error("All batch upload errors:", errors);
         }
       } catch (error) {
         setUploadResult({

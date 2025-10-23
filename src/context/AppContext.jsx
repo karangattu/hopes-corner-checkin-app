@@ -2981,6 +2981,255 @@ export const AppProvider = ({ children }) => {
     };
   };
 
+  /**
+   * Universal time-range metrics with enhanced filtering options
+   * Supports program selection, day-of-week filtering, and comparison mode
+   *
+   * @param {string} startDate - Start date in YYYY-MM-DD format
+   * @param {string} endDate - End date in YYYY-MM-DD format
+   * @param {Object} options - Optional filtering parameters
+   * @param {Array<string>} options.programs - Array of program names to include (e.g., ['meals', 'showers', 'laundry'])
+   * @param {Array<number>} options.selectedDays - Array of day-of-week numbers (0=Sunday, 6=Saturday)
+   * @param {boolean} options.includeComparison - Include comparison period metrics
+   * @returns {Object} Comprehensive metrics object
+   */
+  const getUniversalTimeRangeMetrics = (startDate, endDate, options = {}) => {
+    const {
+      programs = ['meals', 'showers', 'laundry', 'bicycles', 'haircuts', 'holidays'],
+      selectedDays = null,
+      includeComparison = false,
+    } = options;
+
+    const inRange = (iso) => {
+      const d = pacificDateStringFrom(iso);
+      if (d < startDate || d > endDate) return false;
+
+      // Apply day-of-week filter if specified
+      if (selectedDays && selectedDays.length > 0) {
+        const date = new Date(iso);
+        const dayOfWeek = date.getDay();
+        return selectedDays.includes(dayOfWeek);
+      }
+
+      return true;
+    };
+
+    const countsAsLaundryLoad = (rec) => {
+      if (rec.laundryType === "onsite") {
+        return (
+          rec.status === LAUNDRY_STATUS.DONE ||
+          rec.status === LAUNDRY_STATUS.PICKED_UP
+        );
+      }
+      return true;
+    };
+
+    const initDailyMetric = () => ({
+      meals: 0,
+      mealsByType: {
+        guest: 0,
+        rv: 0,
+        shelter: 0,
+        unitedEffort: 0,
+        extras: 0,
+        dayWorker: 0,
+        lunchBags: 0,
+      },
+      showers: 0,
+      laundry: 0,
+      haircuts: 0,
+      holidays: 0,
+      bicycles: 0,
+    });
+
+    const dailyMetrics = {};
+
+    // Process meals if included
+    if (programs.includes('meals')) {
+      const periodMeals = mealRecords.filter((r) => inRange(r.date));
+      const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
+      const periodShelterMeals = shelterMealRecords.filter((r) => inRange(r.date));
+      const periodUeMeals = unitedEffortMealRecords.filter((r) => inRange(r.date));
+      const periodExtraMeals = extraMealRecords.filter((r) => inRange(r.date));
+      const periodDayWorkerMeals = dayWorkerMealRecords.filter((r) => inRange(r.date));
+      const periodLunchBags = lunchBagRecords.filter((r) => inRange(r.date));
+
+      periodMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count;
+        dailyMetrics[date].mealsByType.guest += record.count;
+      });
+
+      periodRvMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.rv += record.count || 0;
+      });
+
+      periodShelterMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.shelter += record.count || 0;
+      });
+
+      periodUeMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.unitedEffort += record.count || 0;
+      });
+
+      periodExtraMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.extras += record.count || 0;
+      });
+
+      periodDayWorkerMeals.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.dayWorker += record.count || 0;
+      });
+
+      periodLunchBags.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].meals += record.count || 0;
+        dailyMetrics[date].mealsByType.lunchBags += record.count || 0;
+      });
+    }
+
+    // Process showers if included
+    if (programs.includes('showers')) {
+      const periodShowers = showerRecords.filter((r) => inRange(r.date));
+      periodShowers.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].showers += 1;
+      });
+    }
+
+    // Process laundry if included
+    if (programs.includes('laundry')) {
+      const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
+      periodLaundry.forEach((record) => {
+        const date = pacificDateStringFrom(record.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        if (countsAsLaundryLoad(record)) dailyMetrics[date].laundry += 1;
+      });
+    }
+
+    // Process haircuts if included
+    if (programs.includes('haircuts')) {
+      const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
+      periodHaircuts.forEach((r) => {
+        const date = pacificDateStringFrom(r.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].haircuts += 1;
+      });
+    }
+
+    // Process holidays if included
+    if (programs.includes('holidays')) {
+      const periodHolidays = holidayRecords.filter((r) => inRange(r.date));
+      periodHolidays.forEach((r) => {
+        const date = pacificDateStringFrom(r.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].holidays += 1;
+      });
+    }
+
+    // Process bicycles if included
+    if (programs.includes('bicycles')) {
+      const periodBicycles = bicycleRecords.filter(
+        (r) =>
+          inRange(r.date) &&
+          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+      );
+      periodBicycles.forEach((r) => {
+        const date = pacificDateStringFrom(r.date);
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].bicycles += 1;
+      });
+    }
+
+    const dailyBreakdown = Object.entries(dailyMetrics)
+      .map(([date, metrics]) => ({ date, ...metrics }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Calculate totals
+    const totals = dailyBreakdown.reduce((acc, day) => ({
+      meals: acc.meals + day.meals,
+      mealsByType: {
+        guest: acc.mealsByType.guest + day.mealsByType.guest,
+        rv: acc.mealsByType.rv + day.mealsByType.rv,
+        shelter: acc.mealsByType.shelter + day.mealsByType.shelter,
+        unitedEffort: acc.mealsByType.unitedEffort + day.mealsByType.unitedEffort,
+        extras: acc.mealsByType.extras + day.mealsByType.extras,
+        dayWorker: acc.mealsByType.dayWorker + day.mealsByType.dayWorker,
+        lunchBags: acc.mealsByType.lunchBags + day.mealsByType.lunchBags,
+      },
+      showers: acc.showers + day.showers,
+      laundry: acc.laundry + day.laundry,
+      haircuts: acc.haircuts + day.haircuts,
+      holidays: acc.holidays + day.holidays,
+      bicycles: acc.bicycles + day.bicycles,
+    }), initDailyMetric());
+
+    const result = {
+      startDate,
+      endDate,
+      programs,
+      selectedDays,
+      dailyBreakdown,
+      totals: {
+        mealsServed: totals.meals,
+        mealsByType: totals.mealsByType,
+        showersBooked: totals.showers,
+        laundryLoads: totals.laundry,
+        haircuts: totals.haircuts,
+        holidays: totals.holidays,
+        bicycles: totals.bicycles,
+      },
+      daysInRange: dailyBreakdown.length,
+    };
+
+    // Add comparison period if requested
+    if (includeComparison) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+      const compStart = new Date(start);
+      compStart.setDate(start.getDate() - daysDiff);
+      const compEnd = new Date(start);
+      compEnd.setDate(start.getDate() - 1);
+
+      const comparisonMetrics = getUniversalTimeRangeMetrics(
+        compStart.toISOString().split('T')[0],
+        compEnd.toISOString().split('T')[0],
+        { programs, selectedDays, includeComparison: false }
+      );
+
+      result.comparison = comparisonMetrics;
+      result.changes = {
+        meals: totals.meals - comparisonMetrics.totals.mealsServed,
+        showers: totals.showers - comparisonMetrics.totals.showersBooked,
+        laundry: totals.laundry - comparisonMetrics.totals.laundryLoads,
+        haircuts: totals.haircuts - comparisonMetrics.totals.haircuts,
+        holidays: totals.holidays - comparisonMetrics.totals.holidays,
+        bicycles: totals.bicycles - comparisonMetrics.totals.bicycles,
+      };
+    }
+
+    return result;
+  };
+
   const getTodayLaundryWithGuests = () => {
     const today = todayPacificDateString();
 
@@ -3821,6 +4070,7 @@ export const AppProvider = ({ children }) => {
       }
 
       if (supabaseReset && supabaseEnabled && supabase) {
+        const deletionErrors = [];
         try {
           const tables = [
             { name: "guests", keep: keepGuests },
@@ -3836,24 +4086,21 @@ export const AppProvider = ({ children }) => {
 
           for (const table of tables) {
             if (table.keep) continue;
-            const { data, error } = await supabase
-              .from(table.name)
-              .select("id");
-            if (error) {
-              console.warn(`Failed to fetch ${table.name} for reset:`, error);
-              continue;
-            }
-            const ids = (data || []).map((row) => row.id).filter(Boolean);
-            if (!ids.length) continue;
+
+            // Delete all rows using a simple delete query
             const { error: deleteError } = await supabase
               .from(table.name)
               .delete()
-              .in("id", ids);
+              .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all rows (id will never be this value)
+
             if (deleteError) {
-              console.warn(
+              console.error(
                 `Failed to delete rows from ${table.name}:`,
                 deleteError,
               );
+              deletionErrors.push(`${table.name}: ${deleteError.message}`);
+            } else {
+              console.log(`Successfully deleted all rows from ${table.name}`);
             }
           }
 
@@ -3878,8 +4125,16 @@ export const AppProvider = ({ children }) => {
               settingsError,
             );
           }
+
+          // Report any deletion errors
+          if (deletionErrors.length > 0) {
+            throw new Error(
+              `Failed to delete from Supabase tables: ${deletionErrors.join(", ")}`,
+            );
+          }
         } catch (err) {
-          console.warn("Supabase reset failed:", err);
+          console.error("Supabase reset failed:", err);
+          throw new Error(`Supabase reset failed: ${err.message}`);
         }
       }
 
@@ -3978,6 +4233,7 @@ export const AppProvider = ({ children }) => {
     rescheduleLaundry,
     getTodayMetrics,
     getDateRangeMetrics,
+    getUniversalTimeRangeMetrics,
     getTodayLaundryWithGuests,
     exportDataAsCSV,
     getTodayDonationsByItem,
