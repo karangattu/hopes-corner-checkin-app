@@ -353,7 +353,8 @@ export const AppProvider = ({ children }) => {
       guestId: row.guest_id,
       date: row.requested_at,
       type: "bicycle",
-      repairType: row.repair_type,
+      repairType: row.repair_type, // Keep for backward compatibility
+      repairTypes: row.repair_types || (row.repair_type ? [row.repair_type] : []),
       notes: row.notes,
       status: row.status,
       priority: row.priority || 0,
@@ -1287,10 +1288,14 @@ export const AppProvider = ({ children }) => {
   const isSameDay = (iso1, iso2) => iso1.split("T")[0] === iso2.split("T")[0];
   const addBicycleRecord = async (
     guestId,
-    { repairType = "Flat Tire", notes = "", dateOverride = null } = {},
+    { repairType = "Flat Tire", repairTypes = null, notes = "", dateOverride = null } = {},
   ) => {
     const now = dateOverride || new Date().toISOString();
     const priority = (bicycleRecords[0]?.priority || 0) + 1;
+
+    // Support both old single repairType and new multiple repairTypes
+    const typesToInsert = repairTypes || [repairType];
+    const displayTypes = typesToInsert.join(", ");
 
     if (supabaseEnabled && supabase) {
       try {
@@ -1298,7 +1303,7 @@ export const AppProvider = ({ children }) => {
           .from("bicycle_repairs")
           .insert({
             guest_id: guestId,
-            repair_type: repairType,
+            repair_types: typesToInsert,
             notes,
             status: BICYCLE_REPAIR_STATUS.PENDING,
             priority,
@@ -1315,11 +1320,11 @@ export const AppProvider = ({ children }) => {
             type: "BICYCLE_LOGGED",
             timestamp: now,
             data: { recordId: mapped.id, guestId },
-            description: `Logged bicycle repair (${repairType})`,
+            description: `Logged bicycle repair (${displayTypes})`,
           },
           ...prev.slice(0, 49),
         ]);
-        enhancedToast.success("Bicycle repair logged");
+        enhancedToast.success(`Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`);
         return mapped;
       } catch (error) {
         console.error("Failed to log bicycle repair:", error);
@@ -1333,7 +1338,7 @@ export const AppProvider = ({ children }) => {
       guestId,
       date: now,
       type: "bicycle",
-      repairType,
+      repairTypes: typesToInsert,
       notes,
       status: BICYCLE_REPAIR_STATUS.PENDING,
       priority,
@@ -1345,11 +1350,11 @@ export const AppProvider = ({ children }) => {
         type: "BICYCLE_LOGGED",
         timestamp: now,
         data: { recordId: record.id, guestId },
-        description: `Logged bicycle repair (${repairType})`,
+        description: `Logged bicycle repair (${displayTypes})`,
       },
       ...prev.slice(0, 49),
     ]);
-    toast.success("Bicycle repair logged");
+    toast.success(`Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`);
     return record;
   };
 
@@ -1365,6 +1370,8 @@ export const AppProvider = ({ children }) => {
         const payload = {};
         if (mergedUpdates.repairType !== undefined)
           payload.repair_type = mergedUpdates.repairType;
+        if (mergedUpdates.repairTypes !== undefined)
+          payload.repair_types = mergedUpdates.repairTypes;
         if (mergedUpdates.notes !== undefined)
           payload.notes = mergedUpdates.notes;
         if (mergedUpdates.status !== undefined)
@@ -3132,11 +3139,12 @@ export const AppProvider = ({ children }) => {
       dailyMetrics[date].holidays += 1;
     });
 
-    // Process bicycles
+    // Process bicycles (count each repair type as a separate service)
     periodBicycles.forEach((r) => {
       const date = pacificDateStringFrom(r.date);
       if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
-      dailyMetrics[date].bicycles += 1;
+      const repairCount = r.repairTypes?.length || 1;
+      dailyMetrics[date].bicycles += repairCount;
     });
 
     const dailyBreakdown = Object.entries(dailyMetrics)
@@ -3176,7 +3184,10 @@ export const AppProvider = ({ children }) => {
       ),
       haircuts: periodHaircuts.length,
       holidays: periodHolidays.length,
-      bicycles: periodBicycles.length,
+      bicycles: periodBicycles.reduce(
+        (sum, r) => sum + (r.repairTypes?.length || 1),
+        0,
+      ),
       dailyBreakdown,
     };
   };

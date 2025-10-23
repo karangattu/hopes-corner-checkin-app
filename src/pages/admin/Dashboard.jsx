@@ -927,7 +927,10 @@ const Dashboard = () => {
       items: itemGivenRecords?.length || 0,
       haircuts: haircutRecords?.length || 0,
       holidays: holidayRecords?.length || 0,
-      bicycles: bicycleRecords?.length || 0,
+      bicycles: bicycleRecords?.reduce(
+        (total, record) => total + (record.repairTypes?.length || 1),
+        0
+      ) || 0,
       donations: donationRecords?.length || 0,
     }),
     [

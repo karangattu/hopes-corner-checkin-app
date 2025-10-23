@@ -1299,9 +1299,16 @@ const Services = () => {
                           )}
                           <div>
                             <span className="font-semibold text-gray-600">
-                              Repair:
+                              Repair{(rec.repairTypes?.length || 0) > 1 ? "s" : ""}:
                             </span>{" "}
-                            {rec.repairType || "—"}
+                            {rec.repairTypes?.length > 0
+                              ? rec.repairTypes.join(", ")
+                              : rec.repairType || "—"}
+                            {(rec.repairTypes?.length || 0) > 1 && (
+                              <span className="ml-1 text-xs text-sky-600 font-medium">
+                                ({rec.repairTypes.length} services)
+                              </span>
+                            )}
                           </div>
                           {rec.notes && (
                             <div>
@@ -1313,26 +1320,40 @@ const Services = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+                        <div className="grid grid-cols-1 gap-3 mt-1">
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">
-                              Repair Type
+                              Repair Types (select all that apply)
                             </label>
-                            <select
-                              value={rec.repairType}
-                              onChange={(event) =>
-                                updateBicycleRecord(rec.id, {
-                                  repairType: event.target.value,
-                                })
-                              }
-                              className="w-full border rounded px-2 py-1 text-sm"
-                            >
+                            <div className="space-y-1 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50">
                               {repairTypes.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
+                                <label
+                                  key={type}
+                                  className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded text-xs"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={(rec.repairTypes || [rec.repairType]).includes(type)}
+                                    onChange={(event) => {
+                                      const currentTypes = rec.repairTypes || [rec.repairType];
+                                      const newTypes = event.target.checked
+                                        ? [...currentTypes, type]
+                                        : currentTypes.filter((t) => t !== type);
+                                      updateBicycleRecord(rec.id, {
+                                        repairTypes: newTypes,
+                                      });
+                                    }}
+                                    className="w-3 h-3 text-sky-600 border-gray-300 rounded"
+                                  />
+                                  <span>{type}</span>
+                                </label>
                               ))}
-                            </select>
+                            </div>
+                            {(rec.repairTypes?.length || 0) > 0 && (
+                              <div className="mt-1 text-xs text-sky-700 font-medium">
+                                {rec.repairTypes.length} type{rec.repairTypes.length > 1 ? "s" : ""} selected = {rec.repairTypes.length} service{rec.repairTypes.length > 1 ? "s" : ""}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-xs text-gray-500 mb-1">

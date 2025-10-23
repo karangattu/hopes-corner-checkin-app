@@ -76,16 +76,20 @@ describe("BicycleRepairBooking", () => {
 
     render(<BicycleRepairBooking />);
 
+    // Select "Flat Tire" checkbox
+    const flatTireCheckbox = screen.getByLabelText("Flat Tire");
+    await user.click(flatTireCheckbox);
+
     await user.click(screen.getByRole("button", { name: /log repair/i }));
 
     expect(addBicycleRecord).toHaveBeenCalledWith("g3", {
-      repairType: "Flat Tire",
+      repairTypes: ["Flat Tire"],
       notes: "",
     });
     expect(setBicyclePickerGuest).toHaveBeenCalledWith(null);
   });
 
-  it("allows selecting different repair types", async () => {
+  it("allows selecting multiple repair types", async () => {
     const user = userEvent.setup();
     const addBicycleRecord = vi.fn();
 
@@ -101,12 +105,15 @@ describe("BicycleRepairBooking", () => {
 
     render(<BicycleRepairBooking />);
 
-    const select = screen.getByLabelText(/repair type/i);
-    await user.selectOptions(select, "Chain Replacement");
+    // Select multiple repair types
+    const chainReplacementCheckbox = screen.getByLabelText("Chain Replacement");
+    const brakeAdjustmentCheckbox = screen.getByLabelText("Brake Adjustment");
+    await user.click(chainReplacementCheckbox);
+    await user.click(brakeAdjustmentCheckbox);
     await user.click(screen.getByRole("button", { name: /log repair/i }));
 
     expect(addBicycleRecord).toHaveBeenCalledWith("g4", {
-      repairType: "Chain Replacement",
+      repairTypes: ["Chain Replacement", "Brake Adjustment"],
       notes: "",
     });
   });
@@ -127,12 +134,16 @@ describe("BicycleRepairBooking", () => {
 
     render(<BicycleRepairBooking />);
 
+    // Select a repair type
+    const flatTireCheckbox = screen.getByLabelText("Flat Tire");
+    await user.click(flatTireCheckbox);
+
     const notesTextarea = screen.getByLabelText(/notes/i);
     await user.type(notesTextarea, "Replaced with new chain");
     await user.click(screen.getByRole("button", { name: /log repair/i }));
 
     expect(addBicycleRecord).toHaveBeenCalledWith("g5", {
-      repairType: "Flat Tire",
+      repairTypes: ["Flat Tire"],
       notes: "Replaced with new chain",
     });
   });
@@ -152,6 +163,10 @@ describe("BicycleRepairBooking", () => {
     };
 
     render(<BicycleRepairBooking />);
+
+    // Select a repair type before submitting
+    const flatTireCheckbox = screen.getByLabelText("Flat Tire");
+    await user.click(flatTireCheckbox);
 
     await user.click(screen.getByRole("button", { name: /log repair/i }));
 

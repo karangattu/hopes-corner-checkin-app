@@ -26,7 +26,7 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
         const lines = content.split("\n").filter((l) => l.trim().length > 0);
         if (lines.length < 2) throw new Error("CSV needs header + at least one data row");
 
-        const headers = lines[0].split(",");
+        // Skip headers line, parse data rows
         const records = lines.slice(1).map((line) => {
           const values = line.split(",");
           return {

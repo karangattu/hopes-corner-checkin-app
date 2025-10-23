@@ -14,6 +14,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * 2000+ individual HTTP requests, causing rate limiting and timeouts.
  */
 
+// Unused but kept for future tests if needed
+// eslint-disable-next-line no-unused-vars
 const createMockSupabaseChain = (mockData = [], mockError = null) => {
   const chain = {
     insert: vi.fn(() => chain),
@@ -204,7 +206,7 @@ describe("Batch Insert Functions", () => {
         return { chunks };
       };
 
-      const payload = Array.from({ length: 3000 }, (_, i) => ({
+      const payload = Array.from({ length: 3000 }, () => ({
         meal_type: "guest",
       }));
 
@@ -226,7 +228,7 @@ describe("Batch Insert Functions", () => {
         const BATCH_SIZE = 500;
 
         for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
-          const chunk = payloads.slice(i, i + BATCH_SIZE);
+          payloads.slice(i, i + BATCH_SIZE); // Process chunk
           const chunkNumber = i / BATCH_SIZE + 1;
 
           // Simulate error on second batch

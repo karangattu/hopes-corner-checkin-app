@@ -20,13 +20,21 @@ const repairTypes = [
 const BicycleRepairBooking = () => {
   const { bicyclePickerGuest, setBicyclePickerGuest, addBicycleRecord } =
     useAppContext();
-  const [repairType, setRepairType] = useState(repairTypes[0]);
+  const [selectedRepairTypes, setSelectedRepairTypes] = useState([]);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (!bicyclePickerGuest) return null;
 
   const bikeDescription = bicyclePickerGuest?.bicycleDescription?.trim();
+
+  const toggleRepairType = (type) => {
+    setSelectedRepairTypes((prev) =>
+      prev.includes(type)
+        ? prev.filter((t) => t !== type)
+        : [...prev, type]
+    );
+  };
 
   const handleCreate = () => {
     if (!bicyclePickerGuest) return;
@@ -39,10 +47,27 @@ const BicycleRepairBooking = () => {
       return;
     }
 
+    // Require at least one repair type
+    if (selectedRepairTypes.length === 0) {
+      toast.error("Please select at least one repair type.");
+      return;
+    }
+
+    // Require notes if "Other" is selected
+    if (selectedRepairTypes.includes("Other") && !notes.trim()) {
+      toast.error("Please add notes for 'Other' repair type.");
+      return;
+    }
+
     try {
       setSubmitting(true);
-      addBicycleRecord(bicyclePickerGuest.id, { repairType, notes });
+      addBicycleRecord(bicyclePickerGuest.id, {
+        repairTypes: selectedRepairTypes,
+        notes
+      });
       setBicyclePickerGuest(null);
+      setSelectedRepairTypes([]);
+      setNotes("");
     } catch (e) {
       toast.error(e.message || "Failed to add repair");
     } finally {
@@ -88,24 +113,37 @@ const BicycleRepairBooking = () => {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Repair Type
+            <label className="block text-sm font-medium mb-2">
+              Repair Types <span className="text-gray-500 text-xs">(select all that apply)</span>
             </label>
-            <select
-              aria-label="repair type"
-              value={repairType}
-              onChange={(e) => setRepairType(e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm"
-            >
-              {repairTypes.map((t) => (
-                <option key={t}>{t}</option>
+            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+              {repairTypes.map((type) => (
+                <label
+                  key={type}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedRepairTypes.includes(type)}
+                    onChange={() => toggleRepairType(type)}
+                    className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+                  />
+                  <span className="text-sm">{type}</span>
+                </label>
               ))}
-            </select>
+            </div>
+            {selectedRepairTypes.length > 0 && (
+              <div className="mt-2 text-xs text-sky-700 font-medium">
+                {selectedRepairTypes.length} repair type{selectedRepairTypes.length > 1 ? "s" : ""} selected (counts as {selectedRepairTypes.length} bicycle service{selectedRepairTypes.length > 1 ? "s" : ""})
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1 flex justify-between">
-              <span>Notes {repairType === "Other" && "(required)"}</span>
-              <span className="text-xs text-gray-400">Optional</span>
+              <span>Notes {selectedRepairTypes.includes("Other") && "(required)"}</span>
+              <span className="text-xs text-gray-400">
+                {selectedRepairTypes.includes("Other") ? "Required" : "Optional"}
+              </span>
             </label>
             <textarea
               aria-label="notes"
@@ -126,7 +164,8 @@ const BicycleRepairBooking = () => {
             <button
               disabled={
                 submitting ||
-                (repairType === "Other" && !notes.trim()) ||
+                selectedRepairTypes.length === 0 ||
+                (selectedRepairTypes.includes("Other") && !notes.trim()) ||
                 !bikeDescription
               }
               onClick={handleCreate}
@@ -134,6 +173,8 @@ const BicycleRepairBooking = () => {
               title={
                 !bikeDescription
                   ? "Bicycle description required in guest profile"
+                  : selectedRepairTypes.length === 0
+                  ? "Please select at least one repair type"
                   : ""
               }
             >
