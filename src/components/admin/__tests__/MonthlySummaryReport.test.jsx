@@ -2,6 +2,7 @@ import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import MonthlySummaryReport from "../MonthlySummaryReport";
+import { LAUNDRY_STATUS } from "../../../context/constants";
 
 let mockContext;
 const exportDataAsCSVMock = vi.fn();
@@ -38,6 +39,7 @@ vi.mock("react-hot-toast", () => ({
 
 const setupMockContext = (overrides = {}) => {
   mockContext = {
+    guests: [],
     mealRecords: [],
     rvMealRecords: [],
     shelterMealRecords: [],
@@ -45,6 +47,9 @@ const setupMockContext = (overrides = {}) => {
     extraMealRecords: [],
     dayWorkerMealRecords: [],
     lunchBagRecords: [],
+    showerRecords: [],
+    laundryRecords: [],
+    bicycleRecords: [],
     exportDataAsCSV: exportDataAsCSVMock,
     ...overrides,
   };
@@ -62,8 +67,8 @@ describe("MonthlySummaryReport", () => {
     expect(screen.getByText("Monthly Summary Report - 2025")).toBeInTheDocument();
 
     // Check for table headers in the thead
-    const table = screen.getByRole("table");
-    const thead = table.querySelector("thead");
+  const [mealsTable] = screen.getAllByRole("table");
+  const thead = mealsTable.querySelector("thead");
 
     expect(thead.textContent).toContain("Monday");
     expect(thead.textContent).toContain("Wednesday");
@@ -81,12 +86,18 @@ describe("MonthlySummaryReport", () => {
 
   it("displays January 2025 row", () => {
     render(<MonthlySummaryReport />);
-    expect(screen.getByText("January")).toBeInTheDocument();
+    const tables = screen.getAllByRole("table");
+    expect(tables[0].textContent).toContain("January");
+    expect(tables[1].textContent).toContain("January");
+    expect(tables[2].textContent).toContain("January");
   });
 
   it("displays TOTAL row at the bottom", () => {
     render(<MonthlySummaryReport />);
-    const totalCells = screen.getAllByText("TOTAL");
+    const [mealsTable] = screen.getAllByRole("table");
+    const totalCells = Array.from(mealsTable.querySelectorAll("td")).filter(
+      (cell) => cell.textContent === "TOTAL"
+    );
     expect(totalCells.length).toBeGreaterThan(0);
   });
 
@@ -104,8 +115,8 @@ describe("MonthlySummaryReport", () => {
     render(<MonthlySummaryReport />);
 
     // Find January row and check Monday column
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+  const [mealsTable] = screen.getAllByRole("table");
+  const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January")
     );
@@ -128,8 +139,8 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+  const [mealsTable] = screen.getAllByRole("table");
+  const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January")
     );
@@ -151,8 +162,8 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+  const [mealsTable] = screen.getAllByRole("table");
+  const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January")
     );
@@ -179,8 +190,8 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+  const [mealsTable] = screen.getAllByRole("table");
+  const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January")
     );
@@ -195,7 +206,21 @@ describe("MonthlySummaryReport", () => {
 
   it("exports to CSV when button is clicked", () => {
     setupMockContext({
+      guests: [
+        { id: "guest-1", age: "Adult 18-59" },
+        { id: "guest-2", age: "Senior 60+" },
+      ],
       mealRecords: [{ date: "2025-01-06T12:00:00Z", count: 10 }],
+      bicycleRecords: [
+        { date: "2025-01-05T12:00:00Z", status: "done", repairTypes: ["New Bicycle"] },
+        { date: "2025-02-02T12:00:00Z", status: "done", repairTypes: ["Flat Tire"] },
+      ],
+      showerRecords: [
+        { guestId: "guest-1", date: "2025-01-02T12:00:00Z", status: "done" },
+      ],
+      laundryRecords: [
+        { guestId: "guest-2", date: "2025-01-03T12:00:00Z", status: LAUNDRY_STATUS.DONE },
+      ],
     });
 
     render(<MonthlySummaryReport />);
@@ -213,6 +238,72 @@ describe("MonthlySummaryReport", () => {
     expect(csvData[0]).toHaveProperty("Month");
     expect(csvData[0]).toHaveProperty("Monday");
     expect(csvData[0]).toHaveProperty("TOTAL HOT MEALS");
+
+    const ytdRow = csvData.find((row) => row?.Month === "Year to Date");
+    expect(ytdRow).toBeTruthy();
+    expect(ytdRow["New Bikes"]).toBe(1);
+    expect(ytdRow["Bike Services"]).toBe(1);
+
+    const showerLaundryHeaderIndex = csvData.findIndex(
+      (row) => row?.Month === "Shower & Laundry Services Summary",
+    );
+    expect(showerLaundryHeaderIndex).toBeGreaterThan(-1);
+    const showerLaundryDataRow = csvData[showerLaundryHeaderIndex + 1];
+    expect(showerLaundryDataRow["Program Days in Month"]).toBeDefined();
+    const finalRow = csvData[csvData.length - 1];
+    expect(finalRow["YTD Total Unduplicated Laundry Users"]).toBeDefined();
+  });
+
+  it("renders shower and laundry summary section with headers", () => {
+    render(<MonthlySummaryReport />);
+
+    expect(screen.getByText("Shower & Laundry Services Summary")).toBeInTheDocument();
+    expect(screen.getByText("Program Days in Month")).toBeInTheDocument();
+    expect(screen.getByText("YTD Total Unduplicated Laundry Users")).toBeInTheDocument();
+  });
+
+  it("exports bicycle summary via the dedicated button", () => {
+    setupMockContext({
+      bicycleRecords: [
+        { date: "2025-01-10T12:00:00Z", status: "done", repairTypes: ["New Bicycle"] },
+      ],
+    });
+
+    render(<MonthlySummaryReport />);
+
+    const button = screen.getByRole("button", { name: /Export Bicycle CSV/i });
+    fireEvent.click(button);
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [csvData, filename] = exportDataAsCSVMock.mock.calls[0];
+    expect(filename).toMatch(/bicycle-summary-2025/);
+    expect(csvData[0]).toHaveProperty("Month");
+    expect(csvData[0]).toHaveProperty("New Bikes");
+  });
+
+  it("exports shower and laundry summary via the dedicated button", () => {
+    setupMockContext({
+      guests: [
+        { id: "guest-1", age: "Adult 18-59" },
+      ],
+      showerRecords: [
+        { guestId: "guest-1", date: "2025-01-05T12:00:00Z", status: "done" },
+      ],
+      laundryRecords: [
+        { guestId: "guest-1", date: "2025-01-06T12:00:00Z", status: LAUNDRY_STATUS.DONE },
+      ],
+    });
+
+    render(<MonthlySummaryReport />);
+
+    const button = screen.getByRole("button", { name: /Export Shower & Laundry CSV/i });
+    fireEvent.click(button);
+
+    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
+    const [csvData, filename] = exportDataAsCSVMock.mock.calls[0];
+    expect(filename).toMatch(/shower-laundry-summary-2025/);
+    expect(csvData[0]).toHaveProperty("Program Days in Month");
+    expect(csvData[csvData.length - 1]["YTD Total Unduplicated Laundry Users"]).toBeDefined();
   });
 
   it("shows totals row with correct calculations", () => {
@@ -225,16 +316,15 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+    const [mealsTable] = screen.getAllByRole("table");
+    const rows = mealsTable.querySelectorAll("tbody tr");
     const totalRow = Array.from(rows).find((row) =>
       row.textContent.includes("TOTAL")
     );
 
     expect(totalRow).toBeTruthy();
-    // Total Monday meals should be 25 (10 + 15)
     const cells = totalRow.querySelectorAll("td");
-    const mondayCell = cells[1]; // 2nd column (0-indexed)
+    const mondayCell = cells[1];
     expect(mondayCell.textContent).toBe("25");
   });
 
@@ -245,16 +335,67 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    // Should show January
-    expect(screen.getByText("January")).toBeInTheDocument();
+    const tables = screen.getAllByRole("table");
+    const mealsTable = tables[0];
+    const bicycleTable = tables[1];
+  const showerLaundryTable = tables[2];
 
-    // Should NOT show February through December
-    expect(screen.queryByText("February")).not.toBeInTheDocument();
-    expect(screen.queryByText("March")).not.toBeInTheDocument();
+    expect(mealsTable.textContent).toContain("January");
+    expect(mealsTable.textContent).not.toContain("February");
+    expect(mealsTable.textContent).not.toContain("March");
+
+    // Bicycle summary always displays full year
+    expect(bicycleTable.textContent).toContain("February");
+  expect(showerLaundryTable.textContent).toContain("December");
 
     vi.useRealTimers();
   });
 
+  it("shows bicycle new vs service counts with year-to-date totals", () => {
+    setupMockContext({
+      bicycleRecords: [
+        {
+          date: "2025-01-05T12:00:00Z",
+          status: "done",
+          repairTypes: ["New Bicycle"],
+        },
+        {
+          date: "2025-01-10T12:00:00Z",
+          status: "done",
+          repairTypes: ["Flat Tire", "Brake Adjustment"],
+        },
+        {
+          date: "2025-02-02T12:00:00Z",
+          status: "done",
+          repairTypes: ["New Bicycle", "Chain Replacement"],
+        },
+      ],
+    });
+
+    render(<MonthlySummaryReport />);
+
+    const tables = screen.getAllByRole("table");
+    const bicycleTable = tables[1];
+    const rows = bicycleTable.querySelectorAll("tbody tr");
+
+    expect(rows.length).toBe(13); // 12 months + YTD
+
+    const januaryRow = Array.from(rows).find((row) =>
+      row.textContent.includes("January")
+    );
+    expect(januaryRow).toBeTruthy();
+    const janCells = januaryRow.querySelectorAll("td");
+    expect(janCells[1].textContent).toBe("1");
+    expect(janCells[2].textContent).toBe("2");
+    expect(janCells[3].textContent).toBe("3");
+
+    const ytdRow = rows[rows.length - 1];
+    const ytdCells = ytdRow.querySelectorAll("td");
+    expect(ytdCells[1].textContent).toBe("2");
+    expect(ytdCells[2].textContent).toBe("3");
+    expect(ytdCells[3].textContent).toBe("5");
+  });
+  
   it("handles empty data gracefully", () => {
     setupMockContext({
       mealRecords: [],
@@ -262,25 +403,30 @@ describe("MonthlySummaryReport", () => {
       extraMealRecords: [],
       dayWorkerMealRecords: [],
       lunchBagRecords: [],
+      bicycleRecords: [],
     });
 
     render(<MonthlySummaryReport />);
 
-    // Should still render the table with all zeros
-    expect(screen.getByText("January")).toBeInTheDocument();
-    expect(screen.getByText("TOTAL")).toBeInTheDocument();
+    const [mealsTable, bicycleTable] = screen.getAllByRole("table");
+    expect(mealsTable.textContent).toContain("January");
+    expect(mealsTable.textContent).toContain("TOTAL");
+    expect(bicycleTable.textContent).toContain("Year to Date");
 
-    // Find January row and verify it has zeros
-    const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
-    const januaryRow = Array.from(rows).find((row) =>
+    const mealRows = mealsTable.querySelectorAll("tbody tr");
+    const januaryRow = Array.from(mealRows).find((row) =>
       row.textContent.includes("January")
     );
 
     expect(januaryRow).toBeTruthy();
-    const cells = januaryRow.querySelectorAll("td");
-    // Check that numeric cells show 0
-    expect(cells[1].textContent).toBe("0"); // Monday
-    expect(cells[2].textContent).toBe("0"); // Wednesday
+    const mealCells = januaryRow.querySelectorAll("td");
+    expect(mealCells[1].textContent).toBe("0");
+    expect(mealCells[2].textContent).toBe("0");
+
+    const bicycleRows = bicycleTable.querySelectorAll("tbody tr");
+    const ytdRow = bicycleRows[bicycleRows.length - 1];
+    const bicycleCells = ytdRow.querySelectorAll("td");
+    expect(bicycleCells[1].textContent).toBe("0");
+    expect(bicycleCells[2].textContent).toBe("0");
   });
 });

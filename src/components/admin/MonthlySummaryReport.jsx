@@ -1,7 +1,8 @@
 import React, { useMemo, useCallback } from "react";
 import { useAppContext } from "../../context/useAppContext";
-import { Download, Calendar } from "lucide-react";
+import { Download, Calendar, ShowerHead } from "lucide-react";
 import toast from "react-hot-toast";
+import { BICYCLE_REPAIR_STATUS, LAUNDRY_STATUS } from "../../context/constants";
 
 /**
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
@@ -13,6 +14,7 @@ import toast from "react-hot-toast";
  */
 const MonthlySummaryReport = () => {
   const {
+    guests,
     mealRecords,
     rvMealRecords,
     shelterMealRecords,
@@ -20,6 +22,9 @@ const MonthlySummaryReport = () => {
     extraMealRecords,
     dayWorkerMealRecords,
     lunchBagRecords,
+    showerRecords,
+    laundryRecords,
+    bicycleRecords,
     exportDataAsCSV,
   } = useAppContext();
 
@@ -53,6 +58,23 @@ const MonthlySummaryReport = () => {
   const sumQuantities = (records) => {
     return records.reduce((sum, record) => sum + (record.count || 0), 0);
   };
+
+  const normalizeRepairTypes = useCallback((record) => {
+    if (!record) return [];
+    const rawTypes = Array.isArray(record.repairTypes)
+      ? record.repairTypes
+      : record.repairType
+      ? [record.repairType]
+      : [];
+    return rawTypes
+      .map((type) => (type == null ? "" : String(type).trim()))
+      .filter((type) => type.length > 0);
+  }, []);
+
+  const isCompletedBicycleStatus = useCallback((status) => {
+    if (!status) return true;
+    return status === BICYCLE_REPAIR_STATUS.DONE;
+  }, []);
 
   // Calculate monthly data for all months from Jan 2025 to current month
   const monthlyData = useMemo(() => {
@@ -159,6 +181,335 @@ const MonthlySummaryReport = () => {
     filterRecords,
   ]);
 
+  const bicycleSummary = useMemo(() => {
+    const currentDate = new Date();
+    const currentYear = 2025;
+    const currentMonth = currentDate.getFullYear() === currentYear ? currentDate.getMonth() : 11;
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const rows = monthNames.map((monthName, monthIndex) => {
+      const recordsForMonth = (bicycleRecords || []).filter((record) => {
+        if (!record?.date) return false;
+        const date = new Date(record.date);
+        return (
+          date.getFullYear() === currentYear &&
+          date.getMonth() === monthIndex &&
+          isCompletedBicycleStatus(record.status)
+        );
+      });
+
+      let newBikes = 0;
+      let services = 0;
+      recordsForMonth.forEach((record) => {
+        const types = normalizeRepairTypes(record);
+        if (types.length === 0) return;
+        types.forEach((type) => {
+          if (type.toLowerCase() === "new bicycle") {
+            newBikes += 1;
+          } else {
+            services += 1;
+          }
+        });
+      });
+
+      return {
+        month: monthName,
+        newBikes,
+        services,
+        total: newBikes + services,
+        isYearToDate: monthIndex <= currentMonth,
+      };
+    });
+
+    const yearToDateRows = rows.filter((row) => row.isYearToDate);
+    const totals = yearToDateRows.reduce(
+      (acc, row) => ({
+        newBikes: acc.newBikes + row.newBikes,
+        services: acc.services + row.services,
+        total: acc.total + row.total,
+      }),
+      { newBikes: 0, services: 0, total: 0 },
+    );
+
+    return {
+      rows,
+      totals,
+    };
+  }, [bicycleRecords, isCompletedBicycleStatus, normalizeRepairTypes]);
+
+  const showerLaundrySummary = useMemo(() => {
+    const currentDate = new Date();
+    const currentYear = 2025;
+    const currentMonth =
+      currentDate.getFullYear() === currentYear ? currentDate.getMonth() : 11;
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const guestMap = new Map();
+    (guests || []).forEach((guest) => {
+      if (!guest) return;
+      const candidateIds = [
+        guest.id,
+        guest.guestId,
+        guest.externalId,
+        guest.docId,
+      ].filter((value) => value != null);
+      candidateIds.forEach((value) => {
+        guestMap.set(String(value), guest);
+      });
+    });
+
+    const categorizeAge = (guestId) => {
+      if (!guestId) return "adult";
+      const guest = guestMap.get(String(guestId));
+      const rawAge = (
+        guest?.age ??
+        guest?.ageGroup ??
+        guest?.age_group ??
+        guest?.ageCategory ??
+        ""
+      )
+        .toString()
+        .toLowerCase();
+
+      if (rawAge.includes("senior")) return "senior";
+      if (rawAge.includes("child")) return "child";
+      return "adult";
+    };
+
+    const completedLaundryStatuses = new Set(
+      [
+        LAUNDRY_STATUS?.DONE,
+        LAUNDRY_STATUS?.PICKED_UP,
+        LAUNDRY_STATUS?.RETURNED,
+        LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+      ]
+        .filter(Boolean)
+        .map((value) => value.toString().toLowerCase()),
+    );
+
+    const completedShowerRecords = (showerRecords || []).reduce((acc, record) => {
+      if (!record?.date) return acc;
+      const date = new Date(record.date);
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) {
+        return acc;
+      }
+      const status = (record.status || "").toString().toLowerCase();
+      if (status && status !== "done") return acc;
+      acc.push({
+        guestId: record.guestId != null ? String(record.guestId) : null,
+        date,
+        monthIndex: date.getMonth(),
+      });
+      return acc;
+    }, []);
+
+    const completedLaundryRecords = (laundryRecords || []).reduce(
+      (acc, record) => {
+        if (!record?.date) return acc;
+        const date = new Date(record.date);
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) {
+          return acc;
+        }
+        const status = (record.status || "").toString().toLowerCase();
+        if (!completedLaundryStatuses.has(status)) return acc;
+        acc.push({
+          guestId: record.guestId != null ? String(record.guestId) : null,
+          date,
+          monthIndex: date.getMonth(),
+        });
+        return acc;
+      },
+      [],
+    );
+
+    const allServiceRecords = [
+      ...completedShowerRecords,
+      ...completedLaundryRecords,
+    ];
+
+    const guestFirstMonth = new Map();
+    allServiceRecords.forEach((record) => {
+      if (!record.guestId) return;
+      const existing = guestFirstMonth.get(record.guestId);
+      if (existing == null || record.monthIndex < existing) {
+        guestFirstMonth.set(record.guestId, record.monthIndex);
+      }
+    });
+
+    const rows = [];
+    const ytdGuestSet = new Set();
+    const ytdLaundrySet = new Set();
+    const ytdParticipantAgeSets = {
+      adult: new Set(),
+      senior: new Set(),
+      child: new Set(),
+    };
+    const ytdLaundryAgeSets = {
+      adult: new Set(),
+      senior: new Set(),
+      child: new Set(),
+    };
+
+    let runningNewGuests = 0;
+
+    const totalsAccumulator = {
+      programDays: 0,
+      showersProvided: 0,
+      laundryLoadsProcessed: 0,
+    };
+
+    monthNames.forEach((monthName, monthIndex) => {
+      const showersForMonth = completedShowerRecords.filter(
+        (record) => record.monthIndex === monthIndex,
+      );
+      const laundryForMonth = completedLaundryRecords.filter(
+        (record) => record.monthIndex === monthIndex,
+      );
+      const combinedForMonth = [...showersForMonth, ...laundryForMonth];
+
+      const programDaysSet = new Set(
+        combinedForMonth.map((record) => record.date.toISOString().slice(0, 10)),
+      );
+
+      const monthGuestSet = new Set();
+      combinedForMonth.forEach((record) => {
+        if (record.guestId) {
+          monthGuestSet.add(record.guestId);
+        }
+      });
+
+      const participantsCounts = {
+        adult: 0,
+        senior: 0,
+        child: 0,
+      };
+      monthGuestSet.forEach((guestId) => {
+        const bucket = categorizeAge(guestId);
+        participantsCounts[bucket] += 1;
+      });
+
+      const laundryGuestSet = new Set();
+      laundryForMonth.forEach((record) => {
+        if (record.guestId) {
+          laundryGuestSet.add(record.guestId);
+        }
+      });
+      const laundryCounts = {
+        adult: 0,
+        senior: 0,
+        child: 0,
+      };
+      laundryGuestSet.forEach((guestId) => {
+        const bucket = categorizeAge(guestId);
+        laundryCounts[bucket] += 1;
+      });
+
+      const isYearToDate = monthIndex <= currentMonth;
+      let newGuestsThisMonth = 0;
+
+      if (isYearToDate) {
+        monthGuestSet.forEach((guestId) => {
+          ytdGuestSet.add(guestId);
+          const bucket = categorizeAge(guestId);
+          ytdParticipantAgeSets[bucket].add(guestId);
+        });
+        laundryGuestSet.forEach((guestId) => {
+          ytdLaundrySet.add(guestId);
+          const bucket = categorizeAge(guestId);
+          ytdLaundryAgeSets[bucket].add(guestId);
+        });
+        newGuestsThisMonth = [...monthGuestSet].filter(
+          (guestId) => guestFirstMonth.get(guestId) === monthIndex,
+        ).length;
+        runningNewGuests += newGuestsThisMonth;
+
+        totalsAccumulator.programDays += programDaysSet.size;
+        totalsAccumulator.showersProvided += showersForMonth.length;
+        totalsAccumulator.laundryLoadsProcessed += laundryForMonth.length;
+      } else {
+        newGuestsThisMonth = [...monthGuestSet].filter(
+          (guestId) => guestFirstMonth.get(guestId) === monthIndex,
+        ).length;
+      }
+
+      rows.push({
+        month: monthName,
+        programDays: programDaysSet.size,
+        showersProvided: showersForMonth.length,
+        participantsAdult: participantsCounts.adult,
+        participantsSenior: participantsCounts.senior,
+        participantsChild: participantsCounts.child,
+        totalParticipants:
+          participantsCounts.adult +
+          participantsCounts.senior +
+          participantsCounts.child,
+        newGuests: newGuestsThisMonth,
+        ytdTotalUnduplicatedGuests: ytdGuestSet.size,
+        laundryLoadsProcessed: laundryForMonth.length,
+        unduplicatedLaundryUsers: laundryGuestSet.size,
+        laundryAdult: laundryCounts.adult,
+        laundrySenior: laundryCounts.senior,
+        laundryChild: laundryCounts.child,
+        ytdNewGuestsLaundry: runningNewGuests,
+        ytdTotalUnduplicatedLaundryUsers: ytdLaundrySet.size,
+        isYearToDate,
+      });
+    });
+
+    const totals = {
+      month: "Year to Date",
+      programDays: totalsAccumulator.programDays,
+      showersProvided: totalsAccumulator.showersProvided,
+      participantsAdult: ytdParticipantAgeSets.adult.size,
+      participantsSenior: ytdParticipantAgeSets.senior.size,
+      participantsChild: ytdParticipantAgeSets.child.size,
+      totalParticipants:
+        ytdParticipantAgeSets.adult.size +
+        ytdParticipantAgeSets.senior.size +
+        ytdParticipantAgeSets.child.size,
+      newGuests: runningNewGuests,
+      ytdTotalUnduplicatedGuests: ytdGuestSet.size,
+      laundryLoadsProcessed: totalsAccumulator.laundryLoadsProcessed,
+      unduplicatedLaundryUsers: ytdLaundrySet.size,
+      laundryAdult: ytdLaundryAgeSets.adult.size,
+      laundrySenior: ytdLaundryAgeSets.senior.size,
+      laundryChild: ytdLaundryAgeSets.child.size,
+      ytdNewGuestsLaundry: runningNewGuests,
+      ytdTotalUnduplicatedLaundryUsers: ytdLaundrySet.size,
+    };
+
+    return {
+      rows,
+      totals,
+    };
+  }, [guests, laundryRecords, showerRecords]);
+
   // Export data to CSV
   const handleExportCSV = () => {
     const csvData = [
@@ -195,8 +546,147 @@ const MonthlySummaryReport = () => {
       },
     ];
 
+    csvData.push({});
+    csvData.push({ Month: "Bicycle Services Summary" });
+    csvData.push(
+      ...bicycleSummary.rows.map((row) => ({
+        Month: row.month,
+        "New Bikes": row.newBikes,
+        "Bike Services": row.services,
+        Total: row.total,
+      })),
+    );
+    csvData.push({
+      Month: "Year to Date",
+      "New Bikes": bicycleSummary.totals.newBikes,
+      "Bike Services": bicycleSummary.totals.services,
+      Total: bicycleSummary.totals.total,
+    });
+
+    csvData.push({});
+    csvData.push({ Month: "Shower & Laundry Services Summary" });
+    csvData.push(
+      ...showerLaundrySummary.rows.map((row) => ({
+        Month: row.month,
+        "Program Days in Month": row.programDays,
+        "Showers Provided": row.showersProvided,
+        "Participants: Adult": row.participantsAdult,
+        "Participants: Senior": row.participantsSenior,
+        "Participants: Child": row.participantsChild,
+        "Total Participants": row.totalParticipants,
+        "New Guests This Month": row.newGuests,
+        "YTD Total Unduplicated Guests": row.ytdTotalUnduplicatedGuests,
+        "Laundry Loads Processed": row.laundryLoadsProcessed,
+        "Unduplicated Laundry Users": row.unduplicatedLaundryUsers,
+        "Laundry Users: Adult": row.laundryAdult,
+        "Laundry Users: Senior": row.laundrySenior,
+        "Laundry Users: Child": row.laundryChild,
+        "YTD New Guests (Laundry)": row.ytdNewGuestsLaundry,
+        "YTD Total Unduplicated Laundry Users":
+          row.ytdTotalUnduplicatedLaundryUsers,
+      })),
+    );
+    csvData.push({
+      Month: showerLaundrySummary.totals.month,
+      "Program Days in Month": showerLaundrySummary.totals.programDays,
+      "Showers Provided": showerLaundrySummary.totals.showersProvided,
+      "Participants: Adult": showerLaundrySummary.totals.participantsAdult,
+      "Participants: Senior": showerLaundrySummary.totals.participantsSenior,
+      "Participants: Child": showerLaundrySummary.totals.participantsChild,
+      "Total Participants": showerLaundrySummary.totals.totalParticipants,
+      "New Guests This Month": showerLaundrySummary.totals.newGuests,
+      "YTD Total Unduplicated Guests":
+        showerLaundrySummary.totals.ytdTotalUnduplicatedGuests,
+      "Laundry Loads Processed":
+        showerLaundrySummary.totals.laundryLoadsProcessed,
+      "Unduplicated Laundry Users":
+        showerLaundrySummary.totals.unduplicatedLaundryUsers,
+      "Laundry Users: Adult": showerLaundrySummary.totals.laundryAdult,
+      "Laundry Users: Senior": showerLaundrySummary.totals.laundrySenior,
+      "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
+      "YTD New Guests (Laundry)": showerLaundrySummary.totals.ytdNewGuestsLaundry,
+      "YTD Total Unduplicated Laundry Users":
+        showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
+    });
+
     exportDataAsCSV(csvData, `monthly-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`);
     toast.success("Monthly summary exported to CSV");
+  };
+
+  const handleExportBicycleCSV = () => {
+    const csvData = [
+      ...bicycleSummary.rows.map((row) => ({
+        Month: row.month,
+        "New Bikes": row.newBikes,
+        "Bike Services": row.services,
+        Total: row.total,
+      })),
+      {
+        Month: "Year to Date",
+        "New Bikes": bicycleSummary.totals.newBikes,
+        "Bike Services": bicycleSummary.totals.services,
+        Total: bicycleSummary.totals.total,
+      },
+    ];
+
+    exportDataAsCSV(
+      csvData,
+      `bicycle-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    toast.success("Bicycle services summary exported to CSV");
+  };
+
+  const handleExportShowerLaundryCSV = () => {
+    const csvData = [
+      ...showerLaundrySummary.rows.map((row) => ({
+        Month: row.month,
+        "Program Days in Month": row.programDays,
+        "Showers Provided": row.showersProvided,
+        "Participants: Adult": row.participantsAdult,
+        "Participants: Senior": row.participantsSenior,
+        "Participants: Child": row.participantsChild,
+        "Total Participants": row.totalParticipants,
+        "New Guests This Month": row.newGuests,
+        "YTD Total Unduplicated Guests": row.ytdTotalUnduplicatedGuests,
+        "Laundry Loads Processed": row.laundryLoadsProcessed,
+        "Unduplicated Laundry Users": row.unduplicatedLaundryUsers,
+        "Laundry Users: Adult": row.laundryAdult,
+        "Laundry Users: Senior": row.laundrySenior,
+        "Laundry Users: Child": row.laundryChild,
+        "YTD New Guests (Laundry)": row.ytdNewGuestsLaundry,
+        "YTD Total Unduplicated Laundry Users":
+          row.ytdTotalUnduplicatedLaundryUsers,
+      })),
+      {
+        Month: showerLaundrySummary.totals.month,
+        "Program Days in Month": showerLaundrySummary.totals.programDays,
+        "Showers Provided": showerLaundrySummary.totals.showersProvided,
+        "Participants: Adult": showerLaundrySummary.totals.participantsAdult,
+        "Participants: Senior": showerLaundrySummary.totals.participantsSenior,
+        "Participants: Child": showerLaundrySummary.totals.participantsChild,
+        "Total Participants": showerLaundrySummary.totals.totalParticipants,
+        "New Guests This Month": showerLaundrySummary.totals.newGuests,
+        "YTD Total Unduplicated Guests":
+          showerLaundrySummary.totals.ytdTotalUnduplicatedGuests,
+        "Laundry Loads Processed":
+          showerLaundrySummary.totals.laundryLoadsProcessed,
+        "Unduplicated Laundry Users":
+          showerLaundrySummary.totals.unduplicatedLaundryUsers,
+        "Laundry Users: Adult": showerLaundrySummary.totals.laundryAdult,
+        "Laundry Users: Senior": showerLaundrySummary.totals.laundrySenior,
+        "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
+        "YTD New Guests (Laundry)":
+          showerLaundrySummary.totals.ytdNewGuestsLaundry,
+        "YTD Total Unduplicated Laundry Users":
+          showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
+      },
+    ];
+
+    exportDataAsCSV(
+      csvData,
+      `shower-laundry-summary-2025-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    toast.success("Shower & laundry summary exported to CSV");
   };
 
   return (
@@ -391,6 +881,301 @@ const MonthlySummaryReport = () => {
             <li><strong>Onsite Hot Meals:</strong> Guest meals + Extra meals on Mon/Wed/Sat/Fri only</li>
             <li><strong>RV Meals:</strong> Split by service days (Mon+Thu and Wed+Sat)</li>
           </ul>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <Calendar className="text-sky-600" size={20} />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Bicycle Services Summary
+              </h3>
+              <p className="text-sm text-gray-600">
+                Year-to-date breakdown of new bicycles and service types provided in 2025
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleExportBicycleCSV}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors"
+          >
+            <Download size={16} />
+            Export Bicycle CSV
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900">
+                  Month
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
+                  New Bikes
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-sky-50">
+                  Bike Services
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {bicycleSummary.rows.map((row) => (
+                <tr key={row.month} className="hover:bg-gray-50">
+                  <td className="border border-gray-300 px-3 py-2 font-medium text-gray-900">
+                    {row.month}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                    {row.newBikes.toLocaleString()}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-sky-50">
+                    {row.services.toLocaleString()}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 text-right">
+                    {row.total.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-gray-200 font-bold">
+                <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                  Year to Date
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                  {bicycleSummary.totals.newBikes.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-sky-50">
+                  {bicycleSummary.totals.services.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right">
+                  {bicycleSummary.totals.total.toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <ShowerHead className="text-amber-600" size={20} />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Shower & Laundry Services Summary
+              </h3>
+              <p className="text-sm text-gray-600">
+                Participant trends and laundry loads from January through YTD 2025
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleExportShowerLaundryCSV}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+          >
+            <Download size={16} />
+            Export Shower & Laundry CSV
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900">
+                  Month
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-yellow-50">
+                  Program Days in Month
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-yellow-50">
+                  Showers Provided
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
+                  Participants: Adult
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
+                  Participants: Senior
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
+                  Participants: Child
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
+                  Total Participants
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
+                  New Guests This Month
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
+                  YTD Total Unduplicated Guests
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  Laundry Loads Processed
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  Unduplicated Laundry Users
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  Laundry Users: Adult
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  Laundry Users: Senior
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  Laundry Users: Child
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
+                  YTD New Guests (Laundry)
+                </th>
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                  YTD Total Unduplicated Laundry Users
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {showerLaundrySummary.rows.map((row) => (
+                <tr
+                  key={row.month}
+                  className={row.isYearToDate ? "hover:bg-gray-50" : "bg-gray-50 text-gray-500"}
+                >
+                  <td
+                    className={`border border-gray-300 px-3 py-2 font-medium ${row.isYearToDate ? "text-gray-900" : "text-gray-500"}`}
+                  >
+                    {row.month}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.programDays.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.showersProvided.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.participantsAdult.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.participantsSenior.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.participantsChild.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.totalParticipants.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.newGuests.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.ytdTotalUnduplicatedGuests.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.laundryLoadsProcessed.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.unduplicatedLaundryUsers.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.laundryAdult.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.laundrySenior.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.laundryChild.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.ytdNewGuestsLaundry.toLocaleString()}
+                  </td>
+                  <td
+                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                  >
+                    {row.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              <tr className="bg-gray-200 font-bold">
+                <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                  {showerLaundrySummary.totals.month}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-yellow-50">
+                  {showerLaundrySummary.totals.programDays.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-yellow-50">
+                  {showerLaundrySummary.totals.showersProvided.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                  {showerLaundrySummary.totals.participantsAdult.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                  {showerLaundrySummary.totals.participantsSenior.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                  {showerLaundrySummary.totals.participantsChild.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
+                  {showerLaundrySummary.totals.totalParticipants.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                  {showerLaundrySummary.totals.newGuests.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                  {showerLaundrySummary.totals.ytdTotalUnduplicatedGuests.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.laundryLoadsProcessed.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.unduplicatedLaundryUsers.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.laundryAdult.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.laundrySenior.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.laundryChild.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                  {showerLaundrySummary.totals.ytdNewGuestsLaundry.toLocaleString()}
+                </td>
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  {showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
