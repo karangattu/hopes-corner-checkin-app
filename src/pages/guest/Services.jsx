@@ -41,6 +41,7 @@ import {
   Download,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
+import { useAuth } from "../../context/useAuth";
 import ShowerBooking from "../../components/ShowerBooking";
 import LaundryBooking from "../../components/LaundryBooking";
 import StickyQuickActions from "../../components/StickyQuickActions";
@@ -162,6 +163,8 @@ const Services = () => {
     settings,
     BICYCLE_REPAIR_STATUS,
   } = useAppContext();
+  const { user } = useAuth();
+  const quickActionRole = user?.role ?? "staff";
 
   const [activeSection, setActiveSection] = useState("overview");
 
@@ -5935,6 +5938,8 @@ const Services = () => {
         onShowerClick={handleQuickShower}
         onLaundryClick={handleQuickLaundry}
         onDonationClick={handleQuickDonation}
+        role={quickActionRole}
+        shortcutsEnabled={quickActionsVisible && showQuickActions}
         onClose={() => setQuickActionsVisible(false)}
       />
     </div>

@@ -1,9 +1,91 @@
+:root {
+  --font-size-xs: 0.8125rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --line-height-base: 1.5;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --container-max-width: 1200px;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --shadow-sm:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --tap-target-min: 44px;
+}
+
+body {
+  font-size: clamp(var(--font-size-sm), 0.92rem + 0.35vw, var(--font-size-md));
+  line-height: var(--line-height-base);
+  text-rendering: optimizeLegibility;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --font-size-sm: 0.9rem;
+    --font-size-md: 1.0625rem;
+    --font-size-lg: 1.2rem;
+    --font-size-xl: 1.35rem;
+    --space-xs: 0.625rem;
+    --space-sm: 0.875rem;
+    --space-md: 1.25rem;
+    --space-lg: 1.75rem;
+    --tap-target-min: 48px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --font-size-sm: 0.9375rem;
+    --font-size-md: 1.125rem;
+    --font-size-lg: 1.25rem;
+    --font-size-xl: 1.4rem;
+    --space-xs: 0.75rem;
+    --space-sm: 1rem;
+    --space-md: 1.25rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2.25rem;
+    --tap-target-min: 52px;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --font-size-sm: 0.85rem;
+    --font-size-md: 1.05rem;
+    --font-size-lg: 1.2rem;
+    --font-size-xl: 1.5rem;
+    --space-xs: 0.625rem;
+    --space-sm: 0.875rem;
+    --space-md: 1.25rem;
+    --space-lg: 1.75rem;
+    --space-xl: 2.5rem;
+    --tap-target-min: 44px;
+  }
+}
+
+@media (min-width: 768px) {
+  .md\:p-6 {
+    padding: var(--space-lg);
+  }
+}
+
 .min-h-screen {
   min-height: 100vh;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: var(--container-max-width);
   margin-left: auto;
   margin-right: auto;
 }
@@ -29,27 +111,27 @@
 }
 
 .gap-2 {
-  gap: 0.5rem;
+  gap: var(--space-xs);
 }
 
 .p-4 {
-  padding: 1rem;
+  padding: var(--space-md);
 }
 
 .p-6 {
-  padding: 1.5rem;
+  padding: var(--space-lg);
 }
 
 .mb-2 {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-xs);
 }
 
 .mb-4 {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
 }
 
 .mb-6 {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-lg);
 }
 
 .bg-gray-50 {
@@ -93,23 +175,23 @@
 }
 
 .text-sm {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 .text-md {
-  font-size: 1rem;
+  font-size: var(--font-size-md);
 }
 
 .text-lg {
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
 }
 
 .text-xl {
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
 }
 
 .text-2xl {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
 }
 
 .font-medium {
@@ -125,19 +207,15 @@
 }
 
 .rounded-lg {
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
 }
 
 .shadow {
-  box-shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .shadow-md {
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
 }
 
 .overflow-x-auto {
@@ -149,21 +227,60 @@
 }
 
 .px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
 }
 
 .py-3 {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
 }
 
 .border-b-2 {
   border-bottom-width: 2px;
 }
 
-@media (min-width: 768px) {
-  .md\:p-6 {
-    padding: 1.5rem;
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  select,
+  input,
+  textarea {
+    min-height: var(--tap-target-min);
+    padding-block: max(0.5rem, calc((var(--tap-target-min) - 2.25rem) / 2));
   }
+
+  .gap-2 {
+    gap: var(--space-sm);
+  }
+
+  .py-3 {
+    padding-top: var(--space-md);
+    padding-bottom: var(--space-md);
+  }
+}
+
+.pull-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  color: #4b5563;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.pull-indicator--ready {
+  color: #2563eb;
+}
+
+.slot-counter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: #4b5563;
 }

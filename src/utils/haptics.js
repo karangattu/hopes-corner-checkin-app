@@ -76,6 +76,8 @@ export const haptics = {
   swipe: () => triggerHaptic('selection'),
   delete: () => triggerHaptic('warning'),
   undo: () => triggerHaptic('medium'),
+  refresh: () => triggerHaptic('selection'),
+  complete: () => triggerHaptic('success'),
 };
 
 /**

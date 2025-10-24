@@ -1,7 +1,29 @@
 import React from "react";
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LaundryList from "../LaundryList";
+
+const hapticsMock = vi.hoisted(() => ({
+  selection: vi.fn(),
+  delete: vi.fn(),
+  actionSuccess: vi.fn(),
+  complete: vi.fn(),
+}));
+
+const toastMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  warning: vi.fn(),
+}));
+
+vi.mock("../../utils/haptics", () => ({
+  __esModule: true,
+  default: hapticsMock,
+}));
+
+vi.mock("../../utils/toast", () => ({
+  __esModule: true,
+  default: toastMock,
+}));
 
 describe("LaundryList", () => {
   let mockSetList;
@@ -15,6 +37,10 @@ describe("LaundryList", () => {
     ];
   });
 
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders empty list message when no guests", () => {
     render(<LaundryList list={[]} setList={mockSetList} />);
     expect(screen.getByText("Laundry list is empty.")).toBeInTheDocument();
@@ -25,8 +51,8 @@ describe("LaundryList", () => {
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
-    expect(screen.getAllByText("8:30 - 9:30").length).toBeGreaterThan(0);
-    expect(screen.getByText("1 / 5")).toBeInTheDocument();
+  expect(screen.getAllByText("8:30 - 9:30").length).toBeGreaterThan(0);
+  expect(screen.getByText("1 / 5")).toBeInTheDocument();
   });
 
   it("allows selecting a slot for a guest", () => {
@@ -71,10 +97,12 @@ describe("LaundryList", () => {
   it("allows removing a guest", () => {
     render(<LaundryList list={initialList} setList={mockSetList} />);
 
-    const removeButtons = screen.getAllByRole("button");
-    fireEvent.click(removeButtons[1]); // Second button (first is select, second is remove)
+  const removeButton = screen.getByLabelText("Remove Alice from laundry list");
+  fireEvent.click(removeButton);
 
     expect(mockSetList).toHaveBeenCalledWith(expect.any(Function));
+  expect(hapticsMock.delete).toHaveBeenCalled();
+  expect(toastMock.warning).toHaveBeenCalled();
   });
 
   it("shows assigned slot next to guest name", () => {
@@ -92,5 +120,45 @@ describe("LaundryList", () => {
     render(<LaundryList list={partialList} setList={mockSetList} />);
 
     expect(screen.getByText("2 / 5")).toBeInTheDocument();
+  });
+
+  it("invokes refresh handler after pull-to-refresh gesture", async () => {
+    const onRefresh = vi.fn();
+    render(<LaundryList list={initialList} setList={mockSetList} onRefresh={onRefresh} />);
+
+    const container = screen.getByTestId("laundry-list-container");
+    fireEvent.touchStart(container, { touches: [{ clientY: 0 }] });
+    fireEvent.touchMove(container, {
+      touches: [{ clientY: 180 }],
+      preventDefault: vi.fn(),
+    });
+    fireEvent.touchEnd(container);
+
+    await waitFor(() => {
+      expect(onRefresh).toHaveBeenCalled();
+    });
+    expect(toastMock.success).toHaveBeenCalledWith(
+      "Laundry list refreshed",
+      expect.any(Object),
+    );
+  });
+
+  it("marks a guest complete after swipe gesture", () => {
+    render(<LaundryList list={initialList} setList={mockSetList} />);
+
+    const item = screen.getByTestId("laundry-list-item-1");
+    fireEvent.touchStart(item, { touches: [{ clientX: 160 }] });
+    fireEvent.touchMove(item, {
+      touches: [{ clientX: 0 }],
+      preventDefault: vi.fn(),
+    });
+    fireEvent.touchEnd(item);
+
+    expect(mockSetList).toHaveBeenCalledWith(expect.any(Function));
+    expect(toastMock.success).toHaveBeenCalledWith(
+      expect.stringContaining("Alice"),
+      expect.any(Object),
+    );
+    expect(hapticsMock.complete).toHaveBeenCalled();
   });
 });

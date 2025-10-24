@@ -1,7 +1,29 @@
 import React from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ShowerQueue from "../ShowerQueue";
+
+const hapticsMock = vi.hoisted(() => ({
+  delete: vi.fn(),
+  complete: vi.fn(),
+  actionSuccess: vi.fn(),
+  selection: vi.fn(),
+}));
+
+const toastMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  warning: vi.fn(),
+}));
+
+vi.mock("../../utils/haptics", () => ({
+  __esModule: true,
+  default: hapticsMock,
+}));
+
+vi.mock("../../utils/toast", () => ({
+  __esModule: true,
+  default: toastMock,
+}));
 
 describe("ShowerQueue", () => {
   let mockSetQueue;
@@ -23,6 +45,7 @@ describe("ShowerQueue", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   it("renders empty queue message when no guests", () => {
@@ -57,10 +80,12 @@ describe("ShowerQueue", () => {
   it("allows removing a guest", () => {
     render(<ShowerQueue queue={initialQueue} setQueue={mockSetQueue} />);
 
-    const removeButtons = screen.getAllByRole("button");
-    fireEvent.click(removeButtons[0]); // First remove button
+    const removeButton = screen.getByLabelText("Remove Alice from shower queue");
+    fireEvent.click(removeButton);
 
     expect(mockSetQueue).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.delete).toHaveBeenCalled();
+    expect(toastMock.warning).toHaveBeenCalled();
   });
 
   it("calculates slot times correctly", () => {
@@ -95,5 +120,46 @@ describe("ShowerQueue", () => {
     expect(listItems[0]).toHaveClass("active-service");
     expect(listItems[1]).toHaveClass("active-service");
     expect(screen.getAllByText("In Use")).toHaveLength(2);
+  });
+
+  it("invokes refresh when pulling the queue", async () => {
+    vi.useRealTimers();
+    const onRefresh = vi.fn().mockResolvedValue();
+    render(<ShowerQueue queue={initialQueue} setQueue={mockSetQueue} onRefresh={onRefresh} />);
+
+    const container = screen.getByTestId("shower-queue-container");
+    fireEvent.touchStart(container, { touches: [{ clientY: 0 }] });
+    fireEvent.touchMove(container, {
+      touches: [{ clientY: 150 }],
+      preventDefault: vi.fn(),
+    });
+    fireEvent.touchEnd(container);
+
+    await waitFor(() => {
+      expect(onRefresh).toHaveBeenCalled();
+    });
+    expect(toastMock.success).toHaveBeenCalledWith(
+      "Shower queue refreshed",
+      expect.any(Object),
+    );
+  });
+
+  it("marks a shower entry complete on swipe", () => {
+    render(<ShowerQueue queue={initialQueue} setQueue={mockSetQueue} />);
+
+    const item = screen.getByTestId("shower-queue-item-1");
+    fireEvent.touchStart(item, { touches: [{ clientX: 160 }] });
+    fireEvent.touchMove(item, {
+      touches: [{ clientX: 0 }],
+      preventDefault: vi.fn(),
+    });
+    fireEvent.touchEnd(item);
+
+    expect(mockSetQueue).toHaveBeenCalledTimes(1);
+    expect(hapticsMock.complete).toHaveBeenCalled();
+    expect(toastMock.success).toHaveBeenCalledWith(
+      expect.stringContaining("Alice"),
+      expect.any(Object),
+    );
   });
 });
