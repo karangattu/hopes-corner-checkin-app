@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { FixedSizeList as List } from "react-window";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { animated as Animated } from "@react-spring/web";
 import { useStagger, SpringIcon } from "../utils/animations";
@@ -38,6 +39,13 @@ import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 
+const VIRTUALIZATION_THRESHOLD = 40;
+const DEFAULT_ITEM_HEIGHT = 208;
+const ITEM_VERTICAL_GAP = 16;
+const VIRTUAL_ITEM_SIZE = DEFAULT_ITEM_HEIGHT + ITEM_VERTICAL_GAP;
+const MIN_VISIBLE_ROWS = 5;
+const MAX_VISIBLE_ROWS = 12;
+
 const GuestList = () => {
   const {
     guests,
@@ -65,6 +73,9 @@ const GuestList = () => {
   const [expandedGuest, setExpandedGuest] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedGuestIndex, setSelectedGuestIndex] = useState(-1);
+  const [listHeight, setListHeight] = useState(
+    VIRTUAL_ITEM_SIZE * MIN_VISIBLE_ROWS,
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -135,6 +146,8 @@ const GuestList = () => {
 
   const searchInputRef = useRef(null);
   const createFirstNameRef = useRef(null);
+  const listRef = useRef(null);
+  const listContainerRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -302,7 +315,59 @@ const GuestList = () => {
     return scored.map((s) => s.guest);
   }, [guestsList, debouncedSearchTerm]);
 
-  const trail = useStagger((filteredGuests || []).length, true);
+  const shouldVirtualize =
+    filteredGuests.length > VIRTUALIZATION_THRESHOLD &&
+    expandedGuest === null &&
+    !showCreateForm;
+
+  const trail = useStagger(
+    shouldVirtualize ? 0 : (filteredGuests || []).length,
+    true,
+  );
+
+  useEffect(() => {
+    if (!filteredGuests.length) {
+      setListHeight(VIRTUAL_ITEM_SIZE * MIN_VISIBLE_ROWS);
+      return;
+    }
+
+    if (!shouldVirtualize) {
+      const clamped = Math.min(
+        Math.max(filteredGuests.length, MIN_VISIBLE_ROWS),
+        MAX_VISIBLE_ROWS,
+      );
+      setListHeight(VIRTUAL_ITEM_SIZE * clamped);
+      return;
+    }
+
+    const updateHeight = () => {
+      const viewportHeight = window.innerHeight || 0;
+      const rect = listContainerRef.current?.getBoundingClientRect();
+      const topOffset = rect ? rect.top : 0;
+      const available = Math.max(
+        VIRTUAL_ITEM_SIZE * MIN_VISIBLE_ROWS,
+        viewportHeight - topOffset - 48,
+      );
+      const desired =
+        Math.min(filteredGuests.length, MAX_VISIBLE_ROWS) * VIRTUAL_ITEM_SIZE;
+      setListHeight(
+        Math.max(
+          VIRTUAL_ITEM_SIZE * MIN_VISIBLE_ROWS,
+          Math.min(available, desired),
+        ),
+      );
+    };
+
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, [filteredGuests.length, shouldVirtualize]);
+
+  useEffect(() => {
+    if (!shouldVirtualize) return;
+    if (selectedGuestIndex < 0) return;
+    listRef.current?.scrollToItem(selectedGuestIndex, "smart");
+  }, [selectedGuestIndex, shouldVirtualize]);
 
   const createTokens = useMemo(
     () => searchTerm.trim().split(/\s+/).filter(Boolean),
@@ -852,6 +917,827 @@ const GuestList = () => {
     setDeleteConfirmation({ isOpen: false, guest: null });
   };
 
+  const renderGuestCard = (guest, index, options = {}) => {
+    if (!guest) return null;
+
+    const { style, key: keyOverride } = options;
+    const lastService = latestServiceByGuest.get(String(guest.id));
+    const ServiceIcon = lastService?.icon;
+    const formattedDate = lastService
+      ? dateTimeFormatter.format(lastService.date)
+      : "";
+    const fullDateTooltip = lastService
+      ? lastService.date.toLocaleString()
+      : "";
+    const relativeLabel = lastService
+      ? formatRelativeTime(lastService.date)
+      : "";
+    const todayServices = todayServicesByGuest.get(guest.id) || [];
+    const isSelected = selectedGuestIndex === index;
+
+    const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
+      isSelected ? "ring-2 ring-blue-500 border-blue-300 shadow-md" : ""
+    }`;
+
+    let animationStyle = shouldVirtualize ? {} : trail[index] || {};
+
+    if (shouldVirtualize && style) {
+      const resolvedStyle = { ...style };
+
+      const rawTop = resolvedStyle.top;
+      const numericTop =
+        typeof rawTop === "number"
+          ? rawTop
+          : typeof rawTop === "string"
+            ? parseFloat(rawTop)
+            : 0;
+      if (!Number.isNaN(numericTop)) {
+        const updatedTop = numericTop + ITEM_VERTICAL_GAP / 2;
+        resolvedStyle.top =
+          typeof rawTop === "string" ? `${updatedTop}px` : updatedTop;
+      }
+
+      const rawHeight = resolvedStyle.height;
+      const numericHeight =
+        typeof rawHeight === "number"
+          ? rawHeight
+          : typeof rawHeight === "string"
+            ? parseFloat(rawHeight)
+            : VIRTUAL_ITEM_SIZE;
+      if (!Number.isNaN(numericHeight)) {
+        const adjustedHeight = Math.max(
+          numericHeight - ITEM_VERTICAL_GAP,
+          DEFAULT_ITEM_HEIGHT,
+        );
+        resolvedStyle.height =
+          typeof rawHeight === "string"
+            ? `${adjustedHeight}px`
+            : adjustedHeight;
+      }
+
+      resolvedStyle.width = "100%";
+      animationStyle = resolvedStyle;
+    }
+
+    return (
+      <Animated.div
+        key={keyOverride ?? `guest-${guest.id}`}
+        style={animationStyle}
+        className={containerClass}
+      >
+        <div
+          className="p-4 cursor-pointer flex justify-between items-center"
+          onClick={() => toggleExpanded(guest.id)}
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-2 rounded-full">
+              <User size={24} className="text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold text-gray-900 flex-1">
+                  {guest.preferredName ? (
+                    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <span className="text-lg font-semibold text-gray-900">
+                        {guest.preferredName}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        ({guest.name})
+                      </span>
+                      <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                        Preferred
+                      </span>
+                    </span>
+                  ) : (
+                    guest.name
+                  )}
+                </h3>
+                <div className="flex gap-1 ml-2 items-center">
+                  {(() => {
+                    const isNewGuest =
+                      guest.createdAt &&
+                      pacificDateStringFrom(new Date(guest.createdAt)) ===
+                        todayPacificDateString();
+
+                    return isNewGuest ? (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
+                        NEW
+                      </span>
+                    ) : null;
+                  })()}
+                  {todayServices.length > 0 && (
+                    <>
+                      {todayServices.map((service, idx) => {
+                        const Icon = service.icon;
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
+                            title={`${service.serviceType} today`}
+                          >
+                            <Icon size={12} className={service.iconClass} />
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              </div>
+              {guest.preferredName && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Use their preferred name when greeting; legal name is shown in
+                  parentheses.
+                </p>
+              )}
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Home size={14} />
+                <span>{guest.housingStatus}</span>
+                {guest.location && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <MapPin size={14} />
+                    <span>{guest.location}</span>
+                  </>
+                )}
+              </div>
+              {lastService && ServiceIcon && (
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                  <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                    <ServiceIcon
+                      size={14}
+                      className={`${lastService.iconClass || "text-blue-500"}`}
+                    />
+                    <span>{lastService.summary}</span>
+                  </span>
+                  {formattedDate && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <span title={fullDateTooltip}>{formattedDate}</span>
+                    </>
+                  )}
+                  {relativeLabel && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-gray-400">{relativeLabel}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            {expandedGuest === guest.id ? (
+              <SpringIcon>
+                <ChevronUp size={18} className="text-gray-400" />
+              </SpringIcon>
+            ) : (
+              <SpringIcon>
+                <ChevronDown size={18} className="text-gray-400" />
+              </SpringIcon>
+            )}
+          </div>
+        </div>
+        {expandedGuest === guest.id && (
+          <div className="border-t p-4 bg-gray-50">
+            <div className="flex justify-end gap-2 mb-3">
+              {editingGuestId === guest.id ? (
+                <>
+                  <button
+                    onClick={saveEditedGuest}
+                    className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => startEditingGuest(guest)}
+                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteGuest(guest)}
+                    className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {guest.phone && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone size={16} className="text-gray-500" />
+                  <span>{guest.phone}</span>
+                </div>
+              )}
+              {guest.birthdate && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarClock size={16} className="text-gray-500" />
+                  <span>{guest.birthdate}</span>
+                </div>
+              )}
+            </div>
+            {guest.preferredName && editingGuestId !== guest.id && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
+                <User size={16} className="text-blue-500" />
+                <span className="font-medium">Preferred:</span>
+                <span className="text-blue-900 font-semibold">
+                  {guest.preferredName}
+                </span>
+                <span className="text-gray-400">•</span>
+                <span className="text-gray-600">Legal: {guest.name}</span>
+              </div>
+            )}
+            {guest.bicycleDescription && editingGuestId !== guest.id && (
+              <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
+                <Bike size={16} className="text-sky-500 mt-0.5" />
+                <div>
+                  <span className="font-medium text-gray-700">
+                    Bicycle on file:
+                  </span>{" "}
+                  <span className="text-gray-700">
+                    {guest.bicycleDescription}
+                  </span>
+                </div>
+              </div>
+            )}
+            {editingGuestId === guest.id && (
+              <div className="mb-4 bg-white p-4 rounded border space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      First Name*
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={editFormData.firstName}
+                      onChange={handleEditChange}
+                      onBlur={handleEditNameBlur}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Last Name*
+                    </label>
+                    \n+{" "}
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={editFormData.lastName}
+                      onChange={handleEditChange}
+                      onBlur={handleEditNameBlur}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Preferred Name
+                    </label>
+                    <input
+                      type="text"
+                      name="preferredName"
+                      value={editFormData.preferredName}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Housing Status
+                    </label>
+                    <select
+                      name="housingStatus"
+                      value={editFormData.housingStatus}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {HOUSING_STATUSES.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Age Group*
+                    </label>
+                    <select
+                      name="age"
+                      value={editFormData.age}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select age group</option>
+                      {AGE_GROUPS.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Gender*
+                    </label>
+                    <select
+                      name="gender"
+                      value={editFormData.gender}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select gender</option>
+                      {GENDERS.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Location*
+                    </label>
+                    <Selectize
+                      options={[
+                        ...BAY_AREA_CITIES.map((c) => ({
+                          value: c,
+                          label: c,
+                        })),
+                        {
+                          value: "Outside SF Bay Area",
+                          label: "Outside SF Bay Area",
+                        },
+                      ]}
+                      value={editFormData.location}
+                      onChange={(val) =>
+                        setEditFormData((prev) => ({
+                          ...prev,
+                          location: val,
+                        }))
+                      }
+                      placeholder="Select location"
+                      size="sm"
+                      className="w-full"
+                      buttonClassName="w-full px-3 py-2 border rounded text-left"
+                      searchable
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Notes
+                    </label>
+                    <textarea
+                      name="notes"
+                      value={editFormData.notes}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows="3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                      Bicycle Description
+                    </label>
+                    <textarea
+                      name="bicycleDescription"
+                      value={editFormData.bicycleDescription}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {guest.notes && editingGuestId !== guest.id && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium mb-1">Notes:</h4>
+                <p className="text-sm bg-white p-2 rounded border">
+                  {guest.notes}
+                </p>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <div>
+                {(() => {
+                  const today = todayPacificDateString();
+                  const alreadyHasMeal =
+                    pendingMealGuests.has(guest.id) ||
+                    mealRecords.some(
+                      (record) =>
+                        record.guestId === guest.id &&
+                        pacificDateStringFrom(record.date) === today,
+                    );
+
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      <div className="space-x-1 relative">
+                        {[1, 2, 3].map((count) => (
+                          <button
+                            key={count}
+                            onClick={() => handleMealSelection(guest.id, count)}
+                            disabled={
+                              alreadyHasMeal || pendingMealGuests.has(guest.id)
+                            }
+                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                              alreadyHasMeal
+                                ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                : pendingMealGuests.has(guest.id)
+                                  ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                  : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                            }`}
+                            title={
+                              alreadyHasMeal
+                                ? "Guest already received meals today"
+                                : `Give ${count} meal${count > 1 ? "s" : ""}`
+                            }
+                          >
+                            <SpringIcon>
+                              <Utensils size={16} />
+                            </SpringIcon>
+                            {count} Meal{count > 1 ? "s" : ""}
+                          </button>
+                        ))}
+                      </div>
+
+                      {alreadyHasMeal && (
+                        <>
+                          <div className="space-x-1 relative">
+                            {[1, 2, 3].map((count) => (
+                              <button
+                                key={`extra-${count}`}
+                                onClick={() =>
+                                  handleAddExtraMeals(guest.id, count)
+                                }
+                                className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
+                                title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
+                              >
+                                <SpringIcon>
+                                  <PlusCircle size={16} />
+                                </SpringIcon>
+                                {count} Extra
+                              </button>
+                            ))}
+                          </div>
+
+                          {(() => {
+                            const today = todayPacificDateString();
+                            const guestMealAction = actionHistory.find(
+                              (action) =>
+                                action.type === "MEAL_ADDED" &&
+                                action.data?.guestId === guest.id &&
+                                pacificDateStringFrom(
+                                  new Date(action.timestamp),
+                                ) === today,
+                            );
+
+                            if (!guestMealAction) return null;
+
+                            return (
+                              <button
+                                onClick={async () => {
+                                  haptics.undo();
+                                  const success = await undoAction(
+                                    guestMealAction.id,
+                                  );
+                                  if (success) {
+                                    haptics.success();
+                                    toast.success(
+                                      "Check-in undone successfully",
+                                    );
+                                    setPendingMealGuests((prev) => {
+                                      const next = new Set(prev);
+                                      next.delete(guest.id);
+                                      return next;
+                                    });
+                                  } else {
+                                    haptics.error();
+                                  }
+                                }}
+                                className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
+                                title="Undo today's check-in"
+                              >
+                                <SpringIcon>
+                                  <RotateCcw size={16} />
+                                </SpringIcon>
+                                <span className="hidden sm:inline">
+                                  Undo Check-In
+                                </span>
+                                <span className="sm:hidden">Undo</span>
+                              </button>
+                            );
+                          })()}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={async () => {
+                    const actionKey = `haircut-${guest.id}`;
+                    if (pendingActions.has(actionKey)) return;
+
+                    haptics.buttonPress();
+                    setPendingActions((prev) => new Set(prev).add(actionKey));
+                    try {
+                      const rec = await addHaircutRecord(guest.id);
+                      if (rec) {
+                        haptics.success();
+                        toast.success("Haircut logged");
+                      }
+                    } catch {
+                      haptics.error();
+                    } finally {
+                      setPendingActions((prev) => {
+                        const next = new Set(prev);
+                        next.delete(actionKey);
+                        return next;
+                      });
+                    }
+                  }}
+                  disabled={pendingActions.has(`haircut-${guest.id}`)}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                    pendingActions.has(`haircut-${guest.id}`)
+                      ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                      : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                  }`}
+                  title="Log haircut for today"
+                >
+                  <Scissors size={16} />
+                  <span className="hidden sm:inline">
+                    {pendingActions.has(`haircut-${guest.id}`)
+                      ? "Saving..."
+                      : "Haircut"}
+                  </span>
+                </button>
+
+                {(() => {
+                  const today = todayPacificDateString();
+                  const haircutAction = actionHistory.find(
+                    (action) =>
+                      action.type === "HAIRCUT_LOGGED" &&
+                      action.data?.guestId === guest.id &&
+                      pacificDateStringFrom(new Date(action.timestamp)) ===
+                        today,
+                  );
+
+                  if (!haircutAction) return null;
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(haircutAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Haircut undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo haircut"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={() => {
+                    haptics.buttonPress();
+                    const rec = addHolidayRecord(guest.id);
+                    if (rec) {
+                      haptics.success();
+                      toast.success("Holiday logged");
+                    }
+                  }}
+                  className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                  title="Log holiday service for today"
+                >
+                  <Gift size={16} />
+                  <span className="hidden sm:inline">Holiday</span>
+                </button>
+
+                {(() => {
+                  const today = todayPacificDateString();
+                  const holidayAction = actionHistory.find(
+                    (action) =>
+                      action.type === "HOLIDAY_LOGGED" &&
+                      action.data?.guestId === guest.id &&
+                      pacificDateStringFrom(new Date(action.timestamp)) ===
+                        today,
+                  );
+
+                  if (!holidayAction) return null;
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(holidayAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Holiday undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo holiday"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={() => {
+                    if (!guest.bicycleDescription?.trim()) {
+                      haptics.warning();
+                      toast.error(
+                        "Please add a bicycle description to this guest's profile before logging repairs.",
+                      );
+                      return;
+                    }
+                    haptics.buttonPress();
+                    setBicyclePickerGuest(guest);
+                  }}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                    !guest.bicycleDescription?.trim()
+                      ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                      : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                  }`}
+                  title={
+                    !guest.bicycleDescription?.trim()
+                      ? "Add bicycle description to guest profile first"
+                      : "Log bicycle repair for today"
+                  }
+                  disabled={!guest.bicycleDescription?.trim()}
+                >
+                  <Bike size={16} />
+                  <span className="hidden sm:inline">Bicycle</span>
+                </button>
+
+                {(() => {
+                  const today = todayPacificDateString();
+                  const bicycleAction = actionHistory.find(
+                    (action) =>
+                      action.type === "BICYCLE_LOGGED" &&
+                      action.data?.guestId === guest.id &&
+                      pacificDateStringFrom(new Date(action.timestamp)) ===
+                        today,
+                  );
+
+                  if (!bicycleAction) return null;
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(bicycleAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Bicycle repair undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo bicycle repair"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={() => {
+                    haptics.buttonPress();
+                    setShowerPickerGuest(guest);
+                  }}
+                  className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                >
+                  <SpringIcon>
+                    <ShowerHead size={16} />
+                  </SpringIcon>
+                  <span className="hidden sm:inline">Book </span>
+                  Shower
+                </button>
+
+                {(() => {
+                  const today = todayPacificDateString();
+                  const showerAction = actionHistory.find(
+                    (action) =>
+                      action.type === "SHOWER_BOOKED" &&
+                      action.data?.guestId === guest.id &&
+                      pacificDateStringFrom(new Date(action.timestamp)) ===
+                        today,
+                  );
+
+                  if (!showerAction) return null;
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(showerAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Shower booking undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo shower booking"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  );
+                })()}
+              </div>
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={() => {
+                    haptics.buttonPress();
+                    setLaundryPickerGuest(guest);
+                  }}
+                  className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                >
+                  <SpringIcon>
+                    <WashingMachine size={16} />
+                  </SpringIcon>
+                  <span className="hidden sm:inline">Book </span>
+                  Laundry
+                </button>
+
+                {(() => {
+                  const today = todayPacificDateString();
+                  const laundryAction = actionHistory.find(
+                    (action) =>
+                      action.type === "LAUNDRY_BOOKED" &&
+                      action.data?.guestId === guest.id &&
+                      pacificDateStringFrom(new Date(action.timestamp)) ===
+                        today,
+                  );
+
+                  if (!laundryAction) return null;
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(laundryAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Laundry booking undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo laundry booking"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+      </Animated.div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <DeleteConfirmationModal
@@ -1274,833 +2160,880 @@ const GuestList = () => {
                   </span>
                 </div>
               )}
-              {filteredGuests.map((guest, i) => {
-                const lastService = latestServiceByGuest.get(String(guest.id));
-                const ServiceIcon = lastService?.icon;
-                const formattedDate = lastService
-                  ? dateTimeFormatter.format(lastService.date)
-                  : "";
-                const fullDateTooltip = lastService
-                  ? lastService.date.toLocaleString()
-                  : "";
-                const relativeLabel = lastService
-                  ? formatRelativeTime(lastService.date)
-                  : "";
-                const todayServices = todayServicesByGuest.get(guest.id) || [];
-
-                return (
-                  <Animated.div
-                    style={trail[i]}
-                    key={`guest-${guest.id}-${searchTerm}`}
-                    className={`border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
-                      selectedGuestIndex === i
-                        ? "ring-2 ring-blue-500 border-blue-300 shadow-md"
-                        : ""
-                    }`}
+              {shouldVirtualize ? (
+                <div
+                  ref={listContainerRef}
+                  className="relative w-full"
+                  data-testid="guest-list-virtualized"
+                >
+                  <List
+                    height={listHeight}
+                    itemCount={filteredGuests.length}
+                    itemSize={VIRTUAL_ITEM_SIZE}
+                    overscanCount={6}
+                    width="100%"
+                    ref={listRef}
                   >
-                    <div
-                      className="p-4 cursor-pointer flex justify-between items-center"
-                      onClick={() => toggleExpanded(guest.id)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                          <User size={24} className="text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <h3 className="font-semibold text-gray-900 flex-1">
-                              {guest.preferredName ? (
-                                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                  <span className="text-lg font-semibold text-gray-900">
-                                    {guest.preferredName}
-                                  </span>
-                                  <span className="text-sm text-gray-500">
-                                    ({guest.name})
-                                  </span>
-                                  <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                                    Preferred
-                                  </span>
-                                </span>
-                              ) : (
-                                guest.name
-                              )}
-                            </h3>
-                            <div className="flex gap-1 ml-2 items-center">
-                              {(() => {
-                                const isNewGuest =
-                                  guest.createdAt &&
-                                  pacificDateStringFrom(
-                                    new Date(guest.createdAt),
-                                  ) === todayPacificDateString();
+                    {({ index, style }) =>
+                      renderGuestCard(filteredGuests[index], index, {
+                        style,
+                      })
+                    }
+                  </List>
+                </div>
+              ) : (
+                filteredGuests.map((guest, i) => {
+                  const lastService = latestServiceByGuest.get(
+                    String(guest.id),
+                  );
+                  const ServiceIcon = lastService?.icon;
+                  const formattedDate = lastService
+                    ? dateTimeFormatter.format(lastService.date)
+                    : "";
+                  const fullDateTooltip = lastService
+                    ? lastService.date.toLocaleString()
+                    : "";
+                  const relativeLabel = lastService
+                    ? formatRelativeTime(lastService.date)
+                    : "";
+                  const todayServices =
+                    todayServicesByGuest.get(guest.id) || [];
 
-                                return isNewGuest ? (
-                                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
-                                    NEW
+                  return (
+                    <Animated.div
+                      style={trail[i]}
+                      key={`guest-${guest.id}-${searchTerm}`}
+                      className={`border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
+                        selectedGuestIndex === i
+                          ? "ring-2 ring-blue-500 border-blue-300 shadow-md"
+                          : ""
+                      }`}
+                    >
+                      <div
+                        className="p-4 cursor-pointer flex justify-between items-center"
+                        onClick={() => toggleExpanded(guest.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 p-2 rounded-full">
+                            <User size={24} className="text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between">
+                              <h3 className="font-semibold text-gray-900 flex-1">
+                                {guest.preferredName ? (
+                                  <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                    <span className="text-lg font-semibold text-gray-900">
+                                      {guest.preferredName}
+                                    </span>
+                                    <span className="text-sm text-gray-500">
+                                      ({guest.name})
+                                    </span>
+                                    <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                      Preferred
+                                    </span>
                                   </span>
-                                ) : null;
-                              })()}
-                              {todayServices.length > 0 && (
+                                ) : (
+                                  guest.name
+                                )}
+                              </h3>
+                              <div className="flex gap-1 ml-2 items-center">
+                                {(() => {
+                                  const isNewGuest =
+                                    guest.createdAt &&
+                                    pacificDateStringFrom(
+                                      new Date(guest.createdAt),
+                                    ) === todayPacificDateString();
+
+                                  return isNewGuest ? (
+                                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
+                                      NEW
+                                    </span>
+                                  ) : null;
+                                })()}
+                                {todayServices.length > 0 && (
+                                  <>
+                                    {todayServices.map((service, idx) => {
+                                      const Icon = service.icon;
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
+                                          title={`${service.serviceType} today`}
+                                        >
+                                          <Icon
+                                            size={12}
+                                            className={service.iconClass}
+                                          />
+                                        </div>
+                                      );
+                                    })}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {guest.preferredName && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Use their preferred name when greeting; legal
+                                name is shown in parentheses.
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <Home size={14} />
+                              <span>{guest.housingStatus}</span>
+                              {guest.location && (
                                 <>
-                                  {todayServices.map((service, idx) => {
-                                    const Icon = service.icon;
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
-                                        title={`${service.serviceType} today`}
-                                      >
-                                        <Icon
-                                          size={12}
-                                          className={service.iconClass}
-                                        />
-                                      </div>
-                                    );
-                                  })}
+                                  <span className="text-gray-300">•</span>
+                                  <MapPin size={14} />
+                                  <span>{guest.location}</span>
                                 </>
                               )}
                             </div>
+                            {lastService && ServiceIcon && (
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                                <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                                  <ServiceIcon
+                                    size={14}
+                                    className={`${lastService.iconClass || "text-blue-500"}`}
+                                  />
+                                  <span>{lastService.summary}</span>
+                                </span>
+                                {formattedDate && (
+                                  <>
+                                    <span className="text-gray-300">•</span>
+                                    <span title={fullDateTooltip}>
+                                      {formattedDate}
+                                    </span>
+                                  </>
+                                )}
+                                {relativeLabel && (
+                                  <>
+                                    <span className="text-gray-300">•</span>
+                                    <span className="text-gray-400">
+                                      {relativeLabel}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {guest.preferredName && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Use their preferred name when greeting; legal name
-                              is shown in parentheses.
-                            </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {expandedGuest === guest.id ? (
+                            <SpringIcon>
+                              <ChevronUp size={18} className="text-gray-400" />
+                            </SpringIcon>
+                          ) : (
+                            <SpringIcon>
+                              <ChevronDown
+                                size={18}
+                                className="text-gray-400"
+                              />
+                            </SpringIcon>
                           )}
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Home size={14} />
-                            <span>{guest.housingStatus}</span>
-                            {guest.location && (
+                        </div>
+                      </div>
+                      {expandedGuest === guest.id && (
+                        <div className="border-t p-4 bg-gray-50">
+                          <div className="flex justify-end gap-2 mb-3">
+                            {editingGuestId === guest.id ? (
                               <>
-                                <span className="text-gray-300">•</span>
-                                <MapPin size={14} />
-                                <span>{guest.location}</span>
+                                <button
+                                  onClick={saveEditedGuest}
+                                  className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelEditing}
+                                  className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => startEditingGuest(guest)}
+                                  className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteGuest(guest)}
+                                  className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
+                                >
+                                  Delete
+                                </button>
                               </>
                             )}
                           </div>
-                          {lastService && ServiceIcon && (
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                              <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
-                                <ServiceIcon
-                                  size={14}
-                                  className={`${lastService.iconClass || "text-blue-500"}`}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {guest.phone && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Phone size={16} className="text-gray-500" />
+                                <span>{guest.phone}</span>
+                              </div>
+                            )}
+                            {guest.birthdate && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <CalendarClock
+                                  size={16}
+                                  className="text-gray-500"
                                 />
-                                <span>{lastService.summary}</span>
-                              </span>
-                              {formattedDate && (
-                                <>
-                                  <span className="text-gray-300">•</span>
-                                  <span title={fullDateTooltip}>
-                                    {formattedDate}
-                                  </span>
-                                </>
-                              )}
-                              {relativeLabel && (
-                                <>
-                                  <span className="text-gray-300">•</span>
-                                  <span className="text-gray-400">
-                                    {relativeLabel}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {expandedGuest === guest.id ? (
-                          <SpringIcon>
-                            <ChevronUp size={18} className="text-gray-400" />
-                          </SpringIcon>
-                        ) : (
-                          <SpringIcon>
-                            <ChevronDown size={18} className="text-gray-400" />
-                          </SpringIcon>
-                        )}
-                      </div>
-                    </div>
-                    {expandedGuest === guest.id && (
-                      <div className="border-t p-4 bg-gray-50">
-                        <div className="flex justify-end gap-2 mb-3">
-                          {editingGuestId === guest.id ? (
-                            <>
-                              <button
-                                onClick={saveEditedGuest}
-                                className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={cancelEditing}
-                                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEditingGuest(guest)}
-                                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => deleteGuest(guest)}
-                                className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          {guest.phone && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Phone size={16} className="text-gray-500" />
-                              <span>{guest.phone}</span>
-                            </div>
-                          )}
-                          {guest.birthdate && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <CalendarClock
-                                size={16}
-                                className="text-gray-500"
-                              />
-                              <span>{guest.birthdate}</span>
-                            </div>
-                          )}
-                        </div>
-                        {guest.preferredName && editingGuestId !== guest.id && (
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
-                            <User size={16} className="text-blue-500" />
-                            <span className="font-medium">Preferred:</span>
-                            <span className="text-blue-900 font-semibold">
-                              {guest.preferredName}
-                            </span>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-gray-600">
-                              Legal: {guest.name}
-                            </span>
+                                <span>{guest.birthdate}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {guest.bicycleDescription &&
-                          editingGuestId !== guest.id && (
-                            <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
-                              <Bike size={16} className="text-sky-500 mt-0.5" />
-                              <div>
-                                <span className="font-medium text-gray-700">
-                                  Bicycle on file:
-                                </span>{" "}
-                                <span className="text-gray-700">
-                                  {guest.bicycleDescription}
+                          {guest.preferredName &&
+                            editingGuestId !== guest.id && (
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
+                                <User size={16} className="text-blue-500" />
+                                <span className="font-medium">Preferred:</span>
+                                <span className="text-blue-900 font-semibold">
+                                  {guest.preferredName}
+                                </span>
+                                <span className="text-gray-400">•</span>
+                                <span className="text-gray-600">
+                                  Legal: {guest.name}
                                 </span>
                               </div>
+                            )}
+                          {guest.bicycleDescription &&
+                            editingGuestId !== guest.id && (
+                              <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
+                                <Bike
+                                  size={16}
+                                  className="text-sky-500 mt-0.5"
+                                />
+                                <div>
+                                  <span className="font-medium text-gray-700">
+                                    Bicycle on file:
+                                  </span>{" "}
+                                  <span className="text-gray-700">
+                                    {guest.bicycleDescription}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          {editingGuestId === guest.id && (
+                            <div className="mb-4 bg-white p-4 rounded border space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    First Name*
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="firstName"
+                                    value={editFormData.firstName}
+                                    onChange={handleEditChange}
+                                    onBlur={handleEditNameBlur}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Last Name*
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="lastName"
+                                    value={editFormData.lastName}
+                                    onChange={handleEditChange}
+                                    onBlur={handleEditNameBlur}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Preferred Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    name="preferredName"
+                                    value={editFormData.preferredName}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Optional"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Housing Status
+                                  </label>
+                                  <select
+                                    name="housingStatus"
+                                    value={editFormData.housingStatus}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    {HOUSING_STATUSES.map((h) => (
+                                      <option key={h} value={h}>
+                                        {h}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Age Group*
+                                  </label>
+                                  <select
+                                    name="age"
+                                    value={editFormData.age}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="">Select age group</option>
+                                    {AGE_GROUPS.map((a) => (
+                                      <option key={a} value={a}>
+                                        {a}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Gender*
+                                  </label>
+                                  <select
+                                    name="gender"
+                                    value={editFormData.gender}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="">Select gender</option>
+                                    {GENDERS.map((g) => (
+                                      <option key={g} value={g}>
+                                        {g}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Location*
+                                  </label>
+                                  <Selectize
+                                    options={[
+                                      ...BAY_AREA_CITIES.map((c) => ({
+                                        value: c,
+                                        label: c,
+                                      })),
+                                      {
+                                        value: "Outside SF Bay Area",
+                                        label: "Outside SF Bay Area",
+                                      },
+                                    ]}
+                                    value={editFormData.location}
+                                    onChange={(val) =>
+                                      setEditFormData((prev) => ({
+                                        ...prev,
+                                        location: val,
+                                      }))
+                                    }
+                                    placeholder="Select location"
+                                    size="sm"
+                                    className="w-full"
+                                    buttonClassName="w-full px-3 py-2 border rounded text-left"
+                                    searchable
+                                    displayValue={editFormData.location}
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Notes
+                                  </label>
+                                  <textarea
+                                    name="notes"
+                                    value={editFormData.notes}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    rows="3"
+                                    placeholder="Notes (optional)"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                                    Bicycle Description
+                                  </label>
+                                  <textarea
+                                    name="bicycleDescription"
+                                    value={editFormData.bicycleDescription}
+                                    onChange={handleEditChange}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    rows="3"
+                                    placeholder="Bike make, color, or other identifiers"
+                                  />
+                                  <p className="mt-1 text-[11px] text-gray-500">
+                                    Use this to confirm the guest is using the
+                                    same bicycle when scheduling repairs.
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           )}
-                        {editingGuestId === guest.id && (
-                          <div className="mb-4 bg-white p-4 rounded border space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  First Name*
-                                </label>
-                                <input
-                                  type="text"
-                                  name="firstName"
-                                  value={editFormData.firstName}
-                                  onChange={handleEditChange}
-                                  onBlur={handleEditNameBlur}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Last Name*
-                                </label>
-                                <input
-                                  type="text"
-                                  name="lastName"
-                                  value={editFormData.lastName}
-                                  onChange={handleEditChange}
-                                  onBlur={handleEditNameBlur}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Preferred Name
-                                </label>
-                                <input
-                                  type="text"
-                                  name="preferredName"
-                                  value={editFormData.preferredName}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="Optional"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Housing Status
-                                </label>
-                                <select
-                                  name="housingStatus"
-                                  value={editFormData.housingStatus}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  {HOUSING_STATUSES.map((h) => (
-                                    <option key={h} value={h}>
-                                      {h}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
+                          {guest.notes && editingGuestId !== guest.id && (
+                            <div className="mb-4">
+                              <h4 className="text-sm font-medium mb-1">
+                                Notes:
+                              </h4>
+                              <p className="text-sm bg-white p-2 rounded border">
+                                {guest.notes}
+                              </p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Age Group*
-                                </label>
-                                <select
-                                  name="age"
-                                  value={editFormData.age}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  <option value="">Select age group</option>
-                                  {AGE_GROUPS.map((a) => (
-                                    <option key={a} value={a}>
-                                      {a}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Gender*
-                                </label>
-                                <select
-                                  name="gender"
-                                  value={editFormData.gender}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                  <option value="">Select gender</option>
-                                  {GENDERS.map((g) => (
-                                    <option key={g} value={g}>
-                                      {g}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Location*
-                                </label>
-                                <Selectize
-                                  options={[
-                                    ...BAY_AREA_CITIES.map((c) => ({
-                                      value: c,
-                                      label: c,
-                                    })),
-                                    {
-                                      value: "Outside SF Bay Area",
-                                      label: "Outside SF Bay Area",
-                                    },
-                                  ]}
-                                  value={editFormData.location}
-                                  onChange={(val) =>
-                                    setEditFormData((prev) => ({
-                                      ...prev,
-                                      location: val,
-                                    }))
-                                  }
-                                  placeholder="Select location"
-                                  size="sm"
-                                  className="w-full"
-                                  buttonClassName="w-full px-3 py-2 border rounded text-left"
-                                  searchable
-                                  displayValue={editFormData.location}
-                                />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Notes
-                                </label>
-                                <textarea
-                                  name="notes"
-                                  value={editFormData.notes}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                                  rows="3"
-                                  placeholder="Notes (optional)"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
-                                  Bicycle Description
-                                </label>
-                                <textarea
-                                  name="bicycleDescription"
-                                  value={editFormData.bicycleDescription}
-                                  onChange={handleEditChange}
-                                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                                  rows="3"
-                                  placeholder="Bike make, color, or other identifiers"
-                                />
-                                <p className="mt-1 text-[11px] text-gray-500">
-                                  Use this to confirm the guest is using the
-                                  same bicycle when scheduling repairs.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {guest.notes && editingGuestId !== guest.id && (
-                          <div className="mb-4">
-                            <h4 className="text-sm font-medium mb-1">Notes:</h4>
-                            <p className="text-sm bg-white p-2 rounded border">
-                              {guest.notes}
-                            </p>
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          <div>
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const alreadyHasMeal =
-                                pendingMealGuests.has(guest.id) ||
-                                mealRecords.some(
-                                  (record) =>
-                                    record.guestId === guest.id &&
-                                    pacificDateStringFrom(record.date) ===
-                                      today,
-                                );
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <div>
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const alreadyHasMeal =
+                                  pendingMealGuests.has(guest.id) ||
+                                  mealRecords.some(
+                                    (record) =>
+                                      record.guestId === guest.id &&
+                                      pacificDateStringFrom(record.date) ===
+                                        today,
+                                  );
 
-                              return (
-                                <div className="flex flex-wrap gap-2">
-                                  <div className="space-x-1 relative">
-                                    {[1, 2, 3].map((count) => (
-                                      <button
-                                        key={count}
-                                        onClick={() =>
-                                          handleMealSelection(guest.id, count)
-                                        }
-                                        disabled={
-                                          alreadyHasMeal ||
-                                          pendingMealGuests.has(guest.id)
-                                        }
-                                        className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                          alreadyHasMeal
-                                            ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                            : pendingMealGuests.has(guest.id)
-                                              ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                              : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                                        }`}
-                                        title={
-                                          alreadyHasMeal
-                                            ? "Guest already received meals today"
-                                            : `Give ${count} meal${count > 1 ? "s" : ""}`
-                                        }
-                                      >
-                                        <SpringIcon>
-                                          <Utensils size={16} />
-                                        </SpringIcon>
-                                        {count} Meal{count > 1 ? "s" : ""}
-                                      </button>
-                                    ))}
-                                  </div>
+                                return (
+                                  <div className="flex flex-wrap gap-2">
+                                    <div className="space-x-1 relative">
+                                      {[1, 2, 3].map((count) => (
+                                        <button
+                                          key={count}
+                                          onClick={() =>
+                                            handleMealSelection(guest.id, count)
+                                          }
+                                          disabled={
+                                            alreadyHasMeal ||
+                                            pendingMealGuests.has(guest.id)
+                                          }
+                                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                            alreadyHasMeal
+                                              ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                              : pendingMealGuests.has(guest.id)
+                                                ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                                : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                                          }`}
+                                          title={
+                                            alreadyHasMeal
+                                              ? "Guest already received meals today"
+                                              : `Give ${count} meal${count > 1 ? "s" : ""}`
+                                          }
+                                        >
+                                          <SpringIcon>
+                                            <Utensils size={16} />
+                                          </SpringIcon>
+                                          {count} Meal{count > 1 ? "s" : ""}
+                                        </button>
+                                      ))}
+                                    </div>
 
-                                  {alreadyHasMeal && (
-                                    <>
-                                      <div className="space-x-1 relative">
-                                        {[1, 2, 3].map((count) => (
-                                          <button
-                                            key={`extra-${count}`}
-                                            onClick={() =>
-                                              handleAddExtraMeals(
-                                                guest.id,
-                                                count,
-                                              )
-                                            }
-                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
-                                            title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
-                                          >
-                                            <SpringIcon>
-                                              <PlusCircle size={16} />
-                                            </SpringIcon>
-                                            {count} Extra
-                                          </button>
-                                        ))}
-                                      </div>
-
-                                      {(() => {
-                                        // Find the most recent meal action for this guest today
-                                        const today = todayPacificDateString();
-                                        const guestMealAction =
-                                          actionHistory.find(
-                                            (action) =>
-                                              action.type === "MEAL_ADDED" &&
-                                              action.data?.guestId ===
-                                                guest.id &&
-                                              pacificDateStringFrom(
-                                                new Date(action.timestamp),
-                                              ) === today,
-                                          );
-
-                                        if (!guestMealAction) return null;
-
-                                        return (
-                                          <button
-                                            onClick={async () => {
-                                              haptics.undo();
-                                              const success = await undoAction(
-                                                guestMealAction.id,
-                                              );
-                                              if (success) {
-                                                haptics.success();
-                                                toast.success(
-                                                  "Check-in undone successfully",
-                                                );
-                                                setPendingMealGuests((prev) => {
-                                                  const next = new Set(prev);
-                                                  next.delete(guest.id);
-                                                  return next;
-                                                });
-                                              } else {
-                                                haptics.error();
+                                    {alreadyHasMeal && (
+                                      <>
+                                        <div className="space-x-1 relative">
+                                          {[1, 2, 3].map((count) => (
+                                            <button
+                                              key={`extra-${count}`}
+                                              onClick={() =>
+                                                handleAddExtraMeals(
+                                                  guest.id,
+                                                  count,
+                                                )
                                               }
-                                            }}
-                                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
-                                            title="Undo today's check-in"
-                                          >
-                                            <SpringIcon>
-                                              <RotateCcw size={16} />
-                                            </SpringIcon>
-                                            <span className="hidden sm:inline">
-                                              Undo Check-In
-                                            </span>
-                                            <span className="sm:hidden">
-                                              Undo
-                                            </span>
-                                          </button>
-                                        );
-                                      })()}
-                                    </>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
+                                              className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
+                                              title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
+                                            >
+                                              <SpringIcon>
+                                                <PlusCircle size={16} />
+                                              </SpringIcon>
+                                              {count} Extra
+                                            </button>
+                                          ))}
+                                        </div>
 
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={async () => {
-                                const actionKey = `haircut-${guest.id}`;
-                                if (pendingActions.has(actionKey)) return;
+                                        {(() => {
+                                          // Find the most recent meal action for this guest today
+                                          const today =
+                                            todayPacificDateString();
+                                          const guestMealAction =
+                                            actionHistory.find(
+                                              (action) =>
+                                                action.type === "MEAL_ADDED" &&
+                                                action.data?.guestId ===
+                                                  guest.id &&
+                                                pacificDateStringFrom(
+                                                  new Date(action.timestamp),
+                                                ) === today,
+                                            );
 
-                                haptics.buttonPress();
-                                setPendingActions((prev) =>
-                                  new Set(prev).add(actionKey),
+                                          if (!guestMealAction) return null;
+
+                                          return (
+                                            <button
+                                              onClick={async () => {
+                                                haptics.undo();
+                                                const success =
+                                                  await undoAction(
+                                                    guestMealAction.id,
+                                                  );
+                                                if (success) {
+                                                  haptics.success();
+                                                  toast.success(
+                                                    "Check-in undone successfully",
+                                                  );
+                                                  setPendingMealGuests(
+                                                    (prev) => {
+                                                      const next = new Set(
+                                                        prev,
+                                                      );
+                                                      next.delete(guest.id);
+                                                      return next;
+                                                    },
+                                                  );
+                                                } else {
+                                                  haptics.error();
+                                                }
+                                              }}
+                                              className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
+                                              title="Undo today's check-in"
+                                            >
+                                              <SpringIcon>
+                                                <RotateCcw size={16} />
+                                              </SpringIcon>
+                                              <span className="hidden sm:inline">
+                                                Undo Check-In
+                                              </span>
+                                              <span className="sm:hidden">
+                                                Undo
+                                              </span>
+                                            </button>
+                                          );
+                                        })()}
+                                      </>
+                                    )}
+                                  </div>
                                 );
-                                try {
-                                  const rec = await addHaircutRecord(guest.id);
+                              })()}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <button
+                                onClick={async () => {
+                                  const actionKey = `haircut-${guest.id}`;
+                                  if (pendingActions.has(actionKey)) return;
+
+                                  haptics.buttonPress();
+                                  setPendingActions((prev) =>
+                                    new Set(prev).add(actionKey),
+                                  );
+                                  try {
+                                    const rec = await addHaircutRecord(
+                                      guest.id,
+                                    );
+                                    if (rec) {
+                                      haptics.success();
+                                      toast.success("Haircut logged");
+                                    }
+                                  } catch {
+                                    haptics.error();
+                                  } finally {
+                                    setPendingActions((prev) => {
+                                      const next = new Set(prev);
+                                      next.delete(actionKey);
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                disabled={pendingActions.has(
+                                  `haircut-${guest.id}`,
+                                )}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  pendingActions.has(`haircut-${guest.id}`)
+                                    ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                                    : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                                }`}
+                                title="Log haircut for today"
+                              >
+                                <Scissors size={16} />
+                                <span className="hidden sm:inline">
+                                  {pendingActions.has(`haircut-${guest.id}`)
+                                    ? "Saving..."
+                                    : "Haircut"}
+                                </span>
+                              </button>
+
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const haircutAction = actionHistory.find(
+                                  (action) =>
+                                    action.type === "HAIRCUT_LOGGED" &&
+                                    action.data?.guestId === guest.id &&
+                                    pacificDateStringFrom(
+                                      new Date(action.timestamp),
+                                    ) === today,
+                                );
+
+                                if (!haircutAction) return null;
+
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      haptics.undo();
+                                      const success = await undoAction(
+                                        haircutAction.id,
+                                      );
+                                      if (success) {
+                                        haptics.success();
+                                        toast.success("Haircut undone");
+                                      } else {
+                                        haptics.error();
+                                      }
+                                    }}
+                                    className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                                    title="Undo haircut"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <button
+                                onClick={() => {
+                                  haptics.buttonPress();
+                                  const rec = addHolidayRecord(guest.id);
                                   if (rec) {
                                     haptics.success();
-                                    toast.success("Haircut logged");
+                                    toast.success("Holiday logged");
                                   }
-                                } catch {
-                                  haptics.error();
-                                } finally {
-                                  setPendingActions((prev) => {
-                                    const next = new Set(prev);
-                                    next.delete(actionKey);
-                                    return next;
-                                  });
+                                }}
+                                className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                                title="Log holiday service for today"
+                              >
+                                <Gift size={16} />
+                                <span className="hidden sm:inline">
+                                  Holiday
+                                </span>
+                              </button>
+
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const holidayAction = actionHistory.find(
+                                  (action) =>
+                                    action.type === "HOLIDAY_LOGGED" &&
+                                    action.data?.guestId === guest.id &&
+                                    pacificDateStringFrom(
+                                      new Date(action.timestamp),
+                                    ) === today,
+                                );
+
+                                if (!holidayAction) return null;
+
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      haptics.undo();
+                                      const success = await undoAction(
+                                        holidayAction.id,
+                                      );
+                                      if (success) {
+                                        haptics.success();
+                                        toast.success("Holiday undone");
+                                      } else {
+                                        haptics.error();
+                                      }
+                                    }}
+                                    className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                                    title="Undo holiday"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <button
+                                onClick={() => {
+                                  if (!guest.bicycleDescription?.trim()) {
+                                    haptics.warning();
+                                    toast.error(
+                                      "Please add a bicycle description to this guest's profile before logging repairs.",
+                                    );
+                                    return;
+                                  }
+                                  haptics.buttonPress();
+                                  setBicyclePickerGuest(guest);
+                                }}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  !guest.bicycleDescription?.trim()
+                                    ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                    : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                                }`}
+                                title={
+                                  !guest.bicycleDescription?.trim()
+                                    ? "Add bicycle description to guest profile first"
+                                    : "Log bicycle repair for today"
                                 }
-                              }}
-                              disabled={pendingActions.has(
-                                `haircut-${guest.id}`,
-                              )}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                pendingActions.has(`haircut-${guest.id}`)
-                                  ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                                  : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
-                              }`}
-                              title="Log haircut for today"
-                            >
-                              <Scissors size={16} />
-                              <span className="hidden sm:inline">
-                                {pendingActions.has(`haircut-${guest.id}`)
-                                  ? "Saving..."
-                                  : "Haircut"}
-                              </span>
-                            </button>
+                                disabled={!guest.bicycleDescription?.trim()}
+                              >
+                                <Bike size={16} />
+                                <span className="hidden sm:inline">
+                                  Bicycle
+                                </span>
+                              </button>
 
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const haircutAction = actionHistory.find(
-                                (action) =>
-                                  action.type === "HAIRCUT_LOGGED" &&
-                                  action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(
-                                    new Date(action.timestamp),
-                                  ) === today,
-                              );
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const bicycleAction = actionHistory.find(
+                                  (action) =>
+                                    action.type === "BICYCLE_LOGGED" &&
+                                    action.data?.guestId === guest.id &&
+                                    pacificDateStringFrom(
+                                      new Date(action.timestamp),
+                                    ) === today,
+                                );
 
-                              if (!haircutAction) return null;
+                                if (!bicycleAction) return null;
 
-                              return (
-                                <button
-                                  onClick={async () => {
-                                    haptics.undo();
-                                    const success = await undoAction(
-                                      haircutAction.id,
-                                    );
-                                    if (success) {
-                                      haptics.success();
-                                      toast.success("Haircut undone");
-                                    } else {
-                                      haptics.error();
-                                    }
-                                  }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                                  title="Undo haircut"
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              );
-                            })()}
-                          </div>
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      haptics.undo();
+                                      const success = await undoAction(
+                                        bicycleAction.id,
+                                      );
+                                      if (success) {
+                                        haptics.success();
+                                        toast.success("Bicycle repair undone");
+                                      } else {
+                                        haptics.error();
+                                      }
+                                    }}
+                                    className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                                    title="Undo bicycle repair"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                );
+                              })()}
+                            </div>
 
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                haptics.buttonPress();
-                                const rec = addHolidayRecord(guest.id);
-                                if (rec) {
-                                  haptics.success();
-                                  toast.success("Holiday logged");
-                                }
-                              }}
-                              className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
-                              title="Log holiday service for today"
-                            >
-                              <Gift size={16} />
-                              <span className="hidden sm:inline">Holiday</span>
-                            </button>
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <button
+                                onClick={() => {
+                                  haptics.buttonPress();
+                                  setShowerPickerGuest(guest);
+                                }}
+                                className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                              >
+                                <SpringIcon>
+                                  <ShowerHead size={16} />
+                                </SpringIcon>
+                                <span className="hidden sm:inline">Book </span>
+                                Shower
+                              </button>
 
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const holidayAction = actionHistory.find(
-                                (action) =>
-                                  action.type === "HOLIDAY_LOGGED" &&
-                                  action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(
-                                    new Date(action.timestamp),
-                                  ) === today,
-                              );
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const showerAction = actionHistory.find(
+                                  (action) =>
+                                    action.type === "SHOWER_BOOKED" &&
+                                    action.data?.guestId === guest.id &&
+                                    pacificDateStringFrom(
+                                      new Date(action.timestamp),
+                                    ) === today,
+                                );
 
-                              if (!holidayAction) return null;
+                                if (!showerAction) return null;
 
-                              return (
-                                <button
-                                  onClick={async () => {
-                                    haptics.undo();
-                                    const success = await undoAction(
-                                      holidayAction.id,
-                                    );
-                                    if (success) {
-                                      haptics.success();
-                                      toast.success("Holiday undone");
-                                    } else {
-                                      haptics.error();
-                                    }
-                                  }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                                  title="Undo holiday"
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              );
-                            })()}
-                          </div>
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      haptics.undo();
+                                      const success = await undoAction(
+                                        showerAction.id,
+                                      );
+                                      if (success) {
+                                        haptics.success();
+                                        toast.success("Shower booking undone");
+                                      } else {
+                                        haptics.error();
+                                      }
+                                    }}
+                                    className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                                    title="Undo shower booking"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                );
+                              })()}
+                            </div>
 
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                if (!guest.bicycleDescription?.trim()) {
-                                  haptics.warning();
-                                  toast.error(
-                                    "Please add a bicycle description to this guest's profile before logging repairs.",
-                                  );
-                                  return;
-                                }
-                                haptics.buttonPress();
-                                setBicyclePickerGuest(guest);
-                              }}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                !guest.bicycleDescription?.trim()
-                                  ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                  : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
-                              }`}
-                              title={
-                                !guest.bicycleDescription?.trim()
-                                  ? "Add bicycle description to guest profile first"
-                                  : "Log bicycle repair for today"
-                              }
-                              disabled={!guest.bicycleDescription?.trim()}
-                            >
-                              <Bike size={16} />
-                              <span className="hidden sm:inline">Bicycle</span>
-                            </button>
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <button
+                                onClick={() => {
+                                  haptics.buttonPress();
+                                  setLaundryPickerGuest(guest);
+                                }}
+                                className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                              >
+                                <SpringIcon>
+                                  <WashingMachine size={16} />
+                                </SpringIcon>
+                                <span className="hidden sm:inline">Book </span>
+                                Laundry
+                              </button>
 
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const bicycleAction = actionHistory.find(
-                                (action) =>
-                                  action.type === "BICYCLE_LOGGED" &&
-                                  action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(
-                                    new Date(action.timestamp),
-                                  ) === today,
-                              );
+                              {(() => {
+                                const today = todayPacificDateString();
+                                const laundryAction = actionHistory.find(
+                                  (action) =>
+                                    action.type === "LAUNDRY_BOOKED" &&
+                                    action.data?.guestId === guest.id &&
+                                    pacificDateStringFrom(
+                                      new Date(action.timestamp),
+                                    ) === today,
+                                );
 
-                              if (!bicycleAction) return null;
+                                if (!laundryAction) return null;
 
-                              return (
-                                <button
-                                  onClick={async () => {
-                                    haptics.undo();
-                                    const success = await undoAction(
-                                      bicycleAction.id,
-                                    );
-                                    if (success) {
-                                      haptics.success();
-                                      toast.success("Bicycle repair undone");
-                                    } else {
-                                      haptics.error();
-                                    }
-                                  }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                                  title="Undo bicycle repair"
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              );
-                            })()}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                haptics.buttonPress();
-                                setShowerPickerGuest(guest);
-                              }}
-                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
-                            >
-                              <SpringIcon>
-                                <ShowerHead size={16} />
-                              </SpringIcon>
-                              <span className="hidden sm:inline">Book </span>
-                              Shower
-                            </button>
-
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const showerAction = actionHistory.find(
-                                (action) =>
-                                  action.type === "SHOWER_BOOKED" &&
-                                  action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(
-                                    new Date(action.timestamp),
-                                  ) === today,
-                              );
-
-                              if (!showerAction) return null;
-
-                              return (
-                                <button
-                                  onClick={async () => {
-                                    haptics.undo();
-                                    const success = await undoAction(
-                                      showerAction.id,
-                                    );
-                                    if (success) {
-                                      haptics.success();
-                                      toast.success("Shower booking undone");
-                                    } else {
-                                      haptics.error();
-                                    }
-                                  }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                                  title="Undo shower booking"
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              );
-                            })()}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={() => {
-                                haptics.buttonPress();
-                                setLaundryPickerGuest(guest);
-                              }}
-                              className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
-                            >
-                              <SpringIcon>
-                                <WashingMachine size={16} />
-                              </SpringIcon>
-                              <span className="hidden sm:inline">Book </span>
-                              Laundry
-                            </button>
-
-                            {(() => {
-                              const today = todayPacificDateString();
-                              const laundryAction = actionHistory.find(
-                                (action) =>
-                                  action.type === "LAUNDRY_BOOKED" &&
-                                  action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(
-                                    new Date(action.timestamp),
-                                  ) === today,
-                              );
-
-                              if (!laundryAction) return null;
-
-                              return (
-                                <button
-                                  onClick={async () => {
-                                    haptics.undo();
-                                    const success = await undoAction(
-                                      laundryAction.id,
-                                    );
-                                    if (success) {
-                                      haptics.success();
-                                      toast.success("Laundry booking undone");
-                                    } else {
-                                      haptics.error();
-                                    }
-                                  }}
-                                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                                  title="Undo laundry booking"
-                                >
-                                  <RotateCcw size={14} />
-                                </button>
-                              );
-                            })()}
+                                return (
+                                  <button
+                                    onClick={async () => {
+                                      haptics.undo();
+                                      const success = await undoAction(
+                                        laundryAction.id,
+                                      );
+                                      if (success) {
+                                        haptics.success();
+                                        toast.success("Laundry booking undone");
+                                      } else {
+                                        haptics.error();
+                                      }
+                                    }}
+                                    className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                                    title="Undo laundry booking"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </Animated.div>
-                );
-              })}
+                      )}
+                    </Animated.div>
+                  );
+                })
+              )}
             </div>
           )}
         </>

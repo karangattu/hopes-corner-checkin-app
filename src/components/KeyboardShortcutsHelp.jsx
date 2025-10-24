@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useId, useRef } from "react";
 import { X, Keyboard } from "lucide-react";
+import Modal from "./ui/Modal";
 
 const KeyboardShortcutsHelp = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeButtonRef = useRef(null);
   const shortcuts = [
     { key: "⌘K / Ctrl+K", description: "Focus search", category: "Navigation" },
     { key: "Esc", description: "Close modals/dialogs", category: "Navigation" },
@@ -29,14 +31,23 @@ const KeyboardShortcutsHelp = ({ isOpen, onClose }) => {
   }, {});
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      labelledBy={titleId}
+      describedBy={descriptionId}
+      initialFocusRef={closeButtonRef}
+    >
+      <div className="max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Keyboard className="text-blue-500" size={24} />
-            <h2 className="text-xl font-semibold">Keyboard Shortcuts</h2>
+            <Keyboard className="text-blue-500" size={24} aria-hidden="true" />
+            <h2 className="text-xl font-semibold" id={titleId}>
+              Keyboard Shortcuts
+            </h2>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="Close keyboard shortcuts"
@@ -45,7 +56,7 @@ const KeyboardShortcutsHelp = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6" id={descriptionId}>
           {Object.entries(groupedShortcuts).map(([category, shortcuts]) => (
             <div key={category}>
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
@@ -80,7 +91,7 @@ const KeyboardShortcutsHelp = ({ isOpen, onClose }) => {
           </p>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

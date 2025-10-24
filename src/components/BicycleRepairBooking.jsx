@@ -1,7 +1,8 @@
 import { Bike, X } from "lucide-react";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useAppContext } from "../context/useAppContext";
+import Modal from "./ui/Modal";
 
 const repairTypes = [
   "Flat Tire",
@@ -30,6 +31,11 @@ const BicycleRepairBooking = () => {
   const [selectedRepairTypes, setSelectedRepairTypes] = useState([]);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeButtonRef = useRef(null);
+
+  const handleClose = () => setBicyclePickerGuest(null);
 
   if (!bicyclePickerGuest) return null;
 
@@ -70,7 +76,7 @@ const BicycleRepairBooking = () => {
         repairTypes: selectedRepairTypes,
         notes,
       });
-      setBicyclePickerGuest(null);
+      handleClose();
       setSelectedRepairTypes([]);
       setNotes("");
     } catch (e) {
@@ -81,24 +87,33 @@ const BicycleRepairBooking = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={() => setBicyclePickerGuest(null)}
-      />
-      <div className="relative w-full sm:max-w-lg md:max-w-2xl lg:max-w-3xl bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-5 border border-gray-100 animate-in fade-in slide-in-from-bottom-4">
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Bike /> Log Bicycle Repair for {bicyclePickerGuest.name}
+    <Modal
+      isOpen={Boolean(bicyclePickerGuest)}
+      onClose={handleClose}
+      labelledBy={titleId}
+      describedBy={descriptionId}
+      initialFocusRef={closeButtonRef}
+    >
+      <div className="w-full rounded-2xl border border-gray-100 bg-white p-5 shadow-xl sm:max-w-lg md:max-w-2xl lg:max-w-3xl">
+        <div className="flex items-start justify-between border-b border-gray-100 pb-4">
+          <h2
+            className="flex items-center gap-2 text-lg font-semibold text-gray-900"
+            id={titleId}
+          >
+            <Bike aria-hidden="true" /> Log Bicycle Repair for{" "}
+            {bicyclePickerGuest.name}
           </h2>
           <button
-            onClick={() => setBicyclePickerGuest(null)}
-            className="text-gray-400 hover:text-gray-600"
+            ref={closeButtonRef}
+            type="button"
+            onClick={handleClose}
+            className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
+            aria-label="Close bicycle repair dialog"
           >
             <X size={18} />
           </button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-4 pt-4" id={descriptionId}>
           {bikeDescription ? (
             <div className="text-sm text-gray-600 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
               <span className="font-semibold text-sky-700">
@@ -171,8 +186,9 @@ const BicycleRepairBooking = () => {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
-              onClick={() => setBicyclePickerGuest(null)}
-              className="px-3 py-2 text-sm rounded border"
+              type="button"
+              onClick={handleClose}
+              className="rounded border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
             >
               Cancel
             </button>
@@ -184,7 +200,8 @@ const BicycleRepairBooking = () => {
                 !bikeDescription
               }
               onClick={handleCreate}
-              className="px-4 py-2 text-sm rounded bg-sky-600 text-white disabled:opacity-50 hover:bg-sky-700"
+              type="button"
+              className="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
               title={
                 !bikeDescription
                   ? "Bicycle description required in guest profile"
@@ -198,7 +215,7 @@ const BicycleRepairBooking = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

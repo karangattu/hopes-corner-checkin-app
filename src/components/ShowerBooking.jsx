@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useId } from "react";
 import {
   ShowerHead,
   Clock,
@@ -13,6 +13,7 @@ import {
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
+import Modal from "./ui/Modal";
 
 const humanizeStatus = (status) => {
   if (!status) return "Booked";
@@ -181,18 +182,33 @@ const ShowerBooking = () => {
     }
   };
 
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeButtonRef = useRef(null);
+
   if (!showerPickerGuest) return null;
 
+  const handleClose = () => setShowerPickerGuest(null);
+
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-3xl lg:max-w-4xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-4 md:slide-in-from-bottom-2 duration-300">
+    <Modal
+      isOpen={Boolean(showerPickerGuest)}
+      onClose={handleClose}
+      labelledBy={titleId}
+      describedBy={descriptionId}
+      initialFocusRef={closeButtonRef}
+    >
+      <div className="w-full md:max-w-3xl lg:max-w-4xl">
         <div className="sticky top-0 bg-gradient-to-br from-sky-50 to-blue-50 border-b border-blue-100 p-4 md:p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500 text-white p-2.5 md:p-3 rounded-xl shadow-md">
-              <ShowerHead size={22} />
+              <ShowerHead size={22} aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold text-gray-900">
+              <h2
+                className="text-lg md:text-xl font-bold text-gray-900"
+                id={titleId}
+              >
                 Book a Shower
               </h2>
               <p className="text-xs md:text-sm text-gray-600">
@@ -202,30 +218,31 @@ const ShowerBooking = () => {
             </div>
           </div>
           <button
-            onClick={() => setShowerPickerGuest(null)}
+            ref={closeButtonRef}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 hover:bg-white/80 p-2 rounded-lg transition-all hover:scale-110 active:scale-95"
-            aria-label="Close dialog"
+            aria-label="Close shower booking"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="p-4 md:p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-6" id={descriptionId}>
           {error && (
             <div className="p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
-              <AlertCircle size={18} />
+              <AlertCircle size={18} aria-hidden="true" />
               {error}
             </div>
           )}
 
           {success && (
             <div className="p-3 bg-green-100 text-green-700 rounded flex items-center gap-2">
-              <CheckCircle size={18} />
+              <CheckCircle size={18} aria-hidden="true" />
               Shower booking saved!
             </div>
           )}
 
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 flex gap-3">
-            <Sparkles size={20} className="mt-1 shrink-0" />
+            <Sparkles size={20} className="mt-1 shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Quick overview</p>
               <p className="leading-relaxed">
@@ -264,7 +281,7 @@ const ShowerBooking = () => {
                 />
               </div>
               <p className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                <Users size={14} />
+                <Users size={14} aria-hidden="true" />
                 {available > 0
                   ? `${available} spots remaining`
                   : "All shower spots taken"}
@@ -312,7 +329,7 @@ const ShowerBooking = () => {
                       {slot.label}
                     </span>
                     <span className="flex items-center gap-1 text-sm text-gray-600">
-                      <Users size={16} />
+                      <Users size={16} aria-hidden="true" />
                       {slot.count}/2
                     </span>
                   </div>
@@ -340,7 +357,7 @@ const ShowerBooking = () => {
           {allSlotsFull && (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900 space-y-3">
               <div className="flex items-start gap-2">
-                <Info size={18} className="mt-0.5" />
+                <Info size={18} className="mt-0.5" aria-hidden="true" />
                 <p>
                   All shower slots are currently full. Add this guest to the
                   waitlist so they’re next in line when a spot opens up.
@@ -357,7 +374,8 @@ const ShowerBooking = () => {
 
           <div className="pt-4 border-t border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <ClipboardList size={16} /> Guest shower history
+              <ClipboardList size={16} aria-hidden="true" /> Guest shower
+              history
             </h3>
             {guestShowerHistory.length > 0 ? (
               <ul className="space-y-3">
@@ -393,7 +411,7 @@ const ShowerBooking = () => {
 
           <div className="pb-2">
             <button
-              onClick={() => setShowerPickerGuest(null)}
+              onClick={handleClose}
               className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-3 rounded-lg flex items-center justify-center gap-2"
             >
               Cancel
@@ -401,7 +419,7 @@ const ShowerBooking = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

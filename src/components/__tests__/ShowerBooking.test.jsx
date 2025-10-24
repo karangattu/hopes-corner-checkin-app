@@ -217,7 +217,7 @@ describe("ShowerBooking", () => {
   it("closes modal on close button click", () => {
     render(<ShowerBooking />);
 
-    const closeButton = screen.getByLabelText("Close dialog");
+    const closeButton = screen.getByRole("button", { name: /close/i });
     fireEvent.click(closeButton);
 
     expect(mockSetShowerPickerGuest).toHaveBeenCalledWith(null);

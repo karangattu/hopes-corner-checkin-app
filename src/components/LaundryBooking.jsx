@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useId } from "react";
 import {
   WashingMachine,
   Clock,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+import Modal from "./ui/Modal";
 
 const humanizeStatus = (status) => {
   if (!status) return "Pending";
@@ -175,18 +176,30 @@ const LaundryBooking = () => {
     [LAUNDRY_STATUS?.OFFSITE_PICKED_UP]: "bg-lime-100 text-lime-800",
   };
 
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeButtonRef = useRef(null);
+
+  const handleClose = () => setLaundryPickerGuest(null);
+
   if (!laundryPickerGuest) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+    <Modal
+      isOpen={Boolean(laundryPickerGuest)}
+      onClose={handleClose}
+      labelledBy={titleId}
+      describedBy={descriptionId}
+      initialFocusRef={closeButtonRef}
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl lg:max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
-        <div className="sticky top-0 bg-gradient-to-br from-purple-50 to-indigo-50 border-b border-purple-100 p-6 flex items-center justify-between">
+        <div className="sticky top-0 flex items-center justify-between border-b border-purple-100 bg-gradient-to-br from-purple-50 to-indigo-50 px-6 py-6">
           <div className="flex items-center gap-3">
-            <div className="bg-purple-500 text-white p-3 rounded-xl shadow-md">
-              <WashingMachine size={24} />
+            <div className="rounded-xl bg-purple-500 p-3 text-white shadow-md">
+              <WashingMachine size={24} aria-hidden="true" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900" id={titleId}>
                 Book Laundry Service
               </h2>
               <p className="text-sm text-gray-600">
@@ -198,31 +211,32 @@ const LaundryBooking = () => {
             </div>
           </div>
           <button
-            onClick={() => setLaundryPickerGuest(null)}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all hover:scale-110 active:scale-95"
-            aria-label="Close dialog"
+            ref={closeButtonRef}
+            onClick={handleClose}
+            className="rounded-lg p-2 text-gray-400 transition-all hover:scale-110 hover:bg-gray-100 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-500"
+            aria-label="Close laundry booking"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6" id={descriptionId}>
           {error && (
             <div className="p-3 bg-red-100 text-red-700 rounded flex items-center gap-2">
-              <AlertCircle size={18} />
+              <AlertCircle size={18} aria-hidden="true" />
               {error}
             </div>
           )}
 
           {success && (
             <div className="p-3 bg-green-100 text-green-700 rounded flex items-center gap-2">
-              <CheckCircle size={18} />
+              <CheckCircle size={18} aria-hidden="true" />
               Laundry booking saved!
             </div>
           )}
 
           <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg flex gap-3 text-sm text-purple-900">
-            <Sparkles size={20} className="mt-1 shrink-0" />
+            <Sparkles size={20} className="mt-1 shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Laundry concierge overview</p>
               <p className="leading-relaxed">
@@ -252,7 +266,7 @@ const LaundryBooking = () => {
                 />
               </div>
               <p className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                <Users size={14} />
+                <Users size={14} aria-hidden="true" />
                 {onsiteSlotsRemaining > 0
                   ? `${onsiteSlotsRemaining} slots remain today`
                   : "All on-site slots taken"}
@@ -332,7 +346,11 @@ const LaundryBooking = () => {
           {selectedLaundryType === "onsite" ? (
             <div className="space-y-4">
               <div className="p-4 border border-purple-100 bg-purple-50 rounded-lg text-sm text-purple-900 flex gap-3">
-                <Info size={18} className="mt-0.5 shrink-0" />
+                <Info
+                  size={18}
+                  className="mt-0.5 shrink-0"
+                  aria-hidden="true"
+                />
                 <div>
                   <p className="font-medium">On-site wash plan</p>
                   <p className="text-xs text-purple-800">
@@ -385,7 +403,7 @@ const LaundryBooking = () => {
                       >
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                            <Clock size={18} />
+                            <Clock size={18} aria-hidden="true" />
                             <span>{slotTime}</span>
                           </div>
                           <p className="text-sm text-gray-500">
@@ -425,7 +443,7 @@ const LaundryBooking = () => {
                   {onsiteCapacity} on-site slots booked today
                 </span>
                 <button
-                  onClick={() => setLaundryPickerGuest(null)}
+                  onClick={handleClose}
                   className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   Cancel
@@ -462,7 +480,7 @@ const LaundryBooking = () => {
                   Book Off-site Laundry
                 </button>
                 <button
-                  onClick={() => setLaundryPickerGuest(null)}
+                  onClick={handleClose}
                   className="bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-800 px-4 py-2 rounded-lg flex items-center justify-center gap-2 order-1 sm:order-2 transition-all"
                 >
                   Cancel
@@ -473,7 +491,8 @@ const LaundryBooking = () => {
 
           <div className="pt-4 border-t border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <ClipboardList size={16} /> Guest laundry history
+              <ClipboardList size={16} aria-hidden="true" /> Guest laundry
+              history
             </h3>
             {guestLaundryHistory.length > 0 ? (
               <ul className="space-y-3">
@@ -508,7 +527,7 @@ const LaundryBooking = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

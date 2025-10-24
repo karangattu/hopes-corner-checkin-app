@@ -1,14 +1,7 @@
 import React from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
-import {
-  HomeIcon,
-  ClipboardList,
-  BarChart3,
-  UserPlus,
-  Menu,
-  X,
-} from "lucide-react";
+import { HomeIcon, ClipboardList, BarChart3, UserPlus } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
 
@@ -36,7 +29,7 @@ const MainLayout = ({ children }) => {
           <div className="flex justify-between items-center h-12 md:h-16">
             <div className="flex items-center gap-3">
               <SpringIcon className="bg-emerald-700 p-2 rounded-lg">
-                <HomeIcon size={24} />
+                <HomeIcon size={24} aria-hidden="true" />
               </SpringIcon>
               <div>
                 <h1 className="text-lg md:text-xl font-bold leading-tight">
@@ -67,14 +60,16 @@ const MainLayout = ({ children }) => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  type="button"
+                  aria-current={activeTab === item.id ? "page" : undefined}
+                  className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${
                     activeTab === item.id
-                      ? "bg-emerald-700 text-white"
-                      : "text-emerald-100 hover:bg-emerald-700 hover:text-white"
+                      ? "border-white/70 bg-white text-emerald-900 shadow-sm"
+                      : "border-transparent text-emerald-100 hover:border-white/40 hover:bg-emerald-800/60 hover:text-white"
                   }`}
                 >
                   <SpringIcon>
-                    <item.icon size={18} />
+                    <item.icon size={18} aria-hidden="true" />
                   </SpringIcon>
                   <span className="hidden lg:block">{item.label}</span>
                 </button>
@@ -109,14 +104,18 @@ const MainLayout = ({ children }) => {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-medium ${
-                  active ? "text-emerald-600" : "text-gray-700"
+                type="button"
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+                  active
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow"
+                    : "border-transparent text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/70"
                 }`}
               >
                 <SpringIcon
-                  className={`p-2 rounded-lg mb-1 ${active ? "bg-emerald-50" : "bg-gray-100"}`}
+                  className={`mb-1 rounded-lg p-2 ${active ? "bg-emerald-100" : "bg-gray-100"}`}
                 >
-                  <Icon size={18} />
+                  <Icon size={18} aria-hidden="true" />
                 </SpringIcon>
                 <span className="text-[11px] leading-none">
                   {item.label.replace(" Dashboard", "")}
@@ -128,7 +127,7 @@ const MainLayout = ({ children }) => {
         <div className="px-2 pb-3">
           <button
             onClick={logout}
-            className="w-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-xs py-2 rounded-lg"
+            className="w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
           >
             Logout
           </button>
