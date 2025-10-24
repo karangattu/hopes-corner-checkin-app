@@ -13,6 +13,13 @@ const repairTypes = [
   "Drivetrain Cleaning",
   "Cable Replacement",
   "Headset Adjustment",
+  "Seat Adjustment",
+  "Kickstand",
+  "Basket/Rack",
+  "Bike Lights",
+  "Lock",
+  "New Tube",
+  "New Tire",
   "New Bicycle",
   "Other",
 ];
