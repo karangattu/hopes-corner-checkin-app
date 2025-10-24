@@ -24,7 +24,8 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
     it("should parse CSV with 2000+ rows without errors", () => {
       const parseCSV = (content) => {
         const lines = content.split("\n").filter((l) => l.trim().length > 0);
-        if (lines.length < 2) throw new Error("CSV needs header + at least one data row");
+        if (lines.length < 2)
+          throw new Error("CSV needs header + at least one data row");
 
         // Skip headers line, parse data rows
         const records = lines.slice(1).map((line) => {
@@ -105,7 +106,14 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
             }
 
             // Validate program type
-            const validPrograms = ["Meal", "Shower", "Laundry", "Bicycle", "Hair Cut", "Holiday"];
+            const validPrograms = [
+              "Meal",
+              "Shower",
+              "Laundry",
+              "Bicycle",
+              "Hair Cut",
+              "Holiday",
+            ];
             if (!validPrograms.includes(record.program)) {
               throw new Error(`Invalid program: ${record.program}`);
             }
@@ -164,9 +172,7 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
         return { validRecords, errors };
       };
 
-      const mockGuests = [
-        { id: "uuid-1", guestId: "G1", name: "Valid Guest" },
-      ];
+      const mockGuests = [{ id: "uuid-1", guestId: "G1", name: "Valid Guest" }];
 
       // Create 2000 records, every 100th has invalid guest ID
       const records = Array.from({ length: 2000 }, (_, i) => ({
@@ -213,7 +219,14 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
         return groups;
       };
 
-      const programs = ["meals", "showers", "laundry", "bicycles", "haircuts", "holidays"];
+      const programs = [
+        "meals",
+        "showers",
+        "laundry",
+        "bicycles",
+        "haircuts",
+        "holidays",
+      ];
       const records = Array.from({ length: 5000 }, (_, i) => ({
         attendanceId: `ATT${i}`,
         guestId: "G1",
@@ -235,7 +248,10 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
       });
 
       // Total should equal original
-      const totalRecords = Object.values(groups).reduce((sum, group) => sum + group.length, 0);
+      const totalRecords = Object.values(groups).reduce(
+        (sum, group) => sum + group.length,
+        0,
+      );
       expect(totalRecords).toBe(5000);
     });
 
@@ -402,7 +418,11 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
         const guestId = `G${(i % guestCount) + 1}`;
         const program = programs[i % programs.length];
         const day = ((i % 365) + 1).toString().padStart(2, "0");
-        csvContent += `ATT${i.toString().padStart(5, "0")},${guestId},1,${program},2024-${Math.ceil((i % 365) / 30).toString().padStart(2, "0")}-${day}\n`;
+        csvContent += `ATT${i.toString().padStart(5, "0")},${guestId},1,${program},2024-${Math.ceil(
+          (i % 365) / 30,
+        )
+          .toString()
+          .padStart(2, "0")}-${day}\n`;
       }
 
       const mockContext = {

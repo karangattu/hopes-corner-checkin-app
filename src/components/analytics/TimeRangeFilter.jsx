@@ -49,7 +49,7 @@ const TimeRangeFilter = ({
   const getPresetDates = useCallback((presetId) => {
     const now = new Date();
     const pacificNow = new Date(
-      now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+      now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
     );
 
     switch (presetId) {
@@ -70,7 +70,7 @@ const TimeRangeFilter = ({
         const startOfMonth = new Date(
           pacificNow.getFullYear(),
           pacificNow.getMonth(),
-          1
+          1,
         );
         return {
           startDate: startOfMonth.toISOString().split("T")[0],
@@ -147,7 +147,7 @@ const TimeRangeFilter = ({
       comparisonEnabled,
       showDaySelector,
       showComparison,
-    ]
+    ],
   );
 
   const handleCustomDateChange = useCallback(
@@ -185,7 +185,7 @@ const TimeRangeFilter = ({
       comparisonEnabled,
       showDaySelector,
       showComparison,
-    ]
+    ],
   );
 
   const handleDayToggle = useCallback(
@@ -211,7 +211,7 @@ const TimeRangeFilter = ({
       comparisonEnabled,
       showComparison,
       activePreset,
-    ]
+    ],
   );
 
   const handleComparisonToggle = useCallback(() => {
@@ -265,7 +265,9 @@ const TimeRangeFilter = ({
               >
                 <Icon
                   size={32}
-                  className={activePreset === preset.id ? "text-white" : "text-blue-500"}
+                  className={
+                    activePreset === preset.id ? "text-white" : "text-blue-500"
+                  }
                 />
                 <span className="font-medium text-base">{preset.label}</span>
               </button>
@@ -326,7 +328,9 @@ const TimeRangeFilter = ({
               <input
                 type="date"
                 value={customStartDate}
-                onChange={(e) => handleCustomDateChange("start", e.target.value)}
+                onChange={(e) =>
+                  handleCustomDateChange("start", e.target.value)
+                }
                 className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -398,7 +402,9 @@ const TimeRangeFilter = ({
               {new Date(currentDates.startDate).toLocaleDateString()} -{" "}
               {new Date(currentDates.endDate).toLocaleDateString()}
             </span>
-            <span className="font-semibold text-blue-600">{dateRangeSummary}</span>
+            <span className="font-semibold text-blue-600">
+              {dateRangeSummary}
+            </span>
           </div>
           {showDaySelector && selectedDays.length > 0 && (
             <div className="mt-1 text-xs text-gray-600">

@@ -203,7 +203,7 @@ const OverviewDashboard = ({
   });
   const [demographicsEndDate, setDemographicsEndDate] = useState(() => {
     const now = new Date();
-    return now.toISOString().split('T')[0];
+    return now.toISOString().split("T")[0];
   });
 
   // Keep temp targets in sync when not actively editing
@@ -251,10 +251,10 @@ const OverviewDashboard = ({
   // Helper function to check if guest's creation date falls within the filter range
   const isGuestInDateRange = useCallback((guest, startDate, endDate) => {
     // If guest has no createdAt, use start of year (2025-01-01)
-    const guestDate = guest.createdAt 
-      ? new Date(guest.createdAt).toISOString().split('T')[0]
+    const guestDate = guest.createdAt
+      ? new Date(guest.createdAt).toISOString().split("T")[0]
       : `${new Date().getFullYear()}-01-01`;
-    
+
     return guestDate >= startDate && guestDate <= endDate;
   }, []);
 
@@ -262,7 +262,9 @@ const OverviewDashboard = ({
 
   // Filter guests by date range
   const filteredGuestsForDemographics = useMemo(() => {
-    return guests.filter(guest => isGuestInDateRange(guest, demographicsStartDate, demographicsEndDate));
+    return guests.filter((guest) =>
+      isGuestInDateRange(guest, demographicsStartDate, demographicsEndDate),
+    );
   }, [guests, demographicsStartDate, demographicsEndDate, isGuestInDateRange]);
 
   // Calculate housing status breakdown
@@ -306,12 +308,12 @@ const OverviewDashboard = ({
     return filteredGuestsForDemographics.reduce((acc, guest) => {
       const city = guest.location || "Unknown";
       const ageGroup = guest.age || "Unknown";
-      
+
       if (!acc[city]) {
         acc[city] = {};
       }
       acc[city][ageGroup] = (acc[city][ageGroup] || 0) + 1;
-      
+
       return acc;
     }, {});
   }, [filteredGuestsForDemographics]);
@@ -321,12 +323,12 @@ const OverviewDashboard = ({
     return filteredGuestsForDemographics.reduce((acc, guest) => {
       const city = guest.location || "Unknown";
       const status = guest.housingStatus || "Unknown";
-      
+
       if (!acc[city]) {
         acc[city] = {};
       }
       acc[city][status] = (acc[city][status] || 0) + 1;
-      
+
       return acc;
     }, {});
   }, [filteredGuestsForDemographics]);
@@ -411,10 +413,14 @@ const OverviewDashboard = ({
     ).length;
 
     const monthBicycles = bicycleRecords
-      .filter((r) => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status))
+      .filter(
+        (r) => isCurrentMonth(r.date) && isCompletedBicycleStatus(r.status),
+      )
       .reduce((sum, record) => sum + getBicycleServiceCount(record), 0);
     const yearBicycles = bicycleRecords
-      .filter((r) => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status))
+      .filter(
+        (r) => isCurrentYear(r.date) && isCompletedBicycleStatus(r.status),
+      )
       .reduce((sum, record) => sum + getBicycleServiceCount(record), 0);
 
     const monthHaircuts = haircutRecords.filter((r) =>
@@ -706,7 +712,10 @@ const OverviewDashboard = ({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="demo-start-date" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="demo-start-date"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Start Date
             </label>
             <input
@@ -718,7 +727,10 @@ const OverviewDashboard = ({
             />
           </div>
           <div>
-            <label htmlFor="demo-end-date" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="demo-end-date"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               End Date
             </label>
             <input
@@ -731,7 +743,8 @@ const OverviewDashboard = ({
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Showing {filteredGuestsForDemographics.length} guest(s) in selected date range
+          Showing {filteredGuestsForDemographics.length} guest(s) in selected
+          date range
         </p>
       </div>
 

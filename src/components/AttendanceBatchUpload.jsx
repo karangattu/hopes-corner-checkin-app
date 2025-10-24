@@ -7,10 +7,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
-import {
-  pacificDateStringFrom,
-  isoFromPacificDateString,
-} from "../utils/date";
+import { pacificDateStringFrom, isoFromPacificDateString } from "../utils/date";
 
 const AttendanceBatchUpload = () => {
   const {
@@ -49,12 +46,32 @@ const AttendanceBatchUpload = () => {
 
   // Special guest IDs that map to specific meal types (no guest profile created)
   const SPECIAL_GUEST_IDS = {
-    M91834859: { type: "extra", handler: "addExtraMealRecord", label: "Extra meals" },
+    M91834859: {
+      type: "extra",
+      handler: "addExtraMealRecord",
+      label: "Extra meals",
+    },
     M94816825: { type: "rv", handler: "addRvMealRecord", label: "RV meals" },
-    M47721243: { type: "lunch_bag", handler: "addLunchBagRecord", label: "Lunch bags" },
-    M29017132: { type: "day_worker", handler: "addDayWorkerMealRecord", label: "Day Worker Center meals" },
-    M61706731: { type: "shelter", handler: "addShelterMealRecord", label: "Shelter meals" },
-    M65842216: { type: "united_effort", handler: "addUnitedEffortMealRecord", label: "United Effort meals" },
+    M47721243: {
+      type: "lunch_bag",
+      handler: "addLunchBagRecord",
+      label: "Lunch bags",
+    },
+    M29017132: {
+      type: "day_worker",
+      handler: "addDayWorkerMealRecord",
+      label: "Day Worker Center meals",
+    },
+    M61706731: {
+      type: "shelter",
+      handler: "addShelterMealRecord",
+      label: "Shelter meals",
+    },
+    M65842216: {
+      type: "united_effort",
+      handler: "addUnitedEffortMealRecord",
+      label: "United Effort meals",
+    },
   };
 
   // Program type mapping for CSV import
@@ -156,11 +173,11 @@ const AttendanceBatchUpload = () => {
           return i === -1 ? "" : (values[i] || "").trim();
         };
 
-  const attendanceId = get("attendance_id");
-  const guestId = get("guest_id");
-  const rawCount = get("count");
-  const parsedCount = Number.parseInt(rawCount, 10);
-  const count = Number.isNaN(parsedCount) ? 1 : Math.max(parsedCount, 1);
+        const attendanceId = get("attendance_id");
+        const guestId = get("guest_id");
+        const rawCount = get("count");
+        const parsedCount = Number.parseInt(rawCount, 10);
+        const count = Number.isNaN(parsedCount) ? 1 : Math.max(parsedCount, 1);
         const program = get("program").trim();
         const dateSubmitted = get("date_submitted").trim();
 
@@ -281,12 +298,7 @@ const AttendanceBatchUpload = () => {
     // Pre-validate and group records
     records.forEach((record, index) => {
       try {
-        const {
-          guestId,
-          programType,
-          isSpecialId,
-          specialMapping,
-        } = record;
+        const { guestId, programType, isSpecialId, specialMapping } = record;
 
         // Handle special guest IDs that map to meal types
         if (isSpecialId && specialMapping) {
@@ -309,7 +321,11 @@ const AttendanceBatchUpload = () => {
         const internalGuestId = guest.id;
 
         // Validate that if Supabase is being used, the guest has a valid UUID
-        if (supabaseEnabled && internalGuestId && String(internalGuestId).startsWith("local-")) {
+        if (
+          supabaseEnabled &&
+          internalGuestId &&
+          String(internalGuestId).startsWith("local-")
+        ) {
           throw new Error(
             `Guest "${guest.name}" (${guest.guestId}) was created locally and cannot be synced to Supabase. Please re-register this guest in the system first.`,
           );
@@ -356,7 +372,9 @@ const AttendanceBatchUpload = () => {
             await addUnitedEffortMealRecord(count, dateIso);
             break;
           default:
-            throw new Error(`Unknown special meal type: ${specialMapping.type}`);
+            throw new Error(
+              `Unknown special meal type: ${specialMapping.type}`,
+            );
         }
 
         if (!specialMealCounts[specialMapping.label]) {
@@ -372,7 +390,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process meals
     if (recordsByType.meals.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.meals.length} meal records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.meals.length} meal records...`,
+      );
       try {
         if (supabaseEnabled && insertMealAttendanceBatch) {
           const mealPayloads = recordsByType.meals.map((record) => {
@@ -407,7 +427,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process showers
     if (recordsByType.showers.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.showers.length} shower records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.showers.length} shower records...`,
+      );
       try {
         if (supabaseEnabled && insertShowerReservationsBatch) {
           const showerPayloads = recordsByType.showers.map((record) => {
@@ -428,10 +450,13 @@ const AttendanceBatchUpload = () => {
           for (const record of recordsByType.showers) {
             const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
             const dateIso = isoFromPacificDateString(pacificDateStr);
-            const imported = importShowerAttendanceRecord(record.internalGuestId, {
-              dateSubmitted: dateIso,
-              count: record.count,
-            });
+            const imported = importShowerAttendanceRecord(
+              record.internalGuestId,
+              {
+                dateSubmitted: dateIso,
+                count: record.count,
+              },
+            );
             successCount += imported.length;
           }
         }
@@ -443,7 +468,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process laundry
     if (recordsByType.laundry.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.laundry.length} laundry records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.laundry.length} laundry records...`,
+      );
       try {
         if (supabaseEnabled && insertLaundryBookingsBatch) {
           const laundryPayloads = recordsByType.laundry.map((record) => {
@@ -466,10 +493,13 @@ const AttendanceBatchUpload = () => {
           for (const record of recordsByType.laundry) {
             const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
             const dateIso = isoFromPacificDateString(pacificDateStr);
-            const imported = importLaundryAttendanceRecord(record.internalGuestId, {
-              dateSubmitted: dateIso,
-              count: record.count,
-            });
+            const imported = importLaundryAttendanceRecord(
+              record.internalGuestId,
+              {
+                dateSubmitted: dateIso,
+                count: record.count,
+              },
+            );
             successCount += imported.length;
           }
         }
@@ -481,7 +511,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process bicycles
     if (recordsByType.bicycles.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.bicycles.length} bicycle records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.bicycles.length} bicycle records...`,
+      );
       try {
         if (supabaseEnabled && insertBicycleRepairsBatch) {
           const bicyclePayloads = recordsByType.bicycles.map((record) => {
@@ -520,7 +552,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process haircuts
     if (recordsByType.haircuts.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.haircuts.length} haircut records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.haircuts.length} haircut records...`,
+      );
       try {
         if (supabaseEnabled && insertHaircutVisitsBatch) {
           const haircutPayloads = recordsByType.haircuts.map((record) => {
@@ -549,7 +583,9 @@ const AttendanceBatchUpload = () => {
 
     // Batch process holidays
     if (recordsByType.holidays.length > 0) {
-      setUploadProgress(`Processing ${recordsByType.holidays.length} holiday records...`);
+      setUploadProgress(
+        `Processing ${recordsByType.holidays.length} holiday records...`,
+      );
       try {
         if (supabaseEnabled && insertHolidayVisitsBatch) {
           const holidayPayloads = recordsByType.holidays.map((record) => {
@@ -602,7 +638,9 @@ const AttendanceBatchUpload = () => {
         setUploadProgress("Parsing CSV file...");
         const parsedRecords = parseCSV(content);
 
-        setUploadProgress(`Preparing to import ${parsedRecords.length} records...`);
+        setUploadProgress(
+          `Preparing to import ${parsedRecords.length} records...`,
+        );
         const { successCount, errorCount, errors, specialMealCounts } =
           await importAttendanceRecords(parsedRecords);
 
@@ -622,7 +660,10 @@ const AttendanceBatchUpload = () => {
           });
         } else if (successCount > 0) {
           const errorSummary = errors.slice(0, 5).join("; ");
-          const moreErrors = errors.length > 5 ? ` (and ${errors.length - 5} more errors - check console for full details)` : "";
+          const moreErrors =
+            errors.length > 5
+              ? ` (and ${errors.length - 5} more errors - check console for full details)`
+              : "";
           setUploadResult({
             success: false,
             message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors. First errors: ${errorSummary}${moreErrors}`,
@@ -633,7 +674,10 @@ const AttendanceBatchUpload = () => {
           }
         } else {
           const errorSummary = errors.slice(0, 5).join("; ");
-          const moreErrors = errors.length > 5 ? ` (and ${errors.length - 5} more errors - check console)` : "";
+          const moreErrors =
+            errors.length > 5
+              ? ` (and ${errors.length - 5} more errors - check console)`
+              : "";
           setUploadResult({
             success: false,
             message: `Failed to import records: ${errorSummary}${moreErrors}`,

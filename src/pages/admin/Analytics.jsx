@@ -33,11 +33,7 @@ import { todayPacificDateString } from "../../utils/date";
  * with consistent time-based filtering and beginner/power user modes
  */
 const Analytics = () => {
-  const {
-    getUniversalTimeRangeMetrics,
-    guests,
-    settings,
-  } = useAppContext();
+  const { getUniversalTimeRangeMetrics, guests, settings } = useAppContext();
 
   // UI Mode: 'beginner' | 'power'
   const [uiMode, setUiMode] = useState("power");
@@ -89,7 +85,7 @@ const Analytics = () => {
     setSelectedPrograms((prev) =>
       prev.includes(program)
         ? prev.filter((p) => p !== program)
-        : [...prev, program]
+        : [...prev, program],
     );
   }, []);
 
@@ -102,15 +98,11 @@ const Analytics = () => {
         programs: selectedPrograms,
         selectedDays: timeFilter.selectedDays,
         includeComparison: timeFilter.comparisonEnabled,
-      }
+      },
     );
 
     return result;
-  }, [
-    timeFilter,
-    selectedPrograms,
-    getUniversalTimeRangeMetrics,
-  ]);
+  }, [timeFilter, selectedPrograms, getUniversalTimeRangeMetrics]);
 
   // Calculate demographics
   const demographics = useMemo(() => {
@@ -294,8 +286,9 @@ const Analytics = () => {
       {/* Quick stats */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <p className="text-sm text-gray-600">
-          Showing data for <span className="font-semibold">{metrics.daysInRange}</span>{" "}
-          day{metrics.daysInRange !== 1 ? "s" : ""} from{" "}
+          Showing data for{" "}
+          <span className="font-semibold">{metrics.daysInRange}</span> day
+          {metrics.daysInRange !== 1 ? "s" : ""} from{" "}
           <span className="font-semibold">
             {new Date(timeFilter.startDate).toLocaleDateString()}
           </span>{" "}
@@ -404,11 +397,15 @@ const Analytics = () => {
 
         {/* UI Mode Toggle */}
         <button
-          onClick={() => setUiMode(uiMode === "beginner" ? "power" : "beginner")}
+          onClick={() =>
+            setUiMode(uiMode === "beginner" ? "power" : "beginner")
+          }
           className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-300 hover:border-blue-400 transition-all"
         >
           {uiMode === "beginner" ? <Zap size={16} /> : <Settings size={16} />}
-          {uiMode === "beginner" ? "Switch to Power Mode" : "Switch to Beginner Mode"}
+          {uiMode === "beginner"
+            ? "Switch to Power Mode"
+            : "Switch to Beginner Mode"}
         </button>
       </div>
 

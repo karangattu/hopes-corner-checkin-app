@@ -19,12 +19,12 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ age: "" });
     const csvRowNumber = 2;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const age = (row.age || "").trim();
-    
+
     if (!AGE_GROUPS.includes(age)) {
       const errorMessage = `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`;
       expect(errorMessage).toContain("Guest ID: M12345678");
@@ -39,17 +39,19 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ guest_id: "", age: "InvalidAge" });
     const csvRowNumber = 5;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const age = (row.age || "").trim();
-    
+
     if (!AGE_GROUPS.includes(age)) {
       const errorMessage = `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`;
       expect(errorMessage).toContain("Row: 5");
       expect(errorMessage).not.toContain("Guest ID:");
-      expect(errorMessage).toContain("Invalid or missing Age value 'InvalidAge'");
+      expect(errorMessage).toContain(
+        "Invalid or missing Age value 'InvalidAge'",
+      );
     }
   });
 
@@ -57,12 +59,12 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ gender: "InvalidGender" });
     const csvRowNumber = 3;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const gender = (row.gender || "").trim();
-    
+
     if (!GENDERS.includes(gender)) {
       const errorMessage = `Invalid Gender value '${gender}' (${recordIdentifier}). Allowed: ${GENDERS.join(", ")}`;
       expect(errorMessage).toContain("Guest ID: M12345678");
@@ -76,12 +78,12 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ first_name: "" });
     const csvRowNumber = 10;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const firstName = (row.first_name || "").trim();
-    
+
     if (!firstName) {
       const errorMessage = `Missing first name (${recordIdentifier}). Data: ${JSON.stringify(row)}`;
       expect(errorMessage).toContain("Guest ID: M12345678");
@@ -100,7 +102,7 @@ describe("Guest Batch Import Error Messages", () => {
     rows.forEach((row, index) => {
       const csvRowNumber = index + 2;
       const guestIdFromCSV = row.guest_id;
-      const recordIdentifier = guestIdFromCSV 
+      const recordIdentifier = guestIdFromCSV
         ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
         : `Row: ${csvRowNumber}`;
 
@@ -114,13 +116,13 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ age: "" });
     const csvRowNumber = 2;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const age = (row.age || "").trim();
     const errorMessage = `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`;
-    
+
     expect(errorMessage).toContain("Invalid or missing Age value ''");
     expect(errorMessage).toContain("Guest ID: M12345678, Row: 2");
   });
@@ -129,13 +131,13 @@ describe("Guest Batch Import Error Messages", () => {
     const row = createMockRow({ age: "   " });
     const csvRowNumber = 7;
     const guestIdFromCSV = row.guest_id;
-    const recordIdentifier = guestIdFromCSV 
+    const recordIdentifier = guestIdFromCSV
       ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
       : `Row: ${csvRowNumber}`;
-    
+
     const age = (row.age || "").trim();
     const errorMessage = `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`;
-    
+
     expect(errorMessage).toContain("Invalid or missing Age value ''");
     expect(errorMessage).toContain("Row: 7");
   });

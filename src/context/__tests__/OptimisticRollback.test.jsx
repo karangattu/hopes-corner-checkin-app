@@ -47,7 +47,9 @@ import { useAppContext } from "../useAppContext";
 import { __setSupabaseHandler } from "../../supabaseClient";
 import enhancedToast from "../../utils/toast";
 
-const createWrapper = () => ({ children }) => <AppProvider>{children}</AppProvider>;
+const createWrapper =
+  () =>
+  ({ children }) => <AppProvider>{children}</AppProvider>;
 
 describe("Optimistic update rollbacks", () => {
   beforeEach(() => {

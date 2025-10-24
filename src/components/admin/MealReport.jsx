@@ -48,16 +48,29 @@ const MealReport = () => {
     return Array.from({ length: 5 }, (_, i) => currentYear - i);
   }, []);
 
-  const months = useMemo(() => [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ], []);
+  const months = useMemo(
+    () => [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ],
+    [],
+  );
 
   const toggleDay = (dayValue) => {
-    setSelectedDays(prev =>
+    setSelectedDays((prev) =>
       prev.includes(dayValue)
-        ? prev.filter(d => d !== dayValue)
-        : [...prev, dayValue].sort((a, b) => a - b)
+        ? prev.filter((d) => d !== dayValue)
+        : [...prev, dayValue].sort((a, b) => a - b),
     );
   };
 
@@ -77,7 +90,7 @@ const MealReport = () => {
   const calculateMealData = useMemo(() => {
     const results = [];
     const monthNames = months;
-    
+
     for (let monthOffset = 0; monthOffset <= comparisonMonths; monthOffset++) {
       const targetDate = new Date(selectedYear, selectedMonth - monthOffset);
       const targetYear = targetDate.getFullYear();
@@ -96,33 +109,63 @@ const MealReport = () => {
       }
 
       const filterRecordsByDayAndMonth = (records) => {
-        return records.filter(record => {
+        return records.filter((record) => {
           const date = getDateFromRecord(record);
           if (!date) return false;
           const dayOfWeek = getDayOfWeek(date);
-          return isDateInMonth(date, targetYear, targetMonth) && selectedDays.includes(dayOfWeek);
+          return (
+            isDateInMonth(date, targetYear, targetMonth) &&
+            selectedDays.includes(dayOfWeek)
+          );
         });
       };
 
       const monthMeals = filterRecordsByDayAndMonth(mealRecords);
       const monthRvMeals = filterRecordsByDayAndMonth(rvMealRecords);
       const monthShelterMeals = filterRecordsByDayAndMonth(shelterMealRecords);
-      const monthUnitedEffortMeals = filterRecordsByDayAndMonth(unitedEffortMealRecords);
+      const monthUnitedEffortMeals = filterRecordsByDayAndMonth(
+        unitedEffortMealRecords,
+      );
       const monthExtraMeals = filterRecordsByDayAndMonth(extraMealRecords);
-      const monthDayWorkerMeals = filterRecordsByDayAndMonth(dayWorkerMealRecords);
+      const monthDayWorkerMeals =
+        filterRecordsByDayAndMonth(dayWorkerMealRecords);
 
-      const guestMealsCount = monthMeals.reduce((sum, r) => sum + (r.count || 0), 0);
-      const rvMealsCount = monthRvMeals.reduce((sum, r) => sum + (r.count || 0), 0);
-      const shelterMealsCount = monthShelterMeals.reduce((sum, r) => sum + (r.count || 0), 0);
-      const unitedEffortMealsCount = monthUnitedEffortMeals.reduce((sum, r) => sum + (r.count || 0), 0);
-      const extraMealsCount = monthExtraMeals.reduce((sum, r) => sum + (r.count || 0), 0);
-      const dayWorkerMealsCount = monthDayWorkerMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const guestMealsCount = monthMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
+      const rvMealsCount = monthRvMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
+      const shelterMealsCount = monthShelterMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
+      const unitedEffortMealsCount = monthUnitedEffortMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
+      const extraMealsCount = monthExtraMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
+      const dayWorkerMealsCount = monthDayWorkerMeals.reduce(
+        (sum, r) => sum + (r.count || 0),
+        0,
+      );
 
       const uniqueGuestIds = new Set(
-        [...monthMeals, ...monthRvMeals, ...monthShelterMeals,
-         ...monthUnitedEffortMeals, ...monthExtraMeals, ...monthDayWorkerMeals]
-          .map(r => r.guestId)
-          .filter(Boolean)
+        [
+          ...monthMeals,
+          ...monthRvMeals,
+          ...monthShelterMeals,
+          ...monthUnitedEffortMeals,
+          ...monthExtraMeals,
+          ...monthDayWorkerMeals,
+        ]
+          .map((r) => r.guestId)
+          .filter(Boolean),
       );
 
       const totalMealsServed =
@@ -285,20 +328,20 @@ const MealReport = () => {
         extraMealsTotal +
         dayWorkerMealsTotal;
 
-      const extrasShare = totalMeals
-        ? extraMealsTotal / totalMeals
-        : 0;
+      const extrasShare = totalMeals ? extraMealsTotal / totalMeals : 0;
 
       const uniqueGuests = new Set(
-        [...dayMeals, ...dayRvMeals, ...dayShelterMeals, ...dayUnitedEffortMeals]
+        [
+          ...dayMeals,
+          ...dayRvMeals,
+          ...dayShelterMeals,
+          ...dayUnitedEffortMeals,
+        ]
           .map((record) => record.guestId)
           .filter(Boolean),
       ).size;
 
-      const { color, label } = categorizeScatterPoint(
-        totalMeals,
-        extrasShare,
-      );
+      const { color, label } = categorizeScatterPoint(totalMeals, extrasShare);
 
       points.push({
         timestamp: date.getTime(),
@@ -358,24 +401,26 @@ const MealReport = () => {
     const currentMonthData = calculateMealData[calculateMealData.length - 1];
     const targetYear = currentMonthData.year;
     const targetMonth = currentMonthData.monthIndex;
-    
+
     const exportData = [];
     const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(targetYear, targetMonth, day);
       const dayOfWeek = getDayOfWeek(date);
-      
+
       if (!selectedDays.includes(dayOfWeek)) continue;
 
-      const dateStr = date.toISOString().split('T')[0];
-      const dayName = DAYS_OF_WEEK.find(d => d.value === dayOfWeek)?.label || date.toLocaleDateString('en-US', { weekday: 'long' });
+      const dateStr = date.toISOString().split("T")[0];
+      const dayName =
+        DAYS_OF_WEEK.find((d) => d.value === dayOfWeek)?.label ||
+        date.toLocaleDateString("en-US", { weekday: "long" });
 
       const filterRecordsByDate = (records) => {
-        return records.filter(record => {
+        return records.filter((record) => {
           const recordDate = getDateFromRecord(record);
           if (!recordDate) return false;
-          return recordDate.toISOString().split('T')[0] === dateStr;
+          return recordDate.toISOString().split("T")[0] === dateStr;
         });
       };
 
@@ -390,12 +435,24 @@ const MealReport = () => {
         Date: date.toLocaleDateString(),
         "Day of Week": dayName,
         "Guest Meals": dayMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Extra Meals": dayExtraMeals.reduce((sum, r) => sum + (r.count || 0), 0),
+        "Extra Meals": dayExtraMeals.reduce(
+          (sum, r) => sum + (r.count || 0),
+          0,
+        ),
         "RV Meals": dayRvMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Day Worker Meals": dayDayWorkerMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Shelter Meals": dayShelterMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "United Effort Meals": dayUnitedEffortMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Total Meals": 
+        "Day Worker Meals": dayDayWorkerMeals.reduce(
+          (sum, r) => sum + (r.count || 0),
+          0,
+        ),
+        "Shelter Meals": dayShelterMeals.reduce(
+          (sum, r) => sum + (r.count || 0),
+          0,
+        ),
+        "United Effort Meals": dayUnitedEffortMeals.reduce(
+          (sum, r) => sum + (r.count || 0),
+          0,
+        ),
+        "Total Meals":
           dayMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
           dayExtraMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
           dayRvMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
@@ -405,7 +462,7 @@ const MealReport = () => {
       });
     }
 
-    const filename = `meal-report-${months[targetMonth]}-${targetYear}-${selectedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label.substring(0, 3)).join('-')}.csv`;
+    const filename = `meal-report-${months[targetMonth]}-${targetYear}-${selectedDays.map((d) => DAYS_OF_WEEK.find((day) => day.value === d)?.label.substring(0, 3)).join("-")}.csv`;
     exportDataAsCSV(exportData, filename);
     toast.success("Meal report exported successfully!");
   };
@@ -421,13 +478,13 @@ const MealReport = () => {
         backgroundColor: "#ffffff",
         scale: 2,
       });
-      
+
       const link = document.createElement("a");
       const timestamp = new Date().toISOString().slice(0, 10);
       link.download = `meal-comparison-chart-${timestamp}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      
+
       toast.success("Chart downloaded as PNG!");
     } catch (error) {
       console.error("Error exporting chart:", error);
@@ -440,7 +497,7 @@ const MealReport = () => {
 
     const data = payload[0]?.payload;
     if (!data) return null;
-    
+
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">{data.month}</p>
@@ -450,13 +507,20 @@ const MealReport = () => {
           <p className="text-purple-600">RV Meals: {data.rvMeals}</p>
           <p className="text-green-600">Day Worker: {data.dayWorkerMeals}</p>
           <p className="text-pink-600">Shelter: {data.shelterMeals}</p>
-          <p className="text-indigo-600">United Effort: {data.unitedEffortMeals}</p>
-          <p className="font-semibold text-gray-800 mt-2 pt-2 border-t">Total: {data.totalMeals}</p>
+          <p className="text-indigo-600">
+            United Effort: {data.unitedEffortMeals}
+          </p>
+          <p className="font-semibold text-gray-800 mt-2 pt-2 border-t">
+            Total: {data.totalMeals}
+          </p>
           <p className="text-gray-700">
-            Avg Meals / Service Day: {Math.round(data.avgMealsPerServiceDay || 0)}
+            Avg Meals / Service Day:{" "}
+            {Math.round(data.avgMealsPerServiceDay || 0)}
           </p>
           <p className="text-gray-600">Unique Guests: {data.uniqueGuests}</p>
-          <p className="text-gray-500 text-xs mt-1">Days: {data.validDaysCount}</p>
+          <p className="text-gray-500 text-xs mt-1">
+            Days: {data.validDaysCount}
+          </p>
         </div>
       </div>
     );
@@ -493,7 +557,7 @@ const MealReport = () => {
           <Calendar size={20} className="text-blue-600" />
           Meal Report by Day of Week
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -504,8 +568,10 @@ const MealReport = () => {
               onChange={(e) => setSelectedYear(Number(e.target.value))}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {years.map(year => (
-                <option key={year} value={year}>{year}</option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>
@@ -520,7 +586,9 @@ const MealReport = () => {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {months.map((month, index) => (
-                <option key={index} value={index}>{month}</option>
+                <option key={index} value={index}>
+                  {month}
+                </option>
               ))}
             </select>
           </div>
@@ -556,14 +624,14 @@ const MealReport = () => {
             Select Days of Week
           </label>
           <div className="flex flex-wrap gap-3">
-            {DAYS_OF_WEEK.map(day => (
+            {DAYS_OF_WEEK.map((day) => (
               <button
                 key={day.value}
                 onClick={() => toggleDay(day.value)}
                 className={`px-4 py-2 rounded-lg border-2 transition-all ${
                   selectedDays.includes(day.value)
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
                 }`}
               >
                 {day.label}
@@ -571,7 +639,9 @@ const MealReport = () => {
             ))}
           </div>
           {selectedDays.length === 0 && (
-            <p className="text-red-600 text-sm mt-2">Please select at least one day</p>
+            <p className="text-red-600 text-sm mt-2">
+              Please select at least one day
+            </p>
           )}
         </div>
       </div>
@@ -582,7 +652,7 @@ const MealReport = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <TrendingUp size={18} className="text-green-600" />
-                Monthly Comparison - {selectedDayLabels.join(', ')}
+                Monthly Comparison - {selectedDayLabels.join(", ")}
               </h3>
               <button
                 onClick={exportChart}
@@ -596,14 +666,27 @@ const MealReport = () => {
             {chartNarrative && (
               <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 <p>
-                  Totals reflect every {selectedDayLabels.join(
-                    ", ",
-                  )} in {chartNarrative.monthLabel}. We served
-                  <span className="font-semibold"> {chartNarrative.totalMeals.toLocaleString()}</span> meals
-                  across <span className="font-semibold">{chartNarrative.validDays}</span>{" "}
-                  service days (≈{chartNarrative.averagePerServiceDay.toLocaleString()} meals per day) to
-                  <span className="font-semibold"> {chartNarrative.uniqueGuests.toLocaleString()}</span> unique guests.
-                  {chartNarrative.changeText ? ` This is ${chartNarrative.changeText}.` : ""}
+                  Totals reflect every {selectedDayLabels.join(", ")} in{" "}
+                  {chartNarrative.monthLabel}. We served
+                  <span className="font-semibold">
+                    {" "}
+                    {chartNarrative.totalMeals.toLocaleString()}
+                  </span>{" "}
+                  meals across{" "}
+                  <span className="font-semibold">
+                    {chartNarrative.validDays}
+                  </span>{" "}
+                  service days (≈
+                  {chartNarrative.averagePerServiceDay.toLocaleString()} meals
+                  per day) to
+                  <span className="font-semibold">
+                    {" "}
+                    {chartNarrative.uniqueGuests.toLocaleString()}
+                  </span>{" "}
+                  unique guests.
+                  {chartNarrative.changeText
+                    ? ` This is ${chartNarrative.changeText}.`
+                    : ""}
                 </p>
               </div>
             )}
@@ -621,7 +704,11 @@ const MealReport = () => {
                     angle={-45}
                     textAnchor="end"
                     height={80}
-                    label={{ value: "Month", position: "insideBottom", offset: -20 }}
+                    label={{
+                      value: "Month",
+                      position: "insideBottom",
+                      offset: -20,
+                    }}
                   />
                   <YAxis
                     yAxisId="left"
@@ -702,71 +789,82 @@ const MealReport = () => {
             </div>
           </div>
 
-            {dailyScatterData.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h3 className="text-lg font-semibold mb-2">
-                  Daily Service Mix
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Each dot represents a selected service day this month. Colors highlight
-                  when extras dominate, guests dominate, or we hit peak volume.
-                </p>
-                {scatterLegend.length > 0 && (
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    {scatterLegend.map(({ label, color }) => (
+          {dailyScatterData.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h3 className="text-lg font-semibold mb-2">Daily Service Mix</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Each dot represents a selected service day this month. Colors
+                highlight when extras dominate, guests dominate, or we hit peak
+                volume.
+              </p>
+              {scatterLegend.length > 0 && (
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {scatterLegend.map(({ label, color }) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                    >
                       <span
-                        key={label}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
-                      >
-                        <span
-                          className="inline-block h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ height: "320px" }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 16, right: 24, bottom: 40, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis
-                        type="number"
-                        dataKey="timestamp"
-                        scale="time"
-                        domain={["auto", "auto"]}
-                        tickFormatter={(value) =>
-                          new Date(value).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                          })
-                        }
-                        label={{ value: "Service Day", position: "insideBottom", offset: -20 }}
-                        tick={{ fontSize: 12 }}
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
                       />
-                      <YAxis
-                        type="number"
-                        dataKey="totalMeals"
-                        tick={{ fontSize: 12 }}
-                        label={{
-                          value: "Total Meals",
-                          angle: -90,
-                          position: "insideLeft",
-                          offset: 10,
-                        }}
-                      />
-                      <Tooltip cursor={{ strokeDasharray: "3 3" }} content={<ScatterTooltip />} />
-                      <Scatter data={dailyScatterData} name="Total Meals">
-                        {dailyScatterData.map((point, index) => (
-                          <Cell key={`${point.timestamp}-${index}`} fill={point.color} />
-                        ))}
-                      </Scatter>
-                    </ScatterChart>
-                  </ResponsiveContainer>
+                      {label}
+                    </span>
+                  ))}
                 </div>
+              )}
+              <div style={{ height: "320px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart
+                    margin={{ top: 16, right: 24, bottom: 40, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis
+                      type="number"
+                      dataKey="timestamp"
+                      scale="time"
+                      domain={["auto", "auto"]}
+                      tickFormatter={(value) =>
+                        new Date(value).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      }
+                      label={{
+                        value: "Service Day",
+                        position: "insideBottom",
+                        offset: -20,
+                      }}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="totalMeals"
+                      tick={{ fontSize: 12 }}
+                      label={{
+                        value: "Total Meals",
+                        angle: -90,
+                        position: "insideLeft",
+                        offset: 10,
+                      }}
+                    />
+                    <Tooltip
+                      cursor={{ strokeDasharray: "3 3" }}
+                      content={<ScatterTooltip />}
+                    />
+                    <Scatter data={dailyScatterData} name="Total Meals">
+                      {dailyScatterData.map((point, index) => (
+                        <Cell
+                          key={`${point.timestamp}-${index}`}
+                          fill={point.color}
+                        />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
               </div>
-            )}
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold mb-4">Summary Statistics</h3>
@@ -775,37 +873,67 @@ const MealReport = () => {
                 <thead>
                   <tr className="bg-gray-50 border-b">
                     <th className="px-4 py-3 text-left font-semibold">Month</th>
-                    <th className="px-4 py-3 text-right font-semibold">Guest</th>
-                    <th className="px-4 py-3 text-right font-semibold">Extras</th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Guest
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Extras
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold">RV</th>
-                    <th className="px-4 py-3 text-right font-semibold">Day Worker</th>
-                    <th className="px-4 py-3 text-right font-semibold">Shelter</th>
-                    <th className="px-4 py-3 text-right font-semibold">United Effort</th>
-                    <th className="px-4 py-3 text-right font-semibold">Total</th>
-                    <th className="px-4 py-3 text-right font-semibold">Avg/Day</th>
-                    <th className="px-4 py-3 text-right font-semibold">Unique Guests</th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Day Worker
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Shelter
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      United Effort
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Total
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Avg/Day
+                    </th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Unique Guests
+                    </th>
                     <th className="px-4 py-3 text-right font-semibold">Days</th>
                   </tr>
                 </thead>
                 <tbody>
                   {calculateMealData.map((data, index) => (
-                    <tr 
-                      key={index} 
-                      className={`border-b ${data.isCurrentMonth ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'}`}
+                    <tr
+                      key={index}
+                      className={`border-b ${data.isCurrentMonth ? "bg-blue-50 font-semibold" : "hover:bg-gray-50"}`}
                     >
                       <td className="px-4 py-3">{data.month}</td>
-                      <td className="px-4 py-3 text-right">{data.guestMeals}</td>
+                      <td className="px-4 py-3 text-right">
+                        {data.guestMeals}
+                      </td>
                       <td className="px-4 py-3 text-right">{data.extras}</td>
                       <td className="px-4 py-3 text-right">{data.rvMeals}</td>
-                      <td className="px-4 py-3 text-right">{data.dayWorkerMeals}</td>
-                      <td className="px-4 py-3 text-right">{data.shelterMeals}</td>
-                      <td className="px-4 py-3 text-right">{data.unitedEffortMeals}</td>
-                      <td className="px-4 py-3 text-right font-semibold">{data.totalMeals}</td>
+                      <td className="px-4 py-3 text-right">
+                        {data.dayWorkerMeals}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {data.shelterMeals}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {data.unitedEffortMeals}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        {data.totalMeals}
+                      </td>
                       <td className="px-4 py-3 text-right text-slate-700">
                         {Math.round(data.avgMealsPerServiceDay || 0)}
                       </td>
-                      <td className="px-4 py-3 text-right text-green-700">{data.uniqueGuests}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{data.validDaysCount}</td>
+                      <td className="px-4 py-3 text-right text-green-700">
+                        {data.uniqueGuests}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">
+                        {data.validDaysCount}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

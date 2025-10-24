@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { animated as Animated } from "@react-spring/web";
 import { useStagger, SpringIcon } from "../utils/animations";
@@ -61,7 +67,10 @@ const GuestList = () => {
   const [selectedGuestIndex, setSelectedGuestIndex] = useState(-1);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
-  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, guest: null });
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    guest: null,
+  });
   const [createFormData, setCreateFormData] = useState({
     firstName: "",
     lastName: "",
@@ -812,10 +821,16 @@ const GuestList = () => {
   const cancelEditing = () => setEditingGuestId(null);
 
   const deleteGuest = (guest) => {
-    const guestMealCount = (mealRecords || []).filter(r => r.guestId === guest.id).length;
-    const guestShowerCount = (showerRecords || []).filter(r => r.guestId === guest.id).length;
-    const guestLaundryCount = (laundryRecords || []).filter(r => r.guestId === guest.id).length;
-    
+    const guestMealCount = (mealRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
+    const guestShowerCount = (showerRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
+    const guestLaundryCount = (laundryRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
+
     setDeleteConfirmation({
       isOpen: true,
       guest,
@@ -897,7 +912,8 @@ const GuestList = () => {
           />
           {searchTerm && filteredGuests.length > 0 && (
             <div className="absolute left-12 bottom-[-24px] text-xs text-gray-500 font-medium">
-              {filteredGuests.length} {filteredGuests.length === 1 ? 'guest' : 'guests'} found
+              {filteredGuests.length}{" "}
+              {filteredGuests.length === 1 ? "guest" : "guests"} found
             </div>
           )}
           {searchTerm && (
@@ -1311,9 +1327,12 @@ const GuestList = () => {
                             </h3>
                             <div className="flex gap-1 ml-2 items-center">
                               {(() => {
-                                const isNewGuest = guest.createdAt && 
-                                  pacificDateStringFrom(new Date(guest.createdAt)) === todayPacificDateString();
-                                
+                                const isNewGuest =
+                                  guest.createdAt &&
+                                  pacificDateStringFrom(
+                                    new Date(guest.createdAt),
+                                  ) === todayPacificDateString();
+
                                 return isNewGuest ? (
                                   <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
                                     NEW
@@ -1670,13 +1689,16 @@ const GuestList = () => {
                                         onClick={() =>
                                           handleMealSelection(guest.id, count)
                                         }
-                                        disabled={alreadyHasMeal || pendingMealGuests.has(guest.id)}
+                                        disabled={
+                                          alreadyHasMeal ||
+                                          pendingMealGuests.has(guest.id)
+                                        }
                                         className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
                                           alreadyHasMeal
                                             ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
                                             : pendingMealGuests.has(guest.id)
-                                            ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                            : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                                              ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                              : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
                                         }`}
                                         title={
                                           alreadyHasMeal
@@ -1699,7 +1721,10 @@ const GuestList = () => {
                                           <button
                                             key={`extra-${count}`}
                                             onClick={() =>
-                                              handleAddExtraMeals(guest.id, count)
+                                              handleAddExtraMeals(
+                                                guest.id,
+                                                count,
+                                              )
                                             }
                                             className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
                                             title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
@@ -1711,27 +1736,35 @@ const GuestList = () => {
                                           </button>
                                         ))}
                                       </div>
-                                      
+
                                       {(() => {
                                         // Find the most recent meal action for this guest today
                                         const today = todayPacificDateString();
-                                        const guestMealAction = actionHistory.find(
-                                          (action) =>
-                                            action.type === "MEAL_ADDED" &&
-                                            action.data?.guestId === guest.id &&
-                                            pacificDateStringFrom(new Date(action.timestamp)) === today
-                                        );
-                                        
+                                        const guestMealAction =
+                                          actionHistory.find(
+                                            (action) =>
+                                              action.type === "MEAL_ADDED" &&
+                                              action.data?.guestId ===
+                                                guest.id &&
+                                              pacificDateStringFrom(
+                                                new Date(action.timestamp),
+                                              ) === today,
+                                          );
+
                                         if (!guestMealAction) return null;
-                                        
+
                                         return (
                                           <button
                                             onClick={async () => {
                                               haptics.undo();
-                                              const success = await undoAction(guestMealAction.id);
+                                              const success = await undoAction(
+                                                guestMealAction.id,
+                                              );
                                               if (success) {
                                                 haptics.success();
-                                                toast.success("Check-in undone successfully");
+                                                toast.success(
+                                                  "Check-in undone successfully",
+                                                );
                                                 setPendingMealGuests((prev) => {
                                                   const next = new Set(prev);
                                                   next.delete(guest.id);
@@ -1747,8 +1780,12 @@ const GuestList = () => {
                                             <SpringIcon>
                                               <RotateCcw size={16} />
                                             </SpringIcon>
-                                            <span className="hidden sm:inline">Undo Check-In</span>
-                                            <span className="sm:hidden">Undo</span>
+                                            <span className="hidden sm:inline">
+                                              Undo Check-In
+                                            </span>
+                                            <span className="sm:hidden">
+                                              Undo
+                                            </span>
                                           </button>
                                         );
                                       })()}
@@ -1758,7 +1795,7 @@ const GuestList = () => {
                               );
                             })()}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={async () => {
@@ -1785,7 +1822,9 @@ const GuestList = () => {
                                   });
                                 }
                               }}
-                              disabled={pendingActions.has(`haircut-${guest.id}`)}
+                              disabled={pendingActions.has(
+                                `haircut-${guest.id}`,
+                              )}
                               className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
                                 pendingActions.has(`haircut-${guest.id}`)
                                   ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
@@ -1800,23 +1839,27 @@ const GuestList = () => {
                                   : "Haircut"}
                               </span>
                             </button>
-                            
+
                             {(() => {
                               const today = todayPacificDateString();
                               const haircutAction = actionHistory.find(
                                 (action) =>
                                   action.type === "HAIRCUT_LOGGED" &&
                                   action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                                  pacificDateStringFrom(
+                                    new Date(action.timestamp),
+                                  ) === today,
                               );
-                              
+
                               if (!haircutAction) return null;
-                              
+
                               return (
                                 <button
                                   onClick={async () => {
                                     haptics.undo();
-                                    const success = await undoAction(haircutAction.id);
+                                    const success = await undoAction(
+                                      haircutAction.id,
+                                    );
                                     if (success) {
                                       haptics.success();
                                       toast.success("Haircut undone");
@@ -1832,7 +1875,7 @@ const GuestList = () => {
                               );
                             })()}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => {
@@ -1849,23 +1892,27 @@ const GuestList = () => {
                               <Gift size={16} />
                               <span className="hidden sm:inline">Holiday</span>
                             </button>
-                            
+
                             {(() => {
                               const today = todayPacificDateString();
                               const holidayAction = actionHistory.find(
                                 (action) =>
                                   action.type === "HOLIDAY_LOGGED" &&
                                   action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                                  pacificDateStringFrom(
+                                    new Date(action.timestamp),
+                                  ) === today,
                               );
-                              
+
                               if (!holidayAction) return null;
-                              
+
                               return (
                                 <button
                                   onClick={async () => {
                                     haptics.undo();
-                                    const success = await undoAction(holidayAction.id);
+                                    const success = await undoAction(
+                                      holidayAction.id,
+                                    );
                                     if (success) {
                                       haptics.success();
                                       toast.success("Holiday undone");
@@ -1881,7 +1928,7 @@ const GuestList = () => {
                               );
                             })()}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => {
@@ -1910,23 +1957,27 @@ const GuestList = () => {
                               <Bike size={16} />
                               <span className="hidden sm:inline">Bicycle</span>
                             </button>
-                            
+
                             {(() => {
                               const today = todayPacificDateString();
                               const bicycleAction = actionHistory.find(
                                 (action) =>
                                   action.type === "BICYCLE_LOGGED" &&
                                   action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                                  pacificDateStringFrom(
+                                    new Date(action.timestamp),
+                                  ) === today,
                               );
-                              
+
                               if (!bicycleAction) return null;
-                              
+
                               return (
                                 <button
                                   onClick={async () => {
                                     haptics.undo();
-                                    const success = await undoAction(bicycleAction.id);
+                                    const success = await undoAction(
+                                      bicycleAction.id,
+                                    );
                                     if (success) {
                                       haptics.success();
                                       toast.success("Bicycle repair undone");
@@ -1942,7 +1993,7 @@ const GuestList = () => {
                               );
                             })()}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => {
@@ -1957,23 +2008,27 @@ const GuestList = () => {
                               <span className="hidden sm:inline">Book </span>
                               Shower
                             </button>
-                            
+
                             {(() => {
                               const today = todayPacificDateString();
                               const showerAction = actionHistory.find(
                                 (action) =>
                                   action.type === "SHOWER_BOOKED" &&
                                   action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                                  pacificDateStringFrom(
+                                    new Date(action.timestamp),
+                                  ) === today,
                               );
-                              
+
                               if (!showerAction) return null;
-                              
+
                               return (
                                 <button
                                   onClick={async () => {
                                     haptics.undo();
-                                    const success = await undoAction(showerAction.id);
+                                    const success = await undoAction(
+                                      showerAction.id,
+                                    );
                                     if (success) {
                                       haptics.success();
                                       toast.success("Shower booking undone");
@@ -1989,7 +2044,7 @@ const GuestList = () => {
                               );
                             })()}
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={() => {
@@ -2004,23 +2059,27 @@ const GuestList = () => {
                               <span className="hidden sm:inline">Book </span>
                               Laundry
                             </button>
-                            
+
                             {(() => {
                               const today = todayPacificDateString();
                               const laundryAction = actionHistory.find(
                                 (action) =>
                                   action.type === "LAUNDRY_BOOKED" &&
                                   action.data?.guestId === guest.id &&
-                                  pacificDateStringFrom(new Date(action.timestamp)) === today
+                                  pacificDateStringFrom(
+                                    new Date(action.timestamp),
+                                  ) === today,
                               );
-                              
+
                               if (!laundryAction) return null;
-                              
+
                               return (
                                 <button
                                   onClick={async () => {
                                     haptics.undo();
-                                    const success = await undoAction(laundryAction.id);
+                                    const success = await undoAction(
+                                      laundryAction.id,
+                                    );
                                     if (success) {
                                       haptics.success();
                                       toast.success("Laundry booking undone");

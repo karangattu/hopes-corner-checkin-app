@@ -46,7 +46,9 @@ import { AppProvider } from "../AppContext";
 import { useAppContext } from "../useAppContext";
 import { __setSupabaseHandler } from "../../supabaseClient";
 
-const createWrapper = () => ({ children }) => <AppProvider>{children}</AppProvider>;
+const createWrapper =
+  () =>
+  ({ children }) => <AppProvider>{children}</AppProvider>;
 
 const createGuestRow = (index) => ({
   Guest_ID: `G${index.toString().padStart(5, "0")}`,
@@ -128,7 +130,9 @@ describe("Guest import chunking", () => {
     const wrapper = createWrapper();
     const { result } = renderHook(() => useAppContext(), { wrapper });
 
-    const rows = Array.from({ length: 250 }, (_, index) => createGuestRow(index));
+    const rows = Array.from({ length: 250 }, (_, index) =>
+      createGuestRow(index),
+    );
 
     let response;
     await act(async () => {
@@ -208,7 +212,9 @@ describe("Guest import chunking", () => {
     const wrapper = createWrapper();
     const { result } = renderHook(() => useAppContext(), { wrapper });
 
-    const rows = Array.from({ length: 205 }, (_, index) => createGuestRow(index));
+    const rows = Array.from({ length: 205 }, (_, index) =>
+      createGuestRow(index),
+    );
 
     let response;
     await act(async () => {

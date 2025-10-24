@@ -31,7 +31,9 @@ const HaircutsChart = ({ days = [], target = null }) => {
         <div className="text-center text-gray-500">
           <Scissors size={48} className="mx-auto mb-4 text-gray-300" />
           <p className="text-lg font-medium">No haircut data available</p>
-          <p className="text-sm mt-1">Haircut records will appear here once logged</p>
+          <p className="text-sm mt-1">
+            Haircut records will appear here once logged
+          </p>
         </div>
       </div>
     );
@@ -50,7 +52,7 @@ const HaircutsChart = ({ days = [], target = null }) => {
   const avgPerDay = totalHaircuts / (chartData.length || 1);
   const peakDay = chartData.reduce(
     (max, d) => (d.haircuts > max.haircuts ? d : max),
-    chartData[0]
+    chartData[0],
   );
 
   const targetProgress = target ? (totalHaircuts / target) * 100 : null;
@@ -89,7 +91,9 @@ const HaircutsChart = ({ days = [], target = null }) => {
             <Scissors size={20} className="text-yellow-600" />
             Haircut Services
           </h3>
-          <p className="text-sm text-gray-600 mt-1">Daily haircut service volume</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Daily haircut service volume
+          </p>
         </div>
       </div>
 
@@ -147,7 +151,12 @@ const HaircutsChart = ({ days = [], target = null }) => {
             <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ paddingTop: "10px" }} />
-            <Bar dataKey="haircuts" name="Haircuts" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="haircuts"
+              name="Haircuts"
+              fill="#f59e0b"
+              radius={[4, 4, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -157,16 +166,21 @@ const HaircutsChart = ({ days = [], target = null }) => {
         <p className="text-sm text-blue-900">
           {totalHaircuts > 0 ? (
             <>
-              <span className="font-semibold">{totalHaircuts}</span> haircuts provided
-              across <span className="font-semibold">{chartData.length}</span> days
-              (avg <span className="font-semibold">{avgPerDay.toFixed(1)}</span> per day).
+              <span className="font-semibold">{totalHaircuts}</span> haircuts
+              provided across{" "}
+              <span className="font-semibold">{chartData.length}</span> days
+              (avg <span className="font-semibold">{avgPerDay.toFixed(1)}</span>{" "}
+              per day).
               {peakDay.haircuts > avgPerDay * 1.5 && (
-                <> Peak demand on{" "}
+                <>
+                  {" "}
+                  Peak demand on{" "}
                   <span className="font-semibold">
                     {new Date(peakDay.date).toLocaleDateString(undefined, {
                       weekday: "long",
                     })}
-                  </span> with {peakDay.haircuts} haircuts.
+                  </span>{" "}
+                  with {peakDay.haircuts} haircuts.
                 </>
               )}
             </>

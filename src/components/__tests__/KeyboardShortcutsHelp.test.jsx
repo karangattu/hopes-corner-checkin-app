@@ -5,7 +5,7 @@ import KeyboardShortcutsHelp from "../KeyboardShortcutsHelp";
 describe("KeyboardShortcutsHelp", () => {
   it("should not render when isOpen is false", () => {
     const { container } = render(
-      <KeyboardShortcutsHelp isOpen={false} onClose={vi.fn()} />
+      <KeyboardShortcutsHelp isOpen={false} onClose={vi.fn()} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -56,15 +56,17 @@ describe("KeyboardShortcutsHelp", () => {
   it("should call onClose when close button is clicked", () => {
     const onClose = vi.fn();
     render(<KeyboardShortcutsHelp isOpen={true} onClose={onClose} />);
-    
+
     const closeButton = screen.getByLabelText("Close keyboard shortcuts");
     fireEvent.click(closeButton);
-    
+
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("should show reminder about pressing ?", () => {
     render(<KeyboardShortcutsHelp isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText(/Press.*anytime to view shortcuts/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Press.*anytime to view shortcuts/),
+    ).toBeInTheDocument();
   });
 });

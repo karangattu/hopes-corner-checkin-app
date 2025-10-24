@@ -1,5 +1,14 @@
 import React, { useMemo, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { exportChartAsImage } from "../../utils/chartExport";
@@ -22,7 +31,10 @@ const METRIC_LABELS = {
   bicycles: "Bicycle",
 };
 
-const TrendLineRecharts = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
+const TrendLineRecharts = ({
+  days,
+  metrics = ["meals", "showers", "laundry"],
+}) => {
   const chartRef = useRef(null);
 
   const sorted = useMemo(() => {
@@ -32,7 +44,10 @@ const TrendLineRecharts = ({ days, metrics = ["meals", "showers", "laundry"] }) 
   }, [days]);
 
   const chartData = sorted.map((day) => ({
-    date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date: new Date(day.date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
     fullDate: day.date,
     ...day,
   }));
@@ -102,7 +117,7 @@ const TrendLineRecharts = ({ days, metrics = ["meals", "showers", "laundry"] }) 
           />
           <YAxis tick={{ fontSize: 12 }} />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+          <Legend wrapperStyle={{ paddingTop: "10px" }} />
           {metrics.map((metric) => (
             <Line
               key={metric}

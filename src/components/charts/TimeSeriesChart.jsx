@@ -111,7 +111,10 @@ const TimeSeriesChart = ({
         </p>
         <div className="space-y-1">
           {payload.map((entry, index) => (
-            <div key={index} className="flex items-center justify-between gap-4">
+            <div
+              key={index}
+              className="flex items-center justify-between gap-4"
+            >
               <div className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded"
@@ -136,7 +139,9 @@ const TimeSeriesChart = ({
       <div className="bg-white rounded-lg border border-gray-200 p-8">
         <div className="text-center text-gray-500">
           <p className="text-lg font-medium">No data available</p>
-          <p className="text-sm mt-1">Select a different time range to see data</p>
+          <p className="text-sm mt-1">
+            Select a different time range to see data
+          </p>
         </div>
       </div>
     );
@@ -175,7 +180,8 @@ const TimeSeriesChart = ({
               {trendAnalysis.trend === "stable" && "Stable"}
             </span>
             <span className="text-xs text-gray-600">
-              {Math.abs(trendAnalysis.percentChange).toFixed(1)}% vs previous period
+              {Math.abs(trendAnalysis.percentChange).toFixed(1)}% vs previous
+              period
             </span>
           </div>
         )}

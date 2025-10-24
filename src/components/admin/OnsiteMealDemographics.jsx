@@ -92,7 +92,8 @@ const OnsiteMealDemographics = () => {
       ageBuckets[label] = (ageBuckets[label] || 0) + 1;
     });
 
-    const totalWithAge = ageBuckets.Adults + ageBuckets.Seniors + ageBuckets.Youth;
+    const totalWithAge =
+      ageBuckets.Adults + ageBuckets.Seniors + ageBuckets.Youth;
 
     const chartMap = {
       Adults: ageBuckets.Adults,
@@ -147,10 +148,13 @@ const OnsiteMealDemographics = () => {
       <div className="bg-white border rounded-lg p-6">
         <div className="flex items-center gap-2 text-gray-800 mb-2">
           <PieChart size={18} />
-          <h2 className="text-lg font-semibold">On-site Meal Guest Demographics</h2>
+          <h2 className="text-lg font-semibold">
+            On-site Meal Guest Demographics
+          </h2>
         </div>
         <p className="text-sm text-gray-600">
-          No on-site meal attendance records with guest identifiers have been logged for the current year yet.
+          No on-site meal attendance records with guest identifiers have been
+          logged for the current year yet.
         </p>
       </div>
     );
@@ -163,16 +167,19 @@ const OnsiteMealDemographics = () => {
     <div className="bg-white border rounded-lg p-6">
       <div className="flex items-center gap-2 text-gray-800 mb-4">
         <PieChart size={18} />
-        <h2 className="text-lg font-semibold">On-site Meal Guest Demographics</h2>
+        <h2 className="text-lg font-semibold">
+          On-site Meal Guest Demographics
+        </h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
         <div className="lg:col-span-2 space-y-3">
           <p className="text-sm text-gray-600">
-            Year-to-date ({reportingWindowLabel}), the on-site meal program has served
-            {" "}
-            <span className="font-semibold text-gray-900">{totalIndividuals.toLocaleString()}</span>
-            {" "}
+            Year-to-date ({reportingWindowLabel}), the on-site meal program has
+            served{" "}
+            <span className="font-semibold text-gray-900">
+              {totalIndividuals.toLocaleString()}
+            </span>{" "}
             unduplicated guest{totalIndividuals === 1 ? "" : "s"}.
           </p>
 
@@ -182,27 +189,36 @@ const OnsiteMealDemographics = () => {
               Age demographics
               {totalWithAge !== totalIndividuals && (
                 <span className="text-xs font-normal text-blue-700">
-                  ({totalWithAge.toLocaleString()} guest{totalWithAge === 1 ? "" : "s"} with age info)
+                  ({totalWithAge.toLocaleString()} guest
+                  {totalWithAge === 1 ? "" : "s"} with age info)
                 </span>
               )}
             </div>
             <ul className="space-y-1 text-blue-800">
               <li>
-                Adults: <span className="font-semibold">{adults.toLocaleString()}</span>
-                {" "}({formatPercent(adults, totalWithAge)})
+                Adults:{" "}
+                <span className="font-semibold">{adults.toLocaleString()}</span>{" "}
+                ({formatPercent(adults, totalWithAge)})
               </li>
               <li>
-                Seniors: <span className="font-semibold">{seniors.toLocaleString()}</span>
-                {" "}({formatPercent(seniors, totalWithAge)})
+                Seniors:{" "}
+                <span className="font-semibold">
+                  {seniors.toLocaleString()}
+                </span>{" "}
+                ({formatPercent(seniors, totalWithAge)})
               </li>
               <li>
-                Youth: <span className="font-semibold">{youth.toLocaleString()}</span>
-                {" "}({formatPercent(youth, totalWithAge)})
+                Youth:{" "}
+                <span className="font-semibold">{youth.toLocaleString()}</span>{" "}
+                ({formatPercent(youth, totalWithAge)})
               </li>
               {unknown > 0 && (
                 <li>
-                  Unknown: <span className="font-semibold">{unknown.toLocaleString()}</span>
-                  {" "}({formatPercent(unknown, totalWithAge)})
+                  Unknown:{" "}
+                  <span className="font-semibold">
+                    {unknown.toLocaleString()}
+                  </span>{" "}
+                  ({formatPercent(unknown, totalWithAge)})
                 </li>
               )}
             </ul>
@@ -214,24 +230,32 @@ const OnsiteMealDemographics = () => {
               Housing status
               {providedCount !== totalIndividuals && (
                 <span className="text-xs font-normal text-green-700">
-                  ({providedCount.toLocaleString()} guest{providedCount === 1 ? "" : "s"} shared status)
+                  ({providedCount.toLocaleString()} guest
+                  {providedCount === 1 ? "" : "s"} shared status)
                 </span>
               )}
             </div>
             {providedCount > 0 ? (
               <ul className="space-y-1 text-green-800">
                 <li>
-                  Housed: <span className="font-semibold">{housed.toLocaleString()}</span>
-                  {" "}({formatPercent(housed, providedCount)})
+                  Housed:{" "}
+                  <span className="font-semibold">
+                    {housed.toLocaleString()}
+                  </span>{" "}
+                  ({formatPercent(housed, providedCount)})
                 </li>
                 <li>
-                  Unhoused / other: <span className="font-semibold">{other.toLocaleString()}</span>
-                  {" "}({formatPercent(other, providedCount)})
+                  Unhoused / other:{" "}
+                  <span className="font-semibold">
+                    {other.toLocaleString()}
+                  </span>{" "}
+                  ({formatPercent(other, providedCount)})
                 </li>
               </ul>
             ) : (
               <p className="text-green-700">
-                No housing status information has been recorded for these guests.
+                No housing status information has been recorded for these
+                guests.
               </p>
             )}
           </div>

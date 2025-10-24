@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase, isSupabaseEnabled, checkIfSupabaseConfigured } from "../supabaseClient";
+import {
+  supabase,
+  isSupabaseEnabled,
+  checkIfSupabaseConfigured,
+} from "../supabaseClient";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { getBicycleServiceCount } from "../utils/bicycles";
 import toast from "react-hot-toast";
@@ -357,7 +361,8 @@ export const AppProvider = ({ children }) => {
       date: row.requested_at,
       type: "bicycle",
       repairType: row.repair_type, // Keep for backward compatibility
-      repairTypes: row.repair_types || (row.repair_type ? [row.repair_type] : []),
+      repairTypes:
+        row.repair_types || (row.repair_type ? [row.repair_type] : []),
       completedRepairs: row.completed_repairs || [],
       notes: row.notes,
       status: row.status,
@@ -462,7 +467,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -495,7 +503,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -528,7 +539,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -561,7 +575,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -594,7 +611,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -627,7 +647,10 @@ export const AppProvider = ({ children }) => {
         .select();
 
       if (error) {
-        console.error(`Batch insert error (chunk ${i / BATCH_SIZE + 1}):`, error);
+        console.error(
+          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+          error,
+        );
         throw error;
       }
 
@@ -1227,10 +1250,7 @@ export const AppProvider = ({ children }) => {
         );
       }
 
-      const guestId = generateUniqueGuestId(
-        guestIdFromCSV || null,
-        takenIds,
-      );
+      const guestId = generateUniqueGuestId(guestIdFromCSV || null, takenIds);
 
       return {
         id: baseTimestamp + rowIndex * 1000 + Math.floor(Math.random() * 100),
@@ -1271,7 +1291,11 @@ export const AppProvider = ({ children }) => {
       const insertedRecords = [];
       let encounteredError = null;
 
-      for (let start = 0; start < payload.length; start += GUEST_IMPORT_CHUNK_SIZE) {
+      for (
+        let start = 0;
+        start < payload.length;
+        start += GUEST_IMPORT_CHUNK_SIZE
+      ) {
         const chunk = payload.slice(start, start + GUEST_IMPORT_CHUNK_SIZE);
         try {
           const { data, error } = await supabase
@@ -1303,7 +1327,10 @@ export const AppProvider = ({ children }) => {
       let errorMessage = null;
 
       if (encounteredError) {
-        console.error("Failed to bulk import guests to Supabase:", encounteredError);
+        console.error(
+          "Failed to bulk import guests to Supabase:",
+          encounteredError,
+        );
         errorMessage =
           failedCount === newGuests.length
             ? "Unable to sync guest import with Supabase. No records were saved."
@@ -1331,7 +1358,12 @@ export const AppProvider = ({ children }) => {
   const isSameDay = (iso1, iso2) => iso1.split("T")[0] === iso2.split("T")[0];
   const addBicycleRecord = async (
     guestId,
-    { repairType = "Flat Tire", repairTypes = null, notes = "", dateOverride = null } = {},
+    {
+      repairType = "Flat Tire",
+      repairTypes = null,
+      notes = "",
+      dateOverride = null,
+    } = {},
   ) => {
     const now = dateOverride || new Date().toISOString();
     const priority = (bicycleRecords[0]?.priority || 0) + 1;
@@ -1367,7 +1399,9 @@ export const AppProvider = ({ children }) => {
           },
           ...prev.slice(0, 49),
         ]);
-        enhancedToast.success(`Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`);
+        enhancedToast.success(
+          `Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`,
+        );
         return mapped;
       } catch (error) {
         console.error("Failed to log bicycle repair:", error);
@@ -1398,7 +1432,9 @@ export const AppProvider = ({ children }) => {
       },
       ...prev.slice(0, 49),
     ]);
-    toast.success(`Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`);
+    toast.success(
+      `Bicycle repair logged (${typesToInsert.length} service${typesToInsert.length > 1 ? "s" : ""})`,
+    );
     return record;
   };
 
@@ -1451,7 +1487,9 @@ export const AppProvider = ({ children }) => {
             prev.map((r) => (r.id === recordId ? previousRecord : r)),
           );
         }
-        enhancedToast.error("Unable to update bicycle record. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to update bicycle record. Changes were reverted.",
+        );
         return false;
       }
     }
@@ -1886,7 +1924,7 @@ export const AppProvider = ({ children }) => {
   const addRvMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -1948,7 +1986,7 @@ export const AppProvider = ({ children }) => {
   const addShelterMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -2010,7 +2048,7 @@ export const AppProvider = ({ children }) => {
   const addUnitedEffortMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -2081,7 +2119,7 @@ export const AppProvider = ({ children }) => {
     }
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -2145,7 +2183,7 @@ export const AppProvider = ({ children }) => {
   const addDayWorkerMealRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -2207,7 +2245,7 @@ export const AppProvider = ({ children }) => {
   const addLunchBagRecord = async (count, dateOverride = null) => {
     const makeISOForDate = (dateStr) => {
       // If already an ISO string, return as-is
-      if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (typeof dateStr === "string" && dateStr.includes("T")) {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
@@ -2274,7 +2312,9 @@ export const AppProvider = ({ children }) => {
     }
 
     const timestamp = dateOverride || new Date().toISOString();
-    const today = dateOverride ? pacificDateStringFrom(dateOverride) : todayPacificDateString();
+    const today = dateOverride
+      ? pacificDateStringFrom(dateOverride)
+      : todayPacificDateString();
     const alreadyBooked = showerRecords.some(
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
@@ -2504,7 +2544,9 @@ export const AppProvider = ({ children }) => {
           prev.map((r) => (r.id === recordId ? originalRecord : r)),
         );
         setShowerSlots(previousSlots);
-        enhancedToast.error("Unable to reschedule shower. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to reschedule shower. Changes were reverted.",
+        );
       }
     }
     if (!success) {
@@ -2558,7 +2600,9 @@ export const AppProvider = ({ children }) => {
         setShowerRecords((prev) =>
           prev.map((r) => (r.id === recordId ? previousRecord : r)),
         );
-        enhancedToast.error("Unable to update shower status. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to update shower status. Changes were reverted.",
+        );
         return false;
       }
     }
@@ -2587,7 +2631,9 @@ export const AppProvider = ({ children }) => {
     }
 
     const timestamp = dateOverride || new Date().toISOString();
-    const today = dateOverride ? pacificDateStringFrom(dateOverride) : todayPacificDateString();
+    const today = dateOverride
+      ? pacificDateStringFrom(dateOverride)
+      : todayPacificDateString();
     const alreadyBooked = laundryRecords.some(
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
@@ -2826,7 +2872,9 @@ export const AppProvider = ({ children }) => {
           prev.map((r) => (r.id === recordId ? originalRecord : r)),
         );
         setLaundrySlots(previousSlots);
-        enhancedToast.error("Unable to update laundry booking. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to update laundry booking. Changes were reverted.",
+        );
       }
     }
     if (!success) {
@@ -2860,14 +2908,13 @@ export const AppProvider = ({ children }) => {
     };
 
     setLaundryRecords((prev) =>
-      prev.map((record) =>
-        record.id === recordId ? updatedRecord : record,
-      ),
+      prev.map((record) => (record.id === recordId ? updatedRecord : record)),
     );
 
     setLaundrySlots((prev) =>
       prev.map((slot) =>
-        slot.guestId === updatedRecord.guestId && slot.time === updatedRecord.time
+        slot.guestId === updatedRecord.guestId &&
+        slot.time === updatedRecord.time
           ? { ...slot, status: newStatus, bagNumber: updatedRecord.bagNumber }
           : slot,
       ),
@@ -2891,10 +2938,14 @@ export const AppProvider = ({ children }) => {
       } catch (error) {
         console.error("Failed to update laundry status:", error);
         setLaundryRecords((prev) =>
-          prev.map((record) => (record.id === recordId ? originalRecord : record)),
+          prev.map((record) =>
+            record.id === recordId ? originalRecord : record,
+          ),
         );
         setLaundrySlots(previousSlots);
-        enhancedToast.error("Unable to update laundry status. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to update laundry status. Changes were reverted.",
+        );
         return false;
       }
     }
@@ -2904,11 +2955,7 @@ export const AppProvider = ({ children }) => {
 
   const importShowerAttendanceRecord = (
     guestId,
-    {
-      dateSubmitted = null,
-      count = 1,
-      status = "done",
-    } = {},
+    { dateSubmitted = null, count = 1, status = "done" } = {},
   ) => {
     const timestampIso =
       normalizeDateInputToISO(dateSubmitted) ?? new Date().toISOString();
@@ -2998,14 +3045,13 @@ export const AppProvider = ({ children }) => {
     };
 
     setLaundryRecords((prev) =>
-      prev.map((record) =>
-        record.id === recordId ? updatedRecord : record,
-      ),
+      prev.map((record) => (record.id === recordId ? updatedRecord : record)),
     );
 
     setLaundrySlots((prev) =>
       prev.map((slot) =>
-        slot.guestId === updatedRecord.guestId && slot.time === updatedRecord.time
+        slot.guestId === updatedRecord.guestId &&
+        slot.time === updatedRecord.time
           ? { ...slot, bagNumber: bagNumber || "" }
           : slot,
       ),
@@ -3032,10 +3078,14 @@ export const AppProvider = ({ children }) => {
       } catch (error) {
         console.error("Failed to update bag number in Supabase:", error);
         setLaundryRecords((prev) =>
-          prev.map((record) => (record.id === recordId ? originalRecord : record)),
+          prev.map((record) =>
+            record.id === recordId ? originalRecord : record,
+          ),
         );
         setLaundrySlots(previousSlots);
-        enhancedToast.error("Unable to update bag number. Changes were reverted.");
+        enhancedToast.error(
+          "Unable to update bag number. Changes were reverted.",
+        );
         return false;
       }
     }
@@ -3122,7 +3172,9 @@ export const AppProvider = ({ children }) => {
 
     const periodMeals = mealRecords.filter((r) => inRange(r.date));
     const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
-    const periodShelterMeals = shelterMealRecords.filter((r) => inRange(r.date));
+    const periodShelterMeals = shelterMealRecords.filter((r) =>
+      inRange(r.date),
+    );
     const periodUeMeals = unitedEffortMealRecords.filter((r) =>
       inRange(r.date),
     );
@@ -3265,13 +3317,31 @@ export const AppProvider = ({ children }) => {
       .map(([date, metrics]) => ({ date, ...metrics }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const guestMealsCount = periodMeals.reduce((sum, record) => sum + record.count, 0);
+    const guestMealsCount = periodMeals.reduce(
+      (sum, record) => sum + record.count,
+      0,
+    );
     const rvMealsCount = periodRvMeals.reduce((s, r) => s + (r.count || 0), 0);
-    const shelterMealsCount = periodShelterMeals.reduce((s, r) => s + (r.count || 0), 0);
-    const unitedEffortMealsCount = periodUeMeals.reduce((s, r) => s + (r.count || 0), 0);
-    const extraMealsCount = periodExtraMeals.reduce((s, r) => s + (r.count || 0), 0);
-    const dayWorkerMealsCount = periodDayWorkerMeals.reduce((s, r) => s + (r.count || 0), 0);
-    const lunchBagsCount = periodLunchBags.reduce((s, r) => s + (r.count || 0), 0);
+    const shelterMealsCount = periodShelterMeals.reduce(
+      (s, r) => s + (r.count || 0),
+      0,
+    );
+    const unitedEffortMealsCount = periodUeMeals.reduce(
+      (s, r) => s + (r.count || 0),
+      0,
+    );
+    const extraMealsCount = periodExtraMeals.reduce(
+      (s, r) => s + (r.count || 0),
+      0,
+    );
+    const dayWorkerMealsCount = periodDayWorkerMeals.reduce(
+      (s, r) => s + (r.count || 0),
+      0,
+    );
+    const lunchBagsCount = periodLunchBags.reduce(
+      (s, r) => s + (r.count || 0),
+      0,
+    );
 
     return {
       mealsServed:
@@ -3320,7 +3390,14 @@ export const AppProvider = ({ children }) => {
    */
   const getUniversalTimeRangeMetrics = (startDate, endDate, options = {}) => {
     const {
-      programs = ['meals', 'showers', 'laundry', 'bicycles', 'haircuts', 'holidays'],
+      programs = [
+        "meals",
+        "showers",
+        "laundry",
+        "bicycles",
+        "haircuts",
+        "holidays",
+      ],
       selectedDays = null,
       includeComparison = false,
     } = options;
@@ -3370,13 +3447,19 @@ export const AppProvider = ({ children }) => {
     const dailyMetrics = {};
 
     // Process meals if included
-    if (programs.includes('meals')) {
+    if (programs.includes("meals")) {
       const periodMeals = mealRecords.filter((r) => inRange(r.date));
       const periodRvMeals = rvMealRecords.filter((r) => inRange(r.date));
-      const periodShelterMeals = shelterMealRecords.filter((r) => inRange(r.date));
-      const periodUeMeals = unitedEffortMealRecords.filter((r) => inRange(r.date));
+      const periodShelterMeals = shelterMealRecords.filter((r) =>
+        inRange(r.date),
+      );
+      const periodUeMeals = unitedEffortMealRecords.filter((r) =>
+        inRange(r.date),
+      );
       const periodExtraMeals = extraMealRecords.filter((r) => inRange(r.date));
-      const periodDayWorkerMeals = dayWorkerMealRecords.filter((r) => inRange(r.date));
+      const periodDayWorkerMeals = dayWorkerMealRecords.filter((r) =>
+        inRange(r.date),
+      );
       const periodLunchBags = lunchBagRecords.filter((r) => inRange(r.date));
 
       periodMeals.forEach((record) => {
@@ -3430,7 +3513,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // Process showers if included
-    if (programs.includes('showers')) {
+    if (programs.includes("showers")) {
       const periodShowers = showerRecords.filter((r) => inRange(r.date));
       periodShowers.forEach((record) => {
         const date = pacificDateStringFrom(record.date);
@@ -3440,7 +3523,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // Process laundry if included
-    if (programs.includes('laundry')) {
+    if (programs.includes("laundry")) {
       const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
       periodLaundry.forEach((record) => {
         const date = pacificDateStringFrom(record.date);
@@ -3450,7 +3533,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // Process haircuts if included
-    if (programs.includes('haircuts')) {
+    if (programs.includes("haircuts")) {
       const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
       periodHaircuts.forEach((r) => {
         const date = pacificDateStringFrom(r.date);
@@ -3460,7 +3543,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // Process holidays if included
-    if (programs.includes('holidays')) {
+    if (programs.includes("holidays")) {
       const periodHolidays = holidayRecords.filter((r) => inRange(r.date));
       periodHolidays.forEach((r) => {
         const date = pacificDateStringFrom(r.date);
@@ -3470,7 +3553,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // Process bicycles if included
-    if (programs.includes('bicycles')) {
+    if (programs.includes("bicycles")) {
       const periodBicycles = bicycleRecords.filter(
         (r) =>
           inRange(r.date) &&
@@ -3488,23 +3571,27 @@ export const AppProvider = ({ children }) => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     // Calculate totals
-    const totals = dailyBreakdown.reduce((acc, day) => ({
-      meals: acc.meals + day.meals,
-      mealsByType: {
-        guest: acc.mealsByType.guest + day.mealsByType.guest,
-        rv: acc.mealsByType.rv + day.mealsByType.rv,
-        shelter: acc.mealsByType.shelter + day.mealsByType.shelter,
-        unitedEffort: acc.mealsByType.unitedEffort + day.mealsByType.unitedEffort,
-        extras: acc.mealsByType.extras + day.mealsByType.extras,
-        dayWorker: acc.mealsByType.dayWorker + day.mealsByType.dayWorker,
-        lunchBags: acc.mealsByType.lunchBags + day.mealsByType.lunchBags,
-      },
-      showers: acc.showers + day.showers,
-      laundry: acc.laundry + day.laundry,
-      haircuts: acc.haircuts + day.haircuts,
-      holidays: acc.holidays + day.holidays,
-      bicycles: acc.bicycles + day.bicycles,
-    }), initDailyMetric());
+    const totals = dailyBreakdown.reduce(
+      (acc, day) => ({
+        meals: acc.meals + day.meals,
+        mealsByType: {
+          guest: acc.mealsByType.guest + day.mealsByType.guest,
+          rv: acc.mealsByType.rv + day.mealsByType.rv,
+          shelter: acc.mealsByType.shelter + day.mealsByType.shelter,
+          unitedEffort:
+            acc.mealsByType.unitedEffort + day.mealsByType.unitedEffort,
+          extras: acc.mealsByType.extras + day.mealsByType.extras,
+          dayWorker: acc.mealsByType.dayWorker + day.mealsByType.dayWorker,
+          lunchBags: acc.mealsByType.lunchBags + day.mealsByType.lunchBags,
+        },
+        showers: acc.showers + day.showers,
+        laundry: acc.laundry + day.laundry,
+        haircuts: acc.haircuts + day.haircuts,
+        holidays: acc.holidays + day.holidays,
+        bicycles: acc.bicycles + day.bicycles,
+      }),
+      initDailyMetric(),
+    );
 
     const result = {
       startDate,
@@ -3536,9 +3623,9 @@ export const AppProvider = ({ children }) => {
       compEnd.setDate(start.getDate() - 1);
 
       const comparisonMetrics = getUniversalTimeRangeMetrics(
-        compStart.toISOString().split('T')[0],
-        compEnd.toISOString().split('T')[0],
-        { programs, selectedDays, includeComparison: false }
+        compStart.toISOString().split("T")[0],
+        compEnd.toISOString().split("T")[0],
+        { programs, selectedDays, includeComparison: false },
       );
 
       result.comparison = comparisonMetrics;
@@ -3906,7 +3993,9 @@ export const AppProvider = ({ children }) => {
             "Unable to undo Shelter meal entry.",
           );
           if (!deleted) return false;
-          setShelterMealRecords((prev) => prev.filter((r) => r.id !== recordId));
+          setShelterMealRecords((prev) =>
+            prev.filter((r) => r.id !== recordId),
+          );
           break;
         }
 
@@ -4530,10 +4619,10 @@ export const AppProvider = ({ children }) => {
     addLunchBagRecord,
     removeMealAttendanceRecord,
     addShowerRecord,
-  importShowerAttendanceRecord,
+    importShowerAttendanceRecord,
     addShowerWaitlist,
     addLaundryRecord,
-  importLaundryAttendanceRecord,
+    importLaundryAttendanceRecord,
     updateLaundryStatus,
     updateLaundryBagNumber,
     addBicycleRecord,

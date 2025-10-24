@@ -9,13 +9,13 @@ import { Toaster } from "react-hot-toast";
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
-    <Toaster 
-      position="top-center" 
-      toastOptions={{ 
+    <Toaster
+      position="top-center"
+      toastOptions={{
         duration: 2000,
         success: { duration: 1500 },
         error: { duration: 4000 },
-      }} 
+      }}
     />
   </StrictMode>,
 );

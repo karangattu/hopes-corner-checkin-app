@@ -35,9 +35,7 @@ describe("LaundryList", () => {
     const select = screen.getAllByRole("combobox")[0]; // First guest's select
     fireEvent.change(select, { target: { value: "9:30 - 10:30" } });
 
-    expect(mockSetList).toHaveBeenCalledWith(
-      expect.any(Function)
-    );
+    expect(mockSetList).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("disables slot selection when slot is already taken", () => {
@@ -49,7 +47,9 @@ describe("LaundryList", () => {
 
     const select = screen.getAllByRole("combobox")[0];
     const options = select.querySelectorAll("option");
-    const takenOption = Array.from(options).find(opt => opt.value === "9:30 - 10:30");
+    const takenOption = Array.from(options).find(
+      (opt) => opt.value === "9:30 - 10:30",
+    );
     expect(takenOption).toBeDisabled();
   });
 
@@ -74,9 +74,7 @@ describe("LaundryList", () => {
     const removeButtons = screen.getAllByRole("button");
     fireEvent.click(removeButtons[1]); // Second button (first is select, second is remove)
 
-    expect(mockSetList).toHaveBeenCalledWith(
-      expect.any(Function)
-    );
+    expect(mockSetList).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("shows assigned slot next to guest name", () => {

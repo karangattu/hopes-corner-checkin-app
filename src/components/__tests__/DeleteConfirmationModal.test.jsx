@@ -17,7 +17,7 @@ describe("DeleteConfirmationModal", () => {
         guest={mockGuest}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
-      />
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -29,7 +29,7 @@ describe("DeleteConfirmationModal", () => {
         guest={mockGuest}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
-      />
+      />,
     );
     expect(screen.getByText("Delete Guest Profile?")).toBeInTheDocument();
     expect(screen.getByText(/John Doe/)).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe("DeleteConfirmationModal", () => {
         mealCount={5}
         showerCount={3}
         laundryCount={2}
-      />
+      />,
     );
     expect(screen.getByText(/5 meal record/)).toBeInTheDocument();
     expect(screen.getByText(/3 shower booking/)).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("DeleteConfirmationModal", () => {
         guest={mockGuest}
         onConfirm={onConfirm}
         onCancel={vi.fn()}
-      />
+      />,
     );
     fireEvent.click(screen.getByText("Delete Permanently"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -74,7 +74,7 @@ describe("DeleteConfirmationModal", () => {
         guest={mockGuest}
         onConfirm={vi.fn()}
         onCancel={onCancel}
-      />
+      />,
     );
     fireEvent.click(screen.getByText("Cancel"));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -87,9 +87,11 @@ describe("DeleteConfirmationModal", () => {
         guest={mockGuest}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
-      />
+      />,
     );
-    expect(screen.getByText("This action cannot be undone.")).toBeInTheDocument();
+    expect(
+      screen.getByText("This action cannot be undone."),
+    ).toBeInTheDocument();
   });
 
   it("should use singular form for single record", () => {
@@ -102,7 +104,7 @@ describe("DeleteConfirmationModal", () => {
         mealCount={1}
         showerCount={1}
         laundryCount={1}
-      />
+      />,
     );
     expect(screen.getByText(/1 meal record$/)).toBeInTheDocument();
     expect(screen.getByText(/1 shower booking$/)).toBeInTheDocument();
@@ -119,7 +121,7 @@ describe("DeleteConfirmationModal", () => {
         mealCount={0}
         showerCount={0}
         laundryCount={0}
-      />
+      />,
     );
     expect(screen.queryByText(/meal record/)).not.toBeInTheDocument();
   });

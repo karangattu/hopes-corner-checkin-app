@@ -77,7 +77,7 @@ const DonationsChart = ({ startDate, endDate }) => {
     });
 
     const dailyData = Object.values(dailyMap).sort((a, b) =>
-      a.date.localeCompare(b.date)
+      a.date.localeCompare(b.date),
     );
 
     // By donation type
@@ -118,7 +118,10 @@ const DonationsChart = ({ startDate, endDate }) => {
       byDonor,
       totalDonations: filteredDonations.length,
       totalTrays: filteredDonations.reduce((sum, d) => sum + (d.trays || 0), 0),
-      totalWeight: filteredDonations.reduce((sum, d) => sum + (d.weightLbs || 0), 0),
+      totalWeight: filteredDonations.reduce(
+        (sum, d) => sum + (d.weightLbs || 0),
+        0,
+      ),
       uniqueDonors: Object.keys(donorMap).length,
     };
   }, [filteredDonations]);
@@ -151,7 +154,8 @@ const DonationsChart = ({ startDate, endDate }) => {
         </p>
         <div className="space-y-1 text-sm">
           <p className="text-gray-700">
-            Donations: <span className="font-semibold">{payload[0]?.value || 0}</span>
+            Donations:{" "}
+            <span className="font-semibold">{payload[0]?.value || 0}</span>
           </p>
           {payload[1] && (
             <p className="text-gray-700">
@@ -160,7 +164,8 @@ const DonationsChart = ({ startDate, endDate }) => {
           )}
           {payload[2] && (
             <p className="text-gray-700">
-              Weight: <span className="font-semibold">{payload[2].value} lbs</span>
+              Weight:{" "}
+              <span className="font-semibold">{payload[2].value} lbs</span>
             </p>
           )}
         </div>
@@ -262,7 +267,12 @@ const DonationsChart = ({ startDate, endDate }) => {
               <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
               <Tooltip content={<DailyTooltip />} />
               <Legend wrapperStyle={{ paddingTop: "10px" }} />
-              <Bar dataKey="count" name="Donations" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="count"
+                name="Donations"
+                fill={CHART_COLORS[0]}
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -339,7 +349,9 @@ const DonationsChart = ({ startDate, endDate }) => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">{donor.count}</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {donor.count}
+                  </p>
                   <p className="text-xs text-gray-500">donations</p>
                 </div>
               </div>

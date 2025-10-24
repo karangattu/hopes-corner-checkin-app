@@ -32,8 +32,12 @@ const HolidaysChart = ({ days = [], target = null }) => {
       <div className="bg-white rounded-lg border border-gray-200 p-8">
         <div className="text-center text-gray-500">
           <Gift size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">No holiday service data available</p>
-          <p className="text-sm mt-1">Holiday service records will appear here once logged</p>
+          <p className="text-lg font-medium">
+            No holiday service data available
+          </p>
+          <p className="text-sm mt-1">
+            Holiday service records will appear here once logged
+          </p>
         </div>
       </div>
     );
@@ -52,7 +56,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
   const avgPerDay = totalHolidays / (chartData.length || 1);
   const peakDay = chartData.reduce(
     (max, d) => (d.holidays > max.holidays ? d : max),
-    chartData[0]
+    chartData[0],
   );
 
   // Identify special event days (days with unusually high counts)
@@ -102,7 +106,9 @@ const HolidaysChart = ({ days = [], target = null }) => {
             <Gift size={20} className="text-pink-600" />
             Holiday Services
           </h3>
-          <p className="text-sm text-gray-600 mt-1">Daily holiday service volume</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Daily holiday service volume
+          </p>
         </div>
       </div>
 
@@ -171,7 +177,11 @@ const HolidaysChart = ({ days = [], target = null }) => {
                 y={eventThreshold}
                 stroke="#ec4899"
                 strokeDasharray="3 3"
-                label={{ value: "Event Threshold", position: "right", fontSize: 10 }}
+                label={{
+                  value: "Event Threshold",
+                  position: "right",
+                  fontSize: 10,
+                }}
               />
             )}
             <Bar
@@ -190,13 +200,19 @@ const HolidaysChart = ({ days = [], target = null }) => {
           <p className="text-sm text-blue-900">
             {totalHolidays > 0 ? (
               <>
-                <span className="font-semibold">{totalHolidays}</span> holiday services
-                provided across <span className="font-semibold">{chartData.length}</span>{" "}
-                days (avg <span className="font-semibold">{avgPerDay.toFixed(1)}</span>{" "}
+                <span className="font-semibold">{totalHolidays}</span> holiday
+                services provided across{" "}
+                <span className="font-semibold">{chartData.length}</span> days
+                (avg{" "}
+                <span className="font-semibold">{avgPerDay.toFixed(1)}</span>{" "}
                 per day).
                 {eventDays.length > 0 && (
                   <>
-                    {" "}Identified <span className="font-semibold">{eventDays.length}</span>{" "}
+                    {" "}
+                    Identified{" "}
+                    <span className="font-semibold">
+                      {eventDays.length}
+                    </span>{" "}
                     high-volume event day{eventDays.length > 1 ? "s" : ""}.
                   </>
                 )}

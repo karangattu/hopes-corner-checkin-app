@@ -10,7 +10,7 @@ import {
 
 /**
  * StackedBarCard - A reusable stacked bar chart component
- * 
+ *
  * @param {string} title - Main title of the chart
  * @param {string} subtitle - Subtitle (usually the X-axis label)
  * @param {Object} crossTabData - Object with structure: { category1: { subcat1: count, subcat2: count }, ... }
@@ -22,7 +22,7 @@ const StackedBarCard = ({ title, subtitle, crossTabData }) => {
   // Extract unique categories (cities) and subcategories (age groups/housing statuses)
   const categories = Object.keys(crossTabData || {});
   const allSubcategories = new Set();
-  
+
   categories.forEach((category) => {
     Object.keys(crossTabData[category] || {}).forEach((subcat) => {
       allSubcategories.add(subcat);
@@ -38,9 +38,9 @@ const StackedBarCard = ({ title, subtitle, crossTabData }) => {
   // Build datasets - one dataset per subcategory
   const datasets = subcategories.map((subcat, index) => ({
     label: subcat,
-  data: categories.map((category) => crossTabData[category]?.[subcat] || 0),
-  backgroundColor: applyAlpha(colors[index], 0.75),
-  borderColor: colors[index],
+    data: categories.map((category) => crossTabData[category]?.[subcat] || 0),
+    backgroundColor: applyAlpha(colors[index], 0.75),
+    borderColor: colors[index],
     borderWidth: 2,
   }));
 

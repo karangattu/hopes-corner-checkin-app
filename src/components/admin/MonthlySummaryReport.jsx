@@ -62,23 +62,26 @@ const MonthlySummaryReport = () => {
   }, []);
 
   // Helper: Filter records by year, month, and optionally specific days
-  const filterRecords = useCallback((records, year, month, daysOfWeek = null) => {
-    return records.filter((record) => {
-      if (!record.date) return false;
-      const date = new Date(record.date);
-      const recordYear = date.getFullYear();
-      const recordMonth = date.getMonth(); // 0-indexed
+  const filterRecords = useCallback(
+    (records, year, month, daysOfWeek = null) => {
+      return records.filter((record) => {
+        if (!record.date) return false;
+        const date = new Date(record.date);
+        const recordYear = date.getFullYear();
+        const recordMonth = date.getMonth(); // 0-indexed
 
-      if (recordYear !== year || recordMonth !== month) return false;
+        if (recordYear !== year || recordMonth !== month) return false;
 
-      if (daysOfWeek) {
-        const dayOfWeek = getDayOfWeek(record.date);
-        return daysOfWeek.includes(dayOfWeek);
-      }
+        if (daysOfWeek) {
+          const dayOfWeek = getDayOfWeek(record.date);
+          return daysOfWeek.includes(dayOfWeek);
+        }
 
-      return true;
-    });
-  }, [getDayOfWeek]);
+        return true;
+      });
+    },
+    [getDayOfWeek],
+  );
 
   // Helper: Sum quantities from filtered records
   const sumQuantities = (records) => {
@@ -90,8 +93,8 @@ const MonthlySummaryReport = () => {
     const rawTypes = Array.isArray(record.repairTypes)
       ? record.repairTypes
       : record.repairType
-      ? [record.repairType]
-      : [];
+        ? [record.repairType]
+        : [];
     return rawTypes
       .map((type) => (type == null ? "" : String(type).trim()))
       .filter((type) => type.length > 0);
@@ -113,21 +116,43 @@ const MonthlySummaryReport = () => {
     for (let month = 0; month <= effectiveLastMonth; month++) {
       const monthName = MONTH_NAMES[month];
 
-      const mondayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [1]));
-      const wednesdayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [3]));
-      const saturdayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [6]));
-      const fridayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [5]));
+      const mondayMeals = sumQuantities(
+        filterRecords(mealRecords, reportYear, month, [1]),
+      );
+      const wednesdayMeals = sumQuantities(
+        filterRecords(mealRecords, reportYear, month, [3]),
+      );
+      const saturdayMeals = sumQuantities(
+        filterRecords(mealRecords, reportYear, month, [6]),
+      );
+      const fridayMeals = sumQuantities(
+        filterRecords(mealRecords, reportYear, month, [5]),
+      );
 
-      const dayWorkerMeals = sumQuantities(filterRecords(dayWorkerMealRecords, reportYear, month));
-      const extraMeals = sumQuantities(filterRecords(extraMealRecords, reportYear, month));
+      const dayWorkerMeals = sumQuantities(
+        filterRecords(dayWorkerMealRecords, reportYear, month),
+      );
+      const extraMeals = sumQuantities(
+        filterRecords(extraMealRecords, reportYear, month),
+      );
 
-      const rvWedSat = sumQuantities(filterRecords(rvMealRecords, reportYear, month, [3, 6]));
-      const rvMonThu = sumQuantities(filterRecords(rvMealRecords, reportYear, month, [1, 4]));
+      const rvWedSat = sumQuantities(
+        filterRecords(rvMealRecords, reportYear, month, [3, 6]),
+      );
+      const rvMonThu = sumQuantities(
+        filterRecords(rvMealRecords, reportYear, month, [1, 4]),
+      );
 
-      const lunchBags = sumQuantities(filterRecords(lunchBagRecords, reportYear, month));
+      const lunchBags = sumQuantities(
+        filterRecords(lunchBagRecords, reportYear, month),
+      );
 
-      const shelterMeals = sumQuantities(filterRecords(shelterMealRecords, reportYear, month));
-      const unitedEffortMeals = sumQuantities(filterRecords(unitedEffortMealRecords, reportYear, month));
+      const shelterMeals = sumQuantities(
+        filterRecords(shelterMealRecords, reportYear, month),
+      );
+      const unitedEffortMeals = sumQuantities(
+        filterRecords(unitedEffortMealRecords, reportYear, month),
+      );
 
       const totalHotMeals =
         mondayMeals +
@@ -143,13 +168,17 @@ const MonthlySummaryReport = () => {
 
       const totalWithLunchBags = totalHotMeals + lunchBags;
 
-      const onsiteMondayMeals = mondayMeals +
+      const onsiteMondayMeals =
+        mondayMeals +
         sumQuantities(filterRecords(extraMealRecords, reportYear, month, [1]));
-      const onsiteWednesdayMeals = wednesdayMeals +
+      const onsiteWednesdayMeals =
+        wednesdayMeals +
         sumQuantities(filterRecords(extraMealRecords, reportYear, month, [3]));
-      const onsiteSaturdayMeals = saturdayMeals +
+      const onsiteSaturdayMeals =
+        saturdayMeals +
         sumQuantities(filterRecords(extraMealRecords, reportYear, month, [6]));
-      const onsiteFridayMeals = fridayMeals +
+      const onsiteFridayMeals =
+        fridayMeals +
         sumQuantities(filterRecords(extraMealRecords, reportYear, month, [5]));
       const onsiteHotMeals =
         onsiteMondayMeals +
@@ -186,7 +215,10 @@ const MonthlySummaryReport = () => {
       rvMonThu: months.reduce((sum, m) => sum + m.rvMonThu, 0),
       lunchBags: months.reduce((sum, m) => sum + m.lunchBags, 0),
       totalHotMeals: months.reduce((sum, m) => sum + m.totalHotMeals, 0),
-      totalWithLunchBags: months.reduce((sum, m) => sum + m.totalWithLunchBags, 0),
+      totalWithLunchBags: months.reduce(
+        (sum, m) => sum + m.totalWithLunchBags,
+        0,
+      ),
       onsiteHotMeals: months.reduce((sum, m) => sum + m.onsiteHotMeals, 0),
     };
 
@@ -305,21 +337,24 @@ const MonthlySummaryReport = () => {
         .map((value) => value.toString().toLowerCase()),
     );
 
-    const completedShowerRecords = (showerRecords || []).reduce((acc, record) => {
-      if (!record?.date) return acc;
-      const date = new Date(record.date);
-      if (Number.isNaN(date.getTime()) || date.getFullYear() !== reportYear) {
+    const completedShowerRecords = (showerRecords || []).reduce(
+      (acc, record) => {
+        if (!record?.date) return acc;
+        const date = new Date(record.date);
+        if (Number.isNaN(date.getTime()) || date.getFullYear() !== reportYear) {
+          return acc;
+        }
+        const status = (record.status || "").toString().toLowerCase();
+        if (status && status !== "done") return acc;
+        acc.push({
+          guestId: record.guestId != null ? String(record.guestId) : null,
+          date,
+          monthIndex: date.getMonth(),
+        });
         return acc;
-      }
-      const status = (record.status || "").toString().toLowerCase();
-      if (status && status !== "done") return acc;
-      acc.push({
-        guestId: record.guestId != null ? String(record.guestId) : null,
-        date,
-        monthIndex: date.getMonth(),
-      });
-      return acc;
-    }, []);
+      },
+      [],
+    );
 
     const completedLaundryRecords = (laundryRecords || []).reduce(
       (acc, record) => {
@@ -386,7 +421,9 @@ const MonthlySummaryReport = () => {
       const combinedForMonth = [...showersForMonth, ...laundryForMonth];
 
       const programDaysSet = new Set(
-        combinedForMonth.map((record) => record.date.toISOString().slice(0, 10)),
+        combinedForMonth.map((record) =>
+          record.date.toISOString().slice(0, 10),
+        ),
       );
 
       const monthGuestSet = new Set();
@@ -500,23 +537,17 @@ const MonthlySummaryReport = () => {
       rows,
       totals,
     };
-  }, [
-    guests,
-    laundryRecords,
-    showerRecords,
-    reportYear,
-    currentMonth,
-  ]);
+  }, [guests, laundryRecords, showerRecords, reportYear, currentMonth]);
 
   // Export data to CSV
   const handleExportCSV = () => {
     const csvData = [
-      ...monthlyData.months.map(row => ({
+      ...monthlyData.months.map((row) => ({
         Month: row.month,
-        "Monday": row.mondayMeals,
-        "Wednesday": row.wednesdayMeals,
-        "Saturday": row.saturdayMeals,
-        "Friday": row.fridayMeals,
+        Monday: row.mondayMeals,
+        Wednesday: row.wednesdayMeals,
+        Saturday: row.saturdayMeals,
+        Friday: row.fridayMeals,
         "Day Worker Center": row.dayWorkerMeals,
         "Extra Meals": row.extraMeals,
         "RV Wed+Sat": row.rvWedSat,
@@ -529,10 +560,10 @@ const MonthlySummaryReport = () => {
       // Add totals row
       {
         Month: monthlyData.totals.month,
-        "Monday": monthlyData.totals.mondayMeals,
-        "Wednesday": monthlyData.totals.wednesdayMeals,
-        "Saturday": monthlyData.totals.saturdayMeals,
-        "Friday": monthlyData.totals.fridayMeals,
+        Monday: monthlyData.totals.mondayMeals,
+        Wednesday: monthlyData.totals.wednesdayMeals,
+        Saturday: monthlyData.totals.saturdayMeals,
+        Friday: monthlyData.totals.fridayMeals,
         "Day Worker Center": monthlyData.totals.dayWorkerMeals,
         "Extra Meals": monthlyData.totals.extraMeals,
         "RV Wed+Sat": monthlyData.totals.rvWedSat,
@@ -602,7 +633,8 @@ const MonthlySummaryReport = () => {
       "Laundry Users: Adult": showerLaundrySummary.totals.laundryAdult,
       "Laundry Users: Senior": showerLaundrySummary.totals.laundrySenior,
       "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
-      "YTD New Guests (Laundry)": showerLaundrySummary.totals.ytdNewGuestsLaundry,
+      "YTD New Guests (Laundry)":
+        showerLaundrySummary.totals.ytdNewGuestsLaundry,
       "YTD Total Unduplicated Laundry Users":
         showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
     });
@@ -632,7 +664,7 @@ const MonthlySummaryReport = () => {
 
     exportDataAsCSV(
       csvData,
-  `bicycle-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `bicycle-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
     toast.success("Bicycle services summary exported to CSV");
   };
@@ -685,7 +717,7 @@ const MonthlySummaryReport = () => {
 
     exportDataAsCSV(
       csvData,
-  `shower-laundry-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `shower-laundry-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
     toast.success("Shower & laundry summary exported to CSV");
   };
@@ -877,10 +909,21 @@ const MonthlySummaryReport = () => {
         <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700">
           <p className="font-semibold mb-2">Calculation Notes:</p>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
-            <li><strong>TOTAL HOT MEALS:</strong> Sum of all meal types except lunch bags</li>
-            <li><strong>Total w/ Lunch Bags:</strong> TOTAL HOT MEALS + Lunch Bags</li>
-            <li><strong>Onsite Hot Meals:</strong> Guest meals + Extra meals on Mon/Wed/Sat/Fri only</li>
-            <li><strong>RV Meals:</strong> Split by service days (Mon+Thu and Wed+Sat)</li>
+            <li>
+              <strong>TOTAL HOT MEALS:</strong> Sum of all meal types except
+              lunch bags
+            </li>
+            <li>
+              <strong>Total w/ Lunch Bags:</strong> TOTAL HOT MEALS + Lunch Bags
+            </li>
+            <li>
+              <strong>Onsite Hot Meals:</strong> Guest meals + Extra meals on
+              Mon/Wed/Sat/Fri only
+            </li>
+            <li>
+              <strong>RV Meals:</strong> Split by service days (Mon+Thu and
+              Wed+Sat)
+            </li>
           </ul>
         </div>
       </div>
@@ -894,7 +937,8 @@ const MonthlySummaryReport = () => {
                 Bicycle Services Summary
               </h3>
               <p className="text-sm text-gray-600">
-                Year-to-date breakdown of new bicycles and service types provided in {reportYear}
+                Year-to-date breakdown of new bicycles and service types
+                provided in {reportYear}
               </p>
             </div>
           </div>
@@ -970,7 +1014,8 @@ const MonthlySummaryReport = () => {
                 Shower & Laundry Services Summary
               </h3>
               <p className="text-sm text-gray-600">
-                Participant trends and laundry loads from January through YTD {reportYear}
+                Participant trends and laundry loads from January through YTD{" "}
+                {reportYear}
               </p>
             </div>
           </div>
@@ -1041,7 +1086,11 @@ const MonthlySummaryReport = () => {
               {showerLaundrySummary.rows.map((row) => (
                 <tr
                   key={row.month}
-                  className={row.isYearToDate ? "hover:bg-gray-50" : "bg-gray-50 text-gray-500"}
+                  className={
+                    row.isYearToDate
+                      ? "hover:bg-gray-50"
+                      : "bg-gray-50 text-gray-500"
+                  }
                 >
                   <td
                     className={`border border-gray-300 px-3 py-2 font-medium ${row.isYearToDate ? "text-gray-900" : "text-gray-500"}`}

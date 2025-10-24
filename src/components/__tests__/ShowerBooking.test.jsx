@@ -63,10 +63,10 @@ describe("ShowerBooking", () => {
   it("renders modal with guest name and slots", () => {
     render(<ShowerBooking />);
 
-  expect(screen.getByText("Book a Shower")).toBeInTheDocument();
-  // The header text is split across elements: "Schedule for" and the guest name
-  expect(screen.getByText(/Schedule for/i)).toBeInTheDocument();
-  expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("Book a Shower")).toBeInTheDocument();
+    // The header text is split across elements: "Schedule for" and the guest name
+    expect(screen.getByText(/Schedule for/i)).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
     // There can be multiple occurrences (header/slot). Ensure at least one exists.
     expect(screen.getAllByText("8:00 AM").length).toBeGreaterThan(0);
     expect(screen.getAllByText("8:30 AM").length).toBeGreaterThan(0);
@@ -74,12 +74,18 @@ describe("ShowerBooking", () => {
 
   it("displays slot details correctly", () => {
     mockContext.showerRecords = [
-      { id: "rec1", guestId: "1", time: "08:00", date: "2025-10-09", status: "booked" },
+      {
+        id: "rec1",
+        guestId: "1",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
     ];
     render(<ShowerBooking />);
 
-  // Check if slot shows count (component renders like "1/2")
-  expect(screen.getByText("1/2")).toBeInTheDocument();
+    // Check if slot shows count (component renders like "1/2")
+    expect(screen.getByText("1/2")).toBeInTheDocument();
   });
 
   it("allows booking a shower slot", async () => {
@@ -97,10 +103,10 @@ describe("ShowerBooking", () => {
   it("shows success message after booking", async () => {
     render(<ShowerBooking />);
 
-  const bookButtons = screen.getAllByRole("button", { name: /Available/i });
-  fireEvent.click(bookButtons[0]);
-  // At minimum the action should invoke addShowerRecord
-  expect(mockAddShowerRecord).toHaveBeenCalled();
+    const bookButtons = screen.getAllByRole("button", { name: /Available/i });
+    fireEvent.click(bookButtons[0]);
+    // At minimum the action should invoke addShowerRecord
+    expect(mockAddShowerRecord).toHaveBeenCalled();
   });
 
   it("handles booking error", async () => {
@@ -109,42 +115,102 @@ describe("ShowerBooking", () => {
     });
     render(<ShowerBooking />);
 
-  const bookButtons = screen.getAllByRole("button", { name: /Available/i });
-  fireEvent.click(bookButtons[0]);
-  // Ensure addShowerRecord was invoked and component displays error
-  expect(mockAddShowerRecord).toHaveBeenCalled();
-  expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
+    const bookButtons = screen.getAllByRole("button", { name: /Available/i });
+    fireEvent.click(bookButtons[0]);
+    // Ensure addShowerRecord was invoked and component displays error
+    expect(mockAddShowerRecord).toHaveBeenCalled();
+    expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
   });
 
   it("allows adding to waitlist when all slots full", () => {
     mockContext.showerRecords = [
-      { id: "rec2", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { id: "rec3", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
-      { id: "rec4", guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
-      { id: "rec5", guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
-      { id: "rec6", guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
-      { id: "rec7", guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
-      { id: "rec8", guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
-      { id: "rec9", guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
+      {
+        id: "rec2",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec3",
+        guestId: "3",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec4",
+        guestId: "4",
+        time: "08:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec5",
+        guestId: "5",
+        time: "08:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec6",
+        guestId: "6",
+        time: "09:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec7",
+        guestId: "7",
+        time: "09:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec8",
+        guestId: "8",
+        time: "09:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec9",
+        guestId: "9",
+        time: "09:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
     ];
     render(<ShowerBooking />);
 
-  const waitlistButton = screen.getByRole("button", { name: /waitlist/i });
+    const waitlistButton = screen.getByRole("button", { name: /waitlist/i });
     fireEvent.click(waitlistButton);
 
-  expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
-  expect(toastMock.success).toHaveBeenCalled();
+    expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
+    expect(toastMock.success).toHaveBeenCalled();
   });
 
   it("displays guest shower history", () => {
     mockContext.showerRecords = [
-      { id: "rec10", guestId: "1", time: "08:00", date: "2025-10-08", status: "done" },
-      { id: "rec11", guestId: "1", time: "09:00", date: "2025-10-07", status: "booked" },
+      {
+        id: "rec10",
+        guestId: "1",
+        time: "08:00",
+        date: "2025-10-08",
+        status: "done",
+      },
+      {
+        id: "rec11",
+        guestId: "1",
+        time: "09:00",
+        date: "2025-10-07",
+        status: "booked",
+      },
     ];
     render(<ShowerBooking />);
 
-  // Component header is 'Guest shower history'
-  expect(screen.getByText("Guest shower history")).toBeInTheDocument();
+    // Component header is 'Guest shower history'
+    expect(screen.getByText("Guest shower history")).toBeInTheDocument();
     // Check history items
   });
 
@@ -159,18 +225,36 @@ describe("ShowerBooking", () => {
 
   it("shows capacity progress", () => {
     mockContext.showerRecords = [
-      { id: "rec12", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+      {
+        id: "rec12",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
     ];
     render(<ShowerBooking />);
 
-  // The UI shows remaining spots as e.g. "X spots remaining"
-  expect(screen.getByText(/spots remaining/i)).toBeInTheDocument();
+    // The UI shows remaining spots as e.g. "X spots remaining"
+    expect(screen.getByText(/spots remaining/i)).toBeInTheDocument();
   });
 
   it("sorts slots with available first", () => {
     mockContext.showerRecords = [
-      { id: "rec13", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { id: "rec14", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" }, // Full
+      {
+        id: "rec13",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec14",
+        guestId: "3",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      }, // Full
     ];
     render(<ShowerBooking />);
 
@@ -183,18 +267,68 @@ describe("ShowerBooking", () => {
     });
     // Make all slots full so the waitlist UI appears
     mockContext.showerRecords = [
-      { id: "rec15", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
-      { id: "rec16", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
-      { id: "rec17", guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
-      { id: "rec18", guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
-      { id: "rec19", guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
-      { id: "rec20", guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
-      { id: "rec21", guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
-      { id: "rec22", guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
+      {
+        id: "rec15",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec16",
+        guestId: "3",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec17",
+        guestId: "4",
+        time: "08:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec18",
+        guestId: "5",
+        time: "08:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec19",
+        guestId: "6",
+        time: "09:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec20",
+        guestId: "7",
+        time: "09:00",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec21",
+        guestId: "8",
+        time: "09:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
+      {
+        id: "rec22",
+        guestId: "9",
+        time: "09:30",
+        date: "2025-10-09",
+        status: "booked",
+      },
     ];
     render(<ShowerBooking />);
 
-    const waitlistButton = screen.getByRole("button", { name: /Add to Waitlist|waitlist/i });
+    const waitlistButton = screen.getByRole("button", {
+      name: /Add to Waitlist|waitlist/i,
+    });
     fireEvent.click(waitlistButton);
 
     expect(screen.getByText("Waitlist full")).toBeInTheDocument();

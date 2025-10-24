@@ -68,7 +68,7 @@ const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
       // Get the Chart.js instance from the canvas
       const chartInstance = chartRef.current;
       const base64Image = chartInstance.toBase64Image();
-      
+
       // Create download link
       const link = document.createElement("a");
       const timestamp = new Date()
@@ -78,7 +78,7 @@ const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
       link.download = `30-day-activity-trend-${timestamp}.png`;
       link.href = base64Image;
       link.click();
-      
+
       toast.success("Chart downloaded as PNG!");
     } catch (error) {
       console.error("Error exporting chart:", error);
@@ -87,9 +87,7 @@ const TrendLine = ({ days, metrics = ["meals", "showers", "laundry"] }) => {
   };
 
   return (
-    <div
-      className="bg-white border rounded-lg p-4 h-72 relative group"
-    >
+    <div className="bg-white border rounded-lg p-4 h-72 relative group">
       <button
         onClick={handleExportChart}
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-sm z-10"

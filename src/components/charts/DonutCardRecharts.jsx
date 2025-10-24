@@ -1,12 +1,27 @@
 import React, { useRef } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from "recharts";
 import { Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { exportChartAsImage } from "../../utils/chartExport";
 
 const COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#84cc16",
+  "#f97316",
+  "#6366f1",
 ];
 
 const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
@@ -20,7 +35,7 @@ const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
   const handleExportChart = async () => {
     try {
       const timestamp = new Date().toISOString().slice(0, 10);
-      const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}.png`;
+      const filename = `${title.toLowerCase().replace(/\s+/g, "-")}-${timestamp}.png`;
       await exportChartAsImage(chartRef, filename);
       toast.success("Chart downloaded as PNG!");
     } catch (error) {
@@ -51,7 +66,7 @@ const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
       ref={chartRef}
       data-chart-container
       className="bg-white border rounded-lg p-4 h-80 relative group"
-      style={{ minHeight: '320px' }}
+      style={{ minHeight: "320px" }}
     >
       <button
         onClick={handleExportChart}
@@ -78,7 +93,10 @@ const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
             dataKey="value"
           >
             {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS[index % COLORS.length]}
+              />
             ))}
           </Pie>
           <Tooltip content={<CustomTooltip />} />
@@ -87,7 +105,9 @@ const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
             height={36}
             iconType="circle"
             formatter={(value, entry) => (
-              <span className="text-xs">{value}: {entry.payload.value}</span>
+              <span className="text-xs">
+                {value}: {entry.payload.value}
+              </span>
             )}
           />
         </PieChart>

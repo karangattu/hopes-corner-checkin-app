@@ -173,15 +173,19 @@ describe("GuestList", () => {
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
     await user.type(search, "John");
-    
+
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);
 
     const deleteButton = await screen.findByText(/delete/i);
     await user.click(deleteButton);
 
-    expect(await screen.findByText("Delete Guest Profile?")).toBeInTheDocument();
-    expect(screen.getByText(/This will permanently delete/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Delete Guest Profile?"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/This will permanently delete/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/1 meal record$/)).toBeInTheDocument();
   });
 
@@ -206,7 +210,7 @@ describe("GuestList", () => {
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
     await user.type(search, "John");
-    
+
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);
 
@@ -242,7 +246,7 @@ describe("GuestList", () => {
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
     await user.type(search, "John");
-    
+
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);
 

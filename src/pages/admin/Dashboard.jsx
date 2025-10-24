@@ -85,7 +85,11 @@ const Dashboard = () => {
   }));
 
   const [selectedExportGuest, setSelectedExportGuest] = useState("");
-  const [selectedPrograms, setSelectedPrograms] = useState(["meals", "showers", "laundry"]);
+  const [selectedPrograms, setSelectedPrograms] = useState([
+    "meals",
+    "showers",
+    "laundry",
+  ]);
   const [selectedMealTypes, setSelectedMealTypes] = useState([
     "guest",
     "rv",
@@ -236,7 +240,9 @@ const Dashboard = () => {
     const guestKey = String(target.id);
     const meals = mealRecords.filter((r) => String(r.guestId) === guestKey);
     const showers = showerRecords.filter((r) => String(r.guestId) === guestKey);
-    const laundry = laundryRecords.filter((r) => String(r.guestId) === guestKey);
+    const laundry = laundryRecords.filter(
+      (r) => String(r.guestId) === guestKey,
+    );
 
     const rows = [
       ...meals.map((r) => ({
@@ -385,18 +391,18 @@ const Dashboard = () => {
   );
 
   const toggleProgram = (programValue) => {
-    setSelectedPrograms(prev =>
+    setSelectedPrograms((prev) =>
       prev.includes(programValue)
-        ? prev.filter(p => p !== programValue)
-        : [...prev, programValue]
+        ? prev.filter((p) => p !== programValue)
+        : [...prev, programValue],
     );
   };
 
   const toggleMealType = (mealType) => {
-    setSelectedMealTypes(prev =>
+    setSelectedMealTypes((prev) =>
       prev.includes(mealType)
-        ? prev.filter(t => t !== mealType)
-        : [...prev, mealType]
+        ? prev.filter((t) => t !== mealType)
+        : [...prev, mealType],
     );
   };
 
@@ -450,7 +456,7 @@ const Dashboard = () => {
               { value: "haircuts", label: "Haircuts", icon: Users },
               { value: "holidays", label: "Holidays", icon: Calendar },
               { value: "bicycles", label: "Bicycles", icon: Users },
-            ].map(program => {
+            ].map((program) => {
               const Icon = program.icon;
               return (
                 <button
@@ -458,8 +464,8 @@ const Dashboard = () => {
                   onClick={() => toggleProgram(program.value)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all text-sm ${
                     selectedPrograms.includes(program.value)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
                   }`}
                 >
                   <Icon size={16} />
@@ -469,11 +475,13 @@ const Dashboard = () => {
             })}
           </div>
           {selectedPrograms.length === 0 && (
-            <p className="text-red-600 text-sm mt-2">Please select at least one program type</p>
+            <p className="text-red-600 text-sm mt-2">
+              Please select at least one program type
+            </p>
           )}
         </div>
 
-        {selectedPrograms.includes('meals') && (
+        {selectedPrograms.includes("meals") && (
           <div className="mb-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Select Meal Types to Include
@@ -487,34 +495,35 @@ const Dashboard = () => {
                 { value: "extras", label: "Extra Meals" },
                 { value: "dayWorker", label: "Day Worker" },
                 { value: "lunchBags", label: "Lunch Bags" },
-              ].map(mealType => (
+              ].map((mealType) => (
                 <button
                   key={mealType.value}
                   onClick={() => toggleMealType(mealType.value)}
                   className={`px-3 py-1.5 rounded border transition-all text-xs ${
                     selectedMealTypes.includes(mealType.value)
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
                   }`}
                 >
                   {mealType.label}
                 </button>
               ))}
             </div>
-            {selectedMealTypes.length === 0 && selectedPrograms.includes('meals') && (
-              <p className="text-orange-600 text-xs mt-2">
-                Select at least one meal type to see meal data
-              </p>
-            )}
+            {selectedMealTypes.length === 0 &&
+              selectedPrograms.includes("meals") && (
+                <p className="text-orange-600 text-xs mt-2">
+                  Select at least one meal type to see meal data
+                </p>
+              )}
           </div>
         )}
 
         {metrics.period && (
           <div className="mt-4 border-t pt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-              {selectedPrograms.includes('meals') && (
+              {selectedPrograms.includes("meals") && (
                 <>
-                  {selectedMealTypes.includes('guest') && (
+                  {selectedMealTypes.includes("guest") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> Guest Meals
@@ -524,7 +533,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('rv') && (
+                  {selectedMealTypes.includes("rv") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> RV Meals
@@ -534,7 +543,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('shelter') && (
+                  {selectedMealTypes.includes("shelter") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> Shelter Meals
@@ -544,7 +553,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('unitedEffort') && (
+                  {selectedMealTypes.includes("unitedEffort") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> United Effort
@@ -554,7 +563,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('extras') && (
+                  {selectedMealTypes.includes("extras") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> Extra Meals
@@ -564,7 +573,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('dayWorker') && (
+                  {selectedMealTypes.includes("dayWorker") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> Day Worker
@@ -574,7 +583,7 @@ const Dashboard = () => {
                       </div>
                     </div>
                   )}
-                  {selectedMealTypes.includes('lunchBags') && (
+                  {selectedMealTypes.includes("lunchBags") && (
                     <div className="bg-blue-50 rounded p-3 border border-blue-200">
                       <div className="flex items-center gap-2 text-blue-700 mb-1 text-xs">
                         <Utensils size={14} /> Lunch Bags
@@ -590,8 +599,10 @@ const Dashboard = () => {
                         <Utensils size={14} /> Total Meals
                       </div>
                       <div className="text-xl font-bold text-blue-900">
-                        {selectedMealTypes.reduce((sum, type) => 
-                          sum + (metrics.period.mealsByType[type] || 0), 0
+                        {selectedMealTypes.reduce(
+                          (sum, type) =>
+                            sum + (metrics.period.mealsByType[type] || 0),
+                          0,
                         )}
                       </div>
                     </div>
@@ -599,7 +610,7 @@ const Dashboard = () => {
                 </>
               )}
 
-              {selectedPrograms.includes('showers') && (
+              {selectedPrograms.includes("showers") && (
                 <div className="bg-gray-50 rounded p-3">
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <ShowerHead size={16} /> Showers Booked
@@ -610,7 +621,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {selectedPrograms.includes('laundry') && (
+              {selectedPrograms.includes("laundry") && (
                 <div className="bg-gray-50 rounded p-3">
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <WashingMachine size={16} /> Laundry Loads
@@ -621,7 +632,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {selectedPrograms.includes('haircuts') && (
+              {selectedPrograms.includes("haircuts") && (
                 <div className="bg-gray-50 rounded p-3">
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <Users size={16} /> Haircuts
@@ -632,7 +643,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {selectedPrograms.includes('holidays') && (
+              {selectedPrograms.includes("holidays") && (
                 <div className="bg-gray-50 rounded p-3">
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <Calendar size={16} /> Holidays
@@ -643,7 +654,7 @@ const Dashboard = () => {
                 </div>
               )}
 
-              {selectedPrograms.includes('bicycles') && (
+              {selectedPrograms.includes("bicycles") && (
                 <div className="bg-gray-50 rounded p-3">
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <Users size={16} /> Bicycles
@@ -654,39 +665,37 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            
+
             {/* Render specialized charts based on selected programs */}
-            {selectedPrograms.includes('meals') && selectedMealTypes.length > 0 && (
+            {selectedPrograms.includes("meals") &&
+              selectedMealTypes.length > 0 && (
+                <Animated.div
+                  style={reportsChartAnim}
+                  className="mt-6 will-change-transform"
+                >
+                  <MealsChart
+                    days={metrics.period.dailyBreakdown}
+                    selectedMealTypes={selectedMealTypes}
+                  />
+                </Animated.div>
+              )}
+
+            {(selectedPrograms.includes("showers") ||
+              selectedPrograms.includes("laundry")) && (
               <Animated.div
                 style={reportsChartAnim}
                 className="mt-6 will-change-transform"
               >
-                <MealsChart
-                  days={metrics.period.dailyBreakdown}
-                  selectedMealTypes={selectedMealTypes}
-                />
+                <ShowerLaundryChart days={metrics.period.dailyBreakdown} />
               </Animated.div>
             )}
 
-            {(selectedPrograms.includes('showers') || selectedPrograms.includes('laundry')) && (
+            {selectedPrograms.includes("bicycles") && (
               <Animated.div
                 style={reportsChartAnim}
                 className="mt-6 will-change-transform"
               >
-                <ShowerLaundryChart
-                  days={metrics.period.dailyBreakdown}
-                />
-              </Animated.div>
-            )}
-
-            {selectedPrograms.includes('bicycles') && (
-              <Animated.div
-                style={reportsChartAnim}
-                className="mt-6 will-change-transform"
-              >
-                <BicyclesChart
-                  days={metrics.period.dailyBreakdown}
-                />
+                <BicyclesChart days={metrics.period.dailyBreakdown} />
               </Animated.div>
             )}
 
@@ -695,12 +704,24 @@ const Dashboard = () => {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-4 py-2 text-left">Date</th>
-                    {selectedPrograms.includes('meals') && <th className="px-4 py-2 text-right">Meals</th>}
-                    {selectedPrograms.includes('showers') && <th className="px-4 py-2 text-right">Showers</th>}
-                    {selectedPrograms.includes('laundry') && <th className="px-4 py-2 text-right">Laundry</th>}
-                    {selectedPrograms.includes('haircuts') && <th className="px-4 py-2 text-right">Haircuts</th>}
-                    {selectedPrograms.includes('holidays') && <th className="px-4 py-2 text-right">Holidays</th>}
-                    {selectedPrograms.includes('bicycles') && <th className="px-4 py-2 text-right">Bicycles</th>}
+                    {selectedPrograms.includes("meals") && (
+                      <th className="px-4 py-2 text-right">Meals</th>
+                    )}
+                    {selectedPrograms.includes("showers") && (
+                      <th className="px-4 py-2 text-right">Showers</th>
+                    )}
+                    {selectedPrograms.includes("laundry") && (
+                      <th className="px-4 py-2 text-right">Laundry</th>
+                    )}
+                    {selectedPrograms.includes("haircuts") && (
+                      <th className="px-4 py-2 text-right">Haircuts</th>
+                    )}
+                    {selectedPrograms.includes("holidays") && (
+                      <th className="px-4 py-2 text-right">Holidays</th>
+                    )}
+                    {selectedPrograms.includes("bicycles") && (
+                      <th className="px-4 py-2 text-right">Bicycles</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -708,23 +729,49 @@ const Dashboard = () => {
                     .sort((a, b) => a.date.localeCompare(b.date))
                     .map((day) => {
                       // Calculate filtered meal total based on selected meal types
-                      const filteredMealTotal = selectedPrograms.includes('meals') && day.mealsByType
-                        ? selectedMealTypes.reduce((sum, type) => sum + (day.mealsByType[type] || 0), 0)
-                        : day.meals;
-                      
+                      const filteredMealTotal =
+                        selectedPrograms.includes("meals") && day.mealsByType
+                          ? selectedMealTypes.reduce(
+                              (sum, type) => sum + (day.mealsByType[type] || 0),
+                              0,
+                            )
+                          : day.meals;
+
                       return (
                         <tr key={day.date} className="border-b">
                           <td className="px-4 py-2">
                             {new Date(day.date).toLocaleDateString()}
                           </td>
-                          {selectedPrograms.includes('meals') && (
-                            <td className="px-4 py-2 text-right">{filteredMealTotal}</td>
+                          {selectedPrograms.includes("meals") && (
+                            <td className="px-4 py-2 text-right">
+                              {filteredMealTotal}
+                            </td>
                           )}
-                          {selectedPrograms.includes('showers') && <td className="px-4 py-2 text-right">{day.showers}</td>}
-                          {selectedPrograms.includes('laundry') && <td className="px-4 py-2 text-right">{day.laundry}</td>}
-                          {selectedPrograms.includes('haircuts') && <td className="px-4 py-2 text-right">{day.haircuts || 0}</td>}
-                          {selectedPrograms.includes('holidays') && <td className="px-4 py-2 text-right">{day.holidays || 0}</td>}
-                          {selectedPrograms.includes('bicycles') && <td className="px-4 py-2 text-right">{day.bicycles || 0}</td>}
+                          {selectedPrograms.includes("showers") && (
+                            <td className="px-4 py-2 text-right">
+                              {day.showers}
+                            </td>
+                          )}
+                          {selectedPrograms.includes("laundry") && (
+                            <td className="px-4 py-2 text-right">
+                              {day.laundry}
+                            </td>
+                          )}
+                          {selectedPrograms.includes("haircuts") && (
+                            <td className="px-4 py-2 text-right">
+                              {day.haircuts || 0}
+                            </td>
+                          )}
+                          {selectedPrograms.includes("holidays") && (
+                            <td className="px-4 py-2 text-right">
+                              {day.holidays || 0}
+                            </td>
+                          )}
+                          {selectedPrograms.includes("bicycles") && (
+                            <td className="px-4 py-2 text-right">
+                              {day.bicycles || 0}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -865,7 +912,8 @@ const Dashboard = () => {
                 const searchText = Array.from(searchFields)
                   .join(" ")
                   .toLowerCase();
-                const displayName = g.name || parts[0] || g.guestId || "Unknown";
+                const displayName =
+                  g.name || parts[0] || g.guestId || "Unknown";
 
                 return {
                   value: String(g.id),
@@ -883,8 +931,7 @@ const Dashboard = () => {
             <button
               type="button"
               onClick={() =>
-                selectedExportGuest &&
-                exportGuestMetrics(selectedExportGuest)
+                selectedExportGuest && exportGuestMetrics(selectedExportGuest)
               }
               disabled={!selectedExportGuest}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium transition-colors border disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
@@ -931,7 +978,7 @@ const Dashboard = () => {
       bicycles:
         bicycleRecords?.reduce(
           (total, record) => total + getBicycleServiceCount(record),
-          0
+          0,
         ) || 0,
       donations: donationRecords?.length || 0,
     }),
@@ -985,7 +1032,7 @@ const Dashboard = () => {
     return (
       <div className="space-y-6">
         <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />
-        
+
         <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-3">

@@ -1,7 +1,15 @@
 import React from "react";
 import { X, AlertTriangle } from "lucide-react";
 
-const DeleteConfirmationModal = ({ isOpen, guest, onConfirm, onCancel, mealCount = 0, showerCount = 0, laundryCount = 0 }) => {
+const DeleteConfirmationModal = ({
+  isOpen,
+  guest,
+  onConfirm,
+  onCancel,
+  mealCount = 0,
+  showerCount = 0,
+  laundryCount = 0,
+}) => {
   if (!isOpen || !guest) return null;
 
   const totalRecords = mealCount + showerCount + laundryCount;
@@ -13,9 +21,11 @@ const DeleteConfirmationModal = ({ isOpen, guest, onConfirm, onCancel, mealCount
           <div className="flex justify-center mb-4">
             <AlertTriangle className="text-red-500" size={48} />
           </div>
-          
-          <h3 className="text-xl font-semibold text-center mb-4">Delete Guest Profile?</h3>
-          
+
+          <h3 className="text-xl font-semibold text-center mb-4">
+            Delete Guest Profile?
+          </h3>
+
           <div className="space-y-3 mb-6">
             <p className="text-gray-700">
               This will permanently delete{" "}
@@ -24,27 +34,28 @@ const DeleteConfirmationModal = ({ isOpen, guest, onConfirm, onCancel, mealCount
               </strong>
               {totalRecords > 0 && " and all associated records:"}
             </p>
-            
+
             {totalRecords > 0 && (
               <ul className="bg-gray-50 rounded-lg p-4 space-y-1 text-sm">
                 {mealCount > 0 && (
                   <li className="text-gray-700">
-                    • {mealCount} meal record{mealCount !== 1 ? 's' : ''}
+                    • {mealCount} meal record{mealCount !== 1 ? "s" : ""}
                   </li>
                 )}
                 {showerCount > 0 && (
                   <li className="text-gray-700">
-                    • {showerCount} shower booking{showerCount !== 1 ? 's' : ''}
+                    • {showerCount} shower booking{showerCount !== 1 ? "s" : ""}
                   </li>
                 )}
                 {laundryCount > 0 && (
                   <li className="text-gray-700">
-                    • {laundryCount} laundry record{laundryCount !== 1 ? 's' : ''}
+                    • {laundryCount} laundry record
+                    {laundryCount !== 1 ? "s" : ""}
                   </li>
                 )}
               </ul>
             )}
-            
+
             <p className="text-red-600 font-semibold text-center mt-4">
               This action cannot be undone.
             </p>

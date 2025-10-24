@@ -78,9 +78,9 @@ const AppContent = () => {
       {showerPickerGuest && <ShowerBooking />}
       {laundryPickerGuest && <LaundryBooking />}
       {bicyclePickerGuest && <BicycleRepairBooking />}
-      <KeyboardShortcutsHelp 
-        isOpen={showKeyboardHelp} 
-        onClose={() => setShowKeyboardHelp(false)} 
+      <KeyboardShortcutsHelp
+        isOpen={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
       />
     </MainLayout>
   );

@@ -20,7 +20,9 @@ const createMockSupabaseChain = (mockData = [], mockError = null) => {
   const chain = {
     insert: vi.fn(() => chain),
     select: vi.fn(() => chain),
-    single: vi.fn(() => Promise.resolve({ data: mockData[0] || null, error: mockError })),
+    single: vi.fn(() =>
+      Promise.resolve({ data: mockData[0] || null, error: mockError }),
+    ),
     then: vi.fn((resolve) => {
       resolve({ data: mockData, error: mockError });
       return Promise.resolve({ data: mockData, error: mockError });
@@ -140,7 +142,9 @@ describe("Batch Insert Functions", () => {
 
       const payload = [{ meal_type: "guest", guest_id: "123" }];
 
-      await expect(insertMealAttendanceBatch(payload)).rejects.toThrow("Database error");
+      await expect(insertMealAttendanceBatch(payload)).rejects.toThrow(
+        "Database error",
+      );
     });
   });
 
@@ -222,7 +226,9 @@ describe("Batch Insert Functions", () => {
 
   describe("Error handling and resilience", () => {
     it("should log errors with chunk information", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
       const insertMealAttendanceBatch = async (payloads) => {
         const BATCH_SIZE = 500;
@@ -240,12 +246,16 @@ describe("Batch Insert Functions", () => {
         }
       };
 
-      const payload = Array.from({ length: 1000 }, () => ({ meal_type: "guest" }));
+      const payload = Array.from({ length: 1000 }, () => ({
+        meal_type: "guest",
+      }));
 
-      await expect(insertMealAttendanceBatch(payload)).rejects.toThrow("Batch insert failed");
+      await expect(insertMealAttendanceBatch(payload)).rejects.toThrow(
+        "Batch insert failed",
+      );
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining("Batch insert error (chunk 2)"),
-        expect.any(Error)
+        expect.any(Error),
       );
 
       consoleErrorSpy.mockRestore();
@@ -271,7 +281,7 @@ describe("Batch Insert Functions", () => {
       ];
 
       await expect(insertMealAttendanceBatch(invalidPayload)).rejects.toThrow(
-        "Invalid payload: meal_type is required"
+        "Invalid payload: meal_type is required",
       );
     });
   });
@@ -343,7 +353,11 @@ describe("Batch Insert Functions", () => {
   });
 
   describe("All batch insert functions", () => {
-    const testBatchFunction = async (functionName, tableName, samplePayload) => {
+    const testBatchFunction = async (
+      functionName,
+      tableName,
+      samplePayload,
+    ) => {
       const batchInsertFunction = async (payloads) => {
         if (!payloads || payloads.length === 0) return [];
 
@@ -360,7 +374,9 @@ describe("Batch Insert Functions", () => {
         return results;
       };
 
-      const payload = Array.from({ length: 1000 }, () => ({ ...samplePayload }));
+      const payload = Array.from({ length: 1000 }, () => ({
+        ...samplePayload,
+      }));
       const result = await batchInsertFunction(payload);
 
       expect(result).toHaveLength(1000);
@@ -370,7 +386,7 @@ describe("Batch Insert Functions", () => {
       await testBatchFunction(
         "insertShowerReservationsBatch",
         "shower_reservations",
-        { guest_id: "123", scheduled_for: "2025-01-01", status: "completed" }
+        { guest_id: "123", scheduled_for: "2025-01-01", status: "completed" },
       );
     });
 
@@ -378,32 +394,34 @@ describe("Batch Insert Functions", () => {
       await testBatchFunction(
         "insertLaundryBookingsBatch",
         "laundry_bookings",
-        { guest_id: "123", laundry_type: "offsite", scheduled_for: "2025-01-01" }
+        {
+          guest_id: "123",
+          laundry_type: "offsite",
+          scheduled_for: "2025-01-01",
+        },
       );
     });
 
     it("insertBicycleRepairsBatch should batch correctly", async () => {
-      await testBatchFunction(
-        "insertBicycleRepairsBatch",
-        "bicycle_repairs",
-        { guest_id: "123", repair_type: "Legacy Import", status: "completed" }
-      );
+      await testBatchFunction("insertBicycleRepairsBatch", "bicycle_repairs", {
+        guest_id: "123",
+        repair_type: "Legacy Import",
+        status: "completed",
+      });
     });
 
     it("insertHaircutVisitsBatch should batch correctly", async () => {
-      await testBatchFunction(
-        "insertHaircutVisitsBatch",
-        "haircut_visits",
-        { guest_id: "123", served_at: "2025-01-01T12:00:00Z" }
-      );
+      await testBatchFunction("insertHaircutVisitsBatch", "haircut_visits", {
+        guest_id: "123",
+        served_at: "2025-01-01T12:00:00Z",
+      });
     });
 
     it("insertHolidayVisitsBatch should batch correctly", async () => {
-      await testBatchFunction(
-        "insertHolidayVisitsBatch",
-        "holiday_visits",
-        { guest_id: "123", served_at: "2025-01-01T12:00:00Z" }
-      );
+      await testBatchFunction("insertHolidayVisitsBatch", "holiday_visits", {
+        guest_id: "123",
+        served_at: "2025-01-01T12:00:00Z",
+      });
     });
   });
 });

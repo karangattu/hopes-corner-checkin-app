@@ -203,7 +203,9 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
 
   describe("Error handling in batch mode", () => {
     it("should handle batch insert errors gracefully", async () => {
-      const mockBatchInsert = vi.fn().mockRejectedValue(new Error("Database error"));
+      const mockBatchInsert = vi
+        .fn()
+        .mockRejectedValue(new Error("Database error"));
 
       const processWithErrorHandling = async (records) => {
         const errors = [];
@@ -229,7 +231,9 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
 
     it("should report partial success with batch errors", async () => {
       const mockMealBatch = vi.fn(async (records) => records);
-      const mockShowerBatch = vi.fn().mockRejectedValue(new Error("Shower batch failed"));
+      const mockShowerBatch = vi
+        .fn()
+        .mockRejectedValue(new Error("Shower batch failed"));
 
       const processMultipleBatches = async (recordsByType) => {
         let successCount = 0;
@@ -331,7 +335,10 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
       expect(batchInsertFns.holidays).toHaveBeenCalledTimes(1);
 
       // Verify all records were processed
-      const totalProcessed = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
+      const totalProcessed = Object.values(results).reduce(
+        (sum, arr) => sum + arr.length,
+        0,
+      );
       expect(totalProcessed).toBe(1000);
     });
   });
@@ -377,7 +384,10 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
         records.forEach((record, index) => {
           const guest = guestList.find((g) => g.guestId === record.guestId);
           if (!guest) {
-            errors.push({ row: index + 2, error: `Guest ${record.guestId} not found` });
+            errors.push({
+              row: index + 2,
+              error: `Guest ${record.guestId} not found`,
+            });
           } else {
             validRecords.push({
               ...record,

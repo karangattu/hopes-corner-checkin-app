@@ -179,17 +179,15 @@ const renderDashboard = () => {
 describe("Dashboard data exports", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  setupMockContext();
-  toastMock.success.mockClear();
-  toastMock.error.mockClear();
+    setupMockContext();
+    toastMock.success.mockClear();
+    toastMock.error.mockClear();
   });
 
   it("exports the guest roster", () => {
     renderDashboard();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Export Guest List/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Export Guest List/i }));
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
@@ -207,12 +205,8 @@ describe("Dashboard data exports", () => {
   it("exports combined service history", () => {
     const dateString = new Date("2025-03-15").toISOString();
     setupMockContext({
-      mealRecords: [
-        { guestId: "guest-1", date: dateString, count: 2 },
-      ],
-      showerRecords: [
-        { guestId: "guest-1", date: dateString, time: "09:30" },
-      ],
+      mealRecords: [{ guestId: "guest-1", date: dateString, count: 2 }],
+      showerRecords: [{ guestId: "guest-1", date: dateString, time: "09:30" }],
       laundryRecords: [
         {
           guestId: "guest-1",
@@ -250,12 +244,8 @@ describe("Dashboard data exports", () => {
   it("exports a single guest's history via select", () => {
     const dateString = new Date("2025-03-15").toISOString();
     setupMockContext({
-      mealRecords: [
-        { guestId: "guest-1", date: dateString, count: 1 },
-      ],
-      showerRecords: [
-        { guestId: "guest-1", date: dateString, time: "08:00" },
-      ],
+      mealRecords: [{ guestId: "guest-1", date: dateString, count: 1 }],
+      showerRecords: [{ guestId: "guest-1", date: dateString, time: "08:00" }],
       laundryRecords: [
         {
           guestId: "guest-1",
@@ -277,7 +267,7 @@ describe("Dashboard data exports", () => {
     const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
     expect(rows).toHaveLength(3);
     expect(filename).toMatch(/guest-/);
-  expect(toastMock.success).toHaveBeenCalled();
+    expect(toastMock.success).toHaveBeenCalled();
   });
 
   it("exports current metrics", () => {
@@ -299,7 +289,7 @@ describe("Dashboard data exports", () => {
       ]),
     );
     expect(filename).toMatch(/metrics/);
-  expect(toastMock.success).toHaveBeenCalledWith("Metrics export created");
+    expect(toastMock.success).toHaveBeenCalledWith("Metrics export created");
   });
 
   it("exports bicycle records in service data", () => {
@@ -413,9 +403,7 @@ describe("Dashboard data exports", () => {
 
     renderDashboard();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Export Supplies/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Export Supplies/i }));
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
@@ -452,9 +440,7 @@ describe("Dashboard data exports", () => {
 
     renderDashboard();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Export Donations/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Export Donations/i }));
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
@@ -510,9 +496,7 @@ describe("Dashboard data exports", () => {
 
     renderDashboard();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Export Guest List/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Export Guest List/i }));
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [rows] = exportDataAsCSVMock.mock.calls[0];
@@ -564,7 +548,9 @@ describe("Dashboard data exports", () => {
   it("disables export button when no guest is selected", () => {
     renderDashboard();
 
-    const exportButton = screen.getByRole("button", { name: /Export History/i });
+    const exportButton = screen.getByRole("button", {
+      name: /Export History/i,
+    });
     expect(exportButton).toBeDisabled();
 
     // Button is disabled so clicking won't do anything
@@ -595,9 +581,7 @@ describe("Dashboard data exports", () => {
 
     renderDashboard();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: /Export Guest List/i }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Export Guest List/i }));
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
     const [rows] = exportDataAsCSVMock.mock.calls[0];

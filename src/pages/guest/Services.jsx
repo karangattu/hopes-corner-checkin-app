@@ -720,10 +720,7 @@ const Services = () => {
       holidays: (holidayRecords || []).filter((r) => inMonth(r.date)).length,
       bicycles: (bicycleRecords || [])
         .filter((r) => inMonth(r.date) && isCompletedBicycleStatus(r.status))
-        .reduce(
-          (sum, record) => sum + getBicycleServiceCount(record),
-          0,
-        ),
+        .reduce((sum, record) => sum + getBicycleServiceCount(record), 0),
     };
   }, [
     mealRecords,
@@ -780,10 +777,7 @@ const Services = () => {
       holidays: (holidayRecords || []).filter((r) => inYear(r.date)).length,
       bicycles: (bicycleRecords || [])
         .filter((r) => inYear(r.date) && isCompletedBicycleStatus(r.status))
-        .reduce(
-          (sum, record) => sum + getBicycleServiceCount(record),
-          0,
-        ),
+        .reduce((sum, record) => sum + getBicycleServiceCount(record), 0),
     };
   }, [
     mealRecords,
@@ -866,11 +860,7 @@ const Services = () => {
     );
     (bicycleRecords || []).forEach((record) => {
       if (isCompletedBicycleStatus(record?.status)) {
-        addValue(
-          record?.date,
-          "bicycles",
-          getBicycleServiceCount(record)
-        );
+        addValue(record?.date, "bicycles", getBicycleServiceCount(record));
       }
     });
 
@@ -1318,7 +1308,8 @@ const Services = () => {
                           )}
                           <div>
                             <span className="font-semibold text-gray-600">
-                              Repair{(rec.repairTypes?.length || 0) > 1 ? "s" : ""}:
+                              Repair
+                              {(rec.repairTypes?.length || 0) > 1 ? "s" : ""}:
                             </span>{" "}
                             {rec.repairTypes?.length > 0
                               ? rec.repairTypes.join(", ")
@@ -1352,12 +1343,18 @@ const Services = () => {
                                 >
                                   <input
                                     type="checkbox"
-                                    checked={(rec.repairTypes || [rec.repairType]).includes(type)}
+                                    checked={(
+                                      rec.repairTypes || [rec.repairType]
+                                    ).includes(type)}
                                     onChange={(event) => {
-                                      const currentTypes = rec.repairTypes || [rec.repairType];
+                                      const currentTypes = rec.repairTypes || [
+                                        rec.repairType,
+                                      ];
                                       const newTypes = event.target.checked
                                         ? [...currentTypes, type]
-                                        : currentTypes.filter((t) => t !== type);
+                                        : currentTypes.filter(
+                                            (t) => t !== type,
+                                          );
                                       updateBicycleRecord(rec.id, {
                                         repairTypes: newTypes,
                                       });
@@ -1370,7 +1367,10 @@ const Services = () => {
                             </div>
                             {(rec.repairTypes?.length || 0) > 0 && (
                               <div className="mt-1 text-xs text-sky-700 font-medium">
-                                {rec.repairTypes.length} type{rec.repairTypes.length > 1 ? "s" : ""} selected = {rec.repairTypes.length} service{rec.repairTypes.length > 1 ? "s" : ""}
+                                {rec.repairTypes.length} type
+                                {rec.repairTypes.length > 1 ? "s" : ""} selected
+                                = {rec.repairTypes.length} service
+                                {rec.repairTypes.length > 1 ? "s" : ""}
                               </div>
                             )}
                           </div>
@@ -1457,8 +1457,14 @@ const Services = () => {
   };
 
   const handleAddShelterMeals = () => {
-    if (!shelterMealCount || isNaN(shelterMealCount) || parseInt(shelterMealCount) <= 0) {
-      enhancedToast.validationError("Please enter a valid number of Shelter meals");
+    if (
+      !shelterMealCount ||
+      isNaN(shelterMealCount) ||
+      parseInt(shelterMealCount) <= 0
+    ) {
+      enhancedToast.validationError(
+        "Please enter a valid number of Shelter meals",
+      );
       return;
     }
 
@@ -1611,8 +1617,30 @@ const Services = () => {
     setNewBagNumber(value);
   }, []);
 
-  const handleBagNumberKeyDown = useCallback(async (e, event) => {
-    if (e.key === "Enter") {
+  const handleBagNumberKeyDown = useCallback(
+    async (e, event) => {
+      if (e.key === "Enter") {
+        if (event.originalRecord && newBagNumber) {
+          const success = await updateLaundryBagNumber(
+            event.originalRecord.id,
+            parseInt(newBagNumber, 10),
+          );
+          if (success) {
+            setEditingBagNumber(null);
+            setNewBagNumber("");
+            toast.success(`Bag #${newBagNumber} updated`);
+          }
+        }
+      } else if (e.key === "Escape") {
+        setEditingBagNumber(null);
+        setNewBagNumber("");
+      }
+    },
+    [newBagNumber, updateLaundryBagNumber],
+  );
+
+  const handleBagNumberSave = useCallback(
+    async (event) => {
       if (event.originalRecord && newBagNumber) {
         const success = await updateLaundryBagNumber(
           event.originalRecord.id,
@@ -1624,25 +1652,9 @@ const Services = () => {
           toast.success(`Bag #${newBagNumber} updated`);
         }
       }
-    } else if (e.key === "Escape") {
-      setEditingBagNumber(null);
-      setNewBagNumber("");
-    }
-  }, [newBagNumber, updateLaundryBagNumber]);
-
-  const handleBagNumberSave = useCallback(async (event) => {
-    if (event.originalRecord && newBagNumber) {
-      const success = await updateLaundryBagNumber(
-        event.originalRecord.id,
-        parseInt(newBagNumber, 10),
-      );
-      if (success) {
-        setEditingBagNumber(null);
-        setNewBagNumber("");
-        toast.success(`Bag #${newBagNumber} updated`);
-      }
-    }
-  }, [newBagNumber, updateLaundryBagNumber]);
+    },
+    [newBagNumber, updateLaundryBagNumber],
+  );
 
   const handleBagNumberCancel = useCallback(() => {
     setEditingBagNumber(null);
@@ -1744,7 +1756,9 @@ const Services = () => {
             const success = await updateShowerStatus(record.id, nextStatus);
             if (success) {
               toast.success(
-                nextStatus === "done" ? "Marked as completed" : "Reopened shower",
+                nextStatus === "done"
+                  ? "Marked as completed"
+                  : "Reopened shower",
               );
             }
           }}
@@ -1972,9 +1986,12 @@ const Services = () => {
               <p className="text-xs uppercase tracking-[0.2em] text-white/70 font-semibold">
                 Field operations
               </p>
-              <h2 className="text-2xl font-semibold mt-2">Today's services at a glance</h2>
+              <h2 className="text-2xl font-semibold mt-2">
+                Today's services at a glance
+              </h2>
               <p className="text-sm text-white/80 mt-3 max-w-xl">
-                Track and manage all showers, laundry, and other services. Use tabs below to filter by type, or view all touchpoints together.
+                Track and manage all showers, laundry, and other services. Use
+                tabs below to filter by type, or view all touchpoints together.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 md:gap-4">
@@ -2020,9 +2037,24 @@ const Services = () => {
         <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-200">
           {[
             { id: "all", label: "All Events", count: totalEvents, icon: null },
-            { id: "showers", label: "Showers", count: showerEvents.length, icon: ShowerHead },
-            { id: "laundry", label: "Laundry", count: laundryEvents.length, icon: WashingMachine },
-            { id: "waitlist", label: "Shower Queue", count: waitlistEvents.length, icon: Clock },
+            {
+              id: "showers",
+              label: "Showers",
+              count: showerEvents.length,
+              icon: ShowerHead,
+            },
+            {
+              id: "laundry",
+              label: "Laundry",
+              count: laundryEvents.length,
+              icon: WashingMachine,
+            },
+            {
+              id: "waitlist",
+              label: "Shower Queue",
+              count: waitlistEvents.length,
+              icon: Clock,
+            },
           ].map(({ id, label, count, icon: TabIcon }) => (
             <button
               key={id}
@@ -2035,9 +2067,11 @@ const Services = () => {
             >
               {TabIcon && <TabIcon size={16} />}
               {label}
-              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                timelineViewFilter === id ? "bg-white/20" : "bg-gray-100"
-              }`}>
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                  timelineViewFilter === id ? "bg-white/20" : "bg-gray-100"
+                }`}
+              >
                 {count}
               </span>
             </button>
@@ -2107,35 +2141,48 @@ const Services = () => {
           ) : (
             <>
               {(() => {
-                const laundryCompletedLabels = new Set(["Done", "Picked Up", "Returned"]);
+                const laundryCompletedLabels = new Set([
+                  "Done",
+                  "Picked Up",
+                  "Returned",
+                ]);
                 const isEventCompleted = (event) => {
-                  if (event.type === "shower") return event.statusLabel === "Completed";
-                  if (event.type === "laundry") return laundryCompletedLabels.has(event.statusLabel);
+                  if (event.type === "shower")
+                    return event.statusLabel === "Completed";
+                  if (event.type === "laundry")
+                    return laundryCompletedLabels.has(event.statusLabel);
                   return false;
                 };
 
                 const matchesViewFilter = (event) => {
                   if (timelineViewFilter === "all") return true;
-                  if (timelineViewFilter === "showers") return event.type === "shower";
-                  if (timelineViewFilter === "laundry") return event.type === "laundry";
-                  if (timelineViewFilter === "waitlist") return event.type === "waitlist";
+                  if (timelineViewFilter === "showers")
+                    return event.type === "shower";
+                  if (timelineViewFilter === "laundry")
+                    return event.type === "laundry";
+                  if (timelineViewFilter === "waitlist")
+                    return event.type === "waitlist";
                   return true;
                 };
 
                 const filteredEvents = timelineEvents.filter(
-                  (event) => matchesViewFilter(event) && !isEventCompleted(event),
+                  (event) =>
+                    matchesViewFilter(event) && !isEventCompleted(event),
                 );
 
                 const completedEvents = timelineEvents.filter(
-                  (event) => matchesViewFilter(event) && isEventCompleted(event),
+                  (event) =>
+                    matchesViewFilter(event) && isEventCompleted(event),
                 );
 
                 if (filteredEvents.length === 0) {
                   const suggestions = {
                     all: "Add showers, laundry, or other services to get started.",
-                    showers: "Head to the Showers tab to book a new shower slot.",
+                    showers:
+                      "Head to the Showers tab to book a new shower slot.",
                     laundry: "Visit the Laundry tab to add a new load.",
-                    waitlist: "The shower waitlist is empty — all guests are scheduled or completed.",
+                    waitlist:
+                      "The shower waitlist is empty — all guests are scheduled or completed.",
                   };
 
                   return (
@@ -2144,7 +2191,11 @@ const Services = () => {
                         <Clock size={24} className="text-gray-400" />
                       </div>
                       <p className="font-semibold text-gray-700">
-                        No {timelineViewFilter === "all" ? "events" : `${timelineViewFilter}`} today
+                        No{" "}
+                        {timelineViewFilter === "all"
+                          ? "events"
+                          : `${timelineViewFilter}`}{" "}
+                        today
                       </p>
                       <p className="text-sm text-gray-500 mt-2">
                         {suggestions[timelineViewFilter]}
@@ -2217,15 +2268,23 @@ const Services = () => {
                                       ? "Shower waitlist"
                                       : "Shower"}
                                 </span>
-                                {event.detail ? <span>{event.detail}</span> : null}
-                                {event.meta?.bagNumber || (event.type === "laundry" && editingBagNumber === event.id) ? (
+                                {event.detail ? (
+                                  <span>{event.detail}</span>
+                                ) : null}
+                                {event.meta?.bagNumber ||
+                                (event.type === "laundry" &&
+                                  editingBagNumber === event.id) ? (
                                   editingBagNumber === event.id ? (
                                     <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-400 px-3 py-1 text-sm font-semibold text-purple-800">
                                       <input
                                         type="number"
                                         value={newBagNumber}
-                                        onChange={(e) => handleBagNumberChange(e.target.value)}
-                                        onKeyDown={(e) => handleBagNumberKeyDown(e, event)}
+                                        onChange={(e) =>
+                                          handleBagNumberChange(e.target.value)
+                                        }
+                                        onKeyDown={(e) =>
+                                          handleBagNumberKeyDown(e, event)
+                                        }
                                         autoFocus
                                         className="w-14 text-center bg-white/90 text-purple-900 rounded border border-purple-300 text-sm font-semibold placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                                         placeholder="Bag #"
@@ -2233,7 +2292,9 @@ const Services = () => {
                                       />
                                       <button
                                         type="button"
-                                        onClick={() => handleBagNumberSave(event)}
+                                        onClick={() =>
+                                          handleBagNumberSave(event)
+                                        }
                                         className="p-1 hover:bg-white/50 rounded text-purple-700 transition-colors"
                                         title="Save (Enter)"
                                       >
@@ -2251,7 +2312,12 @@ const Services = () => {
                                   ) : (
                                     <button
                                       type="button"
-                                      onClick={() => handleBagNumberEdit(event.id, event.meta?.bagNumber)}
+                                      onClick={() =>
+                                        handleBagNumberEdit(
+                                          event.id,
+                                          event.meta?.bagNumber,
+                                        )
+                                      }
                                       className="inline-flex items-center gap-2 rounded-full bg-purple-100 border border-purple-200 hover:border-purple-300 hover:bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-800 cursor-pointer transition-colors"
                                       title="Click to edit bag number"
                                     >
@@ -2262,7 +2328,9 @@ const Services = () => {
                                 ) : event.type === "laundry" ? (
                                   <button
                                     type="button"
-                                    onClick={() => handleBagNumberEdit(event.id, null)}
+                                    onClick={() =>
+                                      handleBagNumberEdit(event.id, null)
+                                    }
                                     className="inline-flex items-center gap-2 rounded-full bg-purple-50 border border-purple-200 hover:border-purple-300 hover:bg-purple-100 px-3 py-1 text-sm font-semibold text-purple-700 cursor-pointer transition-colors"
                                     title="Click to add bag number"
                                   >
@@ -2285,15 +2353,23 @@ const Services = () => {
                     {completedEvents.length > 0 && (
                       <div className="mt-6 border-t border-gray-200 pt-4">
                         <button
-                          onClick={() => setShowCompletedTimeline((prev) => !prev)}
+                          onClick={() =>
+                            setShowCompletedTimeline((prev) => !prev)
+                          }
                           className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-green-50 hover:from-emerald-100 hover:to-green-100 border border-emerald-200 rounded-lg transition-colors group"
                         >
                           <div className="flex items-center gap-3">
-                            <CheckCircle2Icon size={20} className="text-emerald-600" />
+                            <CheckCircle2Icon
+                              size={20}
+                              className="text-emerald-600"
+                            />
                             <div className="text-left">
-                              <h3 className="text-sm font-semibold text-emerald-900">Completed Today</h3>
+                              <h3 className="text-sm font-semibold text-emerald-900">
+                                Completed Today
+                              </h3>
                               <p className="text-xs text-emerald-700">
-                                {completedEvents.length} service{completedEvents.length > 1 ? "s" : ""} finished
+                                {completedEvents.length} service
+                                {completedEvents.length > 1 ? "s" : ""} finished
                               </p>
                             </div>
                           </div>
@@ -2302,9 +2378,15 @@ const Services = () => {
                               {completedEvents.length}
                             </span>
                             {showCompletedTimeline ? (
-                              <ChevronUp size={20} className="text-emerald-600 group-hover:text-emerald-700" />
+                              <ChevronUp
+                                size={20}
+                                className="text-emerald-600 group-hover:text-emerald-700"
+                              />
                             ) : (
-                              <ChevronDown size={20} className="text-emerald-600 group-hover:text-emerald-700" />
+                              <ChevronDown
+                                size={20}
+                                className="text-emerald-600 group-hover:text-emerald-700"
+                              />
                             )}
                           </div>
                         </button>
@@ -2333,7 +2415,9 @@ const Services = () => {
                                               {event.title}
                                             </p>
                                             {event.statusLabel && (
-                                              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}>
+                                              <span
+                                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${event.statusClass}`}
+                                              >
                                                 {event.statusLabel}
                                               </span>
                                             )}
@@ -4025,7 +4109,9 @@ const Services = () => {
                   <input
                     type="number"
                     value={shelterMealCount}
-                    onChange={(event) => setShelterMealCount(event.target.value)}
+                    onChange={(event) =>
+                      setShelterMealCount(event.target.value)
+                    }
                     placeholder="Number of Shelter meals"
                     className="flex-1 px-3 py-2 border border-purple-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                     min="1"
@@ -4898,7 +4984,9 @@ const Services = () => {
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
                   <select
                     value={showerStatusFilter}
-                    onChange={(event) => setShowerStatusFilter(event.target.value)}
+                    onChange={(event) =>
+                      setShowerStatusFilter(event.target.value)
+                    }
                     className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   >
                     <option value="all">Status: All</option>
@@ -4907,7 +4995,9 @@ const Services = () => {
                   </select>
                   <select
                     value={showerLaundryFilter}
-                    onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                    onChange={(event) =>
+                      setShowerLaundryFilter(event.target.value)
+                    }
                     className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
                   >
                     <option value="any">Laundry: Any</option>
@@ -4948,10 +5038,14 @@ const Services = () => {
                       <div className="pt-4 border-t border-blue-100">
                         <button
                           type="button"
-                          onClick={() => setShowCompletedShowers((prev) => !prev)}
+                          onClick={() =>
+                            setShowCompletedShowers((prev) => !prev)
+                          }
                           className="w-full flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-4 py-2 transition-colors"
                         >
-                          <span>Completed showers ({completedShowers.length})</span>
+                          <span>
+                            Completed showers ({completedShowers.length})
+                          </span>
                           {isCompletedShowersOpen ? (
                             <ChevronUp size={16} />
                           ) : (
@@ -4961,7 +5055,10 @@ const Services = () => {
                         {isCompletedShowersOpen && (
                           <div className="mt-3 space-y-3">
                             {completedShowers.map((record, idx) =>
-                              renderShowerCard(record, completedShowersTrail[idx]),
+                              renderShowerCard(
+                                record,
+                                completedShowersTrail[idx],
+                              ),
                             )}
                           </div>
                         )}
@@ -5569,7 +5666,9 @@ const Services = () => {
                 <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
                   <select
                     value={laundryTypeFilter}
-                    onChange={(event) => setLaundryTypeFilter(event.target.value)}
+                    onChange={(event) =>
+                      setLaundryTypeFilter(event.target.value)
+                    }
                     className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
                   >
                     <option value="any">Type: Any</option>
@@ -5578,7 +5677,9 @@ const Services = () => {
                   </select>
                   <select
                     value={laundryStatusFilter}
-                    onChange={(event) => setLaundryStatusFilter(event.target.value)}
+                    onChange={(event) =>
+                      setLaundryStatusFilter(event.target.value)
+                    }
                     className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
                   >
                     <option value="any">Status: Any</option>
@@ -5587,8 +5688,12 @@ const Services = () => {
                     <option value={LAUNDRY_STATUS.DRYER}>In Dryer</option>
                     <option value={LAUNDRY_STATUS.DONE}>Done</option>
                     <option value={LAUNDRY_STATUS.PICKED_UP}>Picked Up</option>
-                    <option value={LAUNDRY_STATUS.PENDING}>Off-site Waiting</option>
-                    <option value={LAUNDRY_STATUS.TRANSPORTED}>Transported</option>
+                    <option value={LAUNDRY_STATUS.PENDING}>
+                      Off-site Waiting
+                    </option>
+                    <option value={LAUNDRY_STATUS.TRANSPORTED}>
+                      Transported
+                    </option>
                     <option value={LAUNDRY_STATUS.RETURNED}>Returned</option>
                     <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>
                       Off-site Picked Up
@@ -5628,10 +5733,14 @@ const Services = () => {
                       <div className="pt-4 border-t border-purple-100">
                         <button
                           type="button"
-                          onClick={() => setShowCompletedLaundry((prev) => !prev)}
+                          onClick={() =>
+                            setShowCompletedLaundry((prev) => !prev)
+                          }
                           className="w-full flex items-center justify-between text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg px-4 py-2 transition-colors"
                         >
-                          <span>Completed laundry ({completedLaundry.length})</span>
+                          <span>
+                            Completed laundry ({completedLaundry.length})
+                          </span>
                           {isCompletedLaundryOpen ? (
                             <ChevronUp size={16} />
                           ) : (
@@ -5641,7 +5750,10 @@ const Services = () => {
                         {isCompletedLaundryOpen && (
                           <div className="mt-3 space-y-3">
                             {completedLaundry.map((record, idx) =>
-                              renderLaundryCard(record, completedLaundryTrail[idx]),
+                              renderLaundryCard(
+                                record,
+                                completedLaundryTrail[idx],
+                              ),
                             )}
                           </div>
                         )}
@@ -5775,7 +5887,9 @@ const Services = () => {
             style={modalSpring}
             className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-6 sm:p-8 border border-gray-100"
           >
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Bag number required</h3>
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">
+              Bag number required
+            </h3>
             <p className="text-sm text-gray-600 mb-6">
               Please enter a bag number before changing laundry status. This
               helps track a guest's laundry.

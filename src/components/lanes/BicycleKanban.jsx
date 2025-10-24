@@ -179,10 +179,12 @@ const BicycleKanban = ({
           {record.repairTypes && record.repairTypes.length > 0 ? (
             <div className="space-y-0.5 bg-gray-50 rounded-lg p-2 border border-gray-200">
               <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide px-1.5 mb-1">
-                Repairs ({record.completedRepairs?.length || 0}/{record.repairTypes.length})
+                Repairs ({record.completedRepairs?.length || 0}/
+                {record.repairTypes.length})
               </div>
               {record.repairTypes.map((type, index) => {
-                const isCompleted = record.completedRepairs?.includes(type) || false;
+                const isCompleted =
+                  record.completedRepairs?.includes(type) || false;
                 return (
                   <label
                     key={`${record.id}-${type}-${index}`}
@@ -198,7 +200,9 @@ const BicycleKanban = ({
                       let newStatus = record.status;
                       if (newCompleted.length === 0) {
                         newStatus = BICYCLE_REPAIR_STATUS.PENDING;
-                      } else if (newCompleted.length === record.repairTypes.length) {
+                      } else if (
+                        newCompleted.length === record.repairTypes.length
+                      ) {
                         newStatus = BICYCLE_REPAIR_STATUS.DONE;
                       } else if (newCompleted.length > 0) {
                         newStatus = BICYCLE_REPAIR_STATUS.IN_PROGRESS;
@@ -220,7 +224,13 @@ const BicycleKanban = ({
                       onChange={() => {}} // Handled by label click
                       className="w-3.5 h-3.5 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
                     />
-                    <span className={isCompleted ? "line-through text-gray-400" : "text-gray-700"}>
+                    <span
+                      className={
+                        isCompleted
+                          ? "line-through text-gray-400"
+                          : "text-gray-700"
+                      }
+                    >
                       {type}
                     </span>
                   </label>
@@ -251,14 +261,16 @@ const BicycleKanban = ({
                   </label>
                   <div className="space-y-0.5 bg-gray-50 rounded-lg p-2 border border-gray-200">
                     {record.repairTypes.map((type, index) => {
-                      const isCompleted = record.completedRepairs?.includes(type) || false;
+                      const isCompleted =
+                        record.completedRepairs?.includes(type) || false;
                       return (
                         <label
                           key={`expanded-${record.id}-${type}-${index}`}
                           className="flex items-center gap-2 text-xs cursor-pointer hover:bg-white px-2.5 py-2 rounded transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const currentCompleted = record.completedRepairs || [];
+                            const currentCompleted =
+                              record.completedRepairs || [];
                             const newCompleted = isCompleted
                               ? currentCompleted.filter((t) => t !== type)
                               : [...currentCompleted, type];
@@ -267,7 +279,9 @@ const BicycleKanban = ({
                             let newStatus = record.status;
                             if (newCompleted.length === 0) {
                               newStatus = BICYCLE_REPAIR_STATUS.PENDING;
-                            } else if (newCompleted.length === record.repairTypes.length) {
+                            } else if (
+                              newCompleted.length === record.repairTypes.length
+                            ) {
                               newStatus = BICYCLE_REPAIR_STATUS.DONE;
                             } else if (newCompleted.length > 0) {
                               newStatus = BICYCLE_REPAIR_STATUS.IN_PROGRESS;
@@ -289,7 +303,9 @@ const BicycleKanban = ({
                             onChange={() => {}} // Handled by label click
                             className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
                           />
-                          <span className={`flex-1 ${isCompleted ? "line-through text-gray-400" : "text-gray-700 font-medium"}`}>
+                          <span
+                            className={`flex-1 ${isCompleted ? "line-through text-gray-400" : "text-gray-700 font-medium"}`}
+                          >
                             {type}
                           </span>
                         </label>

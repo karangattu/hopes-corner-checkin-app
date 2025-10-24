@@ -143,9 +143,9 @@ const GuestBatchUpload = () => {
         const parsedData = parseCSV(content);
 
         const validGuests = parsedData.filter(
-          (guest) => !SPECIAL_GUEST_IDS.includes(guest.guest_id)
+          (guest) => !SPECIAL_GUEST_IDS.includes(guest.guest_id),
         );
-        
+
         const skippedCount = parsedData.length - validGuests.length;
 
         setUploadProgress(`Importing ${validGuests.length} guests...`);
@@ -309,8 +309,9 @@ const GuestBatchUpload = () => {
             default to Unhoused.
           </li>
           <li className="text-amber-600 font-medium">
-            Note: Special meal IDs (M91834859, M94816825, M47721243, M29017132, M61706731) 
-            will be automatically skipped as they represent aggregate meal types, not individual guests.
+            Note: Special meal IDs (M91834859, M94816825, M47721243, M29017132,
+            M61706731) will be automatically skipped as they represent aggregate
+            meal types, not individual guests.
           </li>
         </ul>
       </div>

@@ -37,9 +37,7 @@ const BicycleRepairBooking = () => {
 
   const toggleRepairType = (type) => {
     setSelectedRepairTypes((prev) =>
-      prev.includes(type)
-        ? prev.filter((t) => t !== type)
-        : [...prev, type]
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
     );
   };
 
@@ -70,7 +68,7 @@ const BicycleRepairBooking = () => {
       setSubmitting(true);
       addBicycleRecord(bicyclePickerGuest.id, {
         repairTypes: selectedRepairTypes,
-        notes
+        notes,
       });
       setBicyclePickerGuest(null);
       setSelectedRepairTypes([]);
@@ -121,7 +119,10 @@ const BicycleRepairBooking = () => {
           )}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Repair Types <span className="text-gray-500 text-xs">(select all that apply)</span>
+              Repair Types{" "}
+              <span className="text-gray-500 text-xs">
+                (select all that apply)
+              </span>
             </label>
             <div className="space-y-0.5 max-h-48 overflow-y-auto border rounded-lg p-2 bg-gray-50">
               {repairTypes.map((type) => (
@@ -141,15 +142,22 @@ const BicycleRepairBooking = () => {
             </div>
             {selectedRepairTypes.length > 0 && (
               <div className="mt-2 text-xs text-sky-700 font-medium">
-                {selectedRepairTypes.length} repair type{selectedRepairTypes.length > 1 ? "s" : ""} selected (counts as {selectedRepairTypes.length} bicycle service{selectedRepairTypes.length > 1 ? "s" : ""})
+                {selectedRepairTypes.length} repair type
+                {selectedRepairTypes.length > 1 ? "s" : ""} selected (counts as{" "}
+                {selectedRepairTypes.length} bicycle service
+                {selectedRepairTypes.length > 1 ? "s" : ""})
               </div>
             )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1 flex justify-between">
-              <span>Notes {selectedRepairTypes.includes("Other") && "(required)"}</span>
+              <span>
+                Notes {selectedRepairTypes.includes("Other") && "(required)"}
+              </span>
               <span className="text-xs text-gray-400">
-                {selectedRepairTypes.includes("Other") ? "Required" : "Optional"}
+                {selectedRepairTypes.includes("Other")
+                  ? "Required"
+                  : "Optional"}
               </span>
             </label>
             <textarea
@@ -181,8 +189,8 @@ const BicycleRepairBooking = () => {
                 !bikeDescription
                   ? "Bicycle description required in guest profile"
                   : selectedRepairTypes.length === 0
-                  ? "Please select at least one repair type"
-                  : ""
+                    ? "Please select at least one repair type"
+                    : ""
               }
             >
               {submitting ? "Saving..." : "Log Repair"}
