@@ -10,6 +10,8 @@ import ShowerBooking from "./components/ShowerBooking";
 import LaundryBooking from "./components/LaundryBooking";
 import BicycleRepairBooking from "./components/BicycleRepairBooking";
 import Login from "./pages/Login";
+import KeyboardShortcutsHelp from "./components/KeyboardShortcutsHelp";
+import { useState, useEffect } from "react";
 
 const AppContent = () => {
   const {
@@ -19,6 +21,26 @@ const AppContent = () => {
     bicyclePickerGuest,
   } = useAppContext();
   const { user, authLoading } = useAuth();
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+          return;
+        }
+        e.preventDefault();
+        setShowKeyboardHelp(true);
+      }
+      if (e.key === "Escape" && showKeyboardHelp) {
+        setShowKeyboardHelp(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showKeyboardHelp]);
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -56,6 +78,10 @@ const AppContent = () => {
       {showerPickerGuest && <ShowerBooking />}
       {laundryPickerGuest && <LaundryBooking />}
       {bicyclePickerGuest && <BicycleRepairBooking />}
+      <KeyboardShortcutsHelp 
+        isOpen={showKeyboardHelp} 
+        onClose={() => setShowKeyboardHelp(false)} 
+      />
     </MainLayout>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { animated as Animated } from "@react-spring/web";
 import { useStagger, SpringIcon } from "../utils/animations";
@@ -28,6 +28,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 
@@ -54,11 +55,13 @@ const GuestList = () => {
   const { updateGuest, removeGuest } = useAppContext();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [expandedGuest, setExpandedGuest] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedGuestIndex, setSelectedGuestIndex] = useState(-1);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, guest: null });
   const [createFormData, setCreateFormData] = useState({
     firstName: "",
     lastName: "",
@@ -122,23 +125,66 @@ const GuestList = () => {
   }, [guests]);
 
   const searchInputRef = useRef(null);
+  const createFirstNameRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleShowCreateForm = useCallback(() => {
+    const searchParts = searchTerm.trim().split(/\s+/);
+    const firstName = searchParts[0] || "";
+    const lastName = searchParts.slice(1).join(" ") || "";
+
+    setCreateFormData((prev) => ({
+      ...prev,
+      firstName,
+      lastName,
+      preferredName: firstName,
+    }));
+    setShowCreateForm(true);
+    setCreateError("");
+  }, [searchTerm]);
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
+      const target = e.target;
+      const tagName = target?.tagName;
+      const isEditableTarget =
+        target &&
+        (tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      const key = typeof e.key === "string" ? e.key.toLowerCase() : "";
+
       // Cmd/Ctrl + K to focus search
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && key === "k") {
         e.preventDefault();
         searchInputRef.current?.focus();
+        return;
+      }
+
+      // Cmd/Ctrl + Alt + G to open create guest form
+      if ((e.metaKey || e.ctrlKey) && e.altKey && key === "g") {
+        if (isEditableTarget) {
+          return;
+        }
+        e.preventDefault();
+        handleShowCreateForm();
       }
     };
 
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
-  }, []);
+  }, [handleShowCreateForm]);
 
   const filteredGuests = useMemo(() => {
-    const queryRaw = searchTerm.trim();
+    const queryRaw = debouncedSearchTerm.trim();
     if (!queryRaw) {
       return [];
     }
@@ -245,7 +291,7 @@ const GuestList = () => {
       });
 
     return scored.map((s) => s.guest);
-  }, [guestsList, searchTerm]);
+  }, [guestsList, debouncedSearchTerm]);
 
   const trail = useStagger((filteredGuests || []).length, true);
 
@@ -683,21 +729,6 @@ const GuestList = () => {
     }
   };
 
-  const handleShowCreateForm = () => {
-    const searchParts = searchTerm.trim().split(/\s+/);
-    const firstName = searchParts[0] || "";
-    const lastName = searchParts.slice(1).join(" ") || "";
-
-    setCreateFormData((prev) => ({
-      ...prev,
-      firstName: firstName,
-      lastName: lastName,
-      preferredName: firstName,
-    }));
-    setShowCreateForm(true);
-    setCreateError("");
-  };
-
   const handleCancelCreate = () => {
     setShowCreateForm(false);
     setCreateFormData({
@@ -715,6 +746,14 @@ const GuestList = () => {
     setFieldErrors({});
     setDuplicateWarning("");
   };
+
+  useEffect(() => {
+    if (!showCreateForm) return;
+    const focusTimer = requestAnimationFrame(() => {
+      createFirstNameRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(focusTimer);
+  }, [showCreateForm]);
 
   const startEditingGuest = (guest) => {
     setEditingGuestId(guest.id);
@@ -773,17 +812,42 @@ const GuestList = () => {
   const cancelEditing = () => setEditingGuestId(null);
 
   const deleteGuest = (guest) => {
-    const confirmed = window.confirm(
-      `Delete ${guest.name}? This cannot be undone.`,
-    );
-    if (!confirmed) return;
+    const guestMealCount = (mealRecords || []).filter(r => r.guestId === guest.id).length;
+    const guestShowerCount = (showerRecords || []).filter(r => r.guestId === guest.id).length;
+    const guestLaundryCount = (laundryRecords || []).filter(r => r.guestId === guest.id).length;
+    
+    setDeleteConfirmation({
+      isOpen: true,
+      guest,
+      mealCount: guestMealCount,
+      showerCount: guestShowerCount,
+      laundryCount: guestLaundryCount,
+    });
+  };
+
+  const confirmDelete = () => {
+    const guest = deleteConfirmation.guest;
     removeGuest(guest.id);
     toast.success("Guest deleted");
     if (expandedGuest === guest.id) setExpandedGuest(null);
+    setDeleteConfirmation({ isOpen: false, guest: null });
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, guest: null });
   };
 
   return (
     <div className="space-y-6">
+      <DeleteConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        guest={deleteConfirmation.guest}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        mealCount={deleteConfirmation.mealCount}
+        showerCount={deleteConfirmation.showerCount}
+        laundryCount={deleteConfirmation.laundryCount}
+      />
       <div className="flex flex-col gap-4">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -854,9 +918,10 @@ const GuestList = () => {
           )}
         </div>
         <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
-          <strong>Tips:</strong> Use Ctrl+K to focus search • Enter first name
-          and at least the first letter of the last name to create new guest •
-          Use ↑↓ arrows to navigate results
+          <strong>Tips:</strong> Use Ctrl+K to focus search • Press Ctrl+Alt+G
+          (⌘⌥G on Mac) to open the create guest form • Enter first name and at
+          least the first letter of the last name to create new guest • Use ↑↓
+          arrows to navigate results
         </div>
       </div>
 
@@ -927,6 +992,7 @@ const GuestList = () => {
                 <input
                   type="text"
                   name="firstName"
+                  ref={createFirstNameRef}
                   value={createFormData.firstName}
                   onChange={handleCreateFormChange}
                   onBlur={handleNameBlur}

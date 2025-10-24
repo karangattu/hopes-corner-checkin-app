@@ -23,6 +23,7 @@ const GuestBatchUpload = () => {
   const { importGuestsFromCSV } = useAppContext();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
 
   const parseCSV = (content) => {
@@ -138,15 +139,16 @@ const GuestBatchUpload = () => {
     reader.onload = async (e) => {
       try {
         const content = e.target.result;
+        setUploadProgress("Parsing CSV file...");
         const parsedData = parseCSV(content);
 
-        // Filter out special guest IDs that should not create profiles
         const validGuests = parsedData.filter(
           (guest) => !SPECIAL_GUEST_IDS.includes(guest.guest_id)
         );
         
         const skippedCount = parsedData.length - validGuests.length;
 
+        setUploadProgress(`Importing ${validGuests.length} guests...`);
         const {
           importedGuests,
           failedCount,
@@ -155,6 +157,7 @@ const GuestBatchUpload = () => {
         } = await importGuestsFromCSV(validGuests);
 
         const successCount = importedGuests.length;
+        setUploadProgress(null);
 
         if (importError) {
           let message = importError;
@@ -191,6 +194,7 @@ const GuestBatchUpload = () => {
         });
       } finally {
         setIsUploading(false);
+        setUploadProgress(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -203,6 +207,7 @@ const GuestBatchUpload = () => {
         message: "Failed to read the file",
       });
       setIsUploading(false);
+      setUploadProgress(null);
     };
 
     reader.readAsText(file);
@@ -222,6 +227,13 @@ const GuestBatchUpload = () => {
       <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
         <FileText size={20} /> Batch Import Guests
       </h2>
+
+      {uploadProgress && (
+        <div className="mb-4 p-3 rounded flex items-center gap-2 bg-blue-100 text-blue-700 border border-blue-200">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+          {uploadProgress}
+        </div>
+      )}
 
       {uploadResult && (
         <div

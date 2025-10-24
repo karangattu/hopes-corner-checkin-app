@@ -81,7 +81,7 @@ const BicycleRepairBooking = () => {
         className="absolute inset-0 bg-black/40"
         onClick={() => setBicyclePickerGuest(null)}
       />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-5 border border-gray-100 animate-in fade-in slide-in-from-bottom-4">
+      <div className="relative w-full sm:max-w-lg md:max-w-2xl lg:max-w-3xl bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-5 border border-gray-100 animate-in fade-in slide-in-from-bottom-4">
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Bike /> Log Bicycle Repair for {bicyclePickerGuest.name}

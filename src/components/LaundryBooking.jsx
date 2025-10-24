@@ -179,7 +179,7 @@ const LaundryBooking = () => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl lg:max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300">
         <div className="sticky top-0 bg-gradient-to-br from-purple-50 to-indigo-50 border-b border-purple-100 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-purple-500 text-white p-3 rounded-xl shadow-md">

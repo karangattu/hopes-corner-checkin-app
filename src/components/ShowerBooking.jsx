@@ -180,7 +180,7 @@ const ShowerBooking = () => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50 animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-2xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-4 md:slide-in-from-bottom-2 duration-300">
+      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-3xl lg:max-w-4xl md:max-h-[92vh] h-[88vh] md:h-auto overflow-y-auto shadow-2xl animate-in slide-in-from-bottom-4 md:slide-in-from-bottom-2 duration-300">
         <div className="sticky top-0 bg-gradient-to-br from-sky-50 to-blue-50 border-b border-blue-100 p-4 md:p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500 text-white p-2.5 md:p-3 rounded-xl shadow-md">

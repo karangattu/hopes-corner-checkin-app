@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import GuestList from "../GuestList";
 
@@ -16,6 +16,8 @@ const createDefaultContext = () => ({
   unitedEffortMealRecords: [],
   rvMealRecords: [],
   lunchBagRecords: [],
+  actionHistory: [],
+  undoAction: vi.fn(),
   setShowerPickerGuest: vi.fn(),
   setLaundryPickerGuest: vi.fn(),
   addMealRecord: vi.fn(),
@@ -147,5 +149,148 @@ describe("GuestList", () => {
     expect(
       await screen.findByText(/for privacy, start typing to search/i),
     ).toBeInTheDocument();
+  });
+
+  it("shows delete confirmation modal when delete button is clicked", async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        {
+          id: "g1",
+          name: "John Doe",
+          firstName: "John",
+          lastName: "Doe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Male",
+        },
+      ],
+      mealRecords: [{ id: "m1", guestId: "g1", date: "2025-10-24" }],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, "John");
+    
+    const guestCard = await screen.findByText("John Doe");
+    await user.click(guestCard);
+
+    const deleteButton = await screen.findByText(/delete/i);
+    await user.click(deleteButton);
+
+    expect(await screen.findByText("Delete Guest Profile?")).toBeInTheDocument();
+    expect(screen.getByText(/This will permanently delete/)).toBeInTheDocument();
+    expect(screen.getByText(/1 meal record$/)).toBeInTheDocument();
+  });
+
+  it("closes delete confirmation modal when cancel is clicked", async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        {
+          id: "g1",
+          name: "John Doe",
+          firstName: "John",
+          lastName: "Doe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Male",
+        },
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, "John");
+    
+    const guestCard = await screen.findByText("John Doe");
+    await user.click(guestCard);
+
+    const deleteButton = await screen.findByText(/delete/i);
+    await user.click(deleteButton);
+
+    const cancelButton = await screen.findByText("Cancel");
+    await user.click(cancelButton);
+
+    expect(screen.queryByText("Delete Guest Profile?")).not.toBeInTheDocument();
+  });
+
+  it("calls removeGuest when delete is confirmed", async () => {
+    const user = userEvent.setup();
+    const removeGuest = vi.fn();
+    mockContextValue = {
+      ...createDefaultContext(),
+      removeGuest,
+      guests: [
+        {
+          id: "g1",
+          name: "John Doe",
+          firstName: "John",
+          lastName: "Doe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Male",
+        },
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    await user.type(search, "John");
+    
+    const guestCard = await screen.findByText("John Doe");
+    await user.click(guestCard);
+
+    const deleteButton = await screen.findByText(/delete/i);
+    await user.click(deleteButton);
+
+    const confirmButton = await screen.findByText("Delete Permanently");
+    await user.click(confirmButton);
+
+    expect(removeGuest).toHaveBeenCalledWith("g1");
+  });
+
+  it("opens create guest form with keyboard shortcut", async () => {
+    render(<GuestList />);
+
+    expect(
+      screen.queryByRole("dialog", { name: /create new guest/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document, {
+      key: "g",
+      ctrlKey: true,
+      altKey: true,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: /create new guest/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("does not trigger shortcut while typing in inputs", async () => {
+    render(<GuestList />);
+
+    const search = screen.getByPlaceholderText(/search by name/i);
+    search.focus();
+
+    fireEvent.keyDown(search, {
+      key: "g",
+      ctrlKey: true,
+      altKey: true,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: /create new guest/i }),
+      ).not.toBeInTheDocument();
+    });
   });
 });
