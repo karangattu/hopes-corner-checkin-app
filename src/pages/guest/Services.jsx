@@ -1517,21 +1517,20 @@ const Services = () => {
     }
   };
 
-  const handleStatusChange = (recordId, newStatus) => {
-    updateLaundryStatus(recordId, newStatus);
-    const info = getLaundryStatusInfo(newStatus);
-    enhancedToast.success(`Laundry status updated to ${info.label}`);
+  const handleStatusChange = async (recordId, newStatus) => {
+    const success = await updateLaundryStatus(recordId, newStatus);
+    if (success) {
+      const info = getLaundryStatusInfo(newStatus);
+      enhancedToast.success(`Laundry status updated to ${info.label}`);
+    }
   };
 
   const handleBagNumberUpdate = async (recordId, bagNumber) => {
-    try {
-      await updateLaundryBagNumber(recordId, bagNumber);
+    const success = await updateLaundryBagNumber(recordId, bagNumber);
+    if (success) {
       setEditingBagNumber(null);
       setNewBagNumber("");
       enhancedToast.success("Bag number updated");
-    } catch (error) {
-      console.error("Failed to update bag number", error);
-      enhancedToast.error("Failed to update bag number");
     }
   };
 
@@ -1580,24 +1579,20 @@ const Services = () => {
       return;
     }
 
-    try {
-      // Update bag number first
-      await updateLaundryBagNumber(bagPromptRecord.id, val);
-
-      // Then update status if needed
-      if (bagPromptNextStatus) {
-        handleStatusChange(bagPromptRecord.id, bagPromptNextStatus);
-      }
-
-      setBagPromptOpen(false);
-      setBagPromptRecord(null);
-      setBagPromptNextStatus(null);
-      setBagPromptValue("");
-      toast.success("Bag number saved and status updated");
-    } catch (error) {
-      console.error("Failed to update bag number", error);
-      toast.error("Failed to update bag number");
+    const saved = await updateLaundryBagNumber(bagPromptRecord.id, val);
+    if (!saved) {
+      return;
     }
+
+    if (bagPromptNextStatus) {
+      await handleStatusChange(bagPromptRecord.id, bagPromptNextStatus);
+    }
+
+    setBagPromptOpen(false);
+    setBagPromptRecord(null);
+    setBagPromptNextStatus(null);
+    setBagPromptValue("");
+    toast.success("Bag number saved and status updated");
   };
 
   const startEditingBagNumber = (recordId, currentBagNumber) => {
@@ -1609,13 +1604,18 @@ const Services = () => {
     setNewBagNumber(value);
   }, []);
 
-  const handleBagNumberKeyDown = useCallback((e, event) => {
+  const handleBagNumberKeyDown = useCallback(async (e, event) => {
     if (e.key === "Enter") {
       if (event.originalRecord && newBagNumber) {
-        updateLaundryBagNumber(event.originalRecord.id, parseInt(newBagNumber, 10));
-        setEditingBagNumber(null);
-        setNewBagNumber("");
-        toast.success(`Bag #${newBagNumber} updated`);
+        const success = await updateLaundryBagNumber(
+          event.originalRecord.id,
+          parseInt(newBagNumber, 10),
+        );
+        if (success) {
+          setEditingBagNumber(null);
+          setNewBagNumber("");
+          toast.success(`Bag #${newBagNumber} updated`);
+        }
       }
     } else if (e.key === "Escape") {
       setEditingBagNumber(null);
@@ -1623,12 +1623,17 @@ const Services = () => {
     }
   }, [newBagNumber, updateLaundryBagNumber]);
 
-  const handleBagNumberSave = useCallback((event) => {
+  const handleBagNumberSave = useCallback(async (event) => {
     if (event.originalRecord && newBagNumber) {
-      updateLaundryBagNumber(event.originalRecord.id, parseInt(newBagNumber, 10));
-      setEditingBagNumber(null);
-      setNewBagNumber("");
-      toast.success(`Bag #${newBagNumber} updated`);
+      const success = await updateLaundryBagNumber(
+        event.originalRecord.id,
+        parseInt(newBagNumber, 10),
+      );
+      if (success) {
+        setEditingBagNumber(null);
+        setNewBagNumber("");
+        toast.success(`Bag #${newBagNumber} updated`);
+      }
     }
   }, [newBagNumber, updateLaundryBagNumber]);
 
@@ -1727,12 +1732,14 @@ const Services = () => {
         {/* Toggle completion status */}
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             const nextStatus = isCompleted ? "awaiting" : "done";
-            updateShowerStatus(record.id, nextStatus);
-            toast.success(
-              nextStatus === "done" ? "Marked as completed" : "Reopened shower",
-            );
+            const success = await updateShowerStatus(record.id, nextStatus);
+            if (success) {
+              toast.success(
+                nextStatus === "done" ? "Marked as completed" : "Reopened shower",
+              );
+            }
           }}
           className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${
             isCompleted
@@ -4604,11 +4611,20 @@ const Services = () => {
                 <Selectize
                   options={showerSlotOptions}
                   value={record.time || ""}
-                  onChange={(time) => {
+                  onChange={async (time) => {
                     try {
-                      rescheduleShower(record.id, time);
+                      const updated = await rescheduleShower(record.id, time);
+                      if (!updated || updated.time !== time) {
+                        return;
+                      }
                       if (record.status === "waitlisted") {
-                        updateShowerStatus(record.id, "awaiting");
+                        const statusSuccess = await updateShowerStatus(
+                          record.id,
+                          "awaiting",
+                        );
+                        if (!statusSuccess) {
+                          return;
+                        }
                       }
                       const friendly = formatShowerSlotLabel(time);
                       toast.success(
@@ -4634,15 +4650,20 @@ const Services = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     try {
                       const nextStatus = isDone ? "awaiting" : "done";
-                      updateShowerStatus(record.id, nextStatus);
-                      toast.success(
-                        nextStatus === "done"
-                          ? "Marked as completed"
-                          : "Reopened shower",
+                      const success = await updateShowerStatus(
+                        record.id,
+                        nextStatus,
                       );
+                      if (success) {
+                        toast.success(
+                          nextStatus === "done"
+                            ? "Marked as completed"
+                            : "Reopened shower",
+                        );
+                      }
                     } catch (error) {
                       toast.error(error.message);
                     }

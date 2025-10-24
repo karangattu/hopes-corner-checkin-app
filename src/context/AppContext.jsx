@@ -197,6 +197,8 @@ const mergeSettings = (base, incoming = {}) => {
   return next;
 };
 
+const GUEST_IMPORT_CHUNK_SIZE = 100;
+
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
   const [settings, setSettings] = useState(() => createDefaultSettings());
@@ -1158,7 +1160,7 @@ export const AppProvider = ({ children }) => {
     return fallbackGuest;
   };
 
-  const importGuestsFromCSV = (csvData) => {
+  const importGuestsFromCSV = async (csvData) => {
     if (!csvData || csvData.length === 0) {
       throw new Error("No valid CSV data provided");
     }
@@ -1175,34 +1177,34 @@ export const AppProvider = ({ children }) => {
 
       const csvRowNumber = rowIndex + 2;
       const guestIdFromCSV = (row.guest_id || "").trim();
-      const recordIdentifier = guestIdFromCSV 
+      const recordIdentifier = guestIdFromCSV
         ? `Guest ID: ${guestIdFromCSV}, Row: ${csvRowNumber}`
         : `Row: ${csvRowNumber}`;
 
       let firstName = toTitleCase((row.first_name || "").trim());
       let lastName = toTitleCase((row.last_name || "").trim());
       let fullName = (row.full_name || "").trim();
-      
+
       if (!fullName) {
         fullName = `${firstName} ${lastName}`.trim();
-      } else {
-        if (!firstName || !lastName) {
-          const parts = fullName.split(/\s+/);
-          firstName = firstName || toTitleCase(parts[0] || "");
-          lastName = lastName || toTitleCase(parts.slice(1).join(" ") || "");
-        }
+      } else if (!firstName || !lastName) {
+        const parts = fullName.split(/\s+/);
+        firstName = firstName || toTitleCase(parts[0] || "");
+        lastName = lastName || toTitleCase(parts.slice(1).join(" ") || "");
       }
-      
+
       if (!firstName) {
         throw new Error(
-          `Missing first name (${recordIdentifier}). Data: ${JSON.stringify(rawRow)}`,
+          `Missing first name (${recordIdentifier}). Data: ${JSON.stringify(
+            rawRow,
+          )}`,
         );
       }
-      
+
       if (!lastName) {
         lastName = firstName.charAt(0).toUpperCase();
       }
-      
+
       fullName = `${firstName} ${lastName}`.trim();
 
       const housingStatusRaw = (row.housing_status || "").trim();
@@ -1212,11 +1214,13 @@ export const AppProvider = ({ children }) => {
       const gender = genderRaw ? genderRaw : "Unknown";
       const location =
         (row.city || row.location || "").trim() || "Mountain View";
+
       if (!AGE_GROUPS.includes(age)) {
         throw new Error(
-          `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`
+          `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`,
         );
       }
+
       if (!GENDERS.includes(gender)) {
         throw new Error(
           `Invalid Gender value '${gender}' (${recordIdentifier}). Allowed: ${GENDERS.join(", ")}`,
@@ -1227,6 +1231,7 @@ export const AppProvider = ({ children }) => {
         guestIdFromCSV || null,
         takenIds,
       );
+
       return {
         id: baseTimestamp + rowIndex * 1000 + Math.floor(Math.random() * 100),
         guestId,
@@ -1263,28 +1268,64 @@ export const AppProvider = ({ children }) => {
         bicycle_description: g.bicycleDescription,
       }));
 
-      supabase
-        .from("guests")
-        .insert(payload)
-        .select()
-        .then(({ data, error }) => {
+      const insertedRecords = [];
+      let encounteredError = null;
+
+      for (let start = 0; start < payload.length; start += GUEST_IMPORT_CHUNK_SIZE) {
+        const chunk = payload.slice(start, start + GUEST_IMPORT_CHUNK_SIZE);
+        try {
+          const { data, error } = await supabase
+            .from("guests")
+            .insert(chunk)
+            .select();
+
           if (error) {
-            console.error("Failed to bulk import guests to Supabase:", error);
-            setGuests((prev) => [...prev, ...newGuests]);
-          } else if (data) {
-            const mapped = data.map(mapGuestRow);
-            setGuests((prev) => [...prev, ...mapped]);
+            encounteredError = error;
+            break;
           }
-        })
-        .catch((error) => {
-          console.error("Bulk import error:", error);
-          setGuests((prev) => [...prev, ...newGuests]);
-        });
-    } else {
-      setGuests((prev) => [...prev, ...newGuests]);
+
+          if (data) {
+            const mapped = data.map(mapGuestRow);
+            insertedRecords.push(...mapped);
+          }
+        } catch (error) {
+          encounteredError = error;
+          break;
+        }
+      }
+
+      if (insertedRecords.length > 0) {
+        setGuests((prev) => [...prev, ...insertedRecords]);
+      }
+
+      const failedCount = newGuests.length - insertedRecords.length;
+      const partialFailure = failedCount > 0;
+      let errorMessage = null;
+
+      if (encounteredError) {
+        console.error("Failed to bulk import guests to Supabase:", encounteredError);
+        errorMessage =
+          failedCount === newGuests.length
+            ? "Unable to sync guest import with Supabase. No records were saved."
+            : `Unable to sync ${failedCount} guest${failedCount === 1 ? "" : "s"} with Supabase. ${insertedRecords.length} imported before the error.`;
+      }
+
+      return {
+        importedGuests: insertedRecords,
+        failedCount,
+        partialFailure,
+        error: errorMessage,
+      };
     }
 
-    return newGuests;
+    setGuests((prev) => [...prev, ...newGuests]);
+
+    return {
+      importedGuests: newGuests,
+      failedCount: 0,
+      partialFailure: false,
+      error: null,
+    };
   };
 
   const isSameDay = (iso1, iso2) => iso1.split("T")[0] === iso2.split("T")[0];
@@ -1365,6 +1406,8 @@ export const AppProvider = ({ children }) => {
     const mergedUpdates = { ...updates };
     if (!mergedUpdates.lastUpdated)
       mergedUpdates.lastUpdated = new Date().toISOString();
+    const originalRecord = bicycleRecords.find((r) => r.id === recordId);
+    const previousRecord = originalRecord ? { ...originalRecord } : null;
     setBicycleRecords((prev) =>
       prev.map((r) => (r.id === recordId ? { ...r, ...mergedUpdates } : r)),
     );
@@ -1403,9 +1446,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to update bicycle record:", error);
-        toast.error("Unable to update bicycle record.");
+        if (previousRecord) {
+          setBicycleRecords((prev) =>
+            prev.map((r) => (r.id === recordId ? previousRecord : r)),
+          );
+        }
+        enhancedToast.error("Unable to update bicycle record. Changes were reverted.");
+        return false;
       }
     }
+    return true;
   };
 
   const deleteBicycleRecord = async (recordId) => {
@@ -1687,6 +1737,7 @@ export const AppProvider = ({ children }) => {
       delete normalizedUpdates.bicycleDescription;
     }
     const target = guests.find((g) => g.id === id);
+    const originalGuest = target ? { ...target } : null;
     setGuests((prev) =>
       prev.map((guest) =>
         guest.id === id ? { ...guest, ...normalizedUpdates } : guest,
@@ -1722,24 +1773,37 @@ export const AppProvider = ({ children }) => {
       if (normalizedUpdates.guestId !== undefined)
         payload.external_id = normalizedUpdates.guestId;
 
-      if (Object.keys(payload).length === 0) return;
+      if (Object.keys(payload).length === 0) return true;
 
-      const { data, error } = await supabase
-        .from("guests")
-        .update(payload)
-        .eq("id", id)
-        .select()
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("guests")
+          .update(payload)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) {
+        if (error) throw error;
+
+        if (data) {
+          const mapped = mapGuestRow(data);
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? mapped : guest)),
+          );
+        }
+      } catch (error) {
         console.error("Failed to update guest in Supabase:", error);
-      } else if (data) {
-        const mapped = mapGuestRow(data);
-        setGuests((prev) =>
-          prev.map((guest) => (guest.id === id ? mapped : guest)),
-        );
+        if (originalGuest) {
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? originalGuest : guest)),
+          );
+        }
+        enhancedToast.error("Unable to update guest. Changes were reverted.");
+        return false;
       }
     }
+
+    return true;
   };
 
   const removeGuest = async (id) => {
@@ -2398,6 +2462,8 @@ export const AppProvider = ({ children }) => {
       pacificDateStringFrom(record.date) ||
       todayPacificDateString();
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, newTime);
+    const originalRecord = { ...record };
+    const previousSlots = showerSlots.map((slot) => ({ ...slot }));
     let updatedRecord = {
       ...record,
       time: newTime,
@@ -2405,6 +2471,7 @@ export const AppProvider = ({ children }) => {
       date: scheduledDateTime || record.date,
       lastUpdated: timestamp,
     };
+    let success = true;
     setShowerRecords((prev) =>
       prev.map((r) => (r.id === recordId ? updatedRecord : r)),
     );
@@ -2432,8 +2499,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to reschedule shower:", error);
-        toast.error("Unable to reschedule shower.");
+        success = false;
+        setShowerRecords((prev) =>
+          prev.map((r) => (r.id === recordId ? originalRecord : r)),
+        );
+        setShowerSlots(previousSlots);
+        enhancedToast.error("Unable to reschedule shower. Changes were reverted.");
       }
+    }
+    if (!success) {
+      return originalRecord;
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -2453,6 +2528,9 @@ export const AppProvider = ({ children }) => {
 
   const updateShowerStatus = async (recordId, newStatus) => {
     const timestamp = new Date().toISOString();
+    const originalRecord = showerRecords.find((r) => r.id === recordId);
+    if (!originalRecord) return false;
+    const previousRecord = { ...originalRecord };
     setShowerRecords((prev) =>
       prev.map((r) =>
         r.id === recordId
@@ -2477,9 +2555,14 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to update shower status:", error);
-        toast.error("Unable to update shower status.");
+        setShowerRecords((prev) =>
+          prev.map((r) => (r.id === recordId ? previousRecord : r)),
+        );
+        enhancedToast.error("Unable to update shower status. Changes were reverted.");
+        return false;
       }
     }
+    return true;
   };
 
   const addLaundryRecord = async (
@@ -2671,6 +2754,8 @@ export const AppProvider = ({ children }) => {
     const slotStart =
       targetType === "onsite" ? extractLaundrySlotStart(targetTime) : null;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
+    const originalRecord = { ...record };
+    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
     let updatedRecord = {
       ...record,
       laundryType: targetType,
@@ -2685,6 +2770,7 @@ export const AppProvider = ({ children }) => {
         (targetType === "onsite" ? record.date : timestamp),
       lastUpdated: timestamp,
     };
+    let success = true;
 
     setLaundryRecords((prev) =>
       prev.map((r) => (r.id === recordId ? updatedRecord : r)),
@@ -2735,8 +2821,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to update laundry booking:", error);
-        toast.error("Unable to update laundry booking.");
+        success = false;
+        setLaundryRecords((prev) =>
+          prev.map((r) => (r.id === recordId ? originalRecord : r)),
+        );
+        setLaundrySlots(previousSlots);
+        enhancedToast.error("Unable to update laundry booking. Changes were reverted.");
       }
+    }
+    if (!success) {
+      return originalRecord;
     }
     const action = {
       id: Date.now() + Math.random(),
@@ -2755,32 +2849,32 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateLaundryStatus = async (recordId, newStatus) => {
-    let updatedRecordRef = null;
+    const originalRecord = laundryRecords.find((r) => r.id === recordId);
+    if (!originalRecord) return false;
+    const timestamp = new Date().toISOString();
+    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
+    const updatedRecord = {
+      ...originalRecord,
+      status: newStatus,
+      lastUpdated: timestamp,
+    };
+
     setLaundryRecords((prev) =>
-      prev.map((record) => {
-        if (record.id !== recordId) return record;
-        const updated = {
-          ...record,
-          status: newStatus,
-          lastUpdated: new Date().toISOString(),
-        };
-        updatedRecordRef = updated;
-        return updated;
-      }),
+      prev.map((record) =>
+        record.id === recordId ? updatedRecord : record,
+      ),
     );
 
     setLaundrySlots((prev) =>
-      prev.map((slot) => {
-        const r = updatedRecordRef;
-        if (r && slot.guestId === r.guestId && slot.time === r.time) {
-          return { ...slot, status: newStatus, bagNumber: r.bagNumber };
-        }
-        return slot;
-      }),
+      prev.map((slot) =>
+        slot.guestId === updatedRecord.guestId && slot.time === updatedRecord.time
+          ? { ...slot, status: newStatus, bagNumber: updatedRecord.bagNumber }
+          : slot,
+      ),
     );
+
     if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
       try {
-        const timestamp = new Date().toISOString();
         const { data, error } = await supabase
           .from("laundry_bookings")
           .update({ status: newStatus, updated_at: timestamp })
@@ -2796,9 +2890,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to update laundry status:", error);
-        toast.error("Unable to update laundry status.");
+        setLaundryRecords((prev) =>
+          prev.map((record) => (record.id === recordId ? originalRecord : record)),
+        );
+        setLaundrySlots(previousSlots);
+        enhancedToast.error("Unable to update laundry status. Changes were reverted.");
+        return false;
       }
     }
+
+    return true;
   };
 
   const importShowerAttendanceRecord = (
@@ -2886,34 +2987,32 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateLaundryBagNumber = async (recordId, bagNumber) => {
-    let updatedRecordRef = null;
+    const originalRecord = laundryRecords.find((r) => r.id === recordId);
+    if (!originalRecord) return false;
+    const timestamp = new Date().toISOString();
+    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
+    const updatedRecord = {
+      ...originalRecord,
+      bagNumber: bagNumber || "",
+      lastUpdated: timestamp,
+    };
+
     setLaundryRecords((prev) =>
-      prev.map((record) => {
-        if (record.id !== recordId) return record;
-        const updated = {
-          ...record,
-          bagNumber: bagNumber || "",
-          lastUpdated: new Date().toISOString(),
-        };
-        updatedRecordRef = updated;
-        return updated;
-      }),
+      prev.map((record) =>
+        record.id === recordId ? updatedRecord : record,
+      ),
     );
 
-    // Update laundry slots as well
     setLaundrySlots((prev) =>
-      prev.map((slot) => {
-        const r = updatedRecordRef;
-        if (r && slot.guestId === r.guestId && slot.time === r.time) {
-          return { ...slot, bagNumber: bagNumber || "" };
-        }
-        return slot;
-      }),
+      prev.map((slot) =>
+        slot.guestId === updatedRecord.guestId && slot.time === updatedRecord.time
+          ? { ...slot, bagNumber: bagNumber || "" }
+          : slot,
+      ),
     );
 
     if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
       try {
-        const timestamp = new Date().toISOString();
         const { data, error } = await supabase
           .from("laundry_bookings")
           .update({
@@ -2932,9 +3031,16 @@ export const AppProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Failed to update bag number in Supabase:", error);
-        toast.error("Failed to sync bag number. Changes saved locally.");
+        setLaundryRecords((prev) =>
+          prev.map((record) => (record.id === recordId ? originalRecord : record)),
+        );
+        setLaundrySlots(previousSlots);
+        enhancedToast.error("Unable to update bag number. Changes were reverted.");
+        return false;
       }
     }
+
+    return true;
   };
 
   const getTodayMetrics = () => {

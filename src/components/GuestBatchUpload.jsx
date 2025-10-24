@@ -135,7 +135,7 @@ const GuestBatchUpload = () => {
     setUploadResult(null);
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target.result;
         const parsedData = parseCSV(content);
@@ -147,11 +147,37 @@ const GuestBatchUpload = () => {
         
         const skippedCount = parsedData.length - validGuests.length;
 
-        const importedGuests = importGuestsFromCSV(validGuests);
+        const {
+          importedGuests,
+          failedCount,
+          partialFailure,
+          error: importError,
+        } = await importGuestsFromCSV(validGuests);
 
-        let message = `Successfully imported ${importedGuests.length} guests`;
+        const successCount = importedGuests.length;
+
+        if (importError) {
+          let message = importError;
+          if (successCount > 0) {
+            message += ` ${successCount} guest${successCount === 1 ? "" : "s"} imported successfully.`;
+          }
+          if (skippedCount > 0) {
+            message += ` Skipped ${skippedCount} special meal ID${skippedCount === 1 ? "" : "s"}.`;
+          }
+
+          setUploadResult({
+            success: false,
+            message,
+          });
+          return;
+        }
+
+        let message = `Successfully imported ${successCount} guest${successCount === 1 ? "" : "s"}`;
         if (skippedCount > 0) {
           message += ` (skipped ${skippedCount} special meal ID${skippedCount > 1 ? "s" : ""})`;
+        }
+        if (partialFailure && failedCount > 0) {
+          message += ` (${failedCount} guest${failedCount === 1 ? "" : "s"} could not be synced)`;
         }
 
         setUploadResult({

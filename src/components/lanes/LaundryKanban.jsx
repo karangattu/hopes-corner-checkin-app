@@ -23,6 +23,14 @@ const LaundryKanban = ({
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
 
+  const applyStatusUpdate = async (recordId, newStatus) => {
+    const success = await updateLaundryStatus(recordId, newStatus);
+    if (success) {
+      toast.success("Status updated");
+    }
+    return success;
+  };
+
   const getGuestNameDetails = (guestId) => {
     const guest = guests.find((g) => g.id === guestId) || null;
     const fallback = "Unknown Guest";
@@ -66,11 +74,10 @@ const LaundryKanban = ({
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e, newStatus) => {
+  const handleDrop = async (e, newStatus) => {
     e.preventDefault();
     if (draggedItem && draggedItem.status !== newStatus) {
-      updateLaundryStatus(draggedItem.id, newStatus);
-      toast.success("Status updated");
+      await applyStatusUpdate(draggedItem.id, newStatus);
     }
     setDraggedItem(null);
   };
@@ -320,9 +327,7 @@ const LaundryKanban = ({
                 </label>
                 <select
                   value={record.status}
-                  onChange={(e) =>
-                    updateLaundryStatus(record.id, e.target.value)
-                  }
+                  onChange={(e) => applyStatusUpdate(record.id, e.target.value)}
                   className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                 >
                   {statusOptions.map((option) => (

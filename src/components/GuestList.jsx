@@ -746,7 +746,7 @@ const GuestList = () => {
     }
   };
 
-  const saveEditedGuest = () => {
+  const saveEditedGuest = async () => {
     if (!editFormData.firstName.trim() || !editFormData.lastName.trim()) {
       toast.error("Please enter both first and last name");
       return;
@@ -763,9 +763,11 @@ const GuestList = () => {
       bicycleDescription: editFormData.bicycleDescription?.trim() || "",
       name: `${toTitleCase(editFormData.firstName.trim())} ${toTitleCase(editFormData.lastName.trim())}`.trim(),
     };
-    updateGuest(editingGuestId, updates);
-    toast.success("Guest updated");
-    setEditingGuestId(null);
+    const success = await updateGuest(editingGuestId, updates);
+    if (success) {
+      toast.success("Guest updated");
+      setEditingGuestId(null);
+    }
   };
 
   const cancelEditing = () => setEditingGuestId(null);

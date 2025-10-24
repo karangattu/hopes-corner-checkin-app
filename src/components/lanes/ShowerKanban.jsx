@@ -20,6 +20,14 @@ const ShowerKanban = ({
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
 
+  const applyStatusUpdate = async (recordId, newStatus) => {
+    const success = await updateShowerStatus(recordId, newStatus);
+    if (success) {
+      toast.success("Status updated");
+    }
+    return success;
+  };
+
   const SHOWER_STATUS = {
     AWAITING: "awaiting",
     DONE: "done",
@@ -68,11 +76,10 @@ const ShowerKanban = ({
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e, newStatus) => {
+  const handleDrop = async (e, newStatus) => {
     e.preventDefault();
     if (draggedItem && draggedItem.status !== newStatus) {
-      updateShowerStatus(draggedItem.id, newStatus);
-      toast.success("Status updated");
+      await applyStatusUpdate(draggedItem.id, newStatus);
     }
     setDraggedItem(null);
   };
@@ -180,7 +187,7 @@ const ShowerKanban = ({
                 </label>
                 <select
                   value={record.status || SHOWER_STATUS.AWAITING}
-                  onChange={(e) => updateShowerStatus(record.id, e.target.value)}
+                  onChange={(e) => applyStatusUpdate(record.id, e.target.value)}
                   className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                 >
                   <option value={SHOWER_STATUS.AWAITING}>Awaiting</option>
