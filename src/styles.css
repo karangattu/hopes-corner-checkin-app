@@ -283,4 +283,5 @@ body {
   margin-top: var(--space-sm);
   font-size: var(--font-size-sm);
   color: #4b5563;
+  font-family: var(--font-metric);
 }

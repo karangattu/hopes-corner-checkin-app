@@ -730,7 +730,7 @@ const MonthlySummaryReport = () => {
           <div className="flex items-center gap-3">
             <Calendar className="text-blue-600" size={24} />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-xl font-semibold text-gray-900 font-heading">
                 Monthly Summary Report - {reportYear}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -752,43 +752,43 @@ const MonthlySummaryReport = () => {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900">
+                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900 font-heading">
                   Month
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
                   Monday
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
                   Wednesday
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
                   Saturday
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50 font-heading">
                   Friday
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
                   Day Worker Center
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
                   Extra Meals
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50 font-heading">
                   RV Wed+Sat
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50 font-heading">
                   RV Mon+Thu
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50 font-heading">
                   Lunch Bags
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
                   TOTAL HOT MEALS
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
                   Total w/ Lunch Bags
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white">
+                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
                   Onsite Hot Meals
                 </th>
               </tr>
@@ -797,43 +797,43 @@ const MonthlySummaryReport = () => {
               {/* Month rows */}
               {monthlyData.months.map((row, index) => (
                 <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 font-medium text-gray-900">
+                  <td className="border border-gray-300 px-3 py-2 font-medium text-gray-900 font-heading">
                     {row.month}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                     {row.mondayMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                     {row.wednesdayMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                     {row.saturdayMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50 font-metric">
                     {row.fridayMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                     {row.dayWorkerMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                     {row.extraMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
                     {row.rvWedSat.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
                     {row.rvMonThu.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-metric">
                     {row.lunchBags.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
                     {row.totalHotMeals.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
                     {row.totalWithLunchBags.toLocaleString()}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold">
+                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
                     {row.onsiteHotMeals.toLocaleString()}
                   </td>
                 </tr>
@@ -841,43 +841,43 @@ const MonthlySummaryReport = () => {
 
               {/* Totals row */}
               <tr className="bg-gray-200 font-bold">
-                <td className="border border-gray-300 px-3 py-2 text-gray-900">
+                <td className="border border-gray-300 px-3 py-2 text-gray-900 font-heading">
                   {monthlyData.totals.month}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                   {monthlyData.totals.mondayMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                   {monthlyData.totals.wednesdayMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
                   {monthlyData.totals.saturdayMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50 font-metric">
                   {monthlyData.totals.fridayMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                   {monthlyData.totals.dayWorkerMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                   {monthlyData.totals.extraMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
                   {monthlyData.totals.rvWedSat.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
                   {monthlyData.totals.rvMonThu.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-metric">
                   {monthlyData.totals.lunchBags.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                   {monthlyData.totals.totalHotMeals.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                   {monthlyData.totals.totalWithLunchBags.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white">
+                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
                   {monthlyData.totals.onsiteHotMeals.toLocaleString()}
                 </td>
               </tr>
