@@ -466,13 +466,6 @@ const Donations = () => {
     return "—";
   };
 
-  const recentWithUndo = useMemo(() => {
-    const recs = [...dayRecords].sort(
-      (a, b) => getRecordTimestamp(b) - getRecordTimestamp(a),
-    );
-    return recs;
-  }, [dayRecords]);
-
   const consolidatedActivity = useMemo(() => {
     const consolidationMap = new Map();
 
