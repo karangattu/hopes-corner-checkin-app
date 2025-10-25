@@ -17,8 +17,8 @@ import {
   Edit3,
   Trash2,
   Undo2,
-  ArrowLeft,
-  ArrowRight,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 
@@ -608,30 +608,37 @@ const Donations = () => {
             <PackagePlus size={18} className="text-emerald-500" />
             <span>Donations for</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => shiftSelectedDate(-1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-50"
-              aria-label="Previous day"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
-              className="w-[160px] rounded-lg border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-            />
-            <button
-              type="button"
-              onClick={() => shiftSelectedDate(1)}
-              disabled={isTodaySelected}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Next day"
-            >
-              <ArrowRight size={16} />
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(-1)}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-300 bg-white text-emerald-600 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 active:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                aria-label="Previous day"
+                title="Previous day"
+              >
+                <ChevronUp size={32} strokeWidth={2.5} />
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+                className="w-[160px] rounded-lg border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+              />
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(1)}
+                disabled={isTodaySelected}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-300 bg-white text-emerald-600 shadow-md transition hover:border-emerald-400 hover:bg-emerald-50 active:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400 disabled:hover:bg-white"
+                aria-label="Next day"
+                title="Next day"
+              >
+                <ChevronDown size={32} strokeWidth={2.5} />
+              </button>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-500">
+                Change day
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setSelectedDate(todayKey)}
