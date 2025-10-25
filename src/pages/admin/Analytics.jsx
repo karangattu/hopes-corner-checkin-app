@@ -26,6 +26,36 @@ import {
 } from "lucide-react";
 import { todayPacificDateString } from "../../utils/date";
 
+const CHANGE_LABEL_MAP = {
+  meals: "Meals",
+  showers: "Showers",
+  laundry: "Laundry",
+  haircuts: "Haircuts",
+  holidays: "Holidays",
+  bicycles: "Bicycles",
+  donationWeightLbs: "Donation lbs",
+  donationsLogged: "Donations",
+  donationTrays: "Donation trays",
+};
+
+const toSafeNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const formatWeightValue = (value) => {
+  const numeric = toSafeNumber(value);
+  const rounded = Math.round(numeric * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+};
+
+const formatChangeValue = (key, value) => {
+  if (key === "donationWeightLbs") {
+    return formatWeightValue(value);
+  }
+  return `${value}`;
+};
+
 /**
  * Analytics - Unified analytics and reporting page
  *
@@ -62,6 +92,7 @@ const Analytics = () => {
     "bicycles",
     "haircuts",
     "holidays",
+    "donations",
   ]);
 
   // Selected meal types
@@ -139,6 +170,7 @@ const Analytics = () => {
     { id: "bicycles", label: "Bicycles", icon: Bike, color: "green" },
     { id: "haircuts", label: "Haircuts", icon: Scissors, color: "yellow" },
     { id: "holidays", label: "Holidays", icon: Gift, color: "pink" },
+    { id: "donations", label: "Donations", icon: Heart, color: "rose" },
   ];
 
   // Views configuration
@@ -253,6 +285,24 @@ const Analytics = () => {
             </p>
           </div>
         )}
+
+        {selectedPrograms.includes("donations") && (
+          <div className="bg-rose-50 rounded-lg p-4 border border-rose-200">
+            <div className="flex items-center gap-2 text-rose-700 mb-2">
+              <Heart size={18} />
+              <span className="font-medium text-sm">Donations</span>
+            </div>
+            <p className="text-3xl font-bold text-rose-900">
+              {formatWeightValue(metrics.totals.donationWeightLbs)}
+              <span className="text-base font-semibold text-rose-700 ml-1">
+                lbs
+              </span>
+            </p>
+            <p className="text-xs text-rose-700 mt-2">
+              {metrics.totals.donationsLogged ?? 0} donations • {metrics.totals.donationTrays ?? 0} trays
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Comparison to previous period */}
@@ -263,18 +313,22 @@ const Analytics = () => {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {Object.entries(metrics.changes).map(([key, value]) => {
-              if (value === 0) return null;
+              const label = CHANGE_LABEL_MAP[key];
+              if (!label) return null;
+              const magnitude = Math.abs(Number(value));
+              if (magnitude < 0.01) return null;
               const isPositive = value > 0;
+              const formattedValue = formatChangeValue(key, magnitude);
               return (
                 <div key={key} className="text-center">
-                  <p className="text-xs text-blue-800 capitalize">{key}</p>
+                  <p className="text-xs text-blue-800">{label}</p>
                   <p
                     className={`text-lg font-bold ${
                       isPositive ? "text-green-700" : "text-red-700"
                     }`}
                   >
-                    {isPositive ? "+" : ""}
-                    {value}
+                    {isPositive ? "+" : "-"}
+                    {formattedValue}
                   </p>
                 </div>
               );
@@ -331,6 +385,13 @@ const Analytics = () => {
         <HolidaysChart
           days={metrics.dailyBreakdown}
           target={settings.targets?.monthlyHolidays}
+        />
+      )}
+
+      {selectedPrograms.includes("donations") && (
+        <DonationsChart
+          startDate={timeFilter.startDate}
+          endDate={timeFilter.endDate}
         />
       )}
     </div>

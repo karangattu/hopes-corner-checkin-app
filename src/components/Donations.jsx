@@ -10,10 +10,59 @@ import {
   BarChart3,
   Users,
   CalendarDays,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Sparkles,
+  ClipboardList,
+  Scale,
+  Edit3,
+  Trash2,
+  Undo2,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const formatPacificDateKey = (date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+const parseDateKey = (dateKey) => {
+  if (!dateKey || !DATE_ONLY_REGEX.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if ([year, month, day].some((segment) => Number.isNaN(segment))) return null;
+  const utcMidday = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  if (Number.isNaN(utcMidday.getTime())) return null;
+  return utcMidday;
+};
+
+const getDateKeyNDaysBefore = (dateKey, daysBefore) => {
+  const base = parseDateKey(dateKey);
+  if (!base) return null;
+  const shifted = new Date(base);
+  shifted.setUTCDate(shifted.getUTCDate() - daysBefore);
+  return formatPacificDateKey(shifted);
+};
+
+const shiftDateKey = (dateKey, offsetDays) => {
+  const base = parseDateKey(dateKey);
+  if (!base) return dateKey;
+  const shifted = new Date(base);
+  shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
+  return formatPacificDateKey(shifted);
+};
+
+const formatNumber = (value, options) =>
+  Number(value || 0).toLocaleString(undefined, options);
 
 const deriveDonationDateKey = (record) => {
   if (!record) return null;
@@ -62,43 +111,34 @@ const Donations = () => {
     setDonationRecords,
   } = useAppContext();
 
+  const todayKey = todayPacificDateString();
+
+  const [selectedDate, setSelectedDate] = useState(() => todayKey);
   const [form, setForm] = useState({
-    type: "Protein",
+    type: DONATION_TYPES?.[0] || "Protein",
     itemName: "",
     trays: "",
     weightLbs: "",
     donor: "",
   });
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(() =>
-    todayPacificDateString(),
-  );
-  const [range, setRange] = useState({
-    start: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() - 7);
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Los_Angeles",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(d);
-    })(),
-    end: todayPacificDateString(),
+  const [range, setRange] = useState(() => ({
+    start: getDateKeyNDaysBefore(todayKey, 7) || todayKey,
+    end: todayKey,
+  }));
+  const [editingId, setEditingId] = useState(null);
+  const [editRow, setEditRow] = useState({
+    type: DONATION_TYPES?.[0] || "Protein",
+    itemName: "",
+    trays: 0,
+    weightLbs: 0,
+    donor: "",
   });
 
   const suggestions = useMemo(
     () => getRecentDonations(8),
     [getRecentDonations],
   );
-  const [editingId, setEditingId] = useState(null);
-  const [editRow, setEditRow] = useState({
-    type: "Protein",
-    itemName: "",
-    trays: 0,
-    weightLbs: 0,
-    donor: "",
-  });
 
   const dayRecords = useMemo(
     () =>
@@ -110,19 +150,20 @@ const Donations = () => {
 
   const consolidated = useMemo(() => {
     const map = new Map();
-    for (const r of dayRecords) {
-      const key = `${r.itemName}|${r.donor}`;
-      if (!map.has(key))
+    for (const record of dayRecords) {
+      const key = `${record.itemName}|${record.donor}`;
+      if (!map.has(key)) {
         map.set(key, {
-          itemName: r.itemName,
-          donor: r.donor,
-          type: r.type,
+          itemName: record.itemName,
+          donor: record.donor,
+          type: record.type,
           trays: 0,
           weightLbs: 0,
         });
+      }
       const entry = map.get(key);
-      entry.trays += Number(r.trays) || 0;
-      entry.weightLbs += Number(r.weightLbs) || 0;
+      entry.trays += Number(record.trays) || 0;
+      entry.weightLbs += Number(record.weightLbs) || 0;
     }
     return Array.from(map.values()).sort((a, b) =>
       a.itemName.localeCompare(b.itemName),
@@ -131,11 +172,11 @@ const Donations = () => {
 
   const typeTotals = useMemo(() => {
     const totals = {};
-    for (const t of DONATION_TYPES) totals[t] = 0;
-    for (const r of dayRecords) {
-      const t = r.type;
-      if (totals[t] === undefined) totals[t] = 0;
-      totals[t] += Number(r.weightLbs) || 0;
+    for (const type of DONATION_TYPES) totals[type] = 0;
+    for (const record of dayRecords) {
+      const type = record.type;
+      if (totals[type] === undefined) totals[type] = 0;
+      totals[type] += Number(record.weightLbs) || 0;
     }
     return totals;
   }, [dayRecords, DONATION_TYPES]);
@@ -160,45 +201,17 @@ const Donations = () => {
     };
   }, [dayRecords]);
 
-  const summaryCards = useMemo(() => {
-    const formatNumber = (value, options) =>
-      Number(value || 0).toLocaleString(undefined, options);
-    return [
-      {
-        id: "entries",
-        label: "Entries logged",
-        value: formatNumber(selectedStats.entries),
-        helper: "Records captured on this date",
-        Icon: List,
-      },
-      {
-        id: "weight",
-        label: "Total weight",
-        value: `${formatNumber(selectedStats.weight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} lbs`,
-        helper: "Combined across all donations",
-        Icon: BarChart3,
-      },
-      {
-        id: "trays",
-        label: "Trays received",
-        value: formatNumber(selectedStats.trays, { maximumFractionDigits: 2 }),
-        helper: "Including partial tray counts",
-        Icon: PackagePlus,
-      },
-      {
-        id: "donors",
-        label: "Unique donors",
-        value: formatNumber(selectedStats.donors),
-        helper: "Contributors for this day",
-        Icon: Users,
-      },
-    ];
-  }, [
-    selectedStats.entries,
-    selectedStats.weight,
-    selectedStats.trays,
-    selectedStats.donors,
-  ]);
+  const typeBreakdown = useMemo(() => {
+    const entries = DONATION_TYPES.map((type) => ({
+      type,
+      weight: Number(typeTotals[type] || 0),
+    }));
+    const maxWeight = entries.reduce(
+      (max, entry) => Math.max(max, entry.weight),
+      0,
+    );
+    return { entries, maxWeight };
+  }, [DONATION_TYPES, typeTotals]);
 
   const topDonors = useMemo(() => {
     const donorsMap = new Map();
@@ -226,20 +239,320 @@ const Donations = () => {
       .slice(0, 4);
   }, [dayRecords]);
 
-  const typeBreakdown = useMemo(() => {
-    const entries = DONATION_TYPES.map((type) => ({
-      type,
-      weight: Number(typeTotals[type] || 0),
-    }));
-    const maxWeight = entries.reduce(
-      (max, entry) => Math.max(max, entry.weight),
-      0,
-    );
-    return { entries, maxWeight };
-  }, [DONATION_TYPES, typeTotals]);
+  const statsByDateKey = useMemo(() => {
+    const map = new Map();
+    for (const record of donationRecords || []) {
+      const key = deriveDonationDateKey(record);
+      if (!key) continue;
+      if (!map.has(key)) {
+        map.set(key, {
+          entries: 0,
+          trays: 0,
+          weight: 0,
+          donors: new Set(),
+        });
+      }
+      const summary = map.get(key);
+      summary.entries += 1;
+      summary.trays += Number(record.trays) || 0;
+      summary.weight += Number(record.weightLbs) || 0;
+      if (record.donor) {
+        const donorName = (record.donor || "").trim() || "Unknown donor";
+        summary.donors.add(donorName);
+      }
+    }
+    return map;
+  }, [donationRecords]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const periodSnapshots = useMemo(() => {
+    if (!selectedDate || !DATE_ONLY_REGEX.test(selectedDate)) {
+      return {
+        currentWeek: null,
+        previousWeek: null,
+        rollingMonth: null,
+      };
+    }
+
+    const accumulateRange = (startKey, endKey) => {
+      if (!startKey || !endKey) return null;
+      let entries = 0;
+      let trays = 0;
+      let weight = 0;
+      const donors = new Set();
+
+      for (const [key, summary] of statsByDateKey.entries()) {
+        if (key >= startKey && key <= endKey) {
+          entries += summary.entries;
+          trays += summary.trays;
+          weight += summary.weight;
+          summary.donors.forEach((donor) => donors.add(donor));
+        }
+      }
+
+      return {
+        startKey,
+        endKey,
+        entries,
+        trays,
+        weight,
+        donors: donors.size,
+      };
+    };
+
+    const currentWeekStart = getDateKeyNDaysBefore(selectedDate, 6);
+    const previousWeekEnd = getDateKeyNDaysBefore(selectedDate, 7);
+    const previousWeekStart = getDateKeyNDaysBefore(selectedDate, 13);
+    const rollingMonthStart = getDateKeyNDaysBefore(selectedDate, 29);
+
+    return {
+      currentWeek: accumulateRange(currentWeekStart, selectedDate),
+      previousWeek: accumulateRange(previousWeekStart, previousWeekEnd),
+      rollingMonth: accumulateRange(rollingMonthStart, selectedDate),
+    };
+  }, [selectedDate, statsByDateKey]);
+
+  const weeklyComparison = useMemo(() => {
+    const current = periodSnapshots.currentWeek;
+    if (!current) return null;
+
+    const previous = periodSnapshots.previousWeek;
+    const currentWeight = current.weight || 0;
+    const deltaWeight =
+      previous && typeof previous.weight === "number"
+        ? currentWeight - (previous.weight || 0)
+        : null;
+    const deltaPercent =
+      previous && previous.weight > 0
+        ? (deltaWeight / previous.weight) * 100
+        : null;
+
+    let trend = "flat";
+    if (deltaWeight !== null) {
+      if (deltaWeight > 0.1) trend = "up";
+      else if (deltaWeight < -0.1) trend = "down";
+    }
+
+    return {
+      weekWeight: currentWeight,
+      weekTrays: current.trays || 0,
+      deltaWeight,
+      deltaPercent,
+      trend,
+    };
+  }, [periodSnapshots]);
+
+  const summaryCards = useMemo(() => {
+    const cards = [
+      {
+        id: "daily-volume",
+        label: "Daily volume",
+        value: `${formatNumber(selectedStats.weight, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })} lbs`,
+        helper: `Trays logged: ${formatNumber(selectedStats.trays, {
+          maximumFractionDigits: 2,
+        })}`,
+        Icon: PackagePlus,
+      },
+      {
+        id: "entries",
+        label: "Entries logged",
+        value: formatNumber(selectedStats.entries),
+        helper:
+          selectedStats.entries > 0
+            ? `Avg weight ${formatNumber(
+                selectedStats.weight / selectedStats.entries,
+                {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                },
+              )} lbs`
+            : "Add a donation to begin",
+        Icon: ClipboardList,
+      },
+      {
+        id: "donors",
+        label: "Unique donors",
+        value: formatNumber(selectedStats.donors),
+        helper: periodSnapshots.rollingMonth
+          ? `${formatNumber(periodSnapshots.rollingMonth.donors)} in last 30 days`
+          : "Rolling insight updates as you log",
+        Icon: Users,
+      },
+    ];
+
+    const weekIcon =
+      weeklyComparison?.trend === "down"
+        ? TrendingDown
+        : weeklyComparison?.trend === "up"
+          ? TrendingUp
+          : BarChart3;
+
+    cards.push({
+      id: "week",
+      label: "Week to date",
+      value: weeklyComparison
+        ? `${formatNumber(weeklyComparison.weekWeight, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })} lbs`
+        : "—",
+      helper: (() => {
+        if (!weeklyComparison) return "Log donations to track weekly totals";
+        if (weeklyComparison.deltaWeight === null) {
+          return "No prior week on record";
+        }
+        if (Math.abs(weeklyComparison.deltaWeight) < 0.1) {
+          return "Holding steady vs last week";
+        }
+        const changeText = `${weeklyComparison.deltaWeight > 0 ? "+" : ""}${formatNumber(
+          weeklyComparison.deltaWeight,
+          {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          },
+        )} lbs`;
+        const percentText =
+          weeklyComparison.deltaPercent != null
+            ? ` (${weeklyComparison.deltaPercent > 0 ? "+" : ""}${formatNumber(
+                weeklyComparison.deltaPercent,
+                {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                },
+              )}%)`
+            : "";
+        return `${changeText}${percentText} vs last week`;
+      })(),
+      Icon: weekIcon,
+      trend: weeklyComparison?.trend ?? "flat",
+    });
+
+    return cards;
+  }, [selectedStats, periodSnapshots, weeklyComparison]);
+
+  const quickRangeOptions = useMemo(
+    () => [
+      {
+        id: "today",
+        label: "Today",
+        range:
+          selectedDate && DATE_ONLY_REGEX.test(selectedDate)
+            ? { start: selectedDate, end: selectedDate }
+            : null,
+      },
+      {
+        id: "this-week",
+        label: "This week",
+        range: periodSnapshots.currentWeek
+          ? {
+              start: periodSnapshots.currentWeek.startKey,
+              end: periodSnapshots.currentWeek.endKey,
+            }
+          : null,
+      },
+      {
+        id: "30-days",
+        label: "Last 30 days",
+        range: periodSnapshots.rollingMonth
+          ? {
+              start: periodSnapshots.rollingMonth.startKey,
+              end: periodSnapshots.rollingMonth.endKey,
+            }
+          : null,
+      },
+    ],
+    [selectedDate, periodSnapshots],
+  );
+
+  const rangePreview = useMemo(() => {
+    if (
+      !range.start ||
+      !range.end ||
+      !DATE_ONLY_REGEX.test(range.start) ||
+      !DATE_ONLY_REGEX.test(range.end) ||
+      range.start > range.end
+    ) {
+      return null;
+    }
+
+    let entries = 0;
+    let trays = 0;
+    let weight = 0;
+    const donors = new Set();
+
+    for (const [key, summary] of statsByDateKey.entries()) {
+      if (key >= range.start && key <= range.end) {
+        entries += summary.entries;
+        trays += summary.trays;
+        weight += summary.weight;
+        summary.donors.forEach((donor) => donors.add(donor));
+      }
+    }
+
+    return {
+      entries,
+      trays,
+      weight,
+      donors: donors.size,
+    };
+  }, [range.start, range.end, statsByDateKey]);
+
+  const selectedDateDisplay = useMemo(() => {
+    if (!selectedDate || !DATE_ONLY_REGEX.test(selectedDate)) return null;
+    const parsed = parseDateKey(selectedDate);
+    if (!parsed) return selectedDate;
+    return new Intl.DateTimeFormat(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(parsed);
+  }, [selectedDate]);
+
+  const WeeklyDeltaIcon =
+    weeklyComparison?.trend === "down"
+      ? ArrowDownRight
+      : weeklyComparison?.trend === "up"
+        ? ArrowUpRight
+        : Minus;
+
+  const weeklyDeltaToneClass =
+    weeklyComparison?.trend === "down"
+      ? "text-rose-200"
+      : weeklyComparison?.trend === "up"
+        ? "text-emerald-100"
+        : "text-white/80";
+
+  const weeklyDeltaText = (() => {
+    if (!weeklyComparison) return "";
+    if (weeklyComparison.deltaWeight === null) return "First week logged";
+    if (Math.abs(weeklyComparison.deltaWeight) < 0.1)
+      return "Even with last week";
+    const weightPortion = `${weeklyComparison.deltaWeight > 0 ? "+" : ""}${formatNumber(
+      weeklyComparison.deltaWeight,
+      {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      },
+    )} lbs`;
+    const percentPortion =
+      weeklyComparison.deltaPercent != null
+        ? ` (${weeklyComparison.deltaPercent > 0 ? "+" : ""}${formatNumber(
+            weeklyComparison.deltaPercent,
+            {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            },
+          )}%)`
+        : "";
+    return `${weightPortion}${percentPortion}`;
+  })();
+
+  const isTodaySelected = selectedDate === todayKey;
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     if (!selectedDate) {
       toast.error("Pick a date before logging a donation");
       return;
@@ -255,22 +568,30 @@ const Donations = () => {
         date: selectedDate,
       });
 
-      setForm((prev) => ({ ...prev, trays: "", weightLbs: "" }));
+      setForm((prev) => ({
+        ...prev,
+        trays: "",
+        weightLbs: "",
+      }));
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Failed to add donation");
+      toast.error(err?.message || "Failed to add donation");
     } finally {
       setLoading(false);
     }
   };
 
-  const applySuggestion = (sug) => {
+  const applySuggestion = (suggestion) => {
     setForm((prev) => ({
       ...prev,
-      itemName: sug.itemName,
-      donor: sug.donor,
-      type: sug.type,
+      itemName: suggestion.itemName,
+      donor: suggestion.donor,
+      type: suggestion.type,
     }));
+  };
+
+  const shiftSelectedDate = (offset) => {
+    setSelectedDate((prev) => shiftDateKey(prev, offset));
   };
 
   const getRecordTimestamp = (record) => {
@@ -308,158 +629,278 @@ const Donations = () => {
     );
     const findActionId = (recordId) =>
       (actionHistory || []).find(
-        (a) => a.type === "DONATION_ADDED" && a.data?.recordId === recordId,
+        (action) =>
+          action.type === "DONATION_ADDED" && action.data?.recordId === recordId,
       )?.id;
-    return recs.map((r) => ({ ...r, actionId: findActionId(r.id) }));
+    return recs.map((record) => ({
+      ...record,
+      actionId: findActionId(record.id),
+    }));
   }, [dayRecords, actionHistory]);
 
   const exportDonationsRange = () => {
-    const startISO = new Date(`${range.start}T00:00:00-08:00`).toISOString();
-    const endISO = new Date(`${range.end}T23:59:59.999-08:00`).toISOString();
-    const rows = (donationRecords || [])
-      .filter((r) => r.date >= startISO && r.date <= endISO)
-      .map((r) => ({
-        Date: new Date(r.date).toLocaleDateString(),
-        Type: r.type,
-        Item: r.itemName,
-        Trays: r.trays,
-        "Weight (lbs)": r.weightLbs,
-        Donor: r.donor,
-      }));
-    exportDataAsCSV(rows, `donations-${range.start}-to-${range.end}.csv`);
+    if (!rangePreview) {
+      toast.error("Select a valid date range before exporting.");
+      return;
+    }
+
+    const rows = [];
+    for (const record of donationRecords || []) {
+      const dateKey = deriveDonationDateKey(record);
+      if (!dateKey || dateKey < range.start || dateKey > range.end) continue;
+
+      const displayDate = (() => {
+        const candidates = [
+          record.date,
+          record.donatedAt,
+          record.donated_at,
+          record.createdAt,
+          record.created_at,
+        ];
+        for (const value of candidates) {
+          if (!value) continue;
+          const parsed = new Date(value);
+          if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleDateString();
+          }
+        }
+        const fallbackDate = parseDateKey(dateKey);
+        if (fallbackDate) {
+          return fallbackDate.toLocaleDateString();
+        }
+        return dateKey;
+      })();
+
+      rows.push({
+        Date: displayDate,
+        Type: record.type,
+        Item: record.itemName,
+        Trays: record.trays,
+        "Weight (lbs)": record.weightLbs,
+        Donor: record.donor,
+      });
+    }
+
+    if (rows.length === 0) {
+      toast.error("No donations found in the selected range.");
+      return;
+    }
+
+    exportDataAsCSV(
+      rows,
+      `donations-${range.start}-to-${range.end}.csv`,
+    );
+    toast.success(
+      `Exported ${formatNumber(rows.length)} donation record${rows.length === 1 ? "" : "s"}`,
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-white rounded-2xl shadow-sm p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-emerald-100">
-              <PackagePlus size={18} className="text-white" />
-              Donations log
+    <div className="space-y-8">
+      <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-600 via-teal-500 to-sky-500 p-8 text-white shadow-lg">
+        <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl space-y-4">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-100">
+              <PackagePlus size={16} className="text-white" />
+              Donations hub
             </div>
-            <h2 className="text-2xl font-semibold mt-2">
-              Track pantry and food donations
-            </h2>
-            <p className="text-sm text-emerald-50 mt-3 max-w-2xl">
-              Capture deliveries, keep an audit trail, and export totals in
-              seconds. Select a date to review and add entries without changing
-              your workflow.
-            </p>
+            <div>
+              <h2 className="text-3xl font-semibold leading-tight">
+                Pantry & meal support intake
+              </h2>
+              <p className="mt-3 text-sm text-emerald-50">
+                Manage food deliveries, track who contributed, and export clear
+                reports in seconds. Every section below stays in sync with the
+                date you are reviewing.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
+              Viewing {selectedDateDisplay || "—"} (Pacific)
+            </div>
           </div>
-          <div className="bg-white/10 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 min-w-[240px]">
-            <div className="flex items-center gap-2 text-sm font-medium text-white/90">
-              <CalendarDays size={18} /> Log for
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-white/20 bg-white/10 p-5 shadow-inner">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+                <CalendarDays size={18} /> Daily log
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => shiftSelectedDate(-1)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="rounded-lg border border-white/30 bg-white/90 px-3 py-1 text-sm font-medium text-gray-900 shadow-sm focus:border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => shiftSelectedDate(1)}
+                  disabled={isTodaySelected}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-white text-gray-900 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
-              />
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setSelectedDate(todayPacificDateString())}
-                className="text-xs font-semibold uppercase tracking-wide bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-1 transition-colors"
+                onClick={() => setSelectedDate(todayKey)}
+                disabled={isTodaySelected}
+                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Today
               </button>
+              <span className="text-xs text-white/70">
+                or choose any date to review history
+              </span>
             </div>
+            {weeklyComparison ? (
+              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/70">
+                  <span>Week to date</span>
+                  <span>
+                    {periodSnapshots.currentWeek?.startKey} →
+                    {" "}
+                    {periodSnapshots.currentWeek?.endKey}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <div className="text-2xl font-semibold">
+                    {formatNumber(weeklyComparison.weekWeight, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })} lbs
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 text-sm font-semibold ${weeklyDeltaToneClass}`}
+                  >
+                    <WeeklyDeltaIcon size={16} /> {weeklyDeltaText}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-white/80">
+                  Trays logged: {formatNumber(weeklyComparison.weekTrays, {
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-white/30 bg-white/5 p-4 text-xs text-white/75">
+                Track at least one week of donations to unlock weekly insights.
+              </div>
+            )}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-          {summaryCards.map(({ id, label, value, helper, Icon }) => {
-            const CardIcon = Icon;
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map(({ id, label, value, helper, Icon, trend }) => {
+            const IconComponent = Icon;
+            const iconBg =
+              trend === "down"
+                ? "bg-white/10 text-rose-100"
+                : trend === "up"
+                  ? "bg-white/10 text-emerald-100"
+                  : "bg-white/10 text-white/80";
             return (
               <div
                 key={id}
-                className="bg-white/15 border border-white/25 rounded-xl p-4 space-y-2"
+                className="rounded-2xl border border-white/20 bg-white/15 p-5 shadow-inner backdrop-blur-sm"
               >
-                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/80">
+                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/70">
                   <span>{label}</span>
-                  <CardIcon size={16} className="text-white/70" />
+                  <span
+                    className={`inline-flex items-center justify-center rounded-full px-2 py-1 ${iconBg}`}
+                  >
+                    <IconComponent size={16} />
+                  </span>
                 </div>
-                <div className="text-xl font-semibold leading-none">
-                  {value}
-                </div>
-                <p className="text-xs text-white/70">{helper}</p>
+                <div className="mt-3 text-2xl font-semibold">{value}</div>
+                <p className="mt-2 text-xs text-white/80">{helper}</p>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <PackagePlus size={18} className="text-emerald-500" /> Log a
-                  new donation
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                  <PackagePlus size={20} className="text-emerald-500" /> Log a
+                  donation
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter what arrived, how much was delivered, and who dropped it
-                  off. Entries save instantly.
+                <p className="mt-1 text-sm text-gray-500">
+                  Record what arrived, how much was delivered, and who dropped
+                  it off. Everything saves instantly.
                 </p>
               </div>
-              <div className="inline-flex items-center gap-2 text-xs rounded-full px-3 py-1 bg-emerald-50 text-emerald-700">
-                {selectedStats.entries.toLocaleString()} entries today
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                {formatNumber(selectedStats.entries)} entr
+                {selectedStats.entries === 1 ? "y" : "ies"} today
               </div>
             </div>
 
             <form
               onSubmit={handleSubmit}
-              className="grid grid-cols-1 md:grid-cols-6 gap-3"
+              className="grid grid-cols-1 gap-3 md:grid-cols-12"
             >
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              <div className="md:col-span-3">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Type
                 </label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                  onChange={(event) =>
+                    setForm({ ...form, type: event.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 >
-                  {DONATION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {DONATION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              <div className="md:col-span-9">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Donation details
                 </label>
                 <input
                   type="text"
                   value={form.itemName}
-                  onChange={(e) =>
-                    setForm({ ...form, itemName: e.target.value })
+                  onChange={(event) =>
+                    setForm({ ...form, itemName: event.target.value })
                   }
                   placeholder="e.g., Chicken tikka masala, Bok choy, Pasta"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              <div className="md:col-span-3">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Trays
                 </label>
                 <input
                   type="number"
                   min="0"
                   value={form.trays}
-                  onChange={(e) => setForm({ ...form, trays: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                  onChange={(event) =>
+                    setForm({ ...form, trays: event.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              <div className="md:col-span-3">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Weight (lbs)
                 </label>
                 <input
@@ -467,31 +908,33 @@ const Donations = () => {
                   min="0"
                   step="0.01"
                   value={form.weightLbs}
-                  onChange={(e) =>
-                    setForm({ ...form, weightLbs: e.target.value })
+                  onChange={(event) =>
+                    setForm({ ...form, weightLbs: event.target.value })
                   }
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              <div className="md:col-span-6">
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
                   Source (Donor)
                 </label>
                 <input
                   type="text"
                   value={form.donor}
-                  onChange={(e) => setForm({ ...form, donor: e.target.value })}
+                  onChange={(event) =>
+                    setForm({ ...form, donor: event.target.value })
+                  }
                   placeholder="e.g., Waymo, LinkedIn"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                  className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
 
-              <div className="md:col-span-1 flex items-end">
+              <div className="md:col-span-12 flex items-center justify-start pt-1 md:justify-end">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition disabled:opacity-70"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 md:w-auto"
                 >
                   <Save size={16} /> {loading ? "Saving…" : "Add donation"}
                 </button>
@@ -499,24 +942,22 @@ const Donations = () => {
             </form>
 
             {suggestions.length > 0 && (
-              <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-4">
-                <div className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <History size={16} className="text-gray-500" /> Quick fill
-                  from recent deliveries
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  <Sparkles size={16} /> Quick fill from recent deliveries
                 </div>
-                <p className="text-xs text-gray-500 mb-3">
-                  Tap to load item, donor, and type. Tray and weight fields
-                  remain editable.
+                <p className="mt-1 text-xs text-emerald-700/80">
+                  Prefill item, donor, and type. Weight and trays stay editable.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {suggestions.map((s, idx) => (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {suggestions.map((suggestion, index) => (
                     <button
-                      key={idx}
+                      key={`${suggestion.itemName}-${suggestion.donor}-${index}`}
                       type="button"
-                      onClick={() => applySuggestion(s)}
-                      className="px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-full hover:border-emerald-300 hover:text-emerald-700 transition"
+                      onClick={() => applySuggestion(suggestion)}
+                      className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs text-emerald-700 transition hover:border-emerald-400"
                     >
-                      {s.itemName} · {s.donor}
+                      {suggestion.itemName} · {suggestion.donor}
                     </button>
                   ))}
                 </div>
@@ -524,195 +965,145 @@ const Donations = () => {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+          <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <List size={18} className="text-emerald-500" /> Consolidated
-                  summary
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                  <List size={20} className="text-emerald-500" /> Daily rollup
                 </h3>
-                <p className="text-sm text-gray-500">
-                  Grouped by item and donor for{" "}
-                  {new Date(selectedDate).toLocaleDateString()}.
+                <p className="mt-1 text-sm text-gray-500">
+                  Grouped by item and donor for {selectedDateDisplay || "—"}.
                 </p>
               </div>
               <span className="text-xs uppercase tracking-wide text-gray-400">
                 Same-day totals
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border-separate border-spacing-y-1">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                    <th className="px-3 py-2 rounded-l-lg bg-gray-50">Item</th>
-                    <th className="px-3 py-2 bg-gray-50">Donor</th>
-                    <th className="px-3 py-2 bg-gray-50">Type</th>
-                    <th className="px-3 py-2 text-right bg-gray-50">Trays</th>
-                    <th className="px-3 py-2 text-right rounded-r-lg bg-gray-50">
-                      Weight (lbs)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {consolidated.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-3 py-6 text-center text-sm text-gray-500 bg-white rounded-lg border border-dashed border-gray-200"
-                      >
-                        No donations recorded for this date yet.
-                      </td>
-                    </tr>
-                  )}
-                  {consolidated.map((row, i) => (
-                    <tr
-                      key={`${row.itemName}|${row.donor}|${i}`}
-                      className="bg-white border border-gray-100 rounded-lg shadow-sm"
-                    >
-                      <td className="px-3 py-2 rounded-l-lg">{row.itemName}</td>
-                      <td className="px-3 py-2">{row.donor}</td>
-                      <td className="px-3 py-2">{row.type}</td>
-                      <td className="px-3 py-2 text-right">{row.trays}</td>
-                      <td className="px-3 py-2 text-right rounded-r-lg">
-                        {row.weightLbs.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {consolidated.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-6 text-center text-sm text-gray-500">
+                No donations recorded for this date yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {consolidated.map((row, index) => (
+                  <div
+                    key={`${row.itemName}|${row.donor}|${index}`}
+                    className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {row.itemName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {row.donor} · {row.type}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm font-semibold text-gray-900">
+                      <span className="flex items-center gap-2 text-gray-600">
+                        <span className="text-xs uppercase tracking-wide text-gray-500">
+                          Trays
+                        </span>
+                        {formatNumber(row.trays, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                      <span className="flex items-center gap-2 text-gray-600">
+                        <span className="text-xs uppercase tracking-wide text-gray-500">
+                          Weight
+                        </span>
+                        {formatNumber(row.weightLbs, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}{" "}
+                        lbs
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4 text-xs text-gray-600">
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1">
+                <Scale size={14} className="text-emerald-500" />
+                {selectedStats.entries > 0
+                  ? `Avg ${formatNumber(selectedStats.weight / selectedStats.entries, {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })} lbs per entry`
+                  : "Average weight updates after first entry"}
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1">
+                Total trays: {formatNumber(selectedStats.trays, {
+                  maximumFractionDigits: 2,
+                })}
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1">
+                Total weight: {formatNumber(selectedStats.weight, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{" "}
+                lbs
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+          <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <History size={18} className="text-emerald-500" /> Recent
-                  activity & quick edits
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                  <History size={20} className="text-emerald-500" /> Recent
+                  activity
                 </h3>
-                <p className="text-sm text-gray-500">
-                  Update mistakes or undo a record without leaving the page.
+                <p className="mt-1 text-sm text-gray-500">
+                  Inline edit or undo entries without leaving the dashboard.
                 </p>
               </div>
               <span className="text-xs uppercase tracking-wide text-gray-400">
-                Entries for this date
+                {selectedDateDisplay || "Selected date"}
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border-separate border-spacing-y-1">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
-                    <th className="px-3 py-2 rounded-l-lg bg-gray-50">Time</th>
-                    <th className="px-3 py-2 bg-gray-50">Item</th>
-                    <th className="px-3 py-2 bg-gray-50">Donor</th>
-                    <th className="px-3 py-2 bg-gray-50">Type</th>
-                    <th className="px-3 py-2 text-right bg-gray-50">Trays</th>
-                    <th className="px-3 py-2 text-right bg-gray-50">Lbs</th>
-                    <th className="px-3 py-2 text-right rounded-r-lg bg-gray-50">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentWithUndo.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-3 py-6 text-center text-sm text-gray-500 bg-white rounded-lg border border-dashed border-gray-200"
-                      >
-                        No recent entries for{" "}
-                        {new Date(selectedDate).toLocaleDateString()} yet.
-                      </td>
-                    </tr>
-                  )}
-                  {recentWithUndo.map((r) => (
-                    <tr
-                      key={r.id}
-                      className="bg-white border border-gray-100 rounded-lg shadow-sm align-top"
+            {recentWithUndo.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-6 text-center text-sm text-gray-500">
+                No entries yet for this date.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentWithUndo.map((record) => {
+                  const isEditing = editingId === record.id;
+                  return (
+                    <div
+                      key={record.id}
+                      className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 shadow-sm"
                     >
-                      <td className="px-3 py-2 rounded-l-lg align-top">
-                        {formatRecordTime(r)}
-                      </td>
-                      {editingId === r.id ? (
-                        <>
-                          <td className="px-3 py-2">
-                            <input
-                              type="text"
-                              value={editRow.itemName}
-                              onChange={(e) =>
-                                setEditRow((prev) => ({
-                                  ...prev,
-                                  itemName: e.target.value,
-                                }))
-                              }
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="text"
-                              value={editRow.donor}
-                              onChange={(e) =>
-                                setEditRow((prev) => ({
-                                  ...prev,
-                                  donor: e.target.value,
-                                }))
-                              }
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <select
-                              value={editRow.type}
-                              onChange={(e) =>
-                                setEditRow((prev) => ({
-                                  ...prev,
-                                  type: e.target.value,
-                                }))
-                              }
-                              className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                            >
-                              {DONATION_TYPES.map((t) => (
-                                <option key={t} value={t}>
-                                  {t}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <input
-                              type="number"
-                              min="0"
-                              value={editRow.trays}
-                              onChange={(e) =>
-                                setEditRow((prev) => ({
-                                  ...prev,
-                                  trays: e.target.value,
-                                }))
-                              }
-                              className="w-24 border border-gray-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={editRow.weightLbs}
-                              onChange={(e) =>
-                                setEditRow((prev) => ({
-                                  ...prev,
-                                  weightLbs: e.target.value,
-                                }))
-                              }
-                              className="w-24 border border-gray-200 rounded px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-right rounded-r-lg">
-                            <div className="flex justify-end gap-2">
+                      <div className="flex flex-col gap-3 border-b border-gray-100 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                            <History size={14} /> {formatRecordTime(record)} · {record.type}
+                          </div>
+                          {isEditing ? (
+                            <p className="text-sm font-medium text-gray-900">
+                              Editing entry
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {record.itemName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {record.donor} · {formatNumber(record.weightLbs, {
+                                  minimumFractionDigits: 1,
+                                  maximumFractionDigits: 1,
+                                })}{" "}
+                                lbs
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isEditing ? (
+                            <>
                               <button
                                 type="button"
-                                className="px-3 py-1 text-xs rounded border bg-emerald-600 text-white hover:bg-emerald-700"
                                 onClick={() => {
                                   const clean = {
                                     itemName: (editRow.itemName || "").trim(),
@@ -739,183 +1130,373 @@ const Donations = () => {
                                     Number.isNaN(clean.trays) ||
                                     Number.isNaN(clean.weightLbs)
                                   ) {
-                                    toast.error("Invalid numbers");
+                                    toast.error("Enter valid numbers");
                                     return;
                                   }
                                   setDonationRecords((prev) =>
-                                    prev.map((d) =>
-                                      d.id === r.id
+                                    prev.map((donation) =>
+                                      donation.id === record.id
                                         ? {
-                                            ...d,
+                                            ...donation,
                                             ...clean,
                                             lastUpdated:
                                               new Date().toISOString(),
                                           }
-                                        : d,
+                                        : donation,
                                     ),
                                   );
                                   toast.success("Donation updated");
                                   setEditingId(null);
                                 }}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                               >
-                                Save
+                                <Save size={14} /> Save
                               </button>
                               <button
                                 type="button"
-                                className="px-3 py-1 text-xs rounded border"
                                 onClick={() => setEditingId(null)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-gray-300"
                               >
                                 Cancel
                               </button>
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-3 py-2">{r.itemName}</td>
-                          <td className="px-3 py-2">{r.donor}</td>
-                          <td className="px-3 py-2">{r.type}</td>
-                          <td className="px-3 py-2 text-right">{r.trays}</td>
-                          <td className="px-3 py-2 text-right">
-                            {Number(r.weightLbs || 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-right rounded-r-lg">
-                            <div className="flex justify-end gap-2">
+                            </>
+                          ) : (
+                            <>
                               <button
                                 type="button"
-                                className="px-3 py-1 text-xs rounded border"
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-gray-300"
                                 onClick={() => {
-                                  setEditingId(r.id);
+                                  setEditingId(record.id);
                                   setEditRow({
-                                    type: r.type,
-                                    itemName: r.itemName,
-                                    trays: r.trays,
-                                    weightLbs: r.weightLbs,
-                                    donor: r.donor,
+                                    type: record.type,
+                                    itemName: record.itemName,
+                                    trays: record.trays,
+                                    weightLbs: record.weightLbs,
+                                    donor: record.donor,
                                   });
                                 }}
                               >
-                                Edit
+                                <Edit3 size={14} /> Edit
                               </button>
                               <button
                                 type="button"
-                                className="px-3 py-1 text-xs rounded border border-red-300 text-red-700"
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-300"
                                 onClick={async () => {
-                                  if (!confirm("Delete this donation entry?"))
+                                  if (!window.confirm("Delete this donation entry?"))
                                     return;
-                                  if (r.actionId) {
-                                    const ok = await undoAction(r.actionId);
+                                  if (record.actionId) {
+                                    const ok = await undoAction(record.actionId);
                                     if (ok) {
                                       toast.success("Donation deleted");
                                       return;
                                     }
                                   }
                                   setDonationRecords((prev) =>
-                                    prev.filter((d) => d.id !== r.id),
+                                    prev.filter((donation) => donation.id !== record.id),
                                   );
                                   toast.success("Donation deleted");
                                 }}
                               >
-                                Delete
+                                <Trash2 size={14} /> Delete
                               </button>
                               <button
                                 type="button"
-                                disabled={!r.actionId}
+                                disabled={!record.actionId}
                                 onClick={async () => {
-                                  if (r.actionId) {
-                                    await undoAction(r.actionId);
+                                  if (record.actionId) {
+                                    await undoAction(record.actionId);
                                   }
                                 }}
-                                className="px-3 py-1 text-xs rounded border disabled:opacity-60"
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
                               >
-                                Undo
+                                <Undo2 size={14} /> Undo
                               </button>
-                            </div>
-                          </td>
-                        </>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Item
+                            </label>
+                            <input
+                              type="text"
+                              value={editRow.itemName}
+                              onChange={(event) =>
+                                setEditRow((prev) => ({
+                                  ...prev,
+                                  itemName: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            />
+                          </div>
+                          <div className="md:col-span-6">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Donor
+                            </label>
+                            <input
+                              type="text"
+                              value={editRow.donor}
+                              onChange={(event) =>
+                                setEditRow((prev) => ({
+                                  ...prev,
+                                  donor: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            />
+                          </div>
+                          <div className="md:col-span-4">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Type
+                            </label>
+                            <select
+                              value={editRow.type}
+                              onChange={(event) =>
+                                setEditRow((prev) => ({
+                                  ...prev,
+                                  type: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            >
+                              {DONATION_TYPES.map((type) => (
+                                <option key={type} value={type}>
+                                  {type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="md:col-span-4">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Trays
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={editRow.trays}
+                              onChange={(event) =>
+                                setEditRow((prev) => ({
+                                  ...prev,
+                                  trays: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            />
+                          </div>
+                          <div className="md:col-span-4">
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                              Weight (lbs)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editRow.weightLbs}
+                              onChange={(event) =>
+                                setEditRow((prev) => ({
+                                  ...prev,
+                                  weightLbs: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-right shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-gray-600 sm:grid-cols-4">
+                          <div className="rounded-xl border border-white bg-white px-3 py-2 text-center shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-gray-400">
+                              Trays
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {formatNumber(record.trays, {
+                                maximumFractionDigits: 2,
+                              })}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white bg-white px-3 py-2 text-center shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-gray-400">
+                              Weight
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {formatNumber(record.weightLbs, {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1,
+                              })}{" "}
+                              lbs
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white bg-white px-3 py-2 text-center shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-gray-400">
+                              Donor
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {record.donor}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-white bg-white px-3 py-2 text-center shadow-sm">
+                            <p className="text-xs uppercase tracking-wide text-gray-400">
+                              Item
+                            </p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {record.itemName}
+                            </p>
+                          </div>
+                        </div>
                       )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Daily insights
-              </h3>
-              <p className="text-sm text-gray-500">
-                Quick breakdown for{" "}
-                {new Date(selectedDate).toLocaleDateString()}.
-              </p>
+          <div className="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Daily insights
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Quick breakdown for {selectedDateDisplay || "—"}.
+                </p>
+              </div>
+              <span className="text-xs uppercase tracking-wide text-gray-400">
+                Snapshot
+              </span>
             </div>
-            <div className="space-y-3">
-              {typeBreakdown.entries.some((entry) => entry.weight > 0) ? (
-                typeBreakdown.entries.map((entry) => (
+            {typeBreakdown.entries.some((entry) => entry.weight > 0) ? (
+              <div className="space-y-3">
+                {typeBreakdown.entries.map((entry) => (
                   <div
                     key={entry.type}
-                    className="p-3 border border-gray-100 rounded-xl bg-gray-50/60"
+                    className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3"
                   >
                     <div className="flex items-center justify-between text-sm text-gray-700">
-                      <span className="font-medium text-gray-800">
+                      <span className="font-medium text-gray-900">
                         {entry.type}
                       </span>
                       <span className="text-gray-600">
-                        {entry.weight.toFixed(2)} lbs
+                        {formatNumber(entry.weight, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}{" "}
+                        lbs
                       </span>
                     </div>
-                    <div className="mt-2 h-2 rounded-full bg-white overflow-hidden">
+                    <div className="mt-2 h-2 rounded-full bg-white">
                       <div
                         className="h-full rounded-full bg-emerald-500 transition-all"
                         style={{
-                          width: `${typeBreakdown.maxWeight ? Math.max((entry.weight / typeBreakdown.maxWeight) * 100, 4) : 0}%`,
+                          width: `${
+                            typeBreakdown.maxWeight
+                              ? Math.max(
+                                  (entry.weight / typeBreakdown.maxWeight) *
+                                    100,
+                                  6,
+                                )
+                              : 0
+                          }%`,
                         }}
                       />
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 border border-dashed border-gray-200 rounded-xl p-4 text-center">
-                  No weight totals yet for this date. Add donations to see the
-                  breakdown by type.
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-6 text-center text-sm text-gray-500">
+                Add donations to see the breakdown by type.
+              </div>
+            )}
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-emerald-700">
+                <Sparkles size={16} /> Highlights
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-emerald-700/70">Top donor today</p>
+                  {topDonors.length === 0 ? (
+                    <p className="text-sm font-semibold text-emerald-800">
+                      Waiting for entries
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-emerald-800">
+                      {topDonors[0].donor}
+                    </p>
+                  )}
+                  {topDonors.length > 0 && (
+                    <p className="text-xs text-emerald-700/70">
+                      {formatNumber(topDonors[0].weight, {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}{" "}
+                      lbs · {formatNumber(topDonors[0].trays, {
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      trays
+                    </p>
+                  )}
                 </div>
-              )}
+                <div>
+                  <p className="text-xs text-emerald-700/70">
+                    Rolling 30-day reach
+                  </p>
+                  {periodSnapshots.rollingMonth ? (
+                    <p className="text-sm font-semibold text-emerald-800">
+                      {formatNumber(periodSnapshots.rollingMonth.donors)} donors ·
+                      {" "}
+                      {formatNumber(periodSnapshots.rollingMonth.entries)} entries
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-emerald-800">
+                      Log more days to unlock
+                    </p>
+                  )}
+                  {periodSnapshots.rollingMonth && (
+                    <p className="text-xs text-emerald-700/70">
+                      {periodSnapshots.rollingMonth.startKey} →
+                      {" "}
+                      {periodSnapshots.rollingMonth.endKey}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="border-t border-gray-100 pt-4">
-              <h4 className="text-xs uppercase tracking-wide text-gray-500 mb-3">
-                Top donors today
+            <div className="space-y-3 border-t border-gray-100 pt-4">
+              <h4 className="text-xs uppercase tracking-wide text-gray-500">
+                Donor leaderboard (today)
               </h4>
               {topDonors.length === 0 ? (
                 <p className="text-sm text-gray-500">
-                  Donor details will appear as soon as entries are logged for
-                  this day.
+                  Donor details will appear as soon as entries are logged.
                 </p>
               ) : (
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {topDonors.map((donor) => (
                     <li
                       key={donor.donor}
-                      className="flex items-start justify-between gap-3"
+                      className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/70 px-4 py-2 text-sm"
                     >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="font-medium text-gray-900">
                           {donor.donor}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {donor.entries.toLocaleString()} entr
-                          {donor.entries === 1 ? "y" : "ies"} ·{" "}
-                          {Number(donor.trays || 0).toLocaleString(undefined, {
+                          {formatNumber(donor.entries)} entr
+                          {donor.entries === 1 ? "y" : "ies"} · {formatNumber(donor.trays, {
                             maximumFractionDigits: 2,
                           })}{" "}
                           trays
                         </p>
                       </div>
                       <span className="text-sm font-semibold text-emerald-600">
-                        {Number(donor.weight || 0).toLocaleString(undefined, {
+                        {formatNumber(donor.weight, {
                           minimumFractionDigits: 1,
                           maximumFractionDigits: 1,
                         })}{" "}
@@ -928,58 +1509,98 @@ const Donations = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="space-y-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Download size={18} className="text-emerald-500" /> Exports &
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-900">
+                  <Download size={20} className="text-emerald-500" /> Exports &
                   archives
                 </h3>
-                <p className="text-sm text-gray-500">
-                  Download donation history in CSV format for finance or
-                  compliance.
+                <p className="mt-1 text-sm text-gray-500">
+                  Pull a CSV for finance, compliance, or pantry planning.
                 </p>
               </div>
               <span className="text-xs uppercase tracking-wide text-gray-400">
                 CSV
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Quick ranges
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {quickRangeOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => option.range && setRange({ ...option.range })}
+                      disabled={!option.range}
+                      className="inline-flex items-center gap-2 rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition hover:border-emerald-300 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Start
                   </label>
                   <input
                     type="date"
                     value={range.start}
-                    onChange={(e) =>
-                      setRange((r) => ({ ...r, start: e.target.value }))
+                    onChange={(event) =>
+                      setRange((prev) => ({ ...prev, start: event.target.value }))
                     }
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">
                     End
                   </label>
                   <input
                     type="date"
                     value={range.end}
-                    onChange={(e) =>
-                      setRange((r) => ({ ...r, end: e.target.value }))
+                    onChange={(event) =>
+                      setRange((prev) => ({ ...prev, end: event.target.value }))
                     }
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300"
+                    className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </div>
               </div>
+              {rangePreview ? (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-800">
+                  {formatNumber(rangePreview.entries)} entr
+                  {rangePreview.entries === 1 ? "y" : "ies"} ·
+                  {" "}
+                  {formatNumber(rangePreview.weight, {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  lbs ·
+                  {" "}
+                  {formatNumber(rangePreview.trays, {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  trays · {formatNumber(rangePreview.donors)} donors
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 px-4 py-3 text-sm text-gray-500">
+                  Choose a valid start and end date to preview totals.
+                </div>
+              )}
               <button
                 type="button"
                 onClick={exportDonationsRange}
-                className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition"
+                disabled={!rangePreview || rangePreview.entries === 0}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500"
               >
-                <Download size={16} /> Export donations ({range.start} →{" "}
-                {range.end})
+                <Download size={16} /> Export donations ({range.start || "—"} →
+                {" "}
+                {range.end || "—"})
               </button>
               <p className="text-xs text-gray-500">
                 Dates use Pacific time. Exports include item, donor, tray, and
@@ -988,7 +1609,7 @@ const Donations = () => {
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

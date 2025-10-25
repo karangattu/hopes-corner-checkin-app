@@ -3397,6 +3397,7 @@ export const AppProvider = ({ children }) => {
         "bicycles",
         "haircuts",
         "holidays",
+        "donations",
       ],
       selectedDays = null,
       includeComparison = false,
@@ -3442,6 +3443,9 @@ export const AppProvider = ({ children }) => {
       haircuts: 0,
       holidays: 0,
       bicycles: 0,
+      donationsCount: 0,
+      donationTrays: 0,
+      donationWeightLbs: 0,
     });
 
     const dailyMetrics = {};
@@ -3566,6 +3570,28 @@ export const AppProvider = ({ children }) => {
       });
     }
 
+    // Process donations if included
+    if (programs.includes("donations")) {
+      const periodDonations = donationRecords.filter((record) => {
+        const isoLike = record?.date || record?.dateKey;
+        if (!isoLike) return false;
+        return inRange(isoLike);
+      });
+
+      periodDonations.forEach((record) => {
+        const isoLike = record?.date || record?.dateKey;
+        const date =
+          record?.dateKey ||
+          (isoLike ? pacificDateStringFrom(isoLike) : null);
+        if (!date) return;
+        if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
+        dailyMetrics[date].donationsCount += 1;
+        dailyMetrics[date].donationTrays += Number(record?.trays) || 0;
+        dailyMetrics[date].donationWeightLbs +=
+          Number(record?.weightLbs) || 0;
+      });
+    }
+
     const dailyBreakdown = Object.entries(dailyMetrics)
       .map(([date, metrics]) => ({ date, ...metrics }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -3589,6 +3615,10 @@ export const AppProvider = ({ children }) => {
         haircuts: acc.haircuts + day.haircuts,
         holidays: acc.holidays + day.holidays,
         bicycles: acc.bicycles + day.bicycles,
+        donationsCount: acc.donationsCount + (day.donationsCount || 0),
+        donationTrays: acc.donationTrays + (day.donationTrays || 0),
+        donationWeightLbs:
+          acc.donationWeightLbs + (day.donationWeightLbs || 0),
       }),
       initDailyMetric(),
     );
@@ -3607,6 +3637,9 @@ export const AppProvider = ({ children }) => {
         haircuts: totals.haircuts,
         holidays: totals.holidays,
         bicycles: totals.bicycles,
+        donationsLogged: totals.donationsCount,
+        donationTrays: totals.donationTrays,
+        donationWeightLbs: totals.donationWeightLbs,
       },
       daysInRange: dailyBreakdown.length,
     };
@@ -3629,7 +3662,7 @@ export const AppProvider = ({ children }) => {
       );
 
       result.comparison = comparisonMetrics;
-      result.changes = {
+      const changes = {
         meals: totals.meals - comparisonMetrics.totals.mealsServed,
         showers: totals.showers - comparisonMetrics.totals.showersBooked,
         laundry: totals.laundry - comparisonMetrics.totals.laundryLoads,
@@ -3637,6 +3670,18 @@ export const AppProvider = ({ children }) => {
         holidays: totals.holidays - comparisonMetrics.totals.holidays,
         bicycles: totals.bicycles - comparisonMetrics.totals.bicycles,
       };
+      if (programs.includes("donations")) {
+        changes.donationWeightLbs =
+          totals.donationWeightLbs -
+          (comparisonMetrics.totals.donationWeightLbs || 0);
+        changes.donationsLogged =
+          totals.donationsCount -
+          (comparisonMetrics.totals.donationsLogged || 0);
+        changes.donationTrays =
+          totals.donationTrays -
+          (comparisonMetrics.totals.donationTrays || 0);
+      }
+      result.changes = changes;
     }
 
     return result;
