@@ -652,7 +652,9 @@ textarea:focus {
   border-radius: var(--radius-md);
   background-color: #ffffff;
   box-shadow: var(--shadow-sm);
-  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+  transition:
+    transform 150ms ease-out,
+    box-shadow 150ms ease-out;
 }
 
 .list-item:last-child {

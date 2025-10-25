@@ -15,12 +15,9 @@
   --container-max-width: 1200px;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
-  --shadow-sm:
-    0 1px 3px 0 rgba(0, 0, 0, 0.1),
-    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --shadow-md:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --tap-target-min: 44px;
 }
 
@@ -268,7 +265,9 @@ body {
   color: #4b5563;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  transition: opacity 150ms ease, color 150ms ease;
+  transition:
+    opacity 150ms ease,
+    color 150ms ease;
 }
 
 .pull-indicator--ready {

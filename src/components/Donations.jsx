@@ -7,16 +7,12 @@ import {
   Save,
   List,
   Download,
-  BarChart3,
   Users,
   CalendarDays,
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
   Sparkles,
-  ClipboardList,
   Scale,
   Edit3,
   Trash2,
@@ -341,97 +337,6 @@ const Donations = () => {
     };
   }, [periodSnapshots]);
 
-  const summaryCards = useMemo(() => {
-    const cards = [
-      {
-        id: "daily-volume",
-        label: "Daily volume",
-        value: `${formatNumber(selectedStats.weight, {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })} lbs`,
-        helper: `Trays logged: ${formatNumber(selectedStats.trays, {
-          maximumFractionDigits: 2,
-        })}`,
-        Icon: PackagePlus,
-      },
-      {
-        id: "entries",
-        label: "Entries logged",
-        value: formatNumber(selectedStats.entries),
-        helper:
-          selectedStats.entries > 0
-            ? `Avg weight ${formatNumber(
-                selectedStats.weight / selectedStats.entries,
-                {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                },
-              )} lbs`
-            : "Add a donation to begin",
-        Icon: ClipboardList,
-      },
-      {
-        id: "donors",
-        label: "Unique donors",
-        value: formatNumber(selectedStats.donors),
-        helper: periodSnapshots.rollingMonth
-          ? `${formatNumber(periodSnapshots.rollingMonth.donors)} in last 30 days`
-          : "Rolling insight updates as you log",
-        Icon: Users,
-      },
-    ];
-
-    const weekIcon =
-      weeklyComparison?.trend === "down"
-        ? TrendingDown
-        : weeklyComparison?.trend === "up"
-          ? TrendingUp
-          : BarChart3;
-
-    cards.push({
-      id: "week",
-      label: "Week to date",
-      value: weeklyComparison
-        ? `${formatNumber(weeklyComparison.weekWeight, {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-          })} lbs`
-        : "—",
-      helper: (() => {
-        if (!weeklyComparison) return "Log donations to track weekly totals";
-        if (weeklyComparison.deltaWeight === null) {
-          return "No prior week on record";
-        }
-        if (Math.abs(weeklyComparison.deltaWeight) < 0.1) {
-          return "Holding steady vs last week";
-        }
-        const changeText = `${weeklyComparison.deltaWeight > 0 ? "+" : ""}${formatNumber(
-          weeklyComparison.deltaWeight,
-          {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-          },
-        )} lbs`;
-        const percentText =
-          weeklyComparison.deltaPercent != null
-            ? ` (${weeklyComparison.deltaPercent > 0 ? "+" : ""}${formatNumber(
-                weeklyComparison.deltaPercent,
-                {
-                  minimumFractionDigits: 1,
-                  maximumFractionDigits: 1,
-                },
-              )}%)`
-            : "";
-        return `${changeText}${percentText} vs last week`;
-      })(),
-      Icon: weekIcon,
-      trend: weeklyComparison?.trend ?? "flat",
-    });
-
-    return cards;
-  }, [selectedStats, periodSnapshots, weeklyComparison]);
-
   const quickRangeOptions = useMemo(
     () => [
       {
@@ -519,10 +424,10 @@ const Donations = () => {
 
   const weeklyDeltaToneClass =
     weeklyComparison?.trend === "down"
-      ? "text-rose-200"
+      ? "text-rose-600 bg-rose-50 border border-rose-200"
       : weeklyComparison?.trend === "up"
-        ? "text-emerald-100"
-        : "text-white/80";
+        ? "text-emerald-600 bg-emerald-50 border border-emerald-200"
+        : "text-emerald-700/70 bg-emerald-50/70 border border-emerald-200/60";
 
   const weeklyDeltaText = (() => {
     if (!weeklyComparison) return "";
@@ -697,132 +602,54 @@ const Donations = () => {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-600 via-teal-500 to-sky-500 p-8 text-white shadow-lg">
-        <div className="flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-100">
-              <PackagePlus size={16} className="text-white" />
-              Donations hub
-            </div>
-            <div>
-              <h2 className="text-3xl font-semibold leading-tight">
-                Pantry & meal support intake
-              </h2>
-              <p className="mt-3 text-sm text-emerald-50">
-                Manage food deliveries, track who contributed, and export clear
-                reports in seconds. Every section below stays in sync with the
-                date you are reviewing.
-              </p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100">
-              Viewing {selectedDateDisplay || "—"} (Pacific)
-            </div>
+      <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+            <PackagePlus size={18} className="text-emerald-500" />
+            <span>Donations for</span>
           </div>
-          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-white/20 bg-white/10 p-5 shadow-inner">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/90">
-                <CalendarDays size={18} /> Daily log
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => shiftSelectedDate(-1)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(event) => setSelectedDate(event.target.value)}
-                  className="rounded-lg border border-white/30 bg-white/90 px-3 py-1 text-sm font-medium text-gray-900 shadow-sm focus:border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => shiftSelectedDate(1)}
-                  disabled={isTodaySelected}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedDate(todayKey)}
-                disabled={isTodaySelected}
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Today
-              </button>
-              <span className="text-xs text-white/70">
-                or choose any date to review history
-              </span>
-            </div>
-            {weeklyComparison ? (
-              <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/70">
-                  <span>Week to date</span>
-                  <span>
-                    {periodSnapshots.currentWeek?.startKey} →
-                    {" "}
-                    {periodSnapshots.currentWeek?.endKey}
-                  </span>
-                </div>
-                <div className="mt-3 flex items-end justify-between gap-4">
-                  <div className="text-2xl font-semibold">
-                    {formatNumber(weeklyComparison.weekWeight, {
-                      minimumFractionDigits: 1,
-                      maximumFractionDigits: 1,
-                    })} lbs
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1 text-sm font-semibold ${weeklyDeltaToneClass}`}
-                  >
-                    <WeeklyDeltaIcon size={16} /> {weeklyDeltaText}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-white/80">
-                  Trays logged: {formatNumber(weeklyComparison.weekTrays, {
-                    maximumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-white/30 bg-white/5 p-4 text-xs text-white/75">
-                Track at least one week of donations to unlock weekly insights.
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => shiftSelectedDate(-1)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-50"
+              aria-label="Previous day"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="w-[160px] rounded-lg border border-emerald-200 px-3 py-2 text-sm font-semibold text-emerald-900 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+            />
+            <button
+              type="button"
+              onClick={() => shiftSelectedDate(1)}
+              disabled={isTodaySelected}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 text-emerald-600 transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Next day"
+            >
+              <ArrowRight size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(todayKey)}
+              disabled={isTodaySelected}
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Today
+            </button>
           </div>
         </div>
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map(({ id, label, value, helper, Icon, trend }) => {
-            const IconComponent = Icon;
-            const iconBg =
-              trend === "down"
-                ? "bg-white/10 text-rose-100"
-                : trend === "up"
-                  ? "bg-white/10 text-emerald-100"
-                  : "bg-white/10 text-white/80";
-            return (
-              <div
-                key={id}
-                className="rounded-2xl border border-white/20 bg-white/15 p-5 shadow-inner backdrop-blur-sm"
-              >
-                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-white/70">
-                  <span>{label}</span>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-2 py-1 ${iconBg}`}
-                  >
-                    <IconComponent size={16} />
-                  </span>
-                </div>
-                <div className="mt-3 text-2xl font-semibold">{value}</div>
-                <p className="mt-2 text-xs text-white/80">{helper}</p>
-              </div>
-            );
-          })}
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-emerald-600">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1">
+            <CalendarDays size={14} className="text-emerald-500" />
+            {selectedDateDisplay || "—"} (Pacific)
+          </span>
+          <span className="text-emerald-500">
+            History updates as you adjust the date.
+          </span>
         </div>
       </section>
 
@@ -1418,7 +1245,7 @@ const Donations = () => {
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-emerald-700">
                 <Sparkles size={16} /> Highlights
               </div>
-              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <p className="text-xs text-emerald-700/70">Top donor today</p>
                   {topDonors.length === 0 ? (
@@ -1463,6 +1290,35 @@ const Donations = () => {
                       {periodSnapshots.rollingMonth.startKey} →
                       {" "}
                       {periodSnapshots.rollingMonth.endKey}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-700/70">Week to date</p>
+                  {weeklyComparison ? (
+                    <>
+                      <p className="text-sm font-semibold text-emerald-800">
+                        {formatNumber(weeklyComparison.weekWeight, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })} lbs
+                      </p>
+                      <span
+                        className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${weeklyDeltaToneClass}`}
+                      >
+                        <WeeklyDeltaIcon size={14} /> {weeklyDeltaText}
+                      </span>
+                      {periodSnapshots.currentWeek && (
+                        <p className="mt-1 text-xs text-emerald-700/70">
+                          {periodSnapshots.currentWeek.startKey} →
+                          {" "}
+                          {periodSnapshots.currentWeek.endKey}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm font-semibold text-emerald-800">
+                      Log a full week to compare
                     </p>
                   )}
                 </div>
