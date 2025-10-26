@@ -16,6 +16,8 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Truck,
   Edit3,
   RotateCcw,
@@ -39,6 +41,7 @@ import {
   Footprints,
   TrendingUp,
   Download,
+  Trash2,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
@@ -3755,391 +3758,350 @@ const Services = () => {
       totalRvMeals +
       totalUeMeals +
       totalExtraMeals +
-      totalDayWorkerMeals;
+      totalDayWorkerMeals +
+      totalShelterMeals;
     const totalMealsExcludingLunch = totalMeals;
     const selectedDateLabel = new Date(
       selectedDate + "T00:00:00",
     ).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
+      weekday: "short",
+      month: "short",
       day: "numeric",
       year: "numeric",
     });
+    const isTodaySelected = selectedDate === today;
 
-    const highlightStats = [
-      {
-        id: "core-total",
-        title: "Total meals (excl. lunch bags)",
-        value: totalMealsExcludingLunch,
-        Icon: Utensils,
-        description: `Guest, partner, and extra meals logged for ${selectedDateLabel}.`,
-      },
-      {
-        id: "lunch-bags",
-        title: "Lunch bags packed",
-        value: totalLunchBags,
-        Icon: Apple,
-        description: `Ready-to-go outreach lunches recorded on ${selectedDateLabel}.`,
-      },
-    ];
-
-    const mealCategoryCards = [
-      {
-        id: "guest-meals",
-        title: "Guest meals",
-        value: totalGuestMeals,
-        Icon: Users,
-        chip: `${mergedGuestMeals.length} entries`,
-        tone: "bg-emerald-100 text-emerald-700",
-      },
-      {
-        id: "day-worker",
-        title: "Day Worker Center",
-        value: totalDayWorkerMeals,
-        Icon: SquarePlus,
-        chip: `${selectedDayWorkerMealRecords.length} records`,
-        tone: "bg-indigo-100 text-indigo-700",
-      },
-      {
-        id: "rv-meals",
-        title: "RV meals",
-        value: totalRvMeals,
-        Icon: Caravan,
-        chip: `${selectedRvMealRecords.length} logs`,
-        tone: "bg-orange-100 text-orange-700",
-      },
-      {
-        id: "shelter-meals",
-        title: "Shelter meals",
-        value: totalShelterMeals,
-        Icon: Bed,
-        chip: `${selectedShelterMealRecords.length} logs`,
-        tone: "bg-purple-100 text-purple-700",
-      },
-      {
-        id: "united-effort",
-        title: "United Effort",
-        value: totalUeMeals,
-        Icon: HeartHandshake,
-        chip: `${selectedUeMealRecords.length} logs`,
-        tone: "bg-sky-100 text-sky-700",
-      },
-      {
-        id: "extra-meals",
-        title: "Extra meals",
-        value: totalCombinedExtras,
-        Icon: Sparkles,
-        chip: `Guest extras ${totalGuestExtraMeals.toLocaleString()} • Global extras ${totalExtraMeals.toLocaleString()}`,
-        tone: "bg-amber-100 text-amber-700",
-      },
-    ];
+    const shiftMealsDate = (offset) => {
+      const current = new Date(mealsDate + "T00:00:00");
+      current.setDate(current.getDate() + offset);
+      const newDate = pacificDateStringFrom(current);
+      setMealsDate(newDate);
+    };
 
     return (
-      <div className="space-y-6">
-        <div className="rounded-3xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-sky-500 text-white shadow-sm p-6 lg:p-8 space-y-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-2xl space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-white/70 font-semibold">
-                Meals tracker
-              </p>
-              <h2 className="text-2xl font-semibold">Daily meal operations</h2>
-              <p className="text-sm text-white/80">
-                Pick a date to log partner meals, walk-up extras, and lunch bag
-                prep. Totals refresh instantly so shifts and reports stay in
-                sync.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-[220px]">
-              {highlightStats.map((stat) => {
-                const Icon = stat.Icon;
-                return (
-                  <div
-                    key={stat.id}
-                    className="bg-white/15 border border-white/20 rounded-2xl px-4 py-3"
-                  >
-                    <div className="flex items-center gap-2 text-white/80 text-xs uppercase tracking-wide font-semibold">
-                      <Icon size={14} className="text-white" />
-                      {stat.title}
-                    </div>
-                    <p className="text-2xl font-semibold mt-2">
-                      {stat.value.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-white/70 mt-1 leading-relaxed">
-                      {stat.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      <div className="min-h-screen space-y-6 pb-8">
+        {/* Hero Date Navigator */}
+        <div className="relative overflow-hidden rounded-3xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
+          <div className="absolute right-0 top-0 h-64 w-64 -translate-y-32 translate-x-32 rounded-full bg-gradient-to-br from-emerald-200/30 to-teal-200/30 blur-3xl" />
 
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold uppercase tracking-wide text-white/80">
-                Meals date
-              </label>
-              <div className="text-sm text-white/80">
-                Entries will be logged for{" "}
-                <span className="font-semibold text-white">
-                  {selectedDateLabel}
-                </span>
-                .
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <input
-                type="date"
-                value={mealsDate}
-                onChange={(event) => setMealsDate(event.target.value)}
-                className="px-3 py-2 rounded-md text-sm bg-white text-gray-900 border border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                max={todayShorthand}
-              />
-              <span className="text-xs text-white/70">
-                Tip: adjust to backfill or correct earlier days.
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {mealCategoryCards.map((card) => {
-            const Icon = card.Icon;
-            return (
-              <div
-                key={card.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Icon size={20} className="text-gray-700" />
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        {card.title}
-                      </p>
-                      <p className="text-xl font-semibold text-gray-900">
-                        {card.value.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  {card.chip && (
-                    <span
-                      className={`text-xs font-semibold px-3 py-1 rounded-full border ${card.tone}`}
-                    >
-                      {card.chip}
-                    </span>
-                  )}
+          <div className="relative flex flex-col items-center gap-6 md:flex-row md:justify-between">
+            <div>
+              <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
+                <div className="rounded-2xl bg-emerald-600 p-3 shadow-lg">
+                  <Utensils size={28} className="text-white" />
                 </div>
-                <p className="text-xs text-gray-500">
-                  Captured for {selectedDateLabel}
+                Daily Meals
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Track guest, partner, and community meal programs
+              </p>
+            </div>
+
+            {/* Date Navigator */}
+            <div className="flex items-center gap-4 rounded-2xl border border-emerald-300/50 bg-white/80 p-4 shadow-md backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => shiftMealsDate(-1)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95"
+                title="Previous day"
+              >
+                <ChevronLeft size={24} strokeWidth={2.5} />
+              </button>
+
+              <div className="text-center">
+                <input
+                  type="date"
+                  value={mealsDate}
+                  onChange={(event) => setMealsDate(event.target.value)}
+                  max={todayShorthand}
+                  className="mb-1 rounded-lg border-2 border-emerald-300 bg-white px-4 py-2 text-center text-sm font-semibold text-emerald-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                />
+                <p className="text-xs font-medium text-emerald-700">
+                  {selectedDateLabel}
                 </p>
               </div>
-            );
-          })}
+
+              <button
+                type="button"
+                onClick={() => shiftMealsDate(1)}
+                disabled={isTodaySelected}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:scale-100"
+                title="Next day"
+              >
+                <ChevronRight size={24} strokeWidth={2.5} />
+              </button>
+
+              <div className="h-8 w-px bg-emerald-200" />
+
+              <button
+                type="button"
+                onClick={() => setMealsDate(todayShorthand)}
+                disabled={isTodaySelected}
+                className="rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Today
+              </button>
+            </div>
+          </div>
         </div>
 
+        {/* Stats Overview Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-100/50 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-emerald-100 p-3">
+                  <Utensils size={24} className="text-emerald-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Total Meals
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-gray-900">
+                {totalMealsExcludingLunch.toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">Served today (excl. lunch bags)</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-blue-100 p-3">
+                  <Users size={24} className="text-blue-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Guest Meals
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-gray-900">
+                {totalGuestMeals.toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">{mergedGuestMeals.length} entries logged</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/50 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-amber-100 p-3">
+                  <Apple size={24} className="text-amber-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Lunch Bags
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-gray-900">
+                {totalLunchBags.toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">Ready for outreach</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/50 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-purple-100 p-3">
+                  <HeartHandshake size={24} className="text-purple-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Partner Meals
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-gray-900">
+                {(totalRvMeals + totalShelterMeals + totalUeMeals + totalDayWorkerMeals).toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">RV, Shelter, UE, Day Worker</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Meal Category Breakdown */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-blue-100 p-3">
+                  <Users size={22} className="text-blue-600" />
+                </div>
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                  {mergedGuestMeals.length} entries
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Guest Meals</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalGuestMeals.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Direct guest service meals</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-indigo-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-indigo-100 p-3">
+                  <SquarePlus size={22} className="text-indigo-600" />
+                </div>
+                <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                  {selectedDayWorkerMealRecords.length} records
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Day Worker Center</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalDayWorkerMeals.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Partner drop-off meals</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-orange-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-orange-100 p-3">
+                  <Caravan size={22} className="text-orange-600" />
+                </div>
+                <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">
+                  {selectedRvMealRecords.length} logs
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">RV Meals</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalRvMeals.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Outreach delivery</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-purple-100 p-3">
+                  <Bed size={22} className="text-purple-600" />
+                </div>
+                <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                  {selectedShelterMealRecords.length} logs
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Shelter Meals</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalShelterMeals.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Shelter delivery</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-sky-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-sky-100 p-3">
+                  <HeartHandshake size={22} className="text-sky-600" />
+                </div>
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                  {selectedUeMealRecords.length} logs
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">United Effort</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalUeMeals.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Partner pickup</p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/30 blur-2xl" />
+            <div className="relative">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl bg-amber-100 p-3">
+                  <Sparkles size={22} className="text-amber-600" />
+                </div>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                  Combined
+                </span>
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Extra Meals</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">{totalCombinedExtras.toLocaleString()}</p>
+              <p className="mt-2 text-xs text-gray-600">Guest: {totalGuestExtraMeals} • Walk-up: {totalExtraMeals}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Meal Input Forms */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <SquarePlus size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-indigo-900">
-                      Day Worker Center
-                    </h3>
-                    <p className="text-xs text-indigo-600">
-                      Partner drop-off meals
-                    </p>
-                  </div>
-                </div>
-                <span className="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">
-                  {totalDayWorkerMeals.toLocaleString()} today
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="number"
-                  value={dayWorkerMealCount}
-                  onChange={(event) =>
-                    setDayWorkerMealCount(event.target.value)
-                  }
-                  placeholder="Number of meals delivered"
-                  className="flex-1 px-3 py-2 border border-indigo-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  min="1"
-                  disabled={isAddingDayWorkerMeals}
-                />
-                <button
-                  onClick={() => {
-                    if (
-                      !dayWorkerMealCount ||
-                      isNaN(dayWorkerMealCount) ||
-                      parseInt(dayWorkerMealCount, 10) <= 0
-                    ) {
-                      toast.error("Enter a valid number of meals");
-                      return;
-                    }
-                    setIsAddingDayWorkerMeals(true);
-                    try {
-                      addDayWorkerMealRecord(dayWorkerMealCount, selectedDate);
-                      toast.success(
-                        `Added ${dayWorkerMealCount} day worker meals for ${selectedDateLabel}!`,
-                      );
-                      setDayWorkerMealCount("");
-                    } catch (error) {
-                      toast.error(`Error: ${error.message}`);
-                    } finally {
-                      setIsAddingDayWorkerMeals(false);
-                    }
-                  }}
-                  disabled={isAddingDayWorkerMeals || !dayWorkerMealCount}
-                  className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-500 disabled:bg-indigo-300"
-                >
-                  {isAddingDayWorkerMeals ? "Saving…" : "Add DW meals"}
-                </button>
-              </div>
-              {selectedDayWorkerMealRecords.length > 0 ? (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700 space-y-1">
-                  <div className="font-semibold text-indigo-800">
-                    Entries for {selectedDateLabel}
-                  </div>
-                  <ul className="space-y-1">
-                    {selectedDayWorkerMealRecords.map((record) => (
-                      <li key={record.id} className="flex justify-between">
-                        <span>
-                          {new Date(record.date).toLocaleTimeString()}
-                        </span>
-                        <span className="font-semibold">
-                          {record.count} meals
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-xs text-indigo-500">
-                  No day worker meals logged yet for this date.
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 space-y-4">
+            <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-indigo-100/30 blur-3xl" />
+              <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
-                      <Caravan size={20} />
+                    <div className="rounded-xl bg-indigo-100 p-3">
+                      <SquarePlus size={22} className="text-indigo-600" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-orange-900">
-                        RV meals
+                      <h3 className="text-base font-bold text-gray-900">
+                        Day Worker Center
                       </h3>
-                      <p className="text-xs text-orange-600">
-                        Outreach delivery
+                      <p className="text-xs text-gray-600">
+                        Partner drop-off meals
                       </p>
                     </div>
                   </div>
-                  <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-3 py-1 rounded-full">
-                    {totalRvMeals.toLocaleString()} today
+                  <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-bold text-indigo-700">
+                    {totalDayWorkerMeals.toLocaleString()} today
                   </span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="number"
-                    value={rvMealCount}
-                    onChange={(event) => setRvMealCount(event.target.value)}
-                    placeholder="Number of RV meals"
-                    className="flex-1 px-3 py-2 border border-orange-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    min="1"
-                    disabled={isAddingRvMeals}
-                  />
-                  <button
-                    onClick={handleAddRvMeals}
-                    disabled={isAddingRvMeals || !rvMealCount}
-                    className="px-4 py-2 rounded-md bg-orange-600 text-white text-sm font-semibold hover:bg-orange-500 disabled:bg-orange-300"
-                  >
-                    {isAddingRvMeals ? "Saving…" : "Add RV meals"}
-                  </button>
-                </div>
-                {selectedRvMealRecords.length > 0 ? (
-                  <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 text-xs text-orange-700 space-y-1">
-                    <div className="font-semibold text-orange-800">
-                      Entries for {selectedDateLabel}
-                    </div>
-                    <ul className="space-y-1">
-                      {selectedRvMealRecords.map((record) => (
-                        <li key={record.id} className="flex justify-between">
-                          <span>
-                            {new Date(record.date).toLocaleTimeString()}
-                          </span>
-                          <span className="font-semibold">
-                            {record.count} meals
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-xs text-orange-500">
-                    No RV meals logged yet for this date.
-                  </p>
-                )}
-              </div>
-
-              <div className="bg-white rounded-2xl border border-purple-100 shadow-sm p-5 space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center">
-                      <Bed size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold text-purple-900">
-                        Shelter meals
-                      </h3>
-                      <p className="text-xs text-purple-600">
-                        Shelter delivery
-                      </p>
-                    </div>
-                  </div>
-                  <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">
-                    {totalShelterMeals.toLocaleString()} today
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="number"
-                    value={shelterMealCount}
+                    value={dayWorkerMealCount}
                     onChange={(event) =>
-                      setShelterMealCount(event.target.value)
+                      setDayWorkerMealCount(event.target.value)
                     }
-                    placeholder="Number of Shelter meals"
-                    className="flex-1 px-3 py-2 border border-purple-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="Number of meals delivered"
+                    className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-200"
                     min="1"
-                    disabled={isAddingShelterMeals}
+                    disabled={isAddingDayWorkerMeals}
                   />
                   <button
-                    onClick={handleAddShelterMeals}
-                    disabled={isAddingShelterMeals || !shelterMealCount}
-                    className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm font-semibold hover:bg-purple-500 disabled:bg-purple-300"
+                    onClick={() => {
+                      if (
+                        !dayWorkerMealCount ||
+                        isNaN(dayWorkerMealCount) ||
+                        parseInt(dayWorkerMealCount, 10) <= 0
+                      ) {
+                        toast.error("Enter a valid number of meals");
+                        return;
+                      }
+                      setIsAddingDayWorkerMeals(true);
+                      try {
+                        addDayWorkerMealRecord(dayWorkerMealCount, selectedDate);
+                        toast.success(
+                          `Added ${dayWorkerMealCount} day worker meals for ${selectedDateLabel}!`,
+                        );
+                        setDayWorkerMealCount("");
+                      } catch (error) {
+                        toast.error(`Error: ${error.message}`);
+                      } finally {
+                        setIsAddingDayWorkerMeals(false);
+                      }
+                    }}
+                    disabled={isAddingDayWorkerMeals || !dayWorkerMealCount}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isAddingShelterMeals ? "Saving…" : "Add Shelter meals"}
+                    {isAddingDayWorkerMeals ? "Saving…" : "Add DW meals"}
                   </button>
                 </div>
-                {selectedShelterMealRecords.length > 0 ? (
-                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-xs text-purple-700 space-y-1">
-                    <div className="font-semibold text-purple-800">
+                {selectedDayWorkerMealRecords.length > 0 ? (
+                  <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-800">
                       Entries for {selectedDateLabel}
                     </div>
-                    <ul className="space-y-1">
-                      {selectedShelterMealRecords.map((record) => (
-                        <li key={record.id} className="flex justify-between">
-                          <span>
+                    <ul className="space-y-2">
+                      {selectedDayWorkerMealRecords.map((record) => (
+                        <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <span className="text-xs text-gray-600">
                             {new Date(record.date).toLocaleTimeString()}
                           </span>
-                          <span className="font-semibold">
+                          <span className="text-sm font-bold text-indigo-700">
                             {record.count} meals
                           </span>
                         </li>
@@ -4147,333 +4109,485 @@ const Services = () => {
                     </ul>
                   </div>
                 ) : (
-                  <p className="text-xs text-purple-500">
-                    No Shelter meals logged yet for this date.
+                  <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                    No day worker meals logged yet for this date.
                   </p>
                 )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-5 space-y-4">
+              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-orange-100/30 blur-3xl" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-orange-100 p-3">
+                        <Caravan size={22} className="text-orange-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          RV Meals
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          Outreach delivery
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-orange-100 px-3 py-1.5 text-xs font-bold text-orange-700">
+                      {totalRvMeals.toLocaleString()} today
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="number"
+                      value={rvMealCount}
+                      onChange={(event) => setRvMealCount(event.target.value)}
+                      placeholder="Number of RV meals"
+                      className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
+                      min="1"
+                      disabled={isAddingRvMeals}
+                    />
+                    <button
+                      onClick={handleAddRvMeals}
+                      disabled={isAddingRvMeals || !rvMealCount}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isAddingRvMeals ? "Saving…" : "Add RV"}
+                    </button>
+                  </div>
+                  {selectedRvMealRecords.length > 0 ? (
+                    <div className="rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/50 p-4">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-orange-800">
+                        Entries for {selectedDateLabel}
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedRvMealRecords.map((record) => (
+                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-orange-700">
+                              {record.count} meals
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                      No RV meals logged yet for this date.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-purple-100/30 blur-3xl" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-purple-100 p-3">
+                        <Bed size={22} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          Shelter Meals
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          Shelter delivery
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-purple-100 px-3 py-1.5 text-xs font-bold text-purple-700">
+                      {totalShelterMeals.toLocaleString()} today
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="number"
+                      value={shelterMealCount}
+                      onChange={(event) =>
+                        setShelterMealCount(event.target.value)
+                      }
+                      placeholder="Number of Shelter meals"
+                      className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      min="1"
+                      disabled={isAddingShelterMeals}
+                    />
+                    <button
+                      onClick={handleAddShelterMeals}
+                      disabled={isAddingShelterMeals || !shelterMealCount}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isAddingShelterMeals ? "Saving…" : "Add Shelter"}
+                    </button>
+                  </div>
+                  {selectedShelterMealRecords.length > 0 ? (
+                    <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50 p-4">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-purple-800">
+                        Entries for {selectedDateLabel}
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedShelterMealRecords.map((record) => (
+                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-purple-700">
+                              {record.count} meals
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                      No Shelter meals logged yet for this date.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-sky-100/30 blur-3xl" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-sky-100 p-3">
+                        <HeartHandshake size={22} className="text-sky-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          United Effort
+                        </h3>
+                        <p className="text-xs text-gray-600">Partner pickup</p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-700">
+                      {totalUeMeals.toLocaleString()} today
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="number"
+                      value={ueMealCount}
+                      onChange={(event) => setUeMealCount(event.target.value)}
+                      placeholder="Number of United Effort meals"
+                      className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200"
+                      min="1"
+                      disabled={isAddingUeMeals}
+                    />
+                    <button
+                      onClick={handleAddUeMeals}
+                      disabled={isAddingUeMeals || !ueMealCount}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-sky-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isAddingUeMeals ? "Saving…" : "Add UE"}
+                    </button>
+                  </div>
+                  {selectedUeMealRecords.length > 0 ? (
+                    <div className="rounded-2xl border-2 border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100/50 p-4">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-sky-800">
+                        Entries for {selectedDateLabel}
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedUeMealRecords.map((record) => (
+                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-sky-700">
+                              {record.count} meals
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                      No United Effort meals logged yet for this date.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-amber-100/30 blur-3xl" />
+                <div className="relative space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-amber-100 p-3">
+                        <Sparkles size={22} className="text-amber-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          Extra Meals
+                        </h3>
+                        <p className="text-xs text-gray-600">
+                          Walk-ups without guest record
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700">
+                      {totalExtraMeals.toLocaleString()} today
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="number"
+                      value={extraMealCount}
+                      onChange={(event) => setExtraMealCount(event.target.value)}
+                      placeholder="Number of extra meals"
+                      className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      min="1"
+                      disabled={isAddingExtraMeals}
+                    />
+                    <button
+                      onClick={handleAddExtraMeals}
+                      disabled={isAddingExtraMeals || !extraMealCount}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isAddingExtraMeals ? "Saving…" : "Add Extras"}
+                    </button>
+                  </div>
+                  {selectedGlobalExtraMealRecords.length > 0 ? (
+                    <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50 p-4">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-800">
+                        Entries for {selectedDateLabel}
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedGlobalExtraMealRecords.map((record) => (
+                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-amber-700">
+                              {record.count} meals
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                      No unassigned extra meals logged yet for this date.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-lime-100/30 blur-3xl" />
+              <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center">
-                      <HeartHandshake size={20} />
+                    <div className="rounded-xl bg-lime-100 p-3">
+                      <Apple size={22} className="text-lime-600" />
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-sky-900">
-                        United Effort meals
+                      <h3 className="text-base font-bold text-gray-900">
+                        Lunch Bags
                       </h3>
-                      <p className="text-xs text-sky-600">Partner pickup</p>
+                      <p className="text-xs text-gray-600">
+                        For takeout purposes
+                      </p>
                     </div>
                   </div>
-                  <span className="bg-sky-100 text-sky-800 text-xs font-semibold px-3 py-1 rounded-full">
-                    {totalUeMeals.toLocaleString()} today
+                  <span className="rounded-full bg-lime-100 px-3 py-1.5 text-xs font-bold text-lime-700">
+                    {totalLunchBags.toLocaleString()} today
                   </span>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="number"
-                    value={ueMealCount}
-                    onChange={(event) => setUeMealCount(event.target.value)}
-                    placeholder="Number of United Effort meals"
-                    className="flex-1 px-3 py-2 border border-sky-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    value={lunchBagCount}
+                    onChange={(event) => setLunchBagCount(event.target.value)}
+                    placeholder="Number of lunch bags"
+                    className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-lime-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-200"
                     min="1"
-                    disabled={isAddingUeMeals}
+                    disabled={isAddingLunchBags}
                   />
                   <button
-                    onClick={handleAddUeMeals}
-                    disabled={isAddingUeMeals || !ueMealCount}
-                    className="px-4 py-2 rounded-md bg-sky-600 text-white text-sm font-semibold hover:bg-sky-500 disabled:bg-sky-300"
+                    onClick={() => {
+                      if (
+                        !lunchBagCount ||
+                        isNaN(lunchBagCount) ||
+                        parseInt(lunchBagCount, 10) <= 0
+                      ) {
+                        toast.error("Enter a valid number of lunch bags");
+                        return;
+                      }
+                      setIsAddingLunchBags(true);
+                      try {
+                        addLunchBagRecord(lunchBagCount, selectedDate);
+                        toast.success(
+                          `Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount, 10) > 1 ? "s" : ""} for ${selectedDateLabel}`,
+                        );
+                        setLunchBagCount("");
+                      } catch (error) {
+                        toast.error(error.message || "Error adding lunch bags");
+                      } finally {
+                        setIsAddingLunchBags(false);
+                      }
+                    }}
+                    disabled={isAddingLunchBags || !lunchBagCount}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-lime-600 to-lime-700 px-6 py-3 text-sm font-bold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isAddingUeMeals ? "Saving…" : "Add UE meals"}
+                    {isAddingLunchBags ? "Saving…" : "Add Bags"}
                   </button>
                 </div>
-                {selectedUeMealRecords.length > 0 ? (
-                  <div className="bg-sky-50 border border-sky-100 rounded-lg p-3 text-xs text-sky-700 space-y-1">
-                    <div className="font-semibold text-sky-800">
+                {selectedLunchBagRecords.length > 0 ? (
+                  <div className="rounded-2xl border-2 border-lime-200 bg-gradient-to-br from-lime-50 to-lime-100/50 p-4">
+                    <div className="mb-2 text-xs font-bold uppercase tracking-wide text-lime-800">
                       Entries for {selectedDateLabel}
                     </div>
-                    <ul className="space-y-1">
-                      {selectedUeMealRecords.map((record) => (
-                        <li key={record.id} className="flex justify-between">
-                          <span>
+                    <ul className="space-y-2">
+                      {selectedLunchBagRecords.map((record) => (
+                        <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <span className="text-xs text-gray-600">
                             {new Date(record.date).toLocaleTimeString()}
                           </span>
-                          <span className="font-semibold">
-                            {record.count} meals
+                          <span className="text-sm font-bold text-lime-700">
+                            {record.count} bag{record.count > 1 ? "s" : ""}
                           </span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 ) : (
-                  <p className="text-xs text-sky-500">
-                    No United Effort meals logged yet for this date.
+                  <p className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                    No lunch bags logged yet for this date.
                   </p>
                 )}
               </div>
             </div>
-
-            <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <Sparkles size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-amber-900">
-                      Extra meals
-                    </h3>
-                    <p className="text-xs text-amber-600">
-                      Walk-ups without guest record
-                    </p>
-                  </div>
-                </div>
-                <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full">
-                  {totalExtraMeals.toLocaleString()} today
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="number"
-                  value={extraMealCount}
-                  onChange={(event) => setExtraMealCount(event.target.value)}
-                  placeholder="Number of extra meals"
-                  className="flex-1 px-3 py-2 border border-amber-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  min="1"
-                  disabled={isAddingExtraMeals}
-                />
-                <button
-                  onClick={handleAddExtraMeals}
-                  disabled={isAddingExtraMeals || !extraMealCount}
-                  className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-semibold hover:bg-amber-500 disabled:bg-amber-300"
-                >
-                  {isAddingExtraMeals ? "Saving…" : "Add extra meals"}
-                </button>
-              </div>
-              {selectedGlobalExtraMealRecords.length > 0 ? (
-                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-700 space-y-1">
-                  <div className="font-semibold text-amber-800">
-                    Entries for {selectedDateLabel}
-                  </div>
-                  <ul className="space-y-1">
-                    {selectedGlobalExtraMealRecords.map((record) => (
-                      <li key={record.id} className="flex justify-between">
-                        <span>
-                          {new Date(record.date).toLocaleTimeString()}
-                        </span>
-                        <span className="font-semibold">
-                          {record.count} meals
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-xs text-amber-500">
-                  No unassigned extra meals logged yet for this date.
-                </p>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-lime-100 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-lime-50 text-lime-600 flex items-center justify-center">
-                    <Apple size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-lime-900">
-                      Lunch bags
-                    </h3>
-                    <p className="text-xs text-lime-600">
-                      For takeout purposes
-                    </p>
-                  </div>
-                </div>
-                <span className="bg-lime-100 text-lime-800 text-xs font-semibold px-3 py-1 rounded-full">
-                  {totalLunchBags.toLocaleString()} today
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="number"
-                  value={lunchBagCount}
-                  onChange={(event) => setLunchBagCount(event.target.value)}
-                  placeholder="Number of lunch bags"
-                  className="flex-1 px-3 py-2 border border-lime-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
-                  min="1"
-                  disabled={isAddingLunchBags}
-                />
-                <button
-                  onClick={() => {
-                    if (
-                      !lunchBagCount ||
-                      isNaN(lunchBagCount) ||
-                      parseInt(lunchBagCount, 10) <= 0
-                    ) {
-                      toast.error("Enter a valid number of lunch bags");
-                      return;
-                    }
-                    setIsAddingLunchBags(true);
-                    try {
-                      addLunchBagRecord(lunchBagCount, selectedDate);
-                      toast.success(
-                        `Added ${lunchBagCount} lunch bag${parseInt(lunchBagCount, 10) > 1 ? "s" : ""} for ${selectedDateLabel}`,
-                      );
-                      setLunchBagCount("");
-                    } catch (error) {
-                      toast.error(error.message || "Error adding lunch bags");
-                    } finally {
-                      setIsAddingLunchBags(false);
-                    }
-                  }}
-                  disabled={isAddingLunchBags || !lunchBagCount}
-                  className="px-4 py-2 rounded-md bg-lime-600 text-white text-sm font-semibold hover:bg-lime-500 disabled:bg-lime-300"
-                >
-                  {isAddingLunchBags ? "Saving…" : "Add lunch bags"}
-                </button>
-              </div>
-              {selectedLunchBagRecords.length > 0 ? (
-                <div className="bg-lime-50 border border-lime-100 rounded-lg p-3 text-xs text-lime-700 space-y-1">
-                  <div className="font-semibold text-lime-800">
-                    Entries for {selectedDateLabel}
-                  </div>
-                  <ul className="space-y-1">
-                    {selectedLunchBagRecords.map((record) => (
-                      <li key={record.id} className="flex justify-between">
-                        <span>
-                          {new Date(record.date).toLocaleTimeString()}
-                        </span>
-                        <span className="font-semibold">
-                          {record.count} bag{record.count > 1 ? "s" : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-xs text-lime-500">
-                  No lunch bags logged yet for this date.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                  <Utensils className="text-emerald-600" size={22} />
-                  Guest meal log
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Includes guest-specific meals and guest extras for{" "}
-                  {selectedDateLabel}.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full">
-                  {totalGuestMeals.toLocaleString()} guest meals
-                </span>
-                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full">
-                  {totalMealsExcludingLunch.toLocaleString()} meals excl. lunch
-                  bags
-                </span>
-              </div>
-            </div>
-
-            {mergedGuestMeals.length === 0 ? (
-              <div className="border border-dashed border-emerald-200 rounded-xl text-center py-12 text-sm text-emerald-600 bg-emerald-50">
-                No guest meals logged for this date yet.
-              </div>
-            ) : (
-              <div className="border border-gray-100 rounded-xl divide-y">
-                {mergedGuestMeals.map((rec) => {
-                  const isExtraGuestMeal = !!(
-                    rec.guestId &&
-                    extraMealRecords.some((er) => er.id === rec.id)
-                  );
-                  return (
-                    <div
-                      key={rec.id}
-                      className="p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
-                          {getGuestName(rec.guestId)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(rec.date).toLocaleTimeString()}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">
-                          {rec.count} meal{rec.count > 1 ? "s" : ""}
-                        </span>
-                        {isExtraGuestMeal && (
-                          <span className="text-[10px] uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
-                            Extra
-                          </span>
-                        )}
-                        <button
-                          className="text-xs font-medium px-2.5 py-1 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-                          title="Delete this entry"
-                          onClick={async () => {
-                            const matchingMeal = actionHistory.find(
-                              (a) =>
-                                a.type === "MEAL_ADDED" &&
-                                a.data?.recordId === rec.id,
-                            );
-                            const matchingExtra = actionHistory.find(
-                              (a) =>
-                                a.type === "EXTRA_MEALS_ADDED" &&
-                                a.data?.recordId === rec.id,
-                            );
-                            if (matchingMeal) {
-                              const ok = await undoAction(matchingMeal.id);
-                              if (ok) {
-                                toast.success("Meal entry deleted");
-                                return;
-                              }
-                            } else if (matchingExtra) {
-                              const ok = await undoAction(matchingExtra.id);
-                              if (ok) {
-                                toast.success("Extra meal entry deleted");
-                                return;
-                              }
-                            }
-                            const recordType =
-                              rec.type ||
-                              (isExtraGuestMeal ? "extra" : "guest");
-                            const ok = await removeMealAttendanceRecord(
-                              rec.id,
-                              recordType,
-                            );
-                            if (ok) {
-                              toast.success(
-                                isExtraGuestMeal
-                                  ? "Extra meal entry deleted"
-                                  : "Meal entry deleted",
-                              );
-                            } else {
-                              toast.error("Unable to delete meal entry.");
-                            }
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Guest Meal Log */}
+        <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+          <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-100/30 blur-3xl" />
+          <div className="relative space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                    <Utensils className="text-emerald-600" size={22} />
+                    Guest Meal Log
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Guest-specific meals and extras for {selectedDateLabel}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                    {totalGuestMeals.toLocaleString()} guest meals
+                  </span>
+                  <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
+                    {totalMealsExcludingLunch.toLocaleString()} total
+                  </span>
+                </div>
+              </div>
+
+              {mergedGuestMeals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 py-12">
+                  <Utensils size={48} className="text-emerald-300" />
+                  <p className="mt-4 text-sm font-medium text-emerald-600">
+                    No guest meals logged for this date yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {mergedGuestMeals.map((rec) => {
+                    const isExtraGuestMeal = !!(
+                      rec.guestId &&
+                      extraMealRecords.some((er) => er.id === rec.id)
+                    );
+                    return (
+                      <div
+                        key={rec.id}
+                        className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 transition hover:border-gray-300 hover:shadow-sm"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="truncate font-bold text-gray-900">
+                                {getGuestName(rec.guestId)}
+                              </h3>
+                              {isExtraGuestMeal && (
+                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                                  Extra
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {new Date(rec.date).toLocaleTimeString()}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                              {rec.count} meal{rec.count > 1 ? "s" : ""}
+                            </span>
+                            <button
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
+                              title="Delete this entry"
+                              onClick={async () => {
+                                const matchingMeal = actionHistory.find(
+                                  (a) =>
+                                    a.type === "MEAL_ADDED" &&
+                                    a.data?.recordId === rec.id,
+                                );
+                                const matchingExtra = actionHistory.find(
+                                  (a) =>
+                                    a.type === "EXTRA_MEALS_ADDED" &&
+                                    a.data?.recordId === rec.id,
+                                );
+                                if (matchingMeal) {
+                                  const ok = await undoAction(matchingMeal.id);
+                                  if (ok) {
+                                    toast.success("Meal entry deleted");
+                                    return;
+                                  }
+                                } else if (matchingExtra) {
+                                  const ok = await undoAction(matchingExtra.id);
+                                  if (ok) {
+                                    toast.success("Extra meal entry deleted");
+                                    return;
+                                  }
+                                }
+                                const recordType =
+                                  rec.type ||
+                                  (isExtraGuestMeal ? "extra" : "guest");
+                                const ok = await removeMealAttendanceRecord(
+                                  rec.id,
+                                  recordType,
+                                );
+                                if (ok) {
+                                  toast.success(
+                                    isExtraGuestMeal
+                                      ? "Extra meal entry deleted"
+                                      : "Meal entry deleted",
+                                  );
+                                } else {
+                                  toast.error("Unable to delete meal entry.");
+                                }
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                })}
+            </div>
+          )}
+        </div>
       </div>
+    </div>
     );
   };
 
