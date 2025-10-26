@@ -3901,7 +3901,7 @@ const Services = () => {
               <p className="mt-4 text-3xl font-bold text-gray-900">
                 {totalLunchBags.toLocaleString()}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Ready for outreach</p>
+              <p className="mt-1 text-sm text-gray-600">to-go lunch bags</p>
             </div>
           </div>
 
