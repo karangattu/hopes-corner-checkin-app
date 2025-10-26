@@ -33,6 +33,7 @@ import {
   Gift,
   Bike,
   RotateCcw,
+  Ban,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
@@ -67,6 +68,7 @@ const GuestList = () => {
   } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
+  const { banGuest, clearGuestBan } = useAppContext();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -95,6 +97,16 @@ const GuestList = () => {
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [duplicateWarning, setDuplicateWarning] = useState("");
+
+  const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
+  const [pendingActions, setPendingActions] = useState(new Set());
+  const [banEditor, setBanEditor] = useState({
+    guestId: null,
+    until: "",
+    reason: "",
+  });
+  const [banError, setBanError] = useState("");
+  const [banSubmittingId, setBanSubmittingId] = useState(null);
 
   const [editingGuestId, setEditingGuestId] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -155,6 +167,13 @@ const GuestList = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  useEffect(() => {
+    if (banEditor.guestId && expandedGuest !== banEditor.guestId) {
+      setBanEditor({ guestId: null, until: "", reason: "" });
+      setBanError("");
+    }
+  }, [banEditor.guestId, expandedGuest]);
 
   const handleShowCreateForm = useCallback(() => {
     const searchParts = searchTerm.trim().split(/\s+/);
@@ -388,8 +407,6 @@ const GuestList = () => {
     setExpandedGuest(expandedGuest === guestId ? null : guestId);
   };
 
-  const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
-  const [pendingActions, setPendingActions] = useState(new Set());
 
   const handleMealSelection = (guestId, count) => {
     if (pendingMealGuests.has(guestId)) return;
@@ -435,6 +452,96 @@ const GuestList = () => {
     } catch (error) {
       haptics.error();
       toast.error(`Error adding extra meals: ${error.message}`);
+    }
+  };
+
+  const formatDateTimeLocal = (value) => {
+    if (!value) return "";
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (num) => String(num).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const getDefaultBanUntil = () => {
+    const oneWeekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return formatDateTimeLocal(oneWeekLater);
+  };
+
+  const openBanEditorForGuest = (guest) => {
+    haptics.selection();
+    setBanEditor({
+      guestId: guest.id,
+      until: guest.bannedUntil
+        ? formatDateTimeLocal(guest.bannedUntil)
+        : getDefaultBanUntil(),
+      reason: guest.banReason || "",
+    });
+    setBanError("");
+  };
+
+  const closeBanEditor = () => {
+    setBanEditor({ guestId: null, until: "", reason: "" });
+    setBanError("");
+  };
+
+  const handleBanFieldChange = (field, value) => {
+    setBanEditor((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleBanSubmit = async (event) => {
+    event.preventDefault();
+    if (!banEditor.guestId) return;
+
+    if (!banEditor.until) {
+      const message = "Select when the ban should end.";
+      setBanError(message);
+      toast.error(message);
+      haptics.error();
+      return;
+    }
+
+    setBanSubmittingId(banEditor.guestId);
+
+    try {
+      await banGuest(banEditor.guestId, {
+        bannedUntil: banEditor.until,
+        banReason: banEditor.reason,
+      });
+      haptics.success();
+      toast.success("Ban saved");
+      closeBanEditor();
+    } catch (error) {
+      const message = error?.message || "Unable to update ban.";
+      setBanError(message);
+      haptics.error();
+      toast.error(message);
+    } finally {
+      setBanSubmittingId(null);
+    }
+  };
+
+  const handleUnbanGuest = async (guest) => {
+    if (!guest) return;
+    haptics.buttonPress();
+    setBanSubmittingId(guest.id);
+
+    try {
+      await clearGuestBan(guest.id);
+      haptics.success();
+      toast.success("Ban lifted");
+      if (banEditor.guestId === guest.id) {
+        closeBanEditor();
+      }
+    } catch (error) {
+      const message = error?.message || "Unable to lift ban.";
+      haptics.error();
+      toast.error(message);
+    } finally {
+      setBanSubmittingId(null);
     }
   };
 
@@ -934,10 +1041,25 @@ const GuestList = () => {
       : "";
     const todayServices = todayServicesByGuest.get(guest.id) || [];
     const isSelected = selectedGuestIndex === index;
+    const isBanned = Boolean(guest.isBanned);
+    const bannedUntilDate =
+      isBanned && guest.bannedUntil && !Number.isNaN(new Date(guest.bannedUntil).getTime())
+        ? new Date(guest.bannedUntil)
+        : null;
+    const banSummaryLabel = bannedUntilDate
+      ? dateTimeFormatter.format(bannedUntilDate)
+      : null;
+    const banTooltip = isBanned
+      ? `${guest.preferredName || guest.name || "Guest"} is banned${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}${guest.banReason ? ` Reason: ${guest.banReason}` : ""}`
+      : "";
+    const isBanEditorOpen = banEditor.guestId === guest.id;
+    const banFormMinValue = isBanEditorOpen
+      ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
+      : null;
 
     const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
       isSelected ? "ring-2 ring-blue-500 border-blue-300 shadow-md" : ""
-    }`;
+    } ${isBanned ? "border-red-300" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
 
@@ -1132,6 +1254,129 @@ const GuestList = () => {
                 </>
               )}
             </div>
+            {guest.isBanned ? (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex gap-3">
+                    <AlertCircle
+                      size={20}
+                      className="text-red-500 mt-0.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-red-700">
+                        Guest is banned
+                        {banSummaryLabel ? ` until ${banSummaryLabel}` : "."}
+                      </p>
+                      {guest.banReason && (
+                        <p className="mt-1 text-sm text-red-700">
+                          Reason: {guest.banReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openBanEditorForGuest(guest)}
+                      className="px-4 py-2 rounded-md border border-red-200 bg-white text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                      disabled={banSubmittingId === guest.id}
+                    >
+                      Update Ban
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUnbanGuest(guest)}
+                      className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={banSubmittingId === guest.id}
+                    >
+                      Lift Ban
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 rounded-md border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <AlertCircle size={18} className="text-gray-400" aria-hidden="true" />
+                  <span>This guest can receive services.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openBanEditorForGuest(guest)}
+                  className="px-4 py-2 rounded-md bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors"
+                  disabled={banSubmittingId === guest.id}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Ban size={16} />
+                    Ban Guest
+                  </span>
+                </button>
+              </div>
+            )}
+            {isBanEditorOpen && (
+              <form
+                onSubmit={handleBanSubmit}
+                className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4 space-y-4"
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                      Ban ends*
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={banEditor.until}
+                      min={banFormMinValue || undefined}
+                      onChange={(event) =>
+                        handleBanFieldChange("until", event.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-blue-700">
+                      Choose when the guest can return for services.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                      Reason (optional)
+                    </label>
+                    <textarea
+                      value={banEditor.reason}
+                      onChange={(event) =>
+                        handleBanFieldChange("reason", event.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      rows={3}
+                      placeholder="Provide context staff should know"
+                    />
+                  </div>
+                </div>
+                {banError && (
+                  <p className="text-sm text-red-600" role="alert">
+                    {banError}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={closeBanEditor}
+                    className="px-4 py-2 rounded-md border border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={banSubmittingId === banEditor.guestId}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={banSubmittingId === banEditor.guestId}
+                  >
+                    {banSubmittingId === banEditor.guestId ? "Saving..." : "Save Ban"}
+                  </button>
+                </div>
+              </form>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {guest.phone && (
                 <div className="flex items-center gap-2 text-sm">
@@ -1345,39 +1590,49 @@ const GuestList = () => {
                         record.guestId === guest.id &&
                         pacificDateStringFrom(record.date) === today,
                     );
+                  const isPendingMeal = pendingMealGuests.has(guest.id);
 
                   return (
                     <div className="flex flex-wrap gap-2">
                       <div className="space-x-1 relative">
-                        {[1, 2, 3].map((count) => (
-                          <button
-                            key={count}
-                            onClick={() => handleMealSelection(guest.id, count)}
-                            disabled={
-                              alreadyHasMeal || pendingMealGuests.has(guest.id)
-                            }
-                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                              alreadyHasMeal
-                                ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                : pendingMealGuests.has(guest.id)
-                                  ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                  : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                            }`}
-                            title={
-                              alreadyHasMeal
-                                ? "Guest already received meals today"
-                                : `Give ${count} meal${count > 1 ? "s" : ""}`
-                            }
-                          >
-                            <SpringIcon>
-                              <Utensils size={16} />
-                            </SpringIcon>
-                            {count} Meal{count > 1 ? "s" : ""}
-                          </button>
-                        ))}
+                        {[1, 2, 3].map((count) => {
+                          const isDisabled =
+                            isBanned || alreadyHasMeal || isPendingMeal;
+
+                          return (
+                            <button
+                              key={count}
+                              onClick={() =>
+                                handleMealSelection(guest.id, count)
+                              }
+                              disabled={isDisabled}
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                isBanned
+                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                  : alreadyHasMeal
+                                    ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                    : isPendingMeal
+                                      ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                      : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                              }`}
+                              title={
+                                isBanned
+                                  ? banTooltip
+                                  : alreadyHasMeal
+                                    ? "Guest already received meals today"
+                                    : `Give ${count} meal${count > 1 ? "s" : ""}`
+                              }
+                            >
+                              <SpringIcon>
+                                <Utensils size={16} />
+                              </SpringIcon>
+                              {count} Meal{count > 1 ? "s" : ""}
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {alreadyHasMeal && (
+                      {alreadyHasMeal && !isBanned && (
                         <>
                           <div className="space-x-1 relative">
                             {[1, 2, 3].map((count) => (
@@ -1386,8 +1641,13 @@ const GuestList = () => {
                                 onClick={() =>
                                   handleAddExtraMeals(guest.id, count)
                                 }
+                                disabled={isBanned}
                                 className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
-                                title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
+                                title={
+                                  isBanned
+                                    ? banTooltip
+                                    : `Add ${count} extra meal${count > 1 ? "s" : ""}`
+                                }
                               >
                                 <SpringIcon>
                                   <PlusCircle size={16} />
@@ -1454,6 +1714,11 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={async () => {
+                    if (isBanned) {
+                      haptics.error();
+                      if (banTooltip) toast.error(banTooltip);
+                      return;
+                    }
                     const actionKey = `haircut-${guest.id}`;
                     if (pendingActions.has(actionKey)) return;
 
@@ -1475,13 +1740,15 @@ const GuestList = () => {
                       });
                     }
                   }}
-                  disabled={pendingActions.has(`haircut-${guest.id}`)}
+                  disabled={isBanned || pendingActions.has(`haircut-${guest.id}`)}
                   className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    pendingActions.has(`haircut-${guest.id}`)
-                      ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                      : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                    isBanned
+                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                      : pendingActions.has(`haircut-${guest.id}`)
+                          ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                          : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
                   }`}
-                  title="Log haircut for today"
+                  title={isBanned ? banTooltip : "Log haircut for today"}
                 >
                   <Scissors size={16} />
                   <span className="hidden sm:inline">
@@ -1527,6 +1794,11 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={() => {
+                    if (isBanned) {
+                      haptics.error();
+                      if (banTooltip) toast.error(banTooltip);
+                      return;
+                    }
                     haptics.buttonPress();
                     const rec = addHolidayRecord(guest.id);
                     if (rec) {
@@ -1534,8 +1806,13 @@ const GuestList = () => {
                       toast.success("Holiday logged");
                     }
                   }}
-                  className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
-                  title="Log holiday service for today"
+                  disabled={isBanned}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                    isBanned
+                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                      : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                  }`}
+                  title={isBanned ? banTooltip : "Log holiday service for today"}
                 >
                   <Gift size={16} />
                   <span className="hidden sm:inline">Holiday</span>
@@ -1577,6 +1854,11 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={() => {
+                    if (isBanned) {
+                      haptics.error();
+                      if (banTooltip) toast.error(banTooltip);
+                      return;
+                    }
                     if (!guest.bicycleDescription?.trim()) {
                       haptics.warning();
                       toast.error(
@@ -1588,16 +1870,20 @@ const GuestList = () => {
                     setBicyclePickerGuest(guest);
                   }}
                   className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    !guest.bicycleDescription?.trim()
-                      ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                      : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                    isBanned
+                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                      : !guest.bicycleDescription?.trim()
+                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
                   }`}
                   title={
-                    !guest.bicycleDescription?.trim()
+                    isBanned
+                      ? banTooltip
+                      : !guest.bicycleDescription?.trim()
                       ? "Add bicycle description to guest profile first"
                       : "Log bicycle repair for today"
                   }
-                  disabled={!guest.bicycleDescription?.trim()}
+                  disabled={isBanned || !guest.bicycleDescription?.trim()}
                 >
                   <Bike size={16} />
                   <span className="hidden sm:inline">Bicycle</span>
@@ -1639,10 +1925,21 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={() => {
+                    if (isBanned) {
+                      haptics.error();
+                      if (banTooltip) toast.error(banTooltip);
+                      return;
+                    }
                     haptics.buttonPress();
                     setShowerPickerGuest(guest);
                   }}
-                  className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                  disabled={isBanned}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                    isBanned
+                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                  }`}
+                  title={isBanned ? banTooltip : "Book a shower"}
                 >
                   <SpringIcon>
                     <ShowerHead size={16} />
@@ -1687,10 +1984,21 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={() => {
+                    if (isBanned) {
+                      haptics.error();
+                      if (banTooltip) toast.error(banTooltip);
+                      return;
+                    }
                     haptics.buttonPress();
                     setLaundryPickerGuest(guest);
                   }}
-                  className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                  disabled={isBanned}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                    isBanned
+                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                  }`}
+                  title={isBanned ? banTooltip : "Book laundry"}
                 >
                   <SpringIcon>
                     <WashingMachine size={16} />
@@ -2198,6 +2506,25 @@ const GuestList = () => {
                     : "";
                   const todayServices =
                     todayServicesByGuest.get(guest.id) || [];
+                  const isBanned = Boolean(guest.isBanned);
+                  const bannedUntilDate =
+                    isBanned &&
+                    guest.bannedUntil &&
+                    !Number.isNaN(new Date(guest.bannedUntil).getTime())
+                      ? new Date(guest.bannedUntil)
+                      : null;
+                  const banSummaryLabel = bannedUntilDate
+                    ? dateTimeFormatter.format(bannedUntilDate)
+                    : null;
+                  const banTooltip = isBanned
+                    ? `${guest.preferredName || guest.name || "Guest"} is banned${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}${
+                        guest.banReason ? ` Reason: ${guest.banReason}` : ""
+                      }`
+                    : "";
+                  const isBanEditorOpen = banEditor.guestId === guest.id;
+                  const banFormMinValue = isBanEditorOpen
+                    ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
+                    : null;
 
                   return (
                     <Animated.div
@@ -2367,6 +2694,129 @@ const GuestList = () => {
                               </>
                             )}
                           </div>
+                          {guest.isBanned ? (
+                            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="flex gap-3">
+                                  <AlertCircle
+                                    size={20}
+                                    className="text-red-500 mt-0.5 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                  <div>
+                                    <p className="text-sm font-semibold text-red-700">
+                                      Guest is banned
+                                      {banSummaryLabel ? ` until ${banSummaryLabel}` : "."}
+                                    </p>
+                                    {guest.banReason && (
+                                      <p className="mt-1 text-sm text-red-700">
+                                        Reason: {guest.banReason}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => openBanEditorForGuest(guest)}
+                                    className="px-4 py-2 rounded-md border border-red-200 bg-white text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                                    disabled={banSubmittingId === guest.id}
+                                  >
+                                    Update Ban
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnbanGuest(guest)}
+                                    className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    disabled={banSubmittingId === guest.id}
+                                  >
+                                    Lift Ban
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mb-4 rounded-md border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <AlertCircle size={18} className="text-gray-400" aria-hidden="true" />
+                                <span>This guest can receive services.</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => openBanEditorForGuest(guest)}
+                                className="px-4 py-2 rounded-md bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors"
+                                disabled={banSubmittingId === guest.id}
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  <Ban size={16} />
+                                  Ban Guest
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                          {isBanEditorOpen && (
+                            <form
+                              onSubmit={handleBanSubmit}
+                              className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4 space-y-4"
+                            >
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div>
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                                    Ban ends*
+                                  </label>
+                                  <input
+                                    type="datetime-local"
+                                    value={banEditor.until}
+                                    min={banFormMinValue || undefined}
+                                    onChange={(event) =>
+                                      handleBanFieldChange("until", event.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    required
+                                  />
+                                  <p className="mt-1 text-xs text-blue-700">
+                                    Choose when the guest can return for services.
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                                    Reason (optional)
+                                  </label>
+                                  <textarea
+                                    value={banEditor.reason}
+                                    onChange={(event) =>
+                                      handleBanFieldChange("reason", event.target.value)
+                                    }
+                                    className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    rows={3}
+                                    placeholder="Provide context staff should know"
+                                  />
+                                </div>
+                              </div>
+                              {banError && (
+                                <p className="text-sm text-red-600" role="alert">
+                                  {banError}
+                                </p>
+                              )}
+                              <div className="flex flex-wrap gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={closeBanEditor}
+                                  className="px-4 py-2 rounded-md border border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                  disabled={banSubmittingId === banEditor.guestId}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                  disabled={banSubmittingId === banEditor.guestId}
+                                >
+                                  {banSubmittingId === banEditor.guestId ? "Saving..." : "Save Ban"}
+                                </button>
+                              </div>
+                            </form>
+                          )}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             {guest.phone && (
                               <div className="flex items-center gap-2 text-sm">
@@ -2599,42 +3049,56 @@ const GuestList = () => {
                                       pacificDateStringFrom(record.date) ===
                                         today,
                                   );
+                                const isPendingMeal = pendingMealGuests.has(
+                                  guest.id,
+                                );
 
                                 return (
                                   <div className="flex flex-wrap gap-2">
                                     <div className="space-x-1 relative">
-                                      {[1, 2, 3].map((count) => (
-                                        <button
-                                          key={count}
-                                          onClick={() =>
-                                            handleMealSelection(guest.id, count)
-                                          }
-                                          disabled={
-                                            alreadyHasMeal ||
-                                            pendingMealGuests.has(guest.id)
-                                          }
-                                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                            alreadyHasMeal
-                                              ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                              : pendingMealGuests.has(guest.id)
-                                                ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                                : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                                          }`}
-                                          title={
-                                            alreadyHasMeal
-                                              ? "Guest already received meals today"
-                                              : `Give ${count} meal${count > 1 ? "s" : ""}`
-                                          }
-                                        >
-                                          <SpringIcon>
-                                            <Utensils size={16} />
-                                          </SpringIcon>
-                                          {count} Meal{count > 1 ? "s" : ""}
-                                        </button>
-                                      ))}
+                                      {[1, 2, 3].map((count) => {
+                                        const isDisabled =
+                                          isBanned ||
+                                          alreadyHasMeal ||
+                                          isPendingMeal;
+
+                                        return (
+                                          <button
+                                            key={count}
+                                            onClick={() =>
+                                              handleMealSelection(
+                                                guest.id,
+                                                count,
+                                              )
+                                            }
+                                            disabled={isDisabled}
+                                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                              isBanned
+                                                ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                                : alreadyHasMeal
+                                                    ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                                    : isPendingMeal
+                                                        ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                                        : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                                            }`}
+                                            title={
+                                              isBanned
+                                                ? banTooltip
+                                                : alreadyHasMeal
+                                                    ? "Guest already received meals today"
+                                                    : `Give ${count} meal${count > 1 ? "s" : ""}`
+                                            }
+                                          >
+                                            <SpringIcon>
+                                              <Utensils size={16} />
+                                            </SpringIcon>
+                                            {count} Meal{count > 1 ? "s" : ""}
+                                          </button>
+                                        );
+                                      })}
                                     </div>
 
-                                    {alreadyHasMeal && (
+                                    {alreadyHasMeal && !isBanned && (
                                       <>
                                         <div className="space-x-1 relative">
                                           {[1, 2, 3].map((count) => (
@@ -2646,8 +3110,13 @@ const GuestList = () => {
                                                   count,
                                                 )
                                               }
+                                              disabled={isBanned}
                                               className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
-                                              title={`Add ${count} extra meal${count > 1 ? "s" : ""}`}
+                                              title={
+                                                isBanned
+                                                  ? banTooltip
+                                                  : `Add ${count} extra meal${count > 1 ? "s" : ""}`
+                                              }
                                             >
                                               <SpringIcon>
                                                 <PlusCircle size={16} />
@@ -2725,6 +3194,11 @@ const GuestList = () => {
                             <div className="flex flex-wrap gap-2 items-center">
                               <button
                                 onClick={async () => {
+                                  if (isBanned) {
+                                    haptics.error();
+                                    if (banTooltip) toast.error(banTooltip);
+                                    return;
+                                  }
                                   const actionKey = `haircut-${guest.id}`;
                                   if (pendingActions.has(actionKey)) return;
 
@@ -2750,15 +3224,22 @@ const GuestList = () => {
                                     });
                                   }
                                 }}
-                                disabled={pendingActions.has(
-                                  `haircut-${guest.id}`,
-                                )}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                disabled={
+                                  isBanned ||
                                   pendingActions.has(`haircut-${guest.id}`)
-                                    ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                                    : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                                }
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  isBanned
+                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                    : pendingActions.has(`haircut-${guest.id}`)
+                                        ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                                        : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
                                 }`}
-                                title="Log haircut for today"
+                                title={
+                                  isBanned
+                                    ? banTooltip
+                                    : "Log haircut for today"
+                                }
                               >
                                 <Scissors size={16} />
                                 <span className="hidden sm:inline">
@@ -2807,6 +3288,11 @@ const GuestList = () => {
                             <div className="flex flex-wrap gap-2 items-center">
                               <button
                                 onClick={() => {
+                                  if (isBanned) {
+                                    haptics.error();
+                                    if (banTooltip) toast.error(banTooltip);
+                                    return;
+                                  }
                                   haptics.buttonPress();
                                   const rec = addHolidayRecord(guest.id);
                                   if (rec) {
@@ -2814,8 +3300,17 @@ const GuestList = () => {
                                     toast.success("Holiday logged");
                                   }
                                 }}
-                                className="bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
-                                title="Log holiday service for today"
+                                disabled={isBanned}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  isBanned
+                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                    : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                                }`}
+                                title={
+                                  isBanned
+                                    ? banTooltip
+                                    : "Log holiday service for today"
+                                }
                               >
                                 <Gift size={16} />
                                 <span className="hidden sm:inline">
@@ -2862,6 +3357,11 @@ const GuestList = () => {
                             <div className="flex flex-wrap gap-2 items-center">
                               <button
                                 onClick={() => {
+                                  if (isBanned) {
+                                    haptics.error();
+                                    if (banTooltip) toast.error(banTooltip);
+                                    return;
+                                  }
                                   if (!guest.bicycleDescription?.trim()) {
                                     haptics.warning();
                                     toast.error(
@@ -2873,16 +3373,22 @@ const GuestList = () => {
                                   setBicyclePickerGuest(guest);
                                 }}
                                 className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  !guest.bicycleDescription?.trim()
-                                    ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                    : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                                  isBanned
+                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                    : !guest.bicycleDescription?.trim()
+                                        ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                        : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
                                 }`}
                                 title={
-                                  !guest.bicycleDescription?.trim()
-                                    ? "Add bicycle description to guest profile first"
-                                    : "Log bicycle repair for today"
+                                  isBanned
+                                    ? banTooltip
+                                    : !guest.bicycleDescription?.trim()
+                                      ? "Add bicycle description to guest profile first"
+                                      : "Log bicycle repair for today"
                                 }
-                                disabled={!guest.bicycleDescription?.trim()}
+                                disabled={
+                                  isBanned || !guest.bicycleDescription?.trim()
+                                }
                               >
                                 <Bike size={16} />
                                 <span className="hidden sm:inline">
@@ -2929,10 +3435,21 @@ const GuestList = () => {
                             <div className="flex flex-wrap gap-2 items-center">
                               <button
                                 onClick={() => {
+                                  if (isBanned) {
+                                    haptics.error();
+                                    if (banTooltip) toast.error(banTooltip);
+                                    return;
+                                  }
                                   haptics.buttonPress();
                                   setShowerPickerGuest(guest);
                                 }}
-                                className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                                disabled={isBanned}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  isBanned
+                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                    : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                }`}
+                                title={isBanned ? banTooltip : "Book a shower"}
                               >
                                 <SpringIcon>
                                   <ShowerHead size={16} />
@@ -2980,10 +3497,21 @@ const GuestList = () => {
                             <div className="flex flex-wrap gap-2 items-center">
                               <button
                                 onClick={() => {
+                                  if (isBanned) {
+                                    haptics.error();
+                                    if (banTooltip) toast.error(banTooltip);
+                                    return;
+                                  }
                                   haptics.buttonPress();
                                   setLaundryPickerGuest(guest);
                                 }}
-                                className="bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation hover:shadow-sm active:scale-95"
+                                disabled={isBanned}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                  isBanned
+                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                    : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                }`}
+                                title={isBanned ? banTooltip : "Book laundry"}
                               >
                                 <SpringIcon>
                                   <WashingMachine size={16} />

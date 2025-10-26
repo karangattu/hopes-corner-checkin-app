@@ -9,6 +9,37 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function public.ensure_guest_not_banned()
+returns trigger as $$
+declare
+  ban_until timestamptz;
+  ban_reason text;
+  guest_name text;
+begin
+  if new.guest_id is null then
+    return new;
+  end if;
+
+  select g.banned_until, g.ban_reason, g.full_name
+    into ban_until, ban_reason, guest_name
+  from public.guests g
+  where g.id = new.guest_id;
+
+  if ban_until is null then
+    return new;
+  end if;
+
+  if ban_until > now() then
+    raise exception using
+  message = format('Guest %s is banned from services until %s', coalesce(guest_name, new.guest_id::text), to_char(ban_until at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI"Z"')),
+      detail = coalesce(ban_reason, ''),
+      hint = 'Update the guest''s ban settings or wait until it expires.';
+  end if;
+
+  return new;
+end;
+$$ language plpgsql;
+
 -- 2. Enumerations mirroring app constants
 create type public.gender_enum as enum ('Male','Female','Unknown','Non-binary');
 create type public.age_group_enum as enum ('Adult 18-59','Senior 60+','Child 0-17');
@@ -47,14 +78,26 @@ create table public.guests (
   location text not null default 'Mountain View',
   notes text,
   bicycle_description text,
+  ban_reason text,
+  banned_at timestamptz,
+  banned_until timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint guests_external_id_format check (external_id ~ '^G[A-Z0-9]{3,}$')
+  constraint guests_external_id_format check (external_id ~ '^G[A-Z0-9]{3,}$'),
+  constraint guests_ban_window_valid check (
+    banned_until is null
+    or banned_at is null
+    or banned_until > banned_at
+  )
 );
 
 create trigger trg_guests_updated_at
 before update on public.guests
 for each row execute function public.touch_updated_at();
+
+create index guests_banned_until_idx
+  on public.guests (banned_until)
+  where banned_until is not null;
 
 -- 4. Program attendance & services
 create table public.meal_attendance (
@@ -72,6 +115,10 @@ create table public.meal_attendance (
 create trigger trg_meal_attendance_updated_at
 before update on public.meal_attendance
 for each row execute function public.touch_updated_at();
+
+create trigger trg_meal_attendance_ban_guard
+before insert or update on public.meal_attendance
+for each row execute function public.ensure_guest_not_banned();
 
 -- Enforce one primary meal per guest per day
 create unique index meal_attendance_guest_unique
@@ -93,6 +140,10 @@ create table public.shower_reservations (
 create trigger trg_shower_reservations_updated_at
 before update on public.shower_reservations
 for each row execute function public.touch_updated_at();
+
+create trigger trg_shower_reservations_ban_guard
+before insert or update on public.shower_reservations
+for each row execute function public.ensure_guest_not_banned();
 
 create unique index shower_one_per_day
   on public.shower_reservations (guest_id, scheduled_for);
@@ -118,6 +169,10 @@ create trigger trg_laundry_bookings_updated_at
 before update on public.laundry_bookings
 for each row execute function public.touch_updated_at();
 
+create trigger trg_laundry_bookings_ban_guard
+before insert or update on public.laundry_bookings
+for each row execute function public.ensure_guest_not_banned();
+
 create unique index laundry_one_per_day
   on public.laundry_bookings (guest_id, scheduled_for);
 
@@ -140,12 +195,20 @@ create trigger trg_bicycle_repairs_updated_at
 before update on public.bicycle_repairs
 for each row execute function public.touch_updated_at();
 
+create trigger trg_bicycle_repairs_ban_guard
+before insert or update on public.bicycle_repairs
+for each row execute function public.ensure_guest_not_banned();
+
 create table public.holiday_visits (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete cascade,
   served_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+create trigger trg_holiday_visits_ban_guard
+before insert or update on public.holiday_visits
+for each row execute function public.ensure_guest_not_banned();
 
 create table public.haircut_visits (
   id uuid primary key default gen_random_uuid(),
@@ -154,6 +217,10 @@ create table public.haircut_visits (
   created_at timestamptz not null default now()
 );
 
+create trigger trg_haircut_visits_ban_guard
+before insert or update on public.haircut_visits
+for each row execute function public.ensure_guest_not_banned();
+
 create table public.items_distributed (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete cascade,
@@ -161,6 +228,10 @@ create table public.items_distributed (
   distributed_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+create trigger trg_items_distributed_ban_guard
+before insert or update on public.items_distributed
+for each row execute function public.ensure_guest_not_banned();
 
 create index items_distributed_lookup
   on public.items_distributed (guest_id, item_key, distributed_at desc);

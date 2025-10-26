@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   supabase,
   isSupabaseEnabled,
@@ -89,6 +89,15 @@ const extractLaundrySlotStart = (slotLabel) => {
   if (!slotLabel) return null;
   const [start] = slotLabel.split("-");
   return normalizeTimeComponent(start);
+};
+
+const computeIsGuestBanned = (bannedUntil) => {
+  if (!bannedUntil) return false;
+  const parsed = new Date(bannedUntil);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  return parsed.getTime() > Date.now();
 };
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -233,33 +242,46 @@ export const AppProvider = ({ children }) => {
 
   const migrateGuestData = (guestList) => {
     return guestList.map((guest) => {
-      if (guest.firstName && guest.lastName) {
+      const bannedUntil = guest?.bannedUntil ?? guest?.banned_until ?? null;
+      const bannedAt = guest?.bannedAt ?? guest?.banned_at ?? null;
+      const banReason = guest?.banReason ?? guest?.ban_reason ?? "";
+      const withBanMetadata = {
+        ...guest,
+        bannedUntil,
+        bannedAt,
+        banReason,
+        isBanned: computeIsGuestBanned(bannedUntil),
+      };
+
+      const baseGuest = withBanMetadata;
+
+      if (baseGuest.firstName && baseGuest.lastName) {
         return {
-          ...guest,
-          firstName: toTitleCase(guest.firstName),
-          lastName: toTitleCase(guest.lastName),
+          ...baseGuest,
+          firstName: toTitleCase(baseGuest.firstName),
+          lastName: toTitleCase(baseGuest.lastName),
           name: toTitleCase(
-            guest.name || `${guest.firstName} ${guest.lastName}`,
+            baseGuest.name || `${baseGuest.firstName} ${baseGuest.lastName}`,
           ),
-          preferredName: normalizePreferredName(guest.preferredName),
+          preferredName: normalizePreferredName(baseGuest.preferredName),
           bicycleDescription: normalizeBicycleDescription(
-            guest.bicycleDescription,
+            baseGuest.bicycleDescription,
           ),
         };
       }
 
-      const nameParts = (guest.name || "").trim().split(/\s+/);
+      const nameParts = (baseGuest.name || "").trim().split(/\s+/);
       const firstName = toTitleCase(nameParts[0] || "");
       const lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
 
       return {
-        ...guest,
+        ...baseGuest,
         firstName,
         lastName,
-        name: toTitleCase(guest.name || ""),
-        preferredName: normalizePreferredName(guest.preferredName),
+        name: toTitleCase(baseGuest.name || ""),
+        preferredName: normalizePreferredName(baseGuest.preferredName),
         bicycleDescription: normalizeBicycleDescription(
-          guest.bicycleDescription,
+          baseGuest.bicycleDescription,
         ),
       };
     });
@@ -267,6 +289,18 @@ export const AppProvider = ({ children }) => {
 
   const supabaseEnabled = isSupabaseEnabled();
   const supabaseConfigured = checkIfSupabaseConfigured();
+
+  const banDateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    [],
+  );
 
   const mapGuestRow = useCallback(
     (row) => ({
@@ -284,6 +318,10 @@ export const AppProvider = ({ children }) => {
       location: row.location || "Mountain View",
       notes: row.notes || "",
       bicycleDescription: normalizeBicycleDescription(row.bicycle_description),
+      bannedAt: row.banned_at,
+      bannedUntil: row.banned_until,
+      banReason: row.ban_reason || "",
+      isBanned: computeIsGuestBanned(row.banned_until),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       docId: row.id,
@@ -420,6 +458,34 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
+  const ensureGuestServiceEligible = useCallback(
+    (guestId, serviceLabel = "this service") => {
+      if (!guestId) return;
+      const guest = guests.find((candidate) => candidate.id === guestId);
+      if (!guest) return;
+
+      const bannedUntilRaw = guest.bannedUntil;
+      if (!bannedUntilRaw) return;
+
+      const bannedUntil = new Date(bannedUntilRaw);
+      if (Number.isNaN(bannedUntil.getTime())) return;
+
+      if (bannedUntil.getTime() <= Date.now()) {
+        return;
+      }
+
+      const formatted = banDateFormatter.format(bannedUntil);
+      const reasonSuffix = guest.banReason
+        ? ` Reason: ${guest.banReason}`
+        : "";
+      const nameLabel = guest.name || guest.preferredName || "Guest";
+      throw new Error(
+        `${nameLabel} is banned from ${serviceLabel} until ${formatted}.${reasonSuffix ? ` ${reasonSuffix}` : ""}`,
+      );
+    },
+    [guests, banDateFormatter],
+  );
+
   const getDonationDateKey = useCallback((record) => {
     if (!record) return null;
     if (record.dateKey) return record.dateKey;
@@ -431,6 +497,9 @@ export const AppProvider = ({ children }) => {
 
   const insertMealAttendance = async (payload) => {
     if (!supabaseEnabled || !supabase) return null;
+    if (payload?.guest_id) {
+      ensureGuestServiceEligible(payload.guest_id, "meal service");
+    }
     const { data, error } = await supabase
       .from("meal_attendance")
       .insert(payload)
@@ -460,6 +529,12 @@ export const AppProvider = ({ children }) => {
     // Process in chunks
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "meal service");
+        }
+      });
 
       const { data, error } = await supabase
         .from("meal_attendance")
@@ -497,6 +572,12 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
 
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "shower bookings");
+        }
+      });
+
       const { data, error } = await supabase
         .from("shower_reservations")
         .insert(chunk)
@@ -532,6 +613,12 @@ export const AppProvider = ({ children }) => {
 
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "laundry bookings");
+        }
+      });
 
       const { data, error } = await supabase
         .from("laundry_bookings")
@@ -569,6 +656,12 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
 
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "bicycle repairs");
+        }
+      });
+
       const { data, error } = await supabase
         .from("bicycle_repairs")
         .insert(chunk)
@@ -605,6 +698,12 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
 
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "haircut services");
+        }
+      });
+
       const { data, error } = await supabase
         .from("haircut_visits")
         .insert(chunk)
@@ -640,6 +739,12 @@ export const AppProvider = ({ children }) => {
 
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
+
+      chunk.forEach((row) => {
+        if (row?.guest_id) {
+          ensureGuestServiceEligible(row.guest_id, "holiday services");
+        }
+      });
 
       const { data, error } = await supabase
         .from("holiday_visits")
@@ -1372,6 +1477,8 @@ export const AppProvider = ({ children }) => {
     const typesToInsert = repairTypes || [repairType];
     const displayTypes = typesToInsert.join(", ");
 
+    ensureGuestServiceEligible(guestId, "bicycle repairs");
+
     if (supabaseEnabled && supabase) {
       try {
         const { data, error } = await supabase
@@ -1548,6 +1655,7 @@ export const AppProvider = ({ children }) => {
       toast.error("Holiday already logged today");
       return null;
     }
+    ensureGuestServiceEligible(guestId, "holiday services");
     if (supabaseEnabled && supabase) {
       try {
         const { data, error } = await supabase
@@ -1606,6 +1714,7 @@ export const AppProvider = ({ children }) => {
       toast.error("Haircut already logged today");
       return null;
     }
+    ensureGuestServiceEligible(guestId, "haircut services");
     if (supabaseEnabled && supabase) {
       try {
         const { data, error } = await supabase
@@ -1844,6 +1953,130 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
+  const banGuest = async (
+    guestId,
+    { bannedUntil, banReason = "", bannedAt: bannedAtOverride } = {},
+  ) => {
+    if (!guestId) throw new Error("Guest ID is required.");
+
+    const target = guests.find((guest) => guest.id === guestId);
+    if (!target) throw new Error("Guest not found.");
+
+    const normalizedUntil = normalizeDateInputToISO(bannedUntil);
+    if (!normalizedUntil) throw new Error("Ban end time is required.");
+
+    const untilDate = new Date(normalizedUntil);
+    if (Number.isNaN(untilDate.getTime()))
+      throw new Error("Ban end time is invalid.");
+    if (untilDate.getTime() <= Date.now())
+      throw new Error("Ban end time must be in the future.");
+
+    const normalizedBannedAt = bannedAtOverride
+      ? normalizeDateInputToISO(bannedAtOverride)
+      : target.bannedAt || new Date().toISOString();
+
+    const sanitizedReason = banReason.trim();
+
+    const originalGuest = { ...target };
+
+    const applyLocal = (guest) => ({
+      ...guest,
+      banReason: sanitizedReason,
+      bannedUntil: normalizedUntil,
+      bannedAt: normalizedBannedAt,
+      isBanned: true,
+    });
+
+    setGuests((prev) =>
+      prev.map((guest) => (guest.id === guestId ? applyLocal(guest) : guest)),
+    );
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("guests")
+          .update({
+            ban_reason: sanitizedReason || null,
+            banned_until: normalizedUntil,
+            banned_at: normalizedBannedAt,
+          })
+          .eq("id", guestId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const mapped = mapGuestRow(data);
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === guestId ? mapped : guest)),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to update guest ban in Supabase:", error);
+        setGuests((prev) =>
+          prev.map((guest) => (guest.id === guestId ? originalGuest : guest)),
+        );
+        throw new Error("Unable to update ban status. Please try again.");
+      }
+    }
+
+    return true;
+  };
+
+  const clearGuestBan = async (guestId) => {
+    if (!guestId) throw new Error("Guest ID is required.");
+
+    const target = guests.find((guest) => guest.id === guestId);
+    if (!target) throw new Error("Guest not found.");
+
+    const originalGuest = { ...target };
+
+    const clearedGuest = {
+      ...target,
+      banReason: "",
+      bannedUntil: null,
+      bannedAt: null,
+      isBanned: false,
+    };
+
+    setGuests((prev) =>
+      prev.map((guest) => (guest.id === guestId ? clearedGuest : guest)),
+    );
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("guests")
+          .update({
+            ban_reason: null,
+            banned_until: null,
+            banned_at: null,
+          })
+          .eq("id", guestId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const mapped = mapGuestRow(data);
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === guestId ? mapped : guest)),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to clear guest ban in Supabase:", error);
+        setGuests((prev) =>
+          prev.map((guest) => (guest.id === guestId ? originalGuest : guest)),
+        );
+        throw new Error("Unable to clear ban. Please try again.");
+      }
+    }
+
+    return true;
+  };
+
   const removeGuest = async (id) => {
     const target = guests.find((g) => g.id === id);
     setGuests(guests.filter((guest) => guest.id !== id));
@@ -1863,6 +2096,10 @@ export const AppProvider = ({ children }) => {
       (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
     );
     if (already) return null;
+
+    if (guestId) {
+      ensureGuestServiceEligible(guestId, "meal service");
+    }
 
     if (supabaseEnabled && supabase) {
       try {
@@ -2132,6 +2369,10 @@ export const AppProvider = ({ children }) => {
     const quantity = Number(count) || 0;
     if (quantity <= 0) throw new Error("Invalid extra meal count");
 
+    if (guestId) {
+      ensureGuestServiceEligible(guestId, "meal service");
+    }
+
     if (supabaseEnabled && supabase) {
       try {
         const inserted = await insertMealAttendance({
@@ -2326,6 +2567,8 @@ export const AppProvider = ({ children }) => {
     const scheduledFor = today;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, time);
 
+    ensureGuestServiceEligible(guestId, "shower bookings");
+
     if (supabaseEnabled && supabase) {
       try {
         const { data, error } = await supabase
@@ -2392,6 +2635,7 @@ export const AppProvider = ({ children }) => {
     if (already) {
       throw new Error("Guest already has a shower entry today.");
     }
+    ensureGuestServiceEligible(guestId, "shower bookings");
     const timestamp = new Date().toISOString();
     const record = {
       id: Date.now(),
@@ -2646,6 +2890,8 @@ export const AppProvider = ({ children }) => {
     const slotStart =
       laundryType === "onsite" ? extractLaundrySlotStart(time) : null;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
+
+    ensureGuestServiceEligible(guestId, "laundry bookings");
 
     if (supabaseEnabled && supabase) {
       try {
@@ -4651,6 +4897,8 @@ export const AppProvider = ({ children }) => {
     importGuestsFromCSV,
     updateGuest,
     removeGuest,
+  banGuest,
+  clearGuestBan,
     addMealRecord,
     addRvMealRecord,
     addShelterMealRecord,
