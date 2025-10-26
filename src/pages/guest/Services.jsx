@@ -3861,7 +3861,9 @@ const Services = () => {
               <p className="mt-4 text-3xl font-bold text-gray-900">
                 {totalMealsExcludingLunch.toLocaleString()}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Served today (excl. lunch bags)</p>
+              <p className="mt-1 text-sm text-gray-600">
+                Served today (excl. lunch bags)
+              </p>
             </div>
           </div>
 
@@ -3879,7 +3881,9 @@ const Services = () => {
               <p className="mt-4 text-3xl font-bold text-gray-900">
                 {totalGuestMeals.toLocaleString()}
               </p>
-              <p className="mt-1 text-sm text-gray-600">{mergedGuestMeals.length} entries logged</p>
+              <p className="mt-1 text-sm text-gray-600">
+                {mergedGuestMeals.length} entries logged
+              </p>
             </div>
           </div>
 
@@ -3913,9 +3917,16 @@ const Services = () => {
                 </span>
               </div>
               <p className="mt-4 text-3xl font-bold text-gray-900">
-                {(totalRvMeals + totalShelterMeals + totalUeMeals + totalDayWorkerMeals).toLocaleString()}
+                {(
+                  totalRvMeals +
+                  totalShelterMeals +
+                  totalUeMeals +
+                  totalDayWorkerMeals
+                ).toLocaleString()}
               </p>
-              <p className="mt-1 text-sm text-gray-600">RV, Shelter, UE, Day Worker</p>
+              <p className="mt-1 text-sm text-gray-600">
+                RV, Shelter, UE, Day Worker
+              </p>
             </div>
           </div>
         </div>
@@ -3933,9 +3944,15 @@ const Services = () => {
                   {mergedGuestMeals.length} entries
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Guest Meals</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalGuestMeals.toLocaleString()}</p>
-              <p className="mt-2 text-xs text-gray-600">Direct guest service meals</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                Guest Meals
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalGuestMeals.toLocaleString()}
+              </p>
+              <p className="mt-2 text-xs text-gray-600">
+                Direct guest service meals
+              </p>
             </div>
           </div>
 
@@ -3950,9 +3967,15 @@ const Services = () => {
                   {selectedDayWorkerMealRecords.length} records
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Day Worker Center</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalDayWorkerMeals.toLocaleString()}</p>
-              <p className="mt-2 text-xs text-gray-600">Partner drop-off meals</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                Day Worker Center
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalDayWorkerMeals.toLocaleString()}
+              </p>
+              <p className="mt-2 text-xs text-gray-600">
+                Partner drop-off meals
+              </p>
             </div>
           </div>
 
@@ -3967,8 +3990,12 @@ const Services = () => {
                   {selectedRvMealRecords.length} logs
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">RV Meals</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalRvMeals.toLocaleString()}</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                RV Meals
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalRvMeals.toLocaleString()}
+              </p>
               <p className="mt-2 text-xs text-gray-600">Outreach delivery</p>
             </div>
           </div>
@@ -3984,8 +4011,12 @@ const Services = () => {
                   {selectedShelterMealRecords.length} logs
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Shelter Meals</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalShelterMeals.toLocaleString()}</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                Shelter Meals
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalShelterMeals.toLocaleString()}
+              </p>
               <p className="mt-2 text-xs text-gray-600">Shelter delivery</p>
             </div>
           </div>
@@ -4001,8 +4032,12 @@ const Services = () => {
                   {selectedUeMealRecords.length} logs
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">United Effort</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalUeMeals.toLocaleString()}</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                United Effort
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalUeMeals.toLocaleString()}
+              </p>
               <p className="mt-2 text-xs text-gray-600">Partner pickup</p>
             </div>
           </div>
@@ -4018,9 +4053,15 @@ const Services = () => {
                   Combined
                 </span>
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">Extra Meals</h3>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{totalCombinedExtras.toLocaleString()}</p>
-              <p className="mt-2 text-xs text-gray-600">Guest: {totalGuestExtraMeals} • Walk-up: {totalExtraMeals}</p>
+              <h3 className="text-sm font-bold uppercase tracking-wide text-gray-600">
+                Extra Meals
+              </h3>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {totalCombinedExtras.toLocaleString()}
+              </p>
+              <p className="mt-2 text-xs text-gray-600">
+                Guest: {totalGuestExtraMeals} • Walk-up: {totalExtraMeals}
+              </p>
             </div>
           </div>
         </div>
@@ -4073,7 +4114,10 @@ const Services = () => {
                       }
                       setIsAddingDayWorkerMeals(true);
                       try {
-                        addDayWorkerMealRecord(dayWorkerMealCount, selectedDate);
+                        addDayWorkerMealRecord(
+                          dayWorkerMealCount,
+                          selectedDate,
+                        );
                         toast.success(
                           `Added ${dayWorkerMealCount} day worker meals for ${selectedDateLabel}!`,
                         );
@@ -4097,7 +4141,10 @@ const Services = () => {
                     </div>
                     <ul className="space-y-2">
                       {selectedDayWorkerMealRecords.map((record) => (
-                        <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                        <li
+                          key={record.id}
+                          className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                        >
                           <span className="text-xs text-gray-600">
                             {new Date(record.date).toLocaleTimeString()}
                           </span>
@@ -4163,7 +4210,10 @@ const Services = () => {
                       </div>
                       <ul className="space-y-2">
                         {selectedRvMealRecords.map((record) => (
-                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <li
+                            key={record.id}
+                            className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                          >
                             <span className="text-xs text-gray-600">
                               {new Date(record.date).toLocaleTimeString()}
                             </span>
@@ -4230,7 +4280,10 @@ const Services = () => {
                       </div>
                       <ul className="space-y-2">
                         {selectedShelterMealRecords.map((record) => (
-                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <li
+                            key={record.id}
+                            className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                          >
                             <span className="text-xs text-gray-600">
                               {new Date(record.date).toLocaleTimeString()}
                             </span>
@@ -4295,7 +4348,10 @@ const Services = () => {
                       </div>
                       <ul className="space-y-2">
                         {selectedUeMealRecords.map((record) => (
-                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <li
+                            key={record.id}
+                            className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                          >
                             <span className="text-xs text-gray-600">
                               {new Date(record.date).toLocaleTimeString()}
                             </span>
@@ -4339,7 +4395,9 @@ const Services = () => {
                     <input
                       type="number"
                       value={extraMealCount}
-                      onChange={(event) => setExtraMealCount(event.target.value)}
+                      onChange={(event) =>
+                        setExtraMealCount(event.target.value)
+                      }
                       placeholder="Number of extra meals"
                       className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
                       min="1"
@@ -4360,7 +4418,10 @@ const Services = () => {
                       </div>
                       <ul className="space-y-2">
                         {selectedGlobalExtraMealRecords.map((record) => (
-                          <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                          <li
+                            key={record.id}
+                            className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                          >
                             <span className="text-xs text-gray-600">
                               {new Date(record.date).toLocaleTimeString()}
                             </span>
@@ -4447,7 +4508,10 @@ const Services = () => {
                     </div>
                     <ul className="space-y-2">
                       {selectedLunchBagRecords.map((record) => (
-                        <li key={record.id} className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2">
+                        <li
+                          key={record.id}
+                          className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
+                        >
                           <span className="text-xs text-gray-600">
                             {new Date(record.date).toLocaleTimeString()}
                           </span>
@@ -4472,122 +4536,122 @@ const Services = () => {
         <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-100/30 blur-3xl" />
           <div className="relative space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                    <Utensils className="text-emerald-600" size={22} />
-                    Guest Meal Log
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Guest-specific meals and extras for {selectedDateLabel}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                    {totalGuestMeals.toLocaleString()} guest meals
-                  </span>
-                  <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
-                    {totalMealsExcludingLunch.toLocaleString()} total
-                  </span>
-                </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                  <Utensils className="text-emerald-600" size={22} />
+                  Guest Meal Log
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  Guest-specific meals and extras for {selectedDateLabel}
+                </p>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                  {totalGuestMeals.toLocaleString()} guest meals
+                </span>
+                <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
+                  {totalMealsExcludingLunch.toLocaleString()} total
+                </span>
+              </div>
+            </div>
 
-              {mergedGuestMeals.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 py-12">
-                  <Utensils size={48} className="text-emerald-300" />
-                  <p className="mt-4 text-sm font-medium text-emerald-600">
-                    No guest meals logged for this date yet.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {mergedGuestMeals.map((rec) => {
-                    const isExtraGuestMeal = !!(
-                      rec.guestId &&
-                      extraMealRecords.some((er) => er.id === rec.id)
-                    );
-                    return (
-                      <div
-                        key={rec.id}
-                        className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 transition hover:border-gray-300 hover:shadow-sm"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="truncate font-bold text-gray-900">
-                                {getGuestName(rec.guestId)}
-                              </h3>
-                              {isExtraGuestMeal && (
-                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                                  Extra
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-500">
-                              {new Date(rec.date).toLocaleTimeString()}
-                            </div>
-                          </div>
+            {mergedGuestMeals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 py-12">
+                <Utensils size={48} className="text-emerald-300" />
+                <p className="mt-4 text-sm font-medium text-emerald-600">
+                  No guest meals logged for this date yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {mergedGuestMeals.map((rec) => {
+                  const isExtraGuestMeal = !!(
+                    rec.guestId &&
+                    extraMealRecords.some((er) => er.id === rec.id)
+                  );
+                  return (
+                    <div
+                      key={rec.id}
+                      className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 transition hover:border-gray-300 hover:shadow-sm"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                              {rec.count} meal{rec.count > 1 ? "s" : ""}
-                            </span>
-                            <button
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
-                              title="Delete this entry"
-                              onClick={async () => {
-                                const matchingMeal = actionHistory.find(
-                                  (a) =>
-                                    a.type === "MEAL_ADDED" &&
-                                    a.data?.recordId === rec.id,
-                                );
-                                const matchingExtra = actionHistory.find(
-                                  (a) =>
-                                    a.type === "EXTRA_MEALS_ADDED" &&
-                                    a.data?.recordId === rec.id,
-                                );
-                                if (matchingMeal) {
-                                  const ok = await undoAction(matchingMeal.id);
-                                  if (ok) {
-                                    toast.success("Meal entry deleted");
-                                    return;
-                                  }
-                                } else if (matchingExtra) {
-                                  const ok = await undoAction(matchingExtra.id);
-                                  if (ok) {
-                                    toast.success("Extra meal entry deleted");
-                                    return;
-                                  }
-                                }
-                                const recordType =
-                                  rec.type ||
-                                  (isExtraGuestMeal ? "extra" : "guest");
-                                const ok = await removeMealAttendanceRecord(
-                                  rec.id,
-                                  recordType,
-                                );
-                                if (ok) {
-                                  toast.success(
-                                    isExtraGuestMeal
-                                      ? "Extra meal entry deleted"
-                                      : "Meal entry deleted",
-                                  );
-                                } else {
-                                  toast.error("Unable to delete meal entry.");
-                                }
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <h3 className="truncate font-bold text-gray-900">
+                              {getGuestName(rec.guestId)}
+                            </h3>
+                            {isExtraGuestMeal && (
+                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                                Extra
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {new Date(rec.date).toLocaleTimeString()}
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                            {rec.count} meal{rec.count > 1 ? "s" : ""}
+                          </span>
+                          <button
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
+                            title="Delete this entry"
+                            onClick={async () => {
+                              const matchingMeal = actionHistory.find(
+                                (a) =>
+                                  a.type === "MEAL_ADDED" &&
+                                  a.data?.recordId === rec.id,
+                              );
+                              const matchingExtra = actionHistory.find(
+                                (a) =>
+                                  a.type === "EXTRA_MEALS_ADDED" &&
+                                  a.data?.recordId === rec.id,
+                              );
+                              if (matchingMeal) {
+                                const ok = await undoAction(matchingMeal.id);
+                                if (ok) {
+                                  toast.success("Meal entry deleted");
+                                  return;
+                                }
+                              } else if (matchingExtra) {
+                                const ok = await undoAction(matchingExtra.id);
+                                if (ok) {
+                                  toast.success("Extra meal entry deleted");
+                                  return;
+                                }
+                              }
+                              const recordType =
+                                rec.type ||
+                                (isExtraGuestMeal ? "extra" : "guest");
+                              const ok = await removeMealAttendanceRecord(
+                                rec.id,
+                                recordType,
+                              );
+                              if (ok) {
+                                toast.success(
+                                  isExtraGuestMeal
+                                    ? "Extra meal entry deleted"
+                                    : "Meal entry deleted",
+                                );
+                              } else {
+                                toast.error("Unable to delete meal entry.");
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                    );
+                    </div>
+                  );
                 })}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     );
   };
 

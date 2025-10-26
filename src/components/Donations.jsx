@@ -496,7 +496,7 @@ const Donations = () => {
     }
 
     return Array.from(consolidationMap.values()).sort(
-      (a, b) => b.latestTimestamp - a.latestTimestamp
+      (a, b) => b.latestTimestamp - a.latestTimestamp,
     );
   }, [dayRecords]);
 
@@ -548,10 +548,7 @@ const Donations = () => {
       return;
     }
 
-    exportDataAsCSV(
-      rows,
-      `donations-${range.start}-to-${range.end}.csv`,
-    );
+    exportDataAsCSV(rows, `donations-${range.start}-to-${range.end}.csv`);
     toast.success(
       `Exported ${formatNumber(rows.length)} donation record${rows.length === 1 ? "" : "s"}`,
     );
@@ -888,10 +885,12 @@ const Donations = () => {
                   Today's Activity
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
-                  {selectedStats.entries} {selectedStats.entries === 1 ? "entry" : "entries"} logged
+                  {selectedStats.entries}{" "}
+                  {selectedStats.entries === 1 ? "entry" : "entries"} logged
                   {consolidatedActivity.length !== selectedStats.entries && (
                     <span className="ml-1 text-emerald-600">
-                      • Consolidated into {consolidatedActivity.length} {consolidatedActivity.length === 1 ? "item" : "items"}
+                      • Consolidated into {consolidatedActivity.length}{" "}
+                      {consolidatedActivity.length === 1 ? "item" : "items"}
                     </span>
                   )}
                 </p>
@@ -968,7 +967,8 @@ const Donations = () => {
                           {isMultipleEntries && (
                             <details className="mt-3">
                               <summary className="cursor-pointer text-xs font-semibold text-blue-600 hover:text-blue-700">
-                                View {consolidated.entries.length} individual entries
+                                View {consolidated.entries.length} individual
+                                entries
                               </summary>
                               <div className="mt-2 space-y-2 rounded-lg bg-blue-50 p-3">
                                 {consolidated.entries.map((entry, entryIdx) => (
@@ -977,18 +977,37 @@ const Donations = () => {
                                     className="flex items-center justify-between text-xs"
                                   >
                                     <span className="text-gray-600">
-                                      Entry {entryIdx + 1} • {formatRecordTime(entry)}
+                                      Entry {entryIdx + 1} •{" "}
+                                      {formatRecordTime(entry)}
                                     </span>
                                     <div className="flex gap-3 text-gray-700">
-                                      <span>{formatNumber(entry.trays, { maximumFractionDigits: 0 })} trays</span>
-                                      <span>{formatNumber(entry.weightLbs, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} lbs</span>
+                                      <span>
+                                        {formatNumber(entry.trays, {
+                                          maximumFractionDigits: 0,
+                                        })}{" "}
+                                        trays
+                                      </span>
+                                      <span>
+                                        {formatNumber(entry.weightLbs, {
+                                          minimumFractionDigits: 1,
+                                          maximumFractionDigits: 1,
+                                        })}{" "}
+                                        lbs
+                                      </span>
                                       <button
                                         type="button"
                                         onClick={async () => {
-                                          if (!window.confirm("Delete this individual entry?"))
+                                          if (
+                                            !window.confirm(
+                                              "Delete this individual entry?",
+                                            )
+                                          )
                                             return;
                                           setDonationRecords((prev) =>
-                                            prev.filter((donation) => donation.id !== entry.id),
+                                            prev.filter(
+                                              (donation) =>
+                                                donation.id !== entry.id,
+                                            ),
                                           );
                                           toast.success("Entry deleted");
                                         }}
@@ -1012,16 +1031,28 @@ const Donations = () => {
                               const confirmMessage = isMultipleEntries
                                 ? `Delete all ${consolidated.entries.length} entries of this item?`
                                 : "Delete this donation entry?";
-                              if (!window.confirm(confirmMessage))
-                                return;
-                              const idsToDelete = consolidated.entries.map(e => e.id);
-                              setDonationRecords((prev) =>
-                                prev.filter((donation) => !idsToDelete.includes(donation.id)),
+                              if (!window.confirm(confirmMessage)) return;
+                              const idsToDelete = consolidated.entries.map(
+                                (e) => e.id,
                               );
-                              toast.success(isMultipleEntries ? `${consolidated.entries.length} entries deleted` : "Donation deleted");
+                              setDonationRecords((prev) =>
+                                prev.filter(
+                                  (donation) =>
+                                    !idsToDelete.includes(donation.id),
+                                ),
+                              );
+                              toast.success(
+                                isMultipleEntries
+                                  ? `${consolidated.entries.length} entries deleted`
+                                  : "Donation deleted",
+                              );
                             }}
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
-                            title={isMultipleEntries ? "Delete all entries" : "Delete"}
+                            title={
+                              isMultipleEntries
+                                ? "Delete all entries"
+                                : "Delete"
+                            }
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1127,8 +1158,12 @@ const Donations = () => {
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-900">{donor.donor}</h3>
                       <p className="text-xs text-gray-600">
-                        {formatNumber(donor.entries)} {donor.entries === 1 ? "entry" : "entries"} •{" "}
-                        {formatNumber(donor.trays, { maximumFractionDigits: 0 })} trays
+                        {formatNumber(donor.entries)}{" "}
+                        {donor.entries === 1 ? "entry" : "entries"} •{" "}
+                        {formatNumber(donor.trays, {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        trays
                       </p>
                     </div>
                     <div className="text-right">
@@ -1179,7 +1214,10 @@ const Donations = () => {
                     <span className="text-xl text-gray-500"> lbs</span>
                   </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    {formatNumber(weeklyComparison.weekTrays, { maximumFractionDigits: 0 })} trays total
+                    {formatNumber(weeklyComparison.weekTrays, {
+                      maximumFractionDigits: 0,
+                    })}{" "}
+                    trays total
                   </p>
                 </div>
 
@@ -1199,7 +1237,10 @@ const Donations = () => {
                       </p>
                       <div className="mt-3 flex items-center gap-2">
                         {weeklyComparison.trend === "up" ? (
-                          <ArrowUpRight size={28} className="text-emerald-600" />
+                          <ArrowUpRight
+                            size={28}
+                            className="text-emerald-600"
+                          />
                         ) : weeklyComparison.trend === "down" ? (
                           <ArrowDownRight size={28} className="text-rose-600" />
                         ) : (
@@ -1221,7 +1262,9 @@ const Donations = () => {
                           })}
                         </p>
                       </div>
-                      <p className="mt-2 text-sm text-gray-600">lbs vs last week</p>
+                      <p className="mt-2 text-sm text-gray-600">
+                        lbs vs last week
+                      </p>
                     </div>
 
                     {weeklyComparison.deltaPercent !== null && (
@@ -1237,7 +1280,9 @@ const Donations = () => {
                           })}
                           <span className="text-xl">%</span>
                         </p>
-                        <p className="mt-2 text-sm text-gray-600">growth rate</p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          growth rate
+                        </p>
                       </div>
                     )}
                   </>
@@ -1272,7 +1317,9 @@ const Donations = () => {
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => option.range && setRange({ ...option.range })}
+                      onClick={() =>
+                        option.range && setRange({ ...option.range })
+                      }
                       disabled={!option.range}
                       className="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-100 disabled:text-gray-400"
                     >
@@ -1292,7 +1339,10 @@ const Donations = () => {
                     type="date"
                     value={range.start}
                     onChange={(event) =>
-                      setRange((prev) => ({ ...prev, start: event.target.value }))
+                      setRange((prev) => ({
+                        ...prev,
+                        start: event.target.value,
+                      }))
                     }
                     className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
@@ -1336,7 +1386,9 @@ const Donations = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-emerald-900">
-                        {formatNumber(rangePreview.trays, { maximumFractionDigits: 0 })}
+                        {formatNumber(rangePreview.trays, {
+                          maximumFractionDigits: 0,
+                        })}
                       </p>
                       <p className="text-xs text-emerald-700">Trays</p>
                     </div>
@@ -1366,7 +1418,8 @@ const Donations = () => {
               </button>
 
               <p className="text-center text-xs text-gray-500">
-                All dates use Pacific Time • CSV includes date, type, item, trays, weight, and donor
+                All dates use Pacific Time • CSV includes date, type, item,
+                trays, weight, and donor
               </p>
             </div>
           </div>

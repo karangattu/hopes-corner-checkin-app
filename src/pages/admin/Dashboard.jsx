@@ -279,10 +279,7 @@ const Dashboard = () => {
       return;
     }
 
-    exportDataAsCSV(
-      metricsData,
-      `hopes-corner-metrics-${start}-to-${end}.csv`,
-    );
+    exportDataAsCSV(metricsData, `hopes-corner-metrics-${start}-to-${end}.csv`);
     toast.success("Metrics export created");
   };
 
@@ -374,7 +371,6 @@ const Dashboard = () => {
       <MonthlySummaryReport />
     </div>
   );
-
 
   const renderBatchUploadSection = () => (
     <div className="space-y-6">

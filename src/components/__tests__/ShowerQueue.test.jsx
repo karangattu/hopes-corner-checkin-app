@@ -80,7 +80,9 @@ describe("ShowerQueue", () => {
   it("allows removing a guest", () => {
     render(<ShowerQueue queue={initialQueue} setQueue={mockSetQueue} />);
 
-    const removeButton = screen.getByLabelText("Remove Alice from shower queue");
+    const removeButton = screen.getByLabelText(
+      "Remove Alice from shower queue",
+    );
     fireEvent.click(removeButton);
 
     expect(mockSetQueue).toHaveBeenCalledTimes(1);
@@ -125,7 +127,13 @@ describe("ShowerQueue", () => {
   it("invokes refresh when pulling the queue", async () => {
     vi.useRealTimers();
     const onRefresh = vi.fn().mockResolvedValue();
-    render(<ShowerQueue queue={initialQueue} setQueue={mockSetQueue} onRefresh={onRefresh} />);
+    render(
+      <ShowerQueue
+        queue={initialQueue}
+        setQueue={mockSetQueue}
+        onRefresh={onRefresh}
+      />,
+    );
 
     const container = screen.getByTestId("shower-queue-container");
     fireEvent.touchStart(container, { touches: [{ clientY: 0 }] });

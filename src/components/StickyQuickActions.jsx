@@ -182,8 +182,10 @@ const buildActions = ({
   const orderedBase = base.sort((a, b) => {
     const aIndex = order.indexOf(a.id);
     const bIndex = order.indexOf(b.id);
-    return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) -
-      (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+    return (
+      (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) -
+      (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex)
+    );
   });
 
   return [...orderedBase, ...overrides];
@@ -218,8 +220,8 @@ const StickyQuickActions = ({
   useEffect(() => {
     if (isTouch || !shortcutsEnabled) return undefined;
     const handler = (event) => {
-      const actionable = actions.find((action) =>
-        action.shortcut && matchesShortcut(event, action.shortcut),
+      const actionable = actions.find(
+        (action) => action.shortcut && matchesShortcut(event, action.shortcut),
       );
       if (!actionable) return;
       event.preventDefault();

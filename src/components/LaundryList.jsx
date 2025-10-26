@@ -26,8 +26,7 @@ const LaundryListItem = ({
     handleTouchCancel,
   } = useSwipeToComplete({ onComplete: () => onComplete(guest) });
 
-  const isSelectDisabled =
-    !!guest.slot || (slotsUsed >= 5 && !guest.slot);
+  const isSelectDisabled = !!guest.slot || (slotsUsed >= 5 && !guest.slot);
 
   const slotIsUnavailable = (slot) =>
     list.some((g) => g.slot === slot && g.id !== guest.id);
@@ -240,9 +239,7 @@ export default function LaundryList({ list, setList, onRefresh = noopAsync }) {
 
       <div className="slot-counter" aria-live="polite">
         <strong>Slots Used:</strong>
-        <span>
-          {slotsUsed} / 5
-        </span>
+        <span>{slotsUsed} / 5</span>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { useAppContext } from "../../context/useAppContext";
 import {
   Download,
@@ -12,6 +12,8 @@ import {
   ChevronRight,
   FileText,
   Package,
+  Circle,
+  RotateCcw,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -39,6 +41,44 @@ const DAYS_OF_WEEK = [
   { value: 6, label: "Saturday", short: "Sat" },
 ];
 
+const MEAL_TYPE_OPTIONS = [
+  {
+    key: "guest",
+    label: "Guest meals",
+    description: "Registered guests served on-site.",
+  },
+  {
+    key: "extras",
+    label: "Extra meals",
+    description: "Extra meals after service.",
+  },
+  {
+    key: "rv",
+    label: "RV meals",
+    description: "Meals delivered to RV communities.",
+  },
+  {
+    key: "dayWorker",
+    label: "Day Worker Center",
+    description: "Partner deliveries for day workers.",
+  },
+  {
+    key: "shelter",
+    label: "Shelter meals",
+    description: "Support sent to shelter guests.",
+  },
+  {
+    key: "unitedEffort",
+    label: "United Effort",
+    description: "Meals shared with United Effort org volunteers.",
+  },
+];
+
+const MEAL_TYPE_DEFAULTS = MEAL_TYPE_OPTIONS.reduce((acc, option) => {
+  acc[option.key] = true;
+  return acc;
+}, {});
+
 const MealReport = () => {
   const {
     mealRecords,
@@ -57,6 +97,38 @@ const MealReport = () => {
   const [comparisonMonths, setComparisonMonths] = useState(3);
   const [activeTab, setActiveTab] = useState("overview"); // overview, trends, export
   const chartRef = useRef(null);
+  const [mealTypeFilters, setMealTypeFilters] = useState(() => ({
+    ...MEAL_TYPE_DEFAULTS,
+  }));
+
+  const enabledMealTypeCount = useMemo(
+    () =>
+      MEAL_TYPE_OPTIONS.reduce(
+        (count, option) => (mealTypeFilters[option.key] ? count + 1 : count),
+        0,
+      ),
+    [mealTypeFilters],
+  );
+
+  const toggleMealType = useCallback((key) => {
+    setMealTypeFilters((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }, []);
+
+  const selectAllMealTypes = useCallback(() => {
+    setMealTypeFilters({ ...MEAL_TYPE_DEFAULTS });
+  }, []);
+
+  const clearMealTypes = useCallback(() => {
+    setMealTypeFilters(
+      MEAL_TYPE_OPTIONS.reduce((acc, option) => {
+        acc[option.key] = false;
+        return acc;
+      }, {}),
+    );
+  }, []);
 
   const months = useMemo(
     () => [
@@ -142,40 +214,34 @@ const MealReport = () => {
         });
       };
 
-      const monthMeals = filterRecordsByDayAndMonth(mealRecords);
-      const monthRvMeals = filterRecordsByDayAndMonth(rvMealRecords);
-      const monthShelterMeals = filterRecordsByDayAndMonth(shelterMealRecords);
-      const monthUnitedEffortMeals = filterRecordsByDayAndMonth(
-        unitedEffortMealRecords,
-      );
-      const monthExtraMeals = filterRecordsByDayAndMonth(extraMealRecords);
-      const monthDayWorkerMeals =
-        filterRecordsByDayAndMonth(dayWorkerMealRecords);
+      const sumCounts = (records) =>
+        records.reduce((sum, r) => sum + (r.count || 0), 0);
 
-      const guestMealsCount = monthMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
-      const rvMealsCount = monthRvMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
-      const shelterMealsCount = monthShelterMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
-      const unitedEffortMealsCount = monthUnitedEffortMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
-      const extraMealsCount = monthExtraMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
-      const dayWorkerMealsCount = monthDayWorkerMeals.reduce(
-        (sum, r) => sum + (r.count || 0),
-        0,
-      );
+      const monthMeals = mealTypeFilters.guest
+        ? filterRecordsByDayAndMonth(mealRecords)
+        : [];
+      const monthExtraMeals = mealTypeFilters.extras
+        ? filterRecordsByDayAndMonth(extraMealRecords)
+        : [];
+      const monthRvMeals = mealTypeFilters.rv
+        ? filterRecordsByDayAndMonth(rvMealRecords)
+        : [];
+      const monthDayWorkerMeals = mealTypeFilters.dayWorker
+        ? filterRecordsByDayAndMonth(dayWorkerMealRecords)
+        : [];
+      const monthShelterMeals = mealTypeFilters.shelter
+        ? filterRecordsByDayAndMonth(shelterMealRecords)
+        : [];
+      const monthUnitedEffortMeals = mealTypeFilters.unitedEffort
+        ? filterRecordsByDayAndMonth(unitedEffortMealRecords)
+        : [];
+
+      const guestMealsCount = sumCounts(monthMeals);
+      const extraMealsCount = sumCounts(monthExtraMeals);
+      const rvMealsCount = sumCounts(monthRvMeals);
+      const dayWorkerMealsCount = sumCounts(monthDayWorkerMeals);
+      const shelterMealsCount = sumCounts(monthShelterMeals);
+      const unitedEffortMealsCount = sumCounts(monthUnitedEffortMeals);
 
       const uniqueGuestIds = new Set(
         [
@@ -232,6 +298,7 @@ const MealReport = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
+    mealTypeFilters,
     months,
   ]);
 
@@ -248,12 +315,28 @@ const MealReport = () => {
   const mealTypeBreakdown = useMemo(() => {
     if (!currentMonthData) return [];
     return [
-      { name: "Guest Meals", value: currentMonthData.guestMeals, color: "#3b82f6" },
+      {
+        name: "Guest Meals",
+        value: currentMonthData.guestMeals,
+        color: "#3b82f6",
+      },
       { name: "Extras", value: currentMonthData.extras, color: "#f97316" },
       { name: "RV Meals", value: currentMonthData.rvMeals, color: "#a855f7" },
-      { name: "Day Worker", value: currentMonthData.dayWorkerMeals, color: "#22c55e" },
-      { name: "Shelter", value: currentMonthData.shelterMeals, color: "#ec4899" },
-      { name: "United Effort", value: currentMonthData.unitedEffortMeals, color: "#6366f1" },
+      {
+        name: "Day Worker",
+        value: currentMonthData.dayWorkerMeals,
+        color: "#22c55e",
+      },
+      {
+        name: "Shelter",
+        value: currentMonthData.shelterMeals,
+        color: "#ec4899",
+      },
+      {
+        name: "United Effort",
+        value: currentMonthData.unitedEffortMeals,
+        color: "#6366f1",
+      },
     ].filter((item) => item.value > 0);
   }, [currentMonthData]);
 
@@ -317,12 +400,24 @@ const MealReport = () => {
 
       serviceIndex += 1;
 
-      const dayMeals = recordsForDay(mealRecords, day);
-      const dayRvMeals = recordsForDay(rvMealRecords, day);
-      const dayShelterMeals = recordsForDay(shelterMealRecords, day);
-      const dayUnitedEffortMeals = recordsForDay(unitedEffortMealRecords, day);
-      const dayExtraMeals = recordsForDay(extraMealRecords, day);
-      const dayDayWorkerMeals = recordsForDay(dayWorkerMealRecords, day);
+      const dayMeals = mealTypeFilters.guest
+        ? recordsForDay(mealRecords, day)
+        : [];
+      const dayExtraMeals = mealTypeFilters.extras
+        ? recordsForDay(extraMealRecords, day)
+        : [];
+      const dayRvMeals = mealTypeFilters.rv
+        ? recordsForDay(rvMealRecords, day)
+        : [];
+      const dayDayWorkerMeals = mealTypeFilters.dayWorker
+        ? recordsForDay(dayWorkerMealRecords, day)
+        : [];
+      const dayShelterMeals = mealTypeFilters.shelter
+        ? recordsForDay(shelterMealRecords, day)
+        : [];
+      const dayUnitedEffortMeals = mealTypeFilters.unitedEffort
+        ? recordsForDay(unitedEffortMealRecords, day)
+        : [];
 
       const guestMealsTotal = sumCounts(dayMeals);
       const rvMealsTotal = sumCounts(dayRvMeals);
@@ -388,6 +483,7 @@ const MealReport = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
+    mealTypeFilters,
   ]);
 
   const scatterLegend = useMemo(() => {
@@ -406,6 +502,11 @@ const MealReport = () => {
   const exportCSV = () => {
     if (calculateMealData.length === 0) {
       toast.error("No data to export");
+      return;
+    }
+
+    if (enabledMealTypeCount === 0) {
+      toast.error("Select at least one meal category before exporting.");
       return;
     }
 
@@ -435,12 +536,24 @@ const MealReport = () => {
         });
       };
 
-      const dayMeals = filterRecordsByDate(mealRecords);
-      const dayRvMeals = filterRecordsByDate(rvMealRecords);
-      const dayShelterMeals = filterRecordsByDate(shelterMealRecords);
-      const dayUnitedEffortMeals = filterRecordsByDate(unitedEffortMealRecords);
-      const dayExtraMeals = filterRecordsByDate(extraMealRecords);
-      const dayDayWorkerMeals = filterRecordsByDate(dayWorkerMealRecords);
+      const dayMeals = mealTypeFilters.guest
+        ? filterRecordsByDate(mealRecords)
+        : [];
+      const dayExtraMeals = mealTypeFilters.extras
+        ? filterRecordsByDate(extraMealRecords)
+        : [];
+      const dayRvMeals = mealTypeFilters.rv
+        ? filterRecordsByDate(rvMealRecords)
+        : [];
+      const dayDayWorkerMeals = mealTypeFilters.dayWorker
+        ? filterRecordsByDate(dayWorkerMealRecords)
+        : [];
+      const dayShelterMeals = mealTypeFilters.shelter
+        ? filterRecordsByDate(shelterMealRecords)
+        : [];
+      const dayUnitedEffortMeals = mealTypeFilters.unitedEffort
+        ? filterRecordsByDate(unitedEffortMealRecords)
+        : [];
 
       exportData.push({
         Date: date.toLocaleDateString(),
@@ -659,6 +772,86 @@ const MealReport = () => {
         )}
       </div>
 
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-gray-700">
+              <Utensils size={16} className="text-blue-600" /> Meal categories
+              included
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Toggle which meal programs contribute to totals, charts, and
+              exports.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={selectAllMealTypes}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
+            >
+              <Circle size={12} /> Select all
+            </button>
+            <button
+              type="button"
+              onClick={clearMealTypes}
+              disabled={enabledMealTypeCount === 0}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                enabledMealTypeCount === 0
+                  ? "border-gray-200 text-gray-400"
+                  : "border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600"
+              }`}
+            >
+              <RotateCcw size={12} /> Clear all
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {MEAL_TYPE_OPTIONS.map((option) => {
+            const isActive = Boolean(mealTypeFilters[option.key]);
+            return (
+              <label
+                key={option.key}
+                className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
+                  isActive
+                    ? "border-blue-200 bg-blue-50/80 shadow-sm"
+                    : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={() => toggleMealType(option.key)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="flex flex-col text-sm text-gray-700">
+                  <span className="font-semibold text-gray-900">
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {option.description}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          <span>
+            {enabledMealTypeCount} of {MEAL_TYPE_OPTIONS.length} meal categories
+            selected
+          </span>
+          {enabledMealTypeCount === 0 && (
+            <span className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-1 font-semibold text-red-600">
+              <Circle size={10} className="text-red-500" /> Select at least one
+              category to populate the report.
+            </span>
+          )}
+        </div>
+      </div>
+
       {selectedDays.length > 0 && currentMonthData && (
         <>
           {/* Stats Overview Cards */}
@@ -674,7 +867,10 @@ const MealReport = () => {
                     Total Meals
                   </span>
                 </div>
-                <p className="mt-4 text-3xl font-bold text-gray-900">
+                <p
+                  className="mt-4 text-3xl font-bold text-gray-900"
+                  data-testid="meal-total-value"
+                >
                   {currentMonthData.totalMeals.toLocaleString()}
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
@@ -695,11 +891,11 @@ const MealReport = () => {
                   </span>
                 </div>
                 <p className="mt-4 text-3xl font-bold text-gray-900">
-                  {Math.round(currentMonthData.avgMealsPerServiceDay).toLocaleString()}
+                  {Math.round(
+                    currentMonthData.avgMealsPerServiceDay,
+                  ).toLocaleString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Per service day
-                </p>
+                <p className="mt-1 text-sm text-gray-600">Per service day</p>
               </div>
             </div>
 
@@ -717,9 +913,7 @@ const MealReport = () => {
                 <p className="mt-4 text-3xl font-bold text-gray-900">
                   {currentMonthData.uniqueGuests.toLocaleString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Served this month
-                </p>
+                <p className="mt-1 text-sm text-gray-600">Served this month</p>
               </div>
             </div>
 
@@ -737,9 +931,7 @@ const MealReport = () => {
                 <p className="mt-4 text-3xl font-bold text-gray-900">
                   {currentMonthData.validDaysCount}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Days of operation
-                </p>
+                <p className="mt-1 text-sm text-gray-600">Days of operation</p>
               </div>
             </div>
           </div>
@@ -763,9 +955,10 @@ const MealReport = () => {
                       const magnitude = Math.abs(delta);
                       const noun = magnitude === 1 ? "meal" : "meals";
                       const percentChange = previousMonthData.totalMeals
-                        ? ((delta / previousMonthData.totalMeals) * 100).toFixed(
-                            1,
-                          )
+                        ? (
+                            (delta / previousMonthData.totalMeals) *
+                            100
+                          ).toFixed(1)
                         : "0.0";
 
                       if (delta === 0) {
@@ -1114,9 +1307,7 @@ const MealReport = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b-2 border-gray-200 bg-gray-50">
-                        <th className="px-4 py-3 text-left font-bold">
-                          Month
-                        </th>
+                        <th className="px-4 py-3 text-left font-bold">Month</th>
                         <th className="px-4 py-3 text-right font-bold">
                           Guest
                         </th>
@@ -1142,9 +1333,7 @@ const MealReport = () => {
                         <th className="px-4 py-3 text-right font-bold">
                           Unique Guests
                         </th>
-                        <th className="px-4 py-3 text-right font-bold">
-                          Days
-                        </th>
+                        <th className="px-4 py-3 text-right font-bold">Days</th>
                       </tr>
                     </thead>
                     <tbody>

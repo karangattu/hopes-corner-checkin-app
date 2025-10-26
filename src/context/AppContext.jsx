@@ -3581,14 +3581,12 @@ export const AppProvider = ({ children }) => {
       periodDonations.forEach((record) => {
         const isoLike = record?.date || record?.dateKey;
         const date =
-          record?.dateKey ||
-          (isoLike ? pacificDateStringFrom(isoLike) : null);
+          record?.dateKey || (isoLike ? pacificDateStringFrom(isoLike) : null);
         if (!date) return;
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].donationsCount += 1;
         dailyMetrics[date].donationTrays += Number(record?.trays) || 0;
-        dailyMetrics[date].donationWeightLbs +=
-          Number(record?.weightLbs) || 0;
+        dailyMetrics[date].donationWeightLbs += Number(record?.weightLbs) || 0;
       });
     }
 
@@ -3617,8 +3615,7 @@ export const AppProvider = ({ children }) => {
         bicycles: acc.bicycles + day.bicycles,
         donationsCount: acc.donationsCount + (day.donationsCount || 0),
         donationTrays: acc.donationTrays + (day.donationTrays || 0),
-        donationWeightLbs:
-          acc.donationWeightLbs + (day.donationWeightLbs || 0),
+        donationWeightLbs: acc.donationWeightLbs + (day.donationWeightLbs || 0),
       }),
       initDailyMetric(),
     );
@@ -3678,8 +3675,7 @@ export const AppProvider = ({ children }) => {
           totals.donationsCount -
           (comparisonMetrics.totals.donationsLogged || 0);
         changes.donationTrays =
-          totals.donationTrays -
-          (comparisonMetrics.totals.donationTrays || 0);
+          totals.donationTrays - (comparisonMetrics.totals.donationTrays || 0);
       }
       result.changes = changes;
     }

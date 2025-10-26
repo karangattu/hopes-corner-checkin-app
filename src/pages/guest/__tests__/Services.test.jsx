@@ -25,7 +25,13 @@ vi.mock("../../../components/LaundryBooking", () => ({
 
 vi.mock("../../../components/StickyQuickActions", () => ({
   __esModule: true,
-  default: ({ isVisible, onShowerClick, onLaundryClick, onDonationClick, onClose }) => {
+  default: ({
+    isVisible,
+    onShowerClick,
+    onLaundryClick,
+    onDonationClick,
+    onClose,
+  }) => {
     if (!isVisible) return null;
     return (
       <div data-testid="sticky-quick-actions">
@@ -303,9 +309,15 @@ describe("Services page", () => {
   it("shows multi-service metrics from context", () => {
     renderServices();
 
-    expect(screen.getByText(/Meals served today/i).parentElement).toHaveTextContent("42");
-    expect(screen.getByText(/Laundry loads/i).parentElement).toHaveTextContent("7");
-    expect(screen.getByText(/Bicycle repairs today/i).parentElement).toHaveTextContent("1");
+    expect(
+      screen.getByText(/Meals served today/i).parentElement,
+    ).toHaveTextContent("42");
+    expect(screen.getByText(/Laundry loads/i).parentElement).toHaveTextContent(
+      "7",
+    );
+    expect(
+      screen.getByText(/Bicycle repairs today/i).parentElement,
+    ).toHaveTextContent("1");
     expect(screen.getByText(/5 completed overall/i)).toBeInTheDocument();
   });
 
@@ -378,5 +390,46 @@ describe("Services page", () => {
       const parsed = JSON.parse(stored);
       expect(parsed.showerStatusFilter).toBe("awaiting");
     });
+  });
+
+  it("navigates to showers via the timeline quick add control", async () => {
+    renderServices();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Timeline$/i }));
+
+    const quickAddShower = await screen.findByRole("button", {
+      name: /Add Shower/i,
+    });
+
+    fireEvent.click(quickAddShower);
+
+    await waitFor(() => {
+      expect(screen.getByText("Today's Showers")).toBeInTheDocument();
+    });
+  });
+
+  it("requires a meal export date range before downloading", async () => {
+    renderServices();
+
+    // Get all buttons with "Data export" text and click the one in the navigation
+    const dataExportButtons = screen.getAllByRole("button", {
+      name: /Data export/i,
+    });
+    fireEvent.click(dataExportButtons[0]);
+
+    // Wait for the export section heading to appear
+    await screen.findByText(/Data exports & backups/i);
+
+    // The Download CSV button should be disabled when no dates are selected
+    const downloadButton = screen.getByRole("button", {
+      name: /Download CSV/i,
+    });
+
+    // Verify the button is disabled
+    expect(downloadButton).toBeDisabled();
+
+    // The button being disabled prevents the download, which is the expected behavior
+    // when no date range is selected. The toast.error in the handler is defensive code
+    // that would only fire if somehow the button was clicked while disabled.
   });
 });

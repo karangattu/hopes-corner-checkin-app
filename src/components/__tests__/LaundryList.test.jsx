@@ -51,8 +51,8 @@ describe("LaundryList", () => {
 
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
-  expect(screen.getAllByText("8:30 - 9:30").length).toBeGreaterThan(0);
-  expect(screen.getByText("1 / 5")).toBeInTheDocument();
+    expect(screen.getAllByText("8:30 - 9:30").length).toBeGreaterThan(0);
+    expect(screen.getByText("1 / 5")).toBeInTheDocument();
   });
 
   it("allows selecting a slot for a guest", () => {
@@ -97,12 +97,14 @@ describe("LaundryList", () => {
   it("allows removing a guest", () => {
     render(<LaundryList list={initialList} setList={mockSetList} />);
 
-  const removeButton = screen.getByLabelText("Remove Alice from laundry list");
-  fireEvent.click(removeButton);
+    const removeButton = screen.getByLabelText(
+      "Remove Alice from laundry list",
+    );
+    fireEvent.click(removeButton);
 
     expect(mockSetList).toHaveBeenCalledWith(expect.any(Function));
-  expect(hapticsMock.delete).toHaveBeenCalled();
-  expect(toastMock.warning).toHaveBeenCalled();
+    expect(hapticsMock.delete).toHaveBeenCalled();
+    expect(toastMock.warning).toHaveBeenCalled();
   });
 
   it("shows assigned slot next to guest name", () => {
@@ -124,7 +126,13 @@ describe("LaundryList", () => {
 
   it("invokes refresh handler after pull-to-refresh gesture", async () => {
     const onRefresh = vi.fn();
-    render(<LaundryList list={initialList} setList={mockSetList} onRefresh={onRefresh} />);
+    render(
+      <LaundryList
+        list={initialList}
+        setList={mockSetList}
+        onRefresh={onRefresh}
+      />,
+    );
 
     const container = screen.getByTestId("laundry-list-container");
     fireEvent.touchStart(container, { touches: [{ clientY: 0 }] });

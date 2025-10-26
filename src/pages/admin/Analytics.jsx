@@ -299,7 +299,8 @@ const Analytics = () => {
               </span>
             </p>
             <p className="text-xs text-rose-700 mt-2">
-              {metrics.totals.donationsLogged ?? 0} donations • {metrics.totals.donationTrays ?? 0} trays
+              {metrics.totals.donationsLogged ?? 0} donations •{" "}
+              {metrics.totals.donationTrays ?? 0} trays
             </p>
           </div>
         )}
