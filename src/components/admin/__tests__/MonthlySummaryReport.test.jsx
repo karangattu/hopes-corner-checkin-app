@@ -57,6 +57,31 @@ const setupMockContext = (overrides = {}) => {
 
 const DEFAULT_REPORT_DATE = new Date("2025-10-23T12:00:00Z");
 
+const getMealsTable = () => {
+  const [mealsTable] = screen.getAllByRole("table");
+  return mealsTable;
+};
+
+const getMealsTableHeaderIndex = (table, headerText) => {
+  const headers = Array.from(table.querySelectorAll("thead th"));
+  return headers.findIndex((th) => {
+    const label = th.querySelector("span");
+    const textContent = label ? label.textContent : th.textContent;
+    return textContent?.trim() === headerText;
+  });
+};
+
+const getRowCellByHeader = (row, headerIndex) => {
+  if (headerIndex < 0) {
+    throw new Error("Header index not found");
+  }
+  if (headerIndex === 0) {
+    return row.querySelector("th[scope='row']");
+  }
+  const cells = row.querySelectorAll("td");
+  return cells[headerIndex - 1];
+};
+
 describe("MonthlySummaryReport", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -105,11 +130,13 @@ describe("MonthlySummaryReport", () => {
 
   it("displays TOTAL row at the bottom", () => {
     render(<MonthlySummaryReport />);
-    const [mealsTable] = screen.getAllByRole("table");
-    const totalCells = Array.from(mealsTable.querySelectorAll("td")).filter(
-      (cell) => cell.textContent === "TOTAL",
-    );
-    expect(totalCells.length).toBeGreaterThan(0);
+    const mealsTable = getMealsTable();
+    const totalRowHeader = screen.getByRole("rowheader", { name: "TOTAL" });
+    expect(totalRowHeader).toBeInTheDocument();
+
+    const totalRow = totalRowHeader.closest("tr");
+    const bodyRows = Array.from(mealsTable.querySelectorAll("tbody tr"));
+    expect(bodyRows[bodyRows.length - 1]).toBe(totalRow);
   });
 
   it("calculates Monday meals correctly", () => {
@@ -173,16 +200,21 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const [mealsTable] = screen.getAllByRole("table");
+    const mealsTable = getMealsTable();
     const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January"),
     );
 
     expect(januaryRow).toBeTruthy();
-    // TOTAL HOT MEALS should be 10 + 5 + 8 = 23 (not including lunch bags)
-    const cells = januaryRow.querySelectorAll("td");
-    const totalHotMealsCell = cells[10]; // 11th column (0-indexed)
+    const totalHotMealsIndex = getMealsTableHeaderIndex(
+      mealsTable,
+      "TOTAL HOT MEALS",
+    );
+    const totalHotMealsCell = getRowCellByHeader(
+      januaryRow,
+      totalHotMealsIndex,
+    );
     expect(totalHotMealsCell.textContent).toBe("23");
   });
 
@@ -201,17 +233,18 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const [mealsTable] = screen.getAllByRole("table");
+    const mealsTable = getMealsTable();
     const rows = mealsTable.querySelectorAll("tbody tr");
     const januaryRow = Array.from(rows).find((row) =>
       row.textContent.includes("January"),
     );
 
     expect(januaryRow).toBeTruthy();
-    // Onsite = (10 + 5) Monday + (12 + 3) Wednesday = 30
-    // Tuesday meals should NOT be included
-    const cells = januaryRow.querySelectorAll("td");
-    const onsiteCell = cells[12]; // 13th column (0-indexed)
+    const onsiteHotMealsIndex = getMealsTableHeaderIndex(
+      mealsTable,
+      "Onsite Hot Meals",
+    );
+    const onsiteCell = getRowCellByHeader(januaryRow, onsiteHotMealsIndex);
     expect(onsiteCell.textContent).toBe("30");
   });
 
@@ -356,15 +389,15 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const [mealsTable] = screen.getAllByRole("table");
+    const mealsTable = getMealsTable();
     const rows = mealsTable.querySelectorAll("tbody tr");
     const totalRow = Array.from(rows).find((row) =>
       row.textContent.includes("TOTAL"),
     );
 
     expect(totalRow).toBeTruthy();
-    const cells = totalRow.querySelectorAll("td");
-    const mondayCell = cells[1];
+    const mondayIndex = getMealsTableHeaderIndex(mealsTable, "Monday");
+    const mondayCell = getRowCellByHeader(totalRow, mondayIndex);
     expect(mondayCell.textContent).toBe("25");
   });
 

@@ -1,6 +1,13 @@
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState } from "react";
 import { useAppContext } from "../../context/useAppContext";
-import { Download, Calendar, ShowerHead } from "lucide-react";
+import {
+  Download,
+  Calendar,
+  ShowerHead,
+  Info,
+  ChevronDown,
+  Lightbulb,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { BICYCLE_REPAIR_STATUS, LAUNDRY_STATUS } from "../../context/constants";
 
@@ -18,6 +25,242 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
+
+const MEAL_COLUMN_DEFINITIONS = [
+  {
+    key: "month",
+    label: "Month",
+    description: null,
+    align: "left",
+    headerBg: "",
+    cellBg: "",
+    totalCellBg: "",
+    bodyClass: "font-heading font-medium text-gray-900",
+    totalBodyClass: "font-heading font-semibold text-gray-900",
+    isNumeric: false,
+  },
+  {
+    key: "mondayMeals",
+    label: "Monday",
+    description:
+      "Hot guest meals served during the Monday dining service. Counts reflect meals served, not unique guests.",
+    align: "right",
+    headerBg: "bg-gray-100",
+    cellBg: "bg-gray-100",
+    totalCellBg: "bg-gray-100",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "wednesdayMeals",
+    label: "Wednesday",
+    description:
+      "Hot guest meals served during the Wednesday meal service. Counts reflect meals served, not unique guests.",
+    align: "right",
+    headerBg: "bg-gray-100",
+    cellBg: "bg-gray-100",
+    totalCellBg: "bg-gray-100",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "saturdayMeals",
+    label: "Saturday",
+    description:
+      "Saturday hot meals for in-person buffet service. Counts reflect meals served, not unique guests.",
+    align: "right",
+    headerBg: "bg-gray-100",
+    cellBg: "bg-gray-100",
+    totalCellBg: "bg-gray-100",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "fridayMeals",
+    label: "Friday",
+    description:
+      "Friday coffee and breakfast meals served to guests. Counts reflect meals served, not unique guests.",
+    align: "right",
+    headerBg: "bg-blue-50",
+    cellBg: "bg-blue-50",
+    totalCellBg: "bg-blue-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "dayWorkerMeals",
+    label: "Day Worker Center",
+    description:
+      "Meals prepared for the Day Worker Center in Mountain View. These meals are delivered offsite.",
+    align: "right",
+    headerBg: "bg-white",
+    cellBg: "bg-white",
+    totalCellBg: "bg-white",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "extraMeals",
+    label: "Extra Meals",
+    description:
+      "Additional hot meals plated beyond the scheduled guest count (seconds, volunteers, late arrivals).",
+    align: "right",
+    headerBg: "bg-white",
+    cellBg: "bg-white",
+    totalCellBg: "bg-white",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "rvWedSat",
+    label: "RV Wed+Sat",
+    description:
+      "Meals delivered to the RV community on the Wednesday and Saturday outreach routes.",
+    align: "right",
+    headerBg: "bg-orange-50",
+    cellBg: "bg-orange-50",
+    totalCellBg: "bg-orange-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "rvMonThu",
+    label: "RV Mon+Thu",
+    description:
+      "Meals delivered to the RV community on the Monday and Thursday outreach routes.",
+    align: "right",
+    headerBg: "bg-orange-50",
+    cellBg: "bg-orange-50",
+    totalCellBg: "bg-orange-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "lunchBags",
+    label: "Lunch Bags",
+    description:
+      "Take-away lunch bags distributed for guests in addition to their hot meal.",
+    align: "right",
+    headerBg: "bg-purple-50",
+    cellBg: "bg-purple-50",
+    totalCellBg: "bg-purple-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "totalHotMeals",
+    label: "TOTAL HOT MEALS",
+    description:
+      "All hot meals served: weekday guest meals, Day Worker, Extra, RV, Shelter, and United Effort meals (lunch bags excluded).",
+    align: "right",
+    headerBg: "bg-white",
+    cellBg: "bg-white",
+    totalCellBg: "bg-white",
+    bodyClass: "font-metric font-semibold text-gray-900",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "totalWithLunchBags",
+    label: "Total w/ Lunch Bags",
+    description:
+      "TOTAL HOT MEALS plus lunch bags. Shows the complete count of meals we are making.",
+    align: "right",
+    headerBg: "bg-white",
+    cellBg: "bg-white",
+    totalCellBg: "bg-white",
+    bodyClass: "font-metric font-semibold text-gray-900",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "onsiteHotMeals",
+    label: "Onsite Hot Meals",
+    description:
+      "Guest meals served onsite on Mon/Wed/Fri/Sat plus extra meals served those same days.",
+    align: "right",
+    headerBg: "bg-white",
+    cellBg: "bg-white",
+    totalCellBg: "bg-white",
+    bodyClass: "font-metric font-semibold text-gray-900",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+];
+
+const formatNumber = (value) => {
+  if (value == null) return "0";
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return String(value);
+  return numeric.toLocaleString();
+};
+
+const buildCellClass = (column, { isTotal } = {}) => {
+  const alignmentClass = column.align === "right" ? "text-right" : "text-left";
+  const bgClass = isTotal
+    ? column.totalCellBg ?? column.cellBg
+    : column.cellBg;
+  const bodyClass = isTotal
+    ? column.totalBodyClass || `${column.bodyClass || ""} font-semibold text-gray-900`
+    : column.bodyClass || "";
+
+  return [
+    "border border-gray-300 px-3 py-2",
+    alignmentClass,
+    bgClass,
+    bodyClass,
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
+const ColumnTooltip = ({ label, description }) => (
+  <div className="relative inline-flex group">
+    <button
+      type="button"
+      className="flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      aria-label={`Explain ${label}`}
+    >
+      <Info size={14} aria-hidden="true" />
+    </button>
+    <div className="pointer-events-none absolute bottom-full right-0 z-20 hidden w-64 mb-2 rounded-md border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-xl group-hover:block group-focus-within:block">
+      <p className="font-semibold text-gray-900">{label}</p>
+      <p className="mt-1">{description}</p>
+    </div>
+  </div>
+);
+
+const TooltipHeader = ({ column }) => {
+  const alignment = column.align === "right" ? "justify-end" : "justify-start";
+  const textAlignment = column.align === "right" ? "text-right" : "text-left";
+  const headerClasses = [
+    "border border-gray-300 px-3 py-2 font-semibold text-gray-900 font-heading",
+    column.headerBg,
+    textAlignment,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <th scope="col" className={headerClasses}>
+      <div className={`flex items-center gap-1 ${alignment}`}>
+        <span>{column.label}</span>
+        {column.description ? (
+          <ColumnTooltip label={column.label} description={column.description} />
+        ) : null}
+      </div>
+    </th>
+  );
+};
 
 /**
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
@@ -42,6 +285,9 @@ const MonthlySummaryReport = () => {
     bicycleRecords,
     exportDataAsCSV,
   } = useAppContext();
+
+  const [showColumnGuide, setShowColumnGuide] = useState(false);
+  const columnGuideId = "monthly-summary-column-guide";
 
   const reportMetadata = useMemo(() => {
     const now = new Date();
@@ -235,6 +481,50 @@ const MonthlySummaryReport = () => {
     reportYear,
     currentMonth,
   ]);
+
+  const mealColumns = MEAL_COLUMN_DEFINITIONS;
+
+  const summaryInsights = useMemo(() => {
+    const months = monthlyData.months || [];
+    if (months.length === 0) {
+      return [];
+    }
+
+    const ytdHotMeals = monthlyData.totals.totalHotMeals;
+    const averageHotMeals = Math.round(ytdHotMeals / months.length || 0);
+    const topMonth = months.reduce((best, current) =>
+      current.totalHotMeals > best.totalHotMeals ? current : best,
+    months[0]);
+    const lunchBagCount = monthlyData.totals.lunchBags;
+    const totalMealsWithLunch = monthlyData.totals.totalWithLunchBags;
+    const lunchBagShare =
+      totalMealsWithLunch > 0
+        ? Math.round((lunchBagCount / totalMealsWithLunch) * 100)
+        : 0;
+
+    return [
+      {
+        title: "YTD Hot Meals",
+        value: formatNumber(ytdHotMeals),
+        context: `${months.length} month${months.length === 1 ? "" : "s"} recorded`,
+        description:
+          "Total hot meals served across all programs so far this calendar year.",
+      },
+      {
+        title: "Average Hot Meals / Month",
+        value: formatNumber(averageHotMeals),
+        context: `Peak month: ${topMonth.month} (${formatNumber(topMonth.totalHotMeals)} meals)`,
+        description: "Helps planning for staffing, food ordering, and volunteer shifts.",
+      },
+      {
+        title: "Lunch Bag Share",
+        value: `${lunchBagShare}%`,
+        context: `${formatNumber(lunchBagCount)} lunch bags year-to-date`,
+        description:
+          "Portion of all meals that Volunteers pack every shift.",
+      },
+    ];
+  }, [monthlyData]);
 
   const bicycleSummary = useMemo(() => {
     const rows = MONTH_NAMES.map((monthName, monthIndex) => {
@@ -747,162 +1037,129 @@ const MonthlySummaryReport = () => {
           </button>
         </div>
 
+        {summaryInsights.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {summaryInsights.map((insight) => (
+              <div
+                key={insight.title}
+                className="rounded-lg border border-blue-100 bg-blue-50/70 p-4"
+              >
+                <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
+                  <Lightbulb size={16} aria-hidden="true" />
+                  <span>{insight.title}</span>
+                </div>
+                <p className="mt-2 text-2xl font-semibold text-gray-900">
+                  {insight.value}
+                </p>
+                <p className="mt-1 text-xs text-gray-600">{insight.context}</p>
+                <p className="mt-2 text-sm text-gray-700">{insight.description}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="mt-6 overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900 font-heading">
-                  Month
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
-                  Monday
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
-                  Wednesday
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-gray-100 font-heading">
-                  Saturday
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50 font-heading">
-                  Friday
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
-                  Day Worker Center
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
-                  Extra Meals
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50 font-heading">
-                  RV Wed+Sat
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-orange-50 font-heading">
-                  RV Mon+Thu
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50 font-heading">
-                  Lunch Bags
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
-                  TOTAL HOT MEALS
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
-                  Total w/ Lunch Bags
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-white font-heading">
-                  Onsite Hot Meals
-                </th>
+              <tr className="bg-gray-50">
+                {mealColumns.map((column) => (
+                  <TooltipHeader key={column.key} column={column} />
+                ))}
               </tr>
             </thead>
             <tbody>
-              {/* Month rows */}
-              {monthlyData.months.map((row, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 font-medium text-gray-900 font-heading">
-                    {row.month}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                    {row.mondayMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                    {row.wednesdayMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                    {row.saturdayMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50 font-metric">
-                    {row.fridayMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                    {row.dayWorkerMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                    {row.extraMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
-                    {row.rvWedSat.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
-                    {row.rvMonThu.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-metric">
-                    {row.lunchBags.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
-                    {row.totalHotMeals.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
-                    {row.totalWithLunchBags.toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right bg-white font-semibold text-gray-900 font-metric">
-                    {row.onsiteHotMeals.toLocaleString()}
-                  </td>
+              {monthlyData.months.map((row) => (
+                <tr key={row.month} className="hover:bg-gray-50">
+                  {mealColumns.map((column) => {
+                    const CellTag = column.key === "month" ? "th" : "td";
+                    const rawValue = row[column.key];
+                    const displayValue = column.isNumeric
+                      ? rawValue == null
+                        ? "N/A"
+                        : formatNumber(rawValue)
+                      : rawValue ?? "N/A";
+
+                    return (
+                      <CellTag
+                        key={column.key}
+                        className={buildCellClass(column)}
+                        scope={column.key === "month" ? "row" : undefined}
+                      >
+                        {displayValue}
+                      </CellTag>
+                    );
+                  })}
                 </tr>
               ))}
+              <tr className="bg-gray-200">
+                {mealColumns.map((column) => {
+                  const CellTag = column.key === "month" ? "th" : "td";
+                  const rawValue = monthlyData.totals[column.key];
+                  const displayValue = column.isNumeric
+                    ? rawValue == null
+                      ? "N/A"
+                      : formatNumber(rawValue)
+                    : rawValue ?? "N/A";
 
-              {/* Totals row */}
-              <tr className="bg-gray-200 font-bold">
-                <td className="border border-gray-300 px-3 py-2 text-gray-900 font-heading">
-                  {monthlyData.totals.month}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                  {monthlyData.totals.mondayMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                  {monthlyData.totals.wednesdayMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-gray-100 font-metric">
-                  {monthlyData.totals.saturdayMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50 font-metric">
-                  {monthlyData.totals.fridayMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                  {monthlyData.totals.dayWorkerMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                  {monthlyData.totals.extraMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
-                  {monthlyData.totals.rvWedSat.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-orange-50 font-metric">
-                  {monthlyData.totals.rvMonThu.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-metric">
-                  {monthlyData.totals.lunchBags.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                  {monthlyData.totals.totalHotMeals.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                  {monthlyData.totals.totalWithLunchBags.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-white font-metric">
-                  {monthlyData.totals.onsiteHotMeals.toLocaleString()}
-                </td>
+                  return (
+                    <CellTag
+                      key={column.key}
+                      className={buildCellClass(column, { isTotal: true })}
+                      scope={column.key === "month" ? "row" : undefined}
+                    >
+                      {displayValue}
+                    </CellTag>
+                  );
+                })}
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Legend */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-100 border border-gray-300"></div>
-            <span className="text-gray-700">Weekday Guest Meals</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-50 border border-gray-300"></div>
-            <span className="text-gray-700">Friday Meals</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-orange-50 border border-gray-300"></div>
-            <span className="text-gray-700">RV Meals</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-purple-50 border border-gray-300"></div>
-            <span className="text-gray-700">Lunch Bags</span>
-          </div>
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => setShowColumnGuide((previous) => !previous)}
+            aria-expanded={showColumnGuide}
+            aria-controls={columnGuideId}
+            className="inline-flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-4 py-2 text-left text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            <span className="flex items-center gap-2">
+              <Info size={16} aria-hidden="true" />
+              Column Guide
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${showColumnGuide ? "rotate-180" : "rotate-0"}`}
+              aria-hidden="true"
+            />
+          </button>
+          {showColumnGuide ? (
+            <div
+              id={columnGuideId}
+              className="mt-3 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white"
+            >
+              {mealColumns
+                .filter((column) => column.description)
+                .map((column) => (
+                  <div key={column.key} className="flex items-start gap-3 p-4">
+                    <div
+                      className={`mt-1 h-5 w-5 flex-shrink-0 rounded border border-gray-300 ${column.cellBg || "bg-gray-100"}`}
+                      aria-hidden="true"
+                    ></div>
+                    <div>
+                      <p className="font-heading text-sm font-semibold text-gray-900">
+                        {column.label}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        {column.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ) : null}
         </div>
 
         {/* Notes */}
