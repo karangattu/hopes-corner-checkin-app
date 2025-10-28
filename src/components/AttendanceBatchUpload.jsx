@@ -8,6 +8,11 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { pacificDateStringFrom, isoFromPacificDateString } from "../utils/date";
+import {
+  buildSupabaseShowerPayload,
+  buildSupabaseLaundryPayload,
+  buildSupabaseBicyclePayload,
+} from "./attendanceBatchSupabasePayloads";
 
 const AttendanceBatchUpload = () => {
   const {
@@ -432,16 +437,9 @@ const AttendanceBatchUpload = () => {
       );
       try {
         if (supabaseEnabled && insertShowerReservationsBatch) {
-          const showerPayloads = recordsByType.showers.map((record) => {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            return {
-              guest_id: record.internalGuestId,
-              scheduled_time: null,
-              scheduled_for: dateIso.slice(0, 10),
-              status: "completed",
-            };
-          });
+          const showerPayloads = recordsByType.showers.map((record) =>
+            buildSupabaseShowerPayload(record),
+          );
 
           const inserted = await insertShowerReservationsBatch(showerPayloads);
           setShowerRecords((prev) => [...inserted, ...prev]);
@@ -473,18 +471,9 @@ const AttendanceBatchUpload = () => {
       );
       try {
         if (supabaseEnabled && insertLaundryBookingsBatch) {
-          const laundryPayloads = recordsByType.laundry.map((record) => {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            return {
-              guest_id: record.internalGuestId,
-              slot_label: null,
-              laundry_type: "offsite",
-              bag_number: null,
-              scheduled_for: dateIso.slice(0, 10),
-              status: "completed",
-            };
-          });
+          const laundryPayloads = recordsByType.laundry.map((record) =>
+            buildSupabaseLaundryPayload(record),
+          );
 
           const inserted = await insertLaundryBookingsBatch(laundryPayloads);
           setLaundryRecords((prev) => [...inserted, ...prev]);
@@ -516,18 +505,9 @@ const AttendanceBatchUpload = () => {
       );
       try {
         if (supabaseEnabled && insertBicycleRepairsBatch) {
-          const bicyclePayloads = recordsByType.bicycles.map((record) => {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            return {
-              guest_id: record.internalGuestId,
-              repair_type: "Legacy Import",
-              notes: "Imported from legacy system",
-              status: "completed",
-              priority: "normal",
-              completed_at: dateIso,
-            };
-          });
+          const bicyclePayloads = recordsByType.bicycles.map((record) =>
+            buildSupabaseBicyclePayload(record),
+          );
 
           const inserted = await insertBicycleRepairsBatch(bicyclePayloads);
           setBicycleRecords((prev) => [...inserted, ...prev]);

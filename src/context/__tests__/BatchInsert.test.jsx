@@ -386,7 +386,7 @@ describe("Batch Insert Functions", () => {
       await testBatchFunction(
         "insertShowerReservationsBatch",
         "shower_reservations",
-        { guest_id: "123", scheduled_for: "2025-01-01", status: "completed" },
+        { guest_id: "123", scheduled_for: "2025-01-01", status: "done" },
       );
     });
 
@@ -406,7 +406,10 @@ describe("Batch Insert Functions", () => {
       await testBatchFunction("insertBicycleRepairsBatch", "bicycle_repairs", {
         guest_id: "123",
         repair_type: "Legacy Import",
-        status: "completed",
+        repair_types: ["Legacy Import"],
+        completed_repairs: ["Legacy Import"],
+        priority: 0,
+        status: "done",
       });
     });
 

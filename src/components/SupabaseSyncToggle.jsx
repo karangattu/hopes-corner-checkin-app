@@ -71,63 +71,110 @@ const SupabaseSyncToggle = ({ supabaseConfigured }) => {
     );
   }
 
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-start gap-3 flex-1">
-          {syncEnabled ? (
-            <Cloud className="text-blue-600 mt-0.5" size={20} />
-          ) : (
-            <HardDrive className="text-gray-600 mt-0.5" size={20} />
-          )}
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 mb-1">
-              {syncEnabled ? "Cloud Sync Enabled" : "Local Storage Mode"}
-            </h4>
-            <p className="text-sm text-gray-600">
-              {syncEnabled
-                ? "Data is synced with Supabase cloud database. Changes are saved to both local storage and the cloud."
-                : "Data is stored only in your browser's local storage. Enable cloud sync to backup data to Supabase."}
-            </p>
-            {import.meta.env.DEV && (
-              <p className="text-xs text-blue-600 mt-2">
-                💡 Development mode: Local storage is recommended for testing
-                and batch uploads.
-              </p>
-            )}
-          </div>
-        </div>
+  const handleForceSyncClick = () => {
+    // Reset all sync timestamps to force a full re-sync
+    const SYNC_TABLES = [
+      "guests",
+      "meal_attendance",
+      "shower_reservations",
+      "laundry_bookings",
+      "bicycle_repairs",
+      "donations",
+    ];
 
-        <button
-          onClick={handleToggle}
-          disabled={isChanging}
-          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-            syncEnabled ? "bg-blue-600" : "bg-gray-200"
-          } ${isChanging ? "opacity-50 cursor-not-allowed" : ""}`}
-          role="switch"
-          aria-checked={syncEnabled}
-          aria-label="Toggle cloud sync"
-        >
-          <span
-            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-              syncEnabled ? "translate-x-5" : "translate-x-0"
-            }`}
-          >
-            {isChanging && (
-              <RefreshCcw
-                className="absolute inset-0 m-auto animate-spin text-gray-400"
-                size={12}
-              />
+    SYNC_TABLES.forEach((table) => {
+      localStorage.removeItem(`hopes-corner-${table}-lastSync`);
+    });
+
+    toast.success("Sync timestamps cleared! App will refresh to force full sync.", {
+      duration: 2000,
+    });
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {syncEnabled ? (
+              <Cloud className="text-blue-600 mt-1 flex-shrink-0" size={20} />
+            ) : (
+              <HardDrive className="text-gray-400 mt-1 flex-shrink-0" size={20} />
             )}
-          </span>
-        </button>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-gray-900">
+                {syncEnabled ? "Cloud Sync" : "Local Storage Only"}
+              </h4>
+              <p className="text-sm text-gray-600 mt-0.5">
+                {syncEnabled
+                  ? "Synced with Supabase cloud database"
+                  : "Local browser storage only"}
+              </p>
+              {import.meta.env.DEV && (
+                <p className="text-xs text-blue-600 mt-1.5">
+                  💡 Dev mode: Local storage recommended for testing
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={handleToggle}
+            disabled={isChanging}
+            className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-0 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              syncEnabled ? "bg-blue-600" : "bg-gray-300"
+            } ${isChanging ? "opacity-70 cursor-not-allowed" : "hover:opacity-90"}`}
+            role="switch"
+            aria-checked={syncEnabled}
+            aria-label="Toggle cloud sync"
+          >
+            <span
+              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out flex items-center justify-center ${
+                syncEnabled ? "translate-x-7" : "translate-x-0.5"
+              }`}
+            >
+              {isChanging && (
+                <RefreshCcw
+                  className="animate-spin text-gray-500"
+                  size={14}
+                />
+              )}
+            </span>
+          </button>
+        </div>
       </div>
 
       {syncEnabled && (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-500">
-            ⚠️ Switching to local storage only will stop syncing to the cloud
-            but won't delete existing cloud data.
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <RefreshCcw className="text-blue-600 mt-0.5 flex-shrink-0" size={16} />
+            <div className="flex-1 min-w-0">
+              <h5 className="text-sm font-semibold text-blue-900">
+                Force Full Sync
+              </h5>
+              <p className="text-xs text-blue-700 mt-1">
+                If data seems out of sync, reset sync timestamps and refresh to force a complete re-synchronization with the cloud.
+              </p>
+              <button
+                onClick={handleForceSyncClick}
+                disabled={isChanging}
+                className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Force Sync Now →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {syncEnabled && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-xs text-amber-800">
+            ⚠️ Disabling cloud sync will stop syncing to Supabase but won't delete cloud data.
           </p>
         </div>
       )}

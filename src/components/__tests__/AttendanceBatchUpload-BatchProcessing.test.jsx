@@ -1,4 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
+import {
+  buildSupabaseShowerPayload,
+  buildSupabaseLaundryPayload,
+  buildSupabaseBicyclePayload,
+} from "../attendanceBatchSupabasePayloads";
+import {
+  pacificDateStringFrom,
+  isoFromPacificDateString,
+} from "../../utils/date";
 
 /**
  * Test suite for AttendanceBatchUpload batch processing functionality
@@ -455,6 +464,44 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
       expect(result.validRecords).toHaveLength(1);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].error).toContain("created locally");
+    });
+  });
+
+  describe("Supabase payload transformations", () => {
+    const record = {
+      internalGuestId: "uuid-guest-123",
+      dateSubmitted: "2025-02-15T10:00:00Z",
+    };
+
+    it("should build shower payloads with allowed enum values", () => {
+      const payload = buildSupabaseShowerPayload(record);
+      const pacificDate = pacificDateStringFrom(record.dateSubmitted);
+
+      expect(payload.status).toBe("done");
+      expect(payload.scheduled_for).toBe(pacificDate);
+      expect(payload.guest_id).toBe(record.internalGuestId);
+    });
+
+    it("should build laundry payloads with Supabase-compatible fields", () => {
+      const payload = buildSupabaseLaundryPayload(record);
+      const pacificDate = pacificDateStringFrom(record.dateSubmitted);
+
+      expect(payload.status).toBe("done");
+      expect(payload.laundry_type).toBe("offsite");
+      expect(payload.scheduled_for).toBe(pacificDate);
+    });
+
+    it("should build bicycle payloads that satisfy schema constraints", () => {
+      const payload = buildSupabaseBicyclePayload(record);
+      const pacificDate = pacificDateStringFrom(record.dateSubmitted);
+      const expectedIso = isoFromPacificDateString(pacificDate);
+
+      expect(payload.status).toBe("done");
+      expect(payload.priority).toBe(0);
+      expect(payload.repair_types).toEqual(["Legacy Import"]);
+      expect(payload.completed_repairs).toEqual(["Legacy Import"]);
+      expect(payload.completed_at).toBe(expectedIso);
+      expect(payload.requested_at).toBe(expectedIso);
     });
   });
 });

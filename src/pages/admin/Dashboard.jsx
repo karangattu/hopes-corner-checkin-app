@@ -1493,91 +1493,72 @@ const Dashboard = () => {
       : "No sync recorded";
 
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-white shadow-lg space-y-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-              <Activity size={16} className="text-slate-200" /> System health
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 space-y-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <Activity size={16} className="text-gray-600" /> System health
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {supabaseEnabled ? "Supabase sync active" : "Supabase sync standby"}
+              </p>
             </div>
-            <h2 className="text-xl font-semibold">
-              {supabaseEnabled ? "Supabase sync active" : "Supabase sync standby"}
-            </h2>
-            <p className="text-sm text-slate-300">
-              {hasStaleTables
-                ? "Some datasets are overdue for synchronization — review before the next export."
-                : "All monitored datasets synced within the last six hours."}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setActiveSection("system")}
-              className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+            <div
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                hasStaleTables
+                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+              }`}
             >
-              <ShieldAlert size={16} />
-              Review system tools
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection("export")}
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40"
-            >
-              <ArrowRight size={16} />
-              Jump to exports
-            </button>
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  hasStaleTables ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+              />
+              {hasStaleTables ? "Attention needed" : "All synced"}
+            </div>
           </div>
+          <p className="text-xs text-gray-600">
+            {hasStaleTables
+              ? `${syncSnapshot.stale.length} dataset${syncSnapshot.stale.length === 1 ? "" : "s"} need attention: ${staleLabels}`
+              : "All monitored datasets synced within the last six hours."}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center gap-2 text-sm text-slate-200">
-              <Clock size={16} /> Last sync
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div className="rounded-lg bg-gray-50 p-3 border border-gray-100">
+            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+              <Clock size={14} /> Last sync
             </div>
-            <div className="mt-2 text-lg font-semibold">{lastSyncRelative}</div>
-            <div className="text-xs text-slate-300">{lastSyncAbsolute}</div>
+            <div className="mt-1.5 text-sm font-semibold text-gray-900">
+              {lastSyncRelative}
+            </div>
+            <div className="text-xs text-gray-400">{lastSyncAbsolute}</div>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm text-slate-200">
-              <Wifi size={16} /> Sync channel
+          <div className="rounded-lg bg-gray-50 p-3 border border-gray-100">
+            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+              <Wifi size={14} /> Sync channel
             </div>
-            <div className="text-sm font-semibold text-white">
-              {supabaseEnabled ? "Realtime + backups" : "Local device only"}
+            <div className="mt-1.5 text-sm font-semibold text-gray-900">
+              {supabaseEnabled ? "Realtime + backups" : "Local device"}
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-300">
-              <PlugZap size={14} className="text-slate-200" />
-              {supabaseProxyEnabled
-                ? "Firebase proxy route enabled"
-                : "Direct Supabase connection"}
+            <div className="text-xs text-gray-400">
+              {supabaseProxyEnabled ? "Firebase proxy" : "Direct connection"}
             </div>
           </div>
-          <div
-            className={`rounded-xl border p-4 ${
-              hasStaleTables
-                ? "border-amber-300 bg-amber-100/10"
-                : "border-white/10 bg-white/5"
-            }`}
-          >
-            <div className="flex items-center gap-2 text-sm text-slate-200">
-              <ListChecks size={16} /> Records tracked
+          <div className="rounded-lg bg-gray-50 p-3 border border-gray-100">
+            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+              <ListChecks size={14} /> Records tracked
             </div>
-            <div className="mt-2 text-lg font-semibold">
+            <div className="mt-1.5 text-sm font-semibold text-gray-900">
               {numberFormatter.format(syncSnapshot.recordsTouched)}
             </div>
-            <div className="text-xs text-slate-300">
-              {hasStaleTables
-                ? `${syncSnapshot.stale.length} dataset${
-                    syncSnapshot.stale.length === 1 ? "" : "s"
-                  } need attention`
-                : "All datasets fresh"}
+            <div className="text-xs text-gray-400">
+              {hasStaleTables ? "Review needed" : "Fresh"}
             </div>
           </div>
         </div>
-
-        {hasStaleTables && (
-          <div className="rounded-xl border border-amber-300 bg-amber-100/10 p-3 text-xs text-amber-100">
-            Stale datasets: {staleLabels}
-          </div>
-        )}
       </div>
     );
   };
@@ -1662,6 +1643,8 @@ const Dashboard = () => {
 
     return (
       <div className="space-y-6">
+        {renderSystemHealthBanner()}
+
         <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />
 
         <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
@@ -2081,8 +2064,6 @@ const Dashboard = () => {
           Overview of guest check-in metrics and system administration
         </p>
       </Animated.div>
-
-      {renderSystemHealthBanner()}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-6">
         <nav className="flex flex-wrap gap-1">
