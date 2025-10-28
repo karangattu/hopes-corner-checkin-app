@@ -14,6 +14,57 @@ import {
   buildSupabaseBicyclePayload,
 } from "./attendanceBatchSupabasePayloads";
 
+const padTwo = (value) => String(value).padStart(2, "0");
+
+const formatMdy = (month, day, year, options = {}) => {
+  const leadingZero = options.leadingZero ?? false;
+  const monthPart = leadingZero ? padTwo(month) : String(month);
+  const dayPart = leadingZero ? padTwo(day) : String(day);
+  return `${monthPart}/${dayPart}/${year}`;
+};
+
+const formatTime12Hour = (hours24, minutes, seconds) => {
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hour12 = ((hours24 + 11) % 12) + 1;
+  return `${hour12}:${padTwo(minutes)}:${padTwo(seconds)} ${period}`;
+};
+
+const getDateFormatExamples = (year) => {
+  const sampleMonth = 4;
+  const sampleDay = 29;
+  const iso = `${year}-${padTwo(sampleMonth)}-${padTwo(sampleDay)}`;
+  const numeric = formatMdy(sampleMonth, sampleDay, year);
+  const numericWithTime = `${numeric} ${formatTime12Hour(11, 53, 58)}`;
+  return {
+    iso,
+    numeric,
+    numericWithTime,
+  };
+};
+
+const buildAttendanceTemplateCSV = (year) => {
+  const januaryDay = 15;
+  const januaryIso = `${year}-${padTwo(1)}-${padTwo(januaryDay)}`;
+  const januaryPadded = formatMdy(1, januaryDay, year, { leadingZero: true });
+  const januaryNextPadded = formatMdy(1, januaryDay + 1, year, {
+    leadingZero: true,
+  });
+  const { numericWithTime } = getDateFormatExamples(year);
+
+  return [
+    "Attendance_ID,Guest_ID,Count,Program,Date_Submitted",
+    `ATT001,123,1,Meal,${januaryIso}`,
+    `ATT002,456,1,Shower,${januaryIso}`,
+    `ATT003,789,1,Laundry,${januaryPadded}`,
+    `ATT004,123,1,Bicycle,${numericWithTime}`,
+    `ATT005,456,1,Hair Cut,${januaryIso}`,
+    `ATT006,789,1,Holiday,${januaryNextPadded}`,
+    `ATT007,M94816825,10,Meal,${januaryIso}`,
+    `ATT008,M61706731,8,Meal,${januaryIso}`,
+    `ATT009,M29017132,15,Meal,${januaryIso}`,
+  ].join("\n");
+};
+
 const AttendanceBatchUpload = () => {
   const {
     guests,
@@ -48,6 +99,8 @@ const AttendanceBatchUpload = () => {
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const fileInputRef = useRef(null);
+  const currentYear = new Date().getFullYear();
+  const dateFormatExamples = getDateFormatExamples(currentYear);
 
   // Special guest IDs that map to specific meal types (no guest profile created)
   const SPECIAL_GUEST_IDS = {
@@ -214,7 +267,7 @@ const AttendanceBatchUpload = () => {
               /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i,
             )
           ) {
-            // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/2024 11:53:58 AM")
+            // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/YYYY 11:53:58 AM")
             parsedDate = new Date(dateSubmitted);
           } else {
             // Try generic Date parsing as fallback
@@ -692,17 +745,7 @@ const AttendanceBatchUpload = () => {
   };
 
   const downloadTemplateCSV = () => {
-    const templateContent = `Attendance_ID,Guest_ID,Count,Program,Date_Submitted
-ATT001,123,1,Meal,2024-01-15
-ATT002,456,1,Shower,2024-01-15
-ATT003,789,1,Laundry,01/15/2024
-ATT004,123,1,Bicycle,4/29/2024 11:53:58 AM
-ATT005,456,1,Hair Cut,2024-01-15
-ATT006,789,1,Holiday,01/16/2024
-ATT007,M94816825,10,Meal,2024-01-15
-ATT008,M61706731,8,Meal,2024-01-15
-ATT009,M29017132,15,Meal,2024-01-15`;
-
+    const templateContent = buildAttendanceTemplateCSV(currentYear);
     const blob = new Blob([templateContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -805,13 +848,13 @@ ATT009,M29017132,15,Meal,2024-01-15`;
         <div className="bg-gray-50 p-3 rounded mb-3 text-xs">
           <div className="grid grid-cols-1 gap-1">
             <span>
-              <strong>YYYY-MM-DD:</strong> 2024-04-29
+              <strong>YYYY-MM-DD:</strong> {dateFormatExamples.iso}
             </span>
             <span>
-              <strong>M/D/YYYY:</strong> 4/29/2024
+              <strong>M/D/YYYY:</strong> {dateFormatExamples.numeric}
             </span>
             <span>
-              <strong>M/D/YYYY H:MM:SS AM/PM:</strong> 4/29/2024 11:53:58 AM
+              <strong>M/D/YYYY H:MM:SS AM/PM:</strong> {dateFormatExamples.numericWithTime}
             </span>
           </div>
         </div>

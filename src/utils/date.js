@@ -15,7 +15,7 @@ export const todayPacificDateString = () => pacificDateStringFrom(new Date());
  * Converts a Pacific date string (YYYY-MM-DD) to an ISO timestamp that correctly
  * represents that date in Pacific time. 
  * 
- * For example: "2025-09-15" -> ISO timestamp that equals "2025-09-15" in Pacific time
+ * For example: "YYYY-09-15" -> ISO timestamp that equals that same date in Pacific time
  */
 export const isoFromPacificDateString = (pacificDateStr) => {
   // Parse the date string

@@ -3509,8 +3509,9 @@ const Services = () => {
       },
     ];
 
+    const sampleExportDate = new Date().toISOString().split("T")[0];
     const bestPractices = [
-      'Add the date to exported filenames, e.g., "services-2025-03-15.csv" for easier retrieval later.',
+      `Add the date to exported filenames, e.g., "services-${sampleExportDate}.csv" for easier retrieval later.`,
       "Store downloads in a secure shared drive (Google Drive, SharePoint, etc.) so the whole team can access the history.",
       "Capture exports before clearing queues or using the System Utilities reset to keep an audit trail.",
     ];

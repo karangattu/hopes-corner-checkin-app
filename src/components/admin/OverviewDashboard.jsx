@@ -250,7 +250,7 @@ const OverviewDashboard = ({
 
   // Helper function to check if guest's creation date falls within the filter range
   const isGuestInDateRange = useCallback((guest, startDate, endDate) => {
-    // If guest has no createdAt, use start of year (2025-01-01)
+    // If guest has no createdAt, default to January 1 of the current year
     const guestDate = guest.createdAt
       ? new Date(guest.createdAt).toISOString().split("T")[0]
       : `${new Date().getFullYear()}-01-01`;
