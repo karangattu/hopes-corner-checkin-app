@@ -32,11 +32,21 @@ export const buildSupabaseBicyclePayload = (record) => {
     guest_id: record.internalGuestId,
     repair_type: "Legacy Import",
     repair_types: ["Legacy Import"],
-    completed_repairs: ["Legacy Import"],
+    completed_repairs: [],
     notes: "Imported from legacy system",
     status: "done",
     priority: 0,
     requested_at: dateIso,
     completed_at: dateIso,
+  };
+};
+
+export const buildSupabaseHaircutPayload = (record) => {
+  const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+  const dateIso = isoFromPacificDateString(pacificDateStr);
+
+  return {
+    guest_id: record.internalGuestId,
+    served_at: dateIso,
   };
 };

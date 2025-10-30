@@ -12,6 +12,7 @@ import {
   buildSupabaseShowerPayload,
   buildSupabaseLaundryPayload,
   buildSupabaseBicyclePayload,
+  buildSupabaseHaircutPayload,
 } from "./attendanceBatchSupabasePayloads";
 
 const padTwo = (value) => String(value).padStart(2, "0");
@@ -590,21 +591,18 @@ const AttendanceBatchUpload = () => {
       );
       try {
         if (supabaseEnabled && insertHaircutVisitsBatch) {
-          const haircutPayloads = recordsByType.haircuts.map((record) => {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            return {
-              guest_id: record.internalGuestId,
-              served_at: dateIso,
-            };
-          });
+          const haircutPayloads = recordsByType.haircuts.map((record) =>
+            buildSupabaseHaircutPayload(record),
+          );
 
           const inserted = await insertHaircutVisitsBatch(haircutPayloads);
           setHaircutRecords((prev) => [...inserted, ...prev]);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.haircuts) {
-            await addHaircutRecord(record.internalGuestId);
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            await addHaircutRecord(record.internalGuestId, dateIso);
             successCount++;
           }
         }
@@ -635,7 +633,9 @@ const AttendanceBatchUpload = () => {
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.holidays) {
-            await addHolidayRecord(record.internalGuestId);
+            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+            const dateIso = isoFromPacificDateString(pacificDateStr);
+            await addHolidayRecord(record.internalGuestId, dateIso);
             successCount++;
           }
         }
