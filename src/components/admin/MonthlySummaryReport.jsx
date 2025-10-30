@@ -9,7 +9,8 @@ import {
   Lightbulb,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { BICYCLE_REPAIR_STATUS, LAUNDRY_STATUS } from "../../context/constants";
+import { LAUNDRY_STATUS } from "../../context/constants";
+import { isBicycleStatusCountable } from "../../utils/bicycles";
 
 const MONTH_NAMES = [
   "January",
@@ -346,10 +347,6 @@ const MonthlySummaryReport = () => {
       .filter((type) => type.length > 0);
   }, []);
 
-  const isCompletedBicycleStatus = useCallback((status) => {
-    if (!status) return true;
-    return status === BICYCLE_REPAIR_STATUS.DONE;
-  }, []);
 
   // Calculate monthly data for all months from January of the report year to the current month
   const monthlyData = useMemo(() => {
@@ -534,7 +531,7 @@ const MonthlySummaryReport = () => {
         return (
           date.getFullYear() === reportYear &&
           date.getMonth() === monthIndex &&
-          isCompletedBicycleStatus(record.status)
+          isBicycleStatusCountable(record.status)
         );
       });
 
@@ -577,7 +574,6 @@ const MonthlySummaryReport = () => {
     };
   }, [
     bicycleRecords,
-    isCompletedBicycleStatus,
     normalizeRepairTypes,
     reportYear,
     currentMonth,

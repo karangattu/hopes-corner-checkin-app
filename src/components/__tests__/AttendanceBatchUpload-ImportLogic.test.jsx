@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { BICYCLE_REPAIR_STATUS } from "../../context/constants";
 
 /**
  * Test suite for AttendanceBatchUpload import logic
@@ -36,6 +37,8 @@ describe("AttendanceBatchUpload - Import Logic", () => {
         guestId,
         dateOverride: options.dateOverride,
         repairType: options.repairType,
+        statusOverride: options.statusOverride,
+        completedAtOverride: options.completedAtOverride,
       });
     });
 
@@ -78,6 +81,8 @@ describe("AttendanceBatchUpload - Import Logic", () => {
         repairType: "Legacy Import",
         notes: "Imported from legacy system",
         dateOverride: testDate,
+        statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+        completedAtOverride: testDate,
       });
 
       expect(mockCalls.addBicycleRecord).toHaveLength(1);
@@ -85,6 +90,8 @@ describe("AttendanceBatchUpload - Import Logic", () => {
         guestId,
         repairType: "Legacy Import",
         dateOverride: testDate,
+        statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+        completedAtOverride: testDate,
       });
       expect(mockCalls.addBicycleRecord[0].dateOverride).toBe(testDate);
     });
@@ -99,11 +106,17 @@ describe("AttendanceBatchUpload - Import Logic", () => {
         repairType: "Legacy Import",
         notes: "Imported from legacy system",
         dateOverride: testDate,
+        statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+        completedAtOverride: testDate,
       });
 
       expect(mockCalls.addBicycleRecord[0].dateOverride).toBeDefined();
       expect(mockCalls.addBicycleRecord[0].dateOverride).not.toBeNull();
       expect(mockCalls.addBicycleRecord[0].dateOverride).toBe(testDate);
+      expect(mockCalls.addBicycleRecord[0].statusOverride).toBe(
+        BICYCLE_REPAIR_STATUS.DONE,
+      );
+      expect(mockCalls.addBicycleRecord[0].completedAtOverride).toBe(testDate);
     });
 
     it("should preserve historical dates for multiple bicycle imports", () => {
@@ -120,6 +133,8 @@ describe("AttendanceBatchUpload - Import Logic", () => {
           repairType: "Legacy Import",
           notes: "Imported from legacy system",
           dateOverride: date,
+          statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+          completedAtOverride: date,
         });
       });
 
@@ -128,6 +143,8 @@ describe("AttendanceBatchUpload - Import Logic", () => {
       // Verify each import has the correct date
       mockCalls.addBicycleRecord.forEach((call, index) => {
         expect(call.dateOverride).toBe(imports[index].date);
+        expect(call.statusOverride).toBe(BICYCLE_REPAIR_STATUS.DONE);
+        expect(call.completedAtOverride).toBe(imports[index].date);
       });
     });
   });

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { isBicycleStatusCountable } from "../../utils/bicycles";
 
 /**
  * Integration test for Bicycle and Haircut metrics in analytics
@@ -44,14 +45,14 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-09-01T00:00:00Z" &&
           r.date <= "2025-09-30T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
       expect(periodBicycles).toHaveLength(2);
       expect(periodBicycles.every((r) => r.status === "done")).toBe(true);
     });
 
-    it("should not count bicycle records with status='pending'", () => {
+  it("should count bicycle records with status='pending'", () => {
       const bicycleRecords = [
         {
           id: "bike-1",
@@ -67,10 +68,10 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-09-01T00:00:00Z" &&
           r.date <= "2025-09-30T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
-      expect(periodBicycles).toHaveLength(0);
+      expect(periodBicycles).toHaveLength(1);
     });
 
     it("should count bicycle records with no status field", () => {
@@ -89,10 +90,38 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-09-01T00:00:00Z" &&
           r.date <= "2025-09-30T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
       expect(periodBicycles).toHaveLength(1);
+    });
+
+    it("should exclude bicycle records with cancelled-like statuses", () => {
+      const bicycleRecords = [
+        {
+          id: "bike-1",
+          guestId: "guest-789",
+          date: "2025-09-06T10:35:54Z",
+          status: "cancelled",
+          repairTypes: ["Flat Tire"],
+        },
+        {
+          id: "bike-2",
+          guestId: "guest-456",
+          date: "2025-09-06T10:36:25Z",
+          status: "skipped",
+          repairTypes: ["Chain"],
+        },
+      ];
+
+      const periodBicycles = bicycleRecords.filter(
+        (r) =>
+          r.date >= "2025-09-01T00:00:00Z" &&
+          r.date <= "2025-09-30T23:59:59Z" &&
+          isBicycleStatusCountable(r.status),
+      );
+
+      expect(periodBicycles).toHaveLength(0);
     });
   });
 
@@ -196,7 +225,7 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-05-01T00:00:00Z" &&
           r.date <= "2025-09-30T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
       expect(periodBicycles).toHaveLength(5);
@@ -314,7 +343,7 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-09-06T00:00:00Z" &&
           r.date <= "2025-09-06T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
       const totalBicycles = periodBicycles.reduce(
@@ -378,7 +407,7 @@ describe("Analytics Metrics - Bicycle and Haircut Records", () => {
         (r) =>
           r.date >= "2025-09-01T00:00:00Z" &&
           r.date <= "2025-09-30T23:59:59Z" &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
 
       expect(periodBicycles).toHaveLength(3);

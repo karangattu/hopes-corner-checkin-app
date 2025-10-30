@@ -5,7 +5,10 @@ import {
   checkIfSupabaseConfigured,
 } from "../supabaseClient";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
-import { getBicycleServiceCount } from "../utils/bicycles";
+import {
+  getBicycleServiceCount,
+  isBicycleStatusCountable,
+} from "../utils/bicycles";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
 import {
@@ -1468,9 +1471,18 @@ export const AppProvider = ({ children }) => {
       repairTypes = null,
       notes = "",
       dateOverride = null,
+      statusOverride = null,
+      completedAtOverride = null,
     } = {},
   ) => {
     const now = dateOverride || new Date().toISOString();
+    const status =
+      statusOverride && Object.values(BICYCLE_REPAIR_STATUS).includes(statusOverride)
+        ? statusOverride
+        : BICYCLE_REPAIR_STATUS.PENDING;
+    const completedAt =
+      completedAtOverride ||
+      (status === BICYCLE_REPAIR_STATUS.DONE ? now : null);
     const priority = (bicycleRecords[0]?.priority || 0) + 1;
 
     // Support both old single repairType and new multiple repairTypes
@@ -1487,9 +1499,10 @@ export const AppProvider = ({ children }) => {
             guest_id: guestId,
             repair_types: typesToInsert,
             notes,
-            status: BICYCLE_REPAIR_STATUS.PENDING,
+            status,
             priority,
             requested_at: now,
+            completed_at: completedAt,
           })
           .select()
           .single();
@@ -1523,10 +1536,12 @@ export const AppProvider = ({ children }) => {
       date: now,
       type: "bicycle",
       repairTypes: typesToInsert,
-      completedRepairs: [],
+      completedRepairs:
+        status === BICYCLE_REPAIR_STATUS.DONE ? [...typesToInsert] : [],
       notes,
-      status: BICYCLE_REPAIR_STATUS.PENDING,
+      status,
       priority,
+      doneAt: completedAt,
     };
     setBicycleRecords((prev) => [record, ...prev]);
     setActionHistory((prev) => [
@@ -3385,7 +3400,7 @@ export const AppProvider = ({ children }) => {
     const todayBicycles = bicycleRecords.filter(
       (r) =>
         pacificDateStringFrom(r.date) === today &&
-        (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+        isBicycleStatusCountable(r.status),
     );
     const todayBicycleCount = todayBicycles.reduce(
       (sum, record) => sum + getBicycleServiceCount(record),
@@ -3436,7 +3451,7 @@ export const AppProvider = ({ children }) => {
     const periodBicycles = bicycleRecords.filter(
       (r) =>
         inRange(r.date) &&
-        (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+        isBicycleStatusCountable(r.status),
     );
 
     const dailyMetrics = {};
@@ -3807,7 +3822,7 @@ export const AppProvider = ({ children }) => {
       const periodBicycles = bicycleRecords.filter(
         (r) =>
           inRange(r.date) &&
-          (r.status ? r.status === BICYCLE_REPAIR_STATUS.DONE : true),
+          isBicycleStatusCountable(r.status),
       );
       periodBicycles.forEach((r) => {
         const date = pacificDateStringFrom(r.date);

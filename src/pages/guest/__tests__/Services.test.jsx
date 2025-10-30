@@ -107,6 +107,20 @@ vi.mock("../../../utils/toast", () => ({
 vi.mock("../../../utils/bicycles", () => ({
   __esModule: true,
   getBicycleServiceCount: () => 1,
+  isBicycleStatusCountable: (status) => {
+    const normalized = (status || "").toString().toLowerCase();
+    return (
+      !status ||
+      [
+        "done",
+        "completed",
+        "ready",
+        "finished",
+        "pending",
+        "in_progress",
+      ].includes(normalized)
+    );
+  },
 }));
 
 const fixedToday = "2024-10-24";

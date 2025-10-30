@@ -65,7 +65,10 @@ import {
   todayPacificDateString,
   pacificDateStringFrom,
 } from "../../utils/date";
-import { getBicycleServiceCount } from "../../utils/bicycles";
+import {
+  getBicycleServiceCount,
+  isBicycleStatusCountable,
+} from "../../utils/bicycles";
 
 const MEAL_REPORT_TYPE_ORDER = [
   "guest",
@@ -672,16 +675,10 @@ const Services = () => {
     [completedLaundryStatuses],
   );
 
-  const isCompletedBicycleStatus = useCallback((status) => {
-    const normalized = (status || "").toString().toLowerCase();
-    return (
-      !status ||
-      normalized === "done" ||
-      normalized === "completed" ||
-      normalized === "ready" ||
-      normalized === "finished"
-    );
-  }, []);
+  const isCompletedBicycleStatus = useCallback(
+    (status) => isBicycleStatusCountable(status),
+    [],
+  );
 
   const toCountValue = useCallback(
     (value) => (typeof value === "number" ? value : Number(value) || 0),

@@ -18,7 +18,10 @@ import StackedBarCardRecharts from "../charts/StackedBarCardRecharts";
 import OnsiteMealDemographics from "./OnsiteMealDemographics";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
-import { getBicycleServiceCount } from "../../utils/bicycles";
+import {
+  getBicycleServiceCount,
+  isBicycleStatusCountable,
+} from "../../utils/bicycles";
 
 // Helper functions defined outside component to avoid hoisting issues
 const calculateProgress = (current, target) => {
@@ -349,16 +352,10 @@ const OverviewDashboard = ({
     [completedLaundryStatuses],
   );
 
-  const isCompletedBicycleStatus = useCallback((status) => {
-    const normalized = (status || "").toString().toLowerCase();
-    return (
-      !status ||
-      normalized === "done" ||
-      normalized === "completed" ||
-      normalized === "ready" ||
-      normalized === "finished"
-    );
-  }, []);
+  const isCompletedBicycleStatus = useCallback(
+    (status) => isBicycleStatusCountable(status),
+    [],
+  );
 
   // Calculate month and year metrics with progress tracking
   const { monthMetrics, yearMetrics } = useMemo(() => {

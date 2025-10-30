@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { pacificDateStringFrom, isoFromPacificDateString } from "../utils/date";
+import { BICYCLE_REPAIR_STATUS } from "../context/constants";
 import {
   buildSupabaseShowerPayload,
   buildSupabaseLaundryPayload,
@@ -574,6 +575,8 @@ const AttendanceBatchUpload = () => {
               repairType: "Legacy Import",
               notes: "Imported from legacy system",
               dateOverride: dateIso,
+              statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+              completedAtOverride: dateIso,
             });
             successCount++;
           }
