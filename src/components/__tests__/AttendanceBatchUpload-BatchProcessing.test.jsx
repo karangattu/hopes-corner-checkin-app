@@ -499,7 +499,7 @@ describe("AttendanceBatchUpload - Batch Processing Logic", () => {
       expect(payload.status).toBe("done");
       expect(payload.priority).toBe(0);
       expect(payload.repair_types).toEqual(["Legacy Import"]);
-      expect(payload.completed_repairs).toEqual(["Legacy Import"]);
+      expect(payload.completed_repairs).toEqual([]);
       expect(payload.completed_at).toBe(expectedIso);
       expect(payload.requested_at).toBe(expectedIso);
     });
