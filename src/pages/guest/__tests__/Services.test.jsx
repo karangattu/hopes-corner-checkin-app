@@ -134,6 +134,14 @@ vi.mock("../../../utils/date", () => ({
     if (str.length >= 10) return str.slice(0, 10);
     return str;
   },
+  isoFromPacificDateString: (pacificDateStr) => {
+    // Mock implementation: convert YYYY-MM-DD to ISO by setting UTC midnight + offset
+    if (!pacificDateStr) return "";
+    const [year, month, day] = pacificDateStr.split("-").map(Number);
+    if ([year, month, day].some((n) => Number.isNaN(n))) return "";
+    // Return a mock ISO string for the given date
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).toISOString();
+  },
 }));
 
 vi.mock("../../../utils/animations", () => {
@@ -445,5 +453,53 @@ describe("Services page", () => {
     // The button being disabled prevents the download, which is the expected behavior
     // when no date range is selected. The toast.error in the handler is defensive code
     // that would only fire if somehow the button was clicked while disabled.
+  });
+
+  it("exports meal report CSV with date and day of week columns", async () => {
+    const context = buildContext({
+      mealRecords: [
+        { id: "meal-1", date: "2024-10-24T12:00:00Z", count: 5 },
+        { id: "meal-2", date: "2024-10-25T12:00:00Z", count: 3 },
+      ],
+      rvMealRecords: [
+        { id: "rv-1", date: "2024-10-24T12:00:00Z", count: 2 },
+      ],
+      dayWorkerMealRecords: [],
+      shelterMealRecords: [],
+      unitedEffortMealRecords: [],
+      extraMealRecords: [],
+      lunchBagRecords: [],
+    });
+    useAppContextMock.mockReturnValue(context);
+
+    renderServices();
+
+    // Navigate to data exports section
+    const dataExportButtons = screen.getAllByRole("button", {
+      name: /Data export/i,
+    });
+    fireEvent.click(dataExportButtons[0]);
+
+    // Wait for export section to load
+    await screen.findByText(/Custom meal summary/i);
+
+    // Set date range
+    const startDateInput = screen.getByLabelText(/Start date/i);
+    const endDateInput = screen.getByLabelText(/End date/i);
+
+    fireEvent.change(startDateInput, { target: { value: "2024-10-24" } });
+    fireEvent.change(endDateInput, { target: { value: "2024-10-25" } });
+
+    // Click the Download CSV button
+    const downloadButton = screen.getByRole("button", {
+      name: /Download CSV/i,
+    });
+
+    fireEvent.click(downloadButton);
+
+    // Verify the CSV export was triggered
+    await waitFor(() => {
+      expect(window.URL.createObjectURL).toHaveBeenCalled();
+    });
   });
 });

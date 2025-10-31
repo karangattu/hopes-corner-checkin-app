@@ -67,6 +67,61 @@ const buildAttendanceTemplateCSV = (year) => {
   ].join("\n");
 };
 
+const escapeCsvValue = (value) => {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  const needsQuotes = /[",\n]/.test(str);
+  const escaped = str.replace(/"/g, '""');
+  return needsQuotes ? `"${escaped}"` : escaped;
+};
+
+const downloadErrorReport = (errors, fileName) => {
+  if (!errors || errors.length === 0) return;
+
+  const header = ["Row", "Guest ID", "Program", "Message", "Notes"].join(",");
+  const rows = errors.map((error) => {
+    const notes = [];
+    if (error.details) notes.push(error.details);
+    if (error.affectedRows) {
+      notes.push(
+        `Affects ${error.affectedRows} row${error.affectedRows === 1 ? "" : "s"}`,
+      );
+    }
+    if (error.reference) notes.push(error.reference);
+
+    return [
+      escapeCsvValue(error.rowNumber ?? ""),
+      escapeCsvValue(error.guestId ?? ""),
+      escapeCsvValue(error.program ?? ""),
+      escapeCsvValue(error.message ?? ""),
+      escapeCsvValue(notes.join(" | ")),
+    ].join(",");
+  });
+
+  const csv = [header, ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+const MAX_INLINE_ERRORS = 25;
+
+const formatErrorSnippet = (error) => {
+  if (!error) return "";
+  const parts = [];
+  if (error.rowNumber) parts.push(`Row ${error.rowNumber}`);
+  if (error.program) parts.push(error.program);
+  if (error.guestId) parts.push(`Guest ${error.guestId}`);
+  const context = parts.length > 0 ? `${parts.join(" | ")}: ` : "";
+  return `${context}${error.message}`;
+};
+
 const AttendanceBatchUpload = () => {
   const {
     guests,
@@ -100,9 +155,13 @@ const AttendanceBatchUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
+  const [recentErrors, setRecentErrors] = useState([]);
+  const [errorReportName, setErrorReportName] = useState("");
   const fileInputRef = useRef(null);
   const currentYear = new Date().getFullYear();
   const dateFormatExamples = getDateFormatExamples(currentYear);
+  const displayedErrors = recentErrors.slice(0, MAX_INLINE_ERRORS);
+  const hasMoreErrors = recentErrors.length > MAX_INLINE_ERRORS;
 
   // Special guest IDs that map to specific meal types (no guest profile created)
   const SPECIAL_GUEST_IDS = {
@@ -399,8 +458,12 @@ const AttendanceBatchUpload = () => {
           rowIndex: index,
         });
       } catch (error) {
-        const errorMsg = `Row ${index + 2} (Guest: ${record.guestId || "unknown"}): ${error.message}`;
-        errors.push(errorMsg);
+        errors.push({
+          rowNumber: index + 2,
+          guestId: record.guestId || "unknown",
+          program: record.program,
+          message: error.message,
+        });
         errorCount++;
       }
     });
@@ -443,7 +506,12 @@ const AttendanceBatchUpload = () => {
         specialMealCounts[specialMapping.label] += count;
         successCount++;
       } catch (error) {
-        errors.push(`Row ${record.rowIndex + 2}: ${error.message}`);
+        errors.push({
+          rowNumber: record.rowIndex + 2,
+          guestId: record.guestId || null,
+          program: record.program,
+          message: error.message,
+        });
         errorCount++;
       }
     }
@@ -480,8 +548,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch meal insert error: ${error.message}`);
-        errorCount += recordsByType.meals.length;
+        recordsByType.meals.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase meal import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -514,8 +589,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch shower insert error: ${error.message}`);
-        errorCount += recordsByType.showers.length;
+        recordsByType.showers.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase shower import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -548,8 +630,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch laundry insert error: ${error.message}`);
-        errorCount += recordsByType.laundry.length;
+        recordsByType.laundry.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase laundry import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -582,8 +671,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch bicycle insert error: ${error.message}`);
-        errorCount += recordsByType.bicycles.length;
+        recordsByType.bicycles.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase bicycle import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -610,8 +706,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch haircut insert error: ${error.message}`);
-        errorCount += recordsByType.haircuts.length;
+        recordsByType.haircuts.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase haircut import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -643,8 +746,15 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
-        errors.push(`Batch holiday insert error: ${error.message}`);
-        errorCount += recordsByType.holidays.length;
+        recordsByType.holidays.forEach((record) => {
+          errors.push({
+            rowNumber: record.rowIndex + 2,
+            guestId: record.guestId || null,
+            program: record.program,
+            message: `Supabase holiday import failed: ${error.message}`,
+          });
+          errorCount++;
+        });
       }
     }
 
@@ -663,9 +773,11 @@ const AttendanceBatchUpload = () => {
       return;
     }
 
-    setIsUploading(true);
-    setUploadResult(null);
-    setUploadProgress(null);
+  setIsUploading(true);
+  setUploadResult(null);
+  setUploadProgress(null);
+  setRecentErrors([]);
+  setErrorReportName("");
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -694,31 +806,41 @@ const AttendanceBatchUpload = () => {
             success: true,
             message: `Successfully imported ${successCount} attendance records${specialMealsSummary}`,
           });
-        } else if (successCount > 0) {
-          const errorSummary = errors.slice(0, 5).join("; ");
-          const moreErrors =
-            errors.length > 5
-              ? ` (and ${errors.length - 5} more errors - check console for full details)`
-              : "";
-          setUploadResult({
-            success: false,
-            message: `Imported ${successCount} records${specialMealsSummary} with ${errorCount} errors. First errors: ${errorSummary}${moreErrors}`,
-          });
-          // Log all errors to console for debugging
-          if (errors.length > 5) {
-            console.error("All batch upload errors:", errors);
-          }
+          setRecentErrors([]);
+          setErrorReportName("");
         } else {
-          const errorSummary = errors.slice(0, 5).join("; ");
-          const moreErrors =
-            errors.length > 5
-              ? ` (and ${errors.length - 5} more errors - check console)`
-              : "";
-          setUploadResult({
-            success: false,
-            message: `Failed to import records: ${errorSummary}${moreErrors}`,
-          });
-          // Log all errors to console for debugging
+          const firstSnippets = errors
+            .slice(0, 3)
+            .map((error) => formatErrorSnippet(error))
+            .filter(Boolean)
+            .join("; ");
+          const timestamp = new Date()
+            .toISOString()
+            .replace(/[:.]/g, "-");
+          const baseFileName = file.name.replace(/\.[^/.]+$/i, "");
+          const generatedReportName = `${baseFileName || "attendance_import"}_errors_${timestamp}.csv`;
+
+          setRecentErrors(errors);
+          setErrorReportName(generatedReportName);
+
+          if (successCount > 0) {
+            const baseMessage = `Imported ${successCount} records${specialMealsSummary} with ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
+            setUploadResult({
+              success: false,
+              message: firstSnippets
+                ? `${baseMessage} First issues: ${firstSnippets}`
+                : baseMessage,
+            });
+          } else {
+            const baseMessage = `No records were imported. Encountered ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
+            setUploadResult({
+              success: false,
+              message: firstSnippets
+                ? `${baseMessage} Example issues: ${firstSnippets}`
+                : baseMessage,
+            });
+          }
+
           console.error("All batch upload errors:", errors);
         }
       } catch (error) {
@@ -726,6 +848,8 @@ const AttendanceBatchUpload = () => {
           success: false,
           message: error.message,
         });
+        setRecentErrors([]);
+        setErrorReportName("");
       } finally {
         setIsUploading(false);
         setUploadProgress(null);
@@ -740,6 +864,8 @@ const AttendanceBatchUpload = () => {
         success: false,
         message: "Failed to read the file",
       });
+      setRecentErrors([]);
+      setErrorReportName("");
       setIsUploading(false);
       setUploadProgress(null);
     };
@@ -787,6 +913,79 @@ const AttendanceBatchUpload = () => {
             <AlertCircle size={18} />
           )}
           {uploadResult.message}
+        </div>
+      )}
+
+      {recentErrors.length > 0 && (
+        <div className="mb-4 border border-red-200 rounded-md overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-red-50 text-red-800 px-3 py-2 border-b border-red-200">
+            <span className="text-sm font-medium">
+              Found {recentErrors.length} validation error
+              {recentErrors.length === 1 ? "" : "s"}. Showing first {displayedErrors.length}.
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                downloadErrorReport(
+                  recentErrors,
+                  errorReportName || "attendance_import_errors.csv",
+                )
+              }
+              className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-red-700"
+            >
+              <Download size={14} />
+              Download error CSV
+            </button>
+          </div>
+          <div className="max-h-64 overflow-auto">
+            <table className="min-w-full text-xs text-left">
+              <thead className="bg-red-100 text-red-800 uppercase tracking-wide">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Row</th>
+                  <th className="px-3 py-2 font-semibold">Guest ID</th>
+                  <th className="px-3 py-2 font-semibold">Program</th>
+                  <th className="px-3 py-2 font-semibold">Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedErrors.map((error, index) => (
+                  <tr
+                    key={`${error.rowNumber || "row"}-${error.guestId || "guest"}-${index}`}
+                    className={index % 2 === 0 ? "bg-white" : "bg-red-50"}
+                  >
+                    <td className="px-3 py-2 text-sm text-gray-700">
+                      {error.rowNumber ?? "N/A"}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-700">
+                      {error.guestId ?? "N/A"}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-700">
+                      {error.program ?? "N/A"}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-red-800">
+                      <div>{error.message}</div>
+                      {error.details && (
+                        <div className="mt-1 text-xs text-red-600">
+                          Details: {error.details}
+                        </div>
+                      )}
+                      {error.reference && (
+                        <div className="mt-1 text-xs text-red-600">
+                          Reference: {error.reference}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {hasMoreErrors && (
+            <div className="bg-red-50 px-3 py-2 text-xs text-red-700 border-t border-red-200">
+              Showing the first {displayedErrors.length} errors. Download the
+              CSV to review all rows.
+            </div>
+          )}
         </div>
       )}
 

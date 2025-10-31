@@ -63,6 +63,7 @@ import {
 import {
   todayPacificDateString,
   pacificDateStringFrom,
+  isoFromPacificDateString,
 } from "../../utils/date";
 import {
   getBicycleServiceCount,
@@ -79,6 +80,25 @@ import {
 import BicycleRepairsSection from "./services/sections/BicycleRepairsSection";
 import OverviewSection from "./services/sections/OverviewSection";
 import TimelineSection from "./services/sections/TimelineSection";
+
+const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  weekday: "long",
+});
+
+const getPacificWeekdayLabel = (pacificDateStr) => {
+  if (!pacificDateStr) return "";
+  try {
+    const iso = isoFromPacificDateString(pacificDateStr);
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    return pacificWeekdayFormatter.format(date);
+  } catch {
+    return "";
+  }
+};
 
 const Services = () => {
   const {
@@ -2016,7 +2036,8 @@ const Services = () => {
         return;
       }
 
-      rows.push([day, ...values, rowTotal]);
+      const weekdayLabel = getPacificWeekdayLabel(day);
+      rows.push([day, weekdayLabel, ...values, rowTotal]);
     });
 
     if (!rows.length) {
@@ -2026,6 +2047,7 @@ const Services = () => {
 
     const header = [
       "Date",
+      "Day of week",
       ...selectedTypes.map((type) => MEAL_REPORT_TYPE_LABELS[type]),
       "Daily total",
     ];
@@ -2035,6 +2057,7 @@ const Services = () => {
     );
     const totalsRow = [
       "Total",
+      "",
       ...selectedTypes.map((type) => totals[type] || 0),
       grandTotal,
     ];
