@@ -21,6 +21,8 @@ import {
 } from "./constants";
 
 import AppContext from "./internalContext";
+import { createShowerMutations } from "./utils/showerMutations";
+import { createLaundryMutations } from "./utils/laundryMutations";
 import {
   toTitleCase,
   normalizePreferredName,
@@ -80,6 +82,11 @@ export const AppProvider = ({ children }) => {
   const [laundryPickerGuest, setLaundryPickerGuest] = useState(null);
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
+
+  const pushAction = useCallback((action) => {
+    if (!action) return;
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+  }, []);
 
   const migrateGuestData = (guestList) => {
     return guestList.map((guest) => {
@@ -2261,798 +2268,83 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
-  const addShowerRecord = async (guestId, time, dateOverride = null) => {
-    const count = showerSlots.filter((s) => s.time === time).length;
-    if (count >= 2) {
-      throw new Error("That time slot is full.");
-    }
+  const {
+    addShowerRecord,
+    addShowerWaitlist,
+    cancelShowerRecord,
+    rescheduleShower,
+    updateShowerStatus,
+    importShowerAttendanceRecord,
+  } = useMemo(
+    () =>
+      createShowerMutations({
+        supabaseEnabled,
+        supabaseClient: supabase,
+        mapShowerRow,
+        ensureGuestServiceEligible,
+        showerRecords,
+        setShowerRecords,
+        showerSlots,
+        setShowerSlots,
+        pacificDateStringFrom,
+        todayPacificDateString,
+        combineDateAndTimeISO,
+        createLocalId,
+        pushAction,
+        toast,
+        enhancedToast,
+        normalizeDateInputToISO,
+      }),
+    [
+      supabaseEnabled,
+      mapShowerRow,
+      ensureGuestServiceEligible,
+      showerRecords,
+      showerSlots,
+      pushAction,
+    ],
+  );
 
-    const timestamp = dateOverride || new Date().toISOString();
-    const today = dateOverride
-      ? pacificDateStringFrom(dateOverride)
-      : todayPacificDateString();
-    const alreadyBooked = showerRecords.some(
-      (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
-    );
-
-    if (alreadyBooked) {
-      throw new Error("Guest already has a shower booking today.");
-    }
-
-    const scheduledFor = today;
-    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, time);
-
-    ensureGuestServiceEligible(guestId, "shower bookings");
-
-    if (supabaseEnabled && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from("shower_reservations")
-          .insert({
-            guest_id: guestId,
-            scheduled_time: time,
-            scheduled_for: scheduledFor,
-            status: "booked",
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapShowerRow(data);
-        setShowerRecords((prev) => [...prev, mapped]);
-        setShowerSlots((prev) => [...prev, { guestId, time }]);
-        const action = {
-          id: Date.now() + Math.random(),
-          type: "SHOWER_BOOKED",
-          timestamp,
-          data: { recordId: mapped.id, guestId, time },
-          description: `Booked shower at ${time} for guest`,
-        };
-        setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-        return mapped;
-      } catch (error) {
-        console.error("Failed to create shower booking:", error);
-        toast.error("Unable to save shower booking.");
-        throw error;
-      }
-    }
-
-    const record = {
-      id: createLocalId("local-shower"),
-      guestId,
-      time,
-      scheduledFor,
-      date: scheduledDateTime || timestamp,
-      status: "booked",
-      createdAt: timestamp,
-      lastUpdated: timestamp,
-    };
-
-    setShowerRecords((prev) => [...prev, record]);
-    setShowerSlots((prev) => [...prev, { guestId, time }]);
-
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "SHOWER_BOOKED",
-      timestamp,
-      data: { recordId: record.id, guestId, time },
-      description: `Booked shower at ${time} for guest`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-
-    return record;
-  };
-
-  const addShowerWaitlist = async (guestId) => {
-    const today = todayPacificDateString();
-    const already = showerRecords.some(
-      (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
-    );
-    if (already) {
-      throw new Error("Guest already has a shower entry today.");
-    }
-    ensureGuestServiceEligible(guestId, "shower bookings");
-    const timestamp = new Date().toISOString();
-    const record = {
-      id: Date.now(),
-      guestId,
-      time: null,
-      date: timestamp,
-      scheduledFor: today,
-      status: "waitlisted",
-      createdAt: timestamp,
-      lastUpdated: timestamp,
-    };
-
-    if (supabaseEnabled && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from("shower_reservations")
-          .insert({
-            guest_id: guestId,
-            scheduled_time: null,
-            scheduled_for: today,
-            status: "waitlisted",
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapShowerRow(data);
-        setShowerRecords((prev) => [...prev, mapped]);
-        const action = {
-          id: Date.now() + Math.random(),
-          type: "SHOWER_WAITLISTED",
-          timestamp,
-          data: { recordId: mapped.id, guestId },
-          description: "Added to shower waitlist",
-        };
-        setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-        return mapped;
-      } catch (error) {
-        console.error("Failed to add shower waitlist entry:", error);
-        toast.error("Unable to add to shower waitlist.");
-        throw error;
-      }
-    }
-
-    setShowerRecords((prev) => [
-      ...prev,
-      { ...record, id: `local-${record.id}` },
-    ]);
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "SHOWER_WAITLISTED",
-      timestamp,
-      data: { recordId: `local-${record.id}`, guestId },
-      description: "Added to shower waitlist",
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-    return { ...record, id: `local-${record.id}` };
-  };
-
-  const cancelShowerRecord = async (recordId) => {
-    const record = showerRecords.find((r) => r.id === recordId);
-    if (!record) return false;
-    setShowerRecords((prev) => prev.filter((r) => r.id !== recordId));
-    setShowerSlots((prev) =>
-      prev.filter(
-        (s) => !(s.guestId === record.guestId && s.time === record.time),
-      ),
-    );
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { error } = await supabase
-          .from("shower_reservations")
-          .delete()
-          .eq("id", recordId);
-        if (error) throw error;
-      } catch (error) {
-        console.error("Failed to cancel shower booking:", error);
-        toast.error("Unable to cancel shower booking.");
-        return false;
-      }
-    }
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "SHOWER_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        time: record.time,
-        snapshot: { ...record },
-      },
-      description: `Cancelled shower at ${record.time}`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-    return true;
-  };
-
-  const rescheduleShower = async (recordId, newTime) => {
-    const record = showerRecords.find((r) => r.id === recordId);
-    if (!record) throw new Error("Shower booking not found");
-    if (record.time === newTime) return record;
-    const countAtNew = showerSlots.filter(
-      (s) => s.time === newTime && s.guestId !== record.guestId,
-    ).length;
-    if (countAtNew >= 2) throw new Error("That time slot is full.");
-    const timestamp = new Date().toISOString();
-    const scheduledFor =
-      record.scheduledFor ||
-      pacificDateStringFrom(record.date) ||
-      todayPacificDateString();
-    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, newTime);
-    const originalRecord = { ...record };
-    const previousSlots = showerSlots.map((slot) => ({ ...slot }));
-    let updatedRecord = {
-      ...record,
-      time: newTime,
-      scheduledFor,
-      date: scheduledDateTime || record.date,
-      lastUpdated: timestamp,
-    };
-    let success = true;
-    setShowerRecords((prev) =>
-      prev.map((r) => (r.id === recordId ? updatedRecord : r)),
-    );
-    setShowerSlots((prev) => {
-      const filtered = prev.filter(
-        (s) => !(s.guestId === record.guestId && s.time === record.time),
-      );
-      return [...filtered, { guestId: record.guestId, time: newTime }];
-    });
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { data, error } = await supabase
-          .from("shower_reservations")
-          .update({ scheduled_time: newTime, updated_at: timestamp })
-          .eq("id", recordId)
-          .select()
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const mapped = mapShowerRow(data);
-          updatedRecord = mapped;
-          setShowerRecords((prev) =>
-            prev.map((r) => (r.id === recordId ? mapped : r)),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to reschedule shower:", error);
-        success = false;
-        setShowerRecords((prev) =>
-          prev.map((r) => (r.id === recordId ? originalRecord : r)),
-        );
-        setShowerSlots(previousSlots);
-        enhancedToast.error(
-          "Unable to reschedule shower. Changes were reverted.",
-        );
-      }
-    }
-    if (!success) {
-      return originalRecord;
-    }
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "SHOWER_RESCHEDULED",
-      timestamp,
-      data: {
-        recordId,
-        guestId: record.guestId,
-        from: record.time,
-        to: newTime,
-      },
-      description: `Rescheduled shower ${record.time} → ${newTime}`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-    return updatedRecord;
-  };
-
-  const updateShowerStatus = async (recordId, newStatus) => {
-    const timestamp = new Date().toISOString();
-    const originalRecord = showerRecords.find((r) => r.id === recordId);
-    if (!originalRecord) return false;
-    const previousRecord = { ...originalRecord };
-    setShowerRecords((prev) =>
-      prev.map((r) =>
-        r.id === recordId
-          ? { ...r, status: newStatus, lastUpdated: timestamp }
-          : r,
-      ),
-    );
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { data, error } = await supabase
-          .from("shower_reservations")
-          .update({ status: newStatus, updated_at: timestamp })
-          .eq("id", recordId)
-          .select()
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const mapped = mapShowerRow(data);
-          setShowerRecords((prev) =>
-            prev.map((r) => (r.id === recordId ? mapped : r)),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to update shower status:", error);
-        setShowerRecords((prev) =>
-          prev.map((r) => (r.id === recordId ? previousRecord : r)),
-        );
-        enhancedToast.error(
-          "Unable to update shower status. Changes were reverted.",
-        );
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const addLaundryRecord = async (
-    guestId,
-    time,
-    laundryType,
-    bagNumber = "",
-    dateOverride = null,
-  ) => {
-    if (laundryType === "onsite") {
-      const slotTaken = laundrySlots.some((slot) => slot.time === time);
-      if (slotTaken) {
-        throw new Error("That laundry slot is already taken.");
-      }
-
-      const onsiteSlots = laundrySlots.filter(
-        (slot) => slot.laundryType === "onsite",
-      );
-      if (onsiteSlots.length >= settings.maxOnsiteLaundrySlots) {
-        throw new Error("All on-site laundry slots are taken for today.");
-      }
-    }
-
-    const timestamp = dateOverride || new Date().toISOString();
-    const today = dateOverride
-      ? pacificDateStringFrom(dateOverride)
-      : todayPacificDateString();
-    const alreadyBooked = laundryRecords.some(
-      (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
-    );
-
-    if (alreadyBooked) {
-      throw new Error("Guest already has a laundry booking today.");
-    }
-
-    const scheduledFor = today;
-    const slotStart =
-      laundryType === "onsite" ? extractLaundrySlotStart(time) : null;
-    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
-
-    ensureGuestServiceEligible(guestId, "laundry bookings");
-
-    if (supabaseEnabled && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from("laundry_bookings")
-          .insert({
-            guest_id: guestId,
-            slot_label: laundryType === "onsite" ? time : null,
-            laundry_type: laundryType,
-            bag_number: bagNumber,
-            scheduled_for: scheduledFor,
-            status:
-              laundryType === "onsite"
-                ? LAUNDRY_STATUS.WAITING
-                : LAUNDRY_STATUS.PENDING,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapLaundryRow(data);
-        setLaundryRecords((prev) => [...prev, mapped]);
-        if (laundryType === "onsite") {
-          setLaundrySlots((prev) => [
-            ...prev,
-            { guestId, time, laundryType, bagNumber, status: mapped.status },
-          ]);
-        }
-        const action = {
-          id: Date.now() + Math.random(),
-          type: "LAUNDRY_BOOKED",
-          timestamp,
-          data: { recordId: mapped.id, guestId, time, laundryType, bagNumber },
-          description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ""} for guest`,
-        };
-        setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-        return mapped;
-      } catch (error) {
-        console.error("Failed to create laundry booking:", error);
-        toast.error("Unable to save laundry booking.");
-        throw error;
-      }
-    }
-
-    const record = {
-      id: createLocalId("local-laundry"),
-      guestId,
-      time: laundryType === "onsite" ? time : null,
-      laundryType,
-      bagNumber,
-      scheduledFor,
-      date: scheduledDateTime || timestamp,
-      status:
-        laundryType === "onsite"
-          ? LAUNDRY_STATUS.WAITING
-          : LAUNDRY_STATUS.PENDING,
-      createdAt: timestamp,
-      lastUpdated: timestamp,
-    };
-
-    setLaundryRecords((prev) => [...prev, record]);
-    if (laundryType === "onsite") {
-      setLaundrySlots((prev) => [
-        ...prev,
-        { guestId, time, laundryType, bagNumber, status: record.status },
-      ]);
-    }
-
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_BOOKED",
-      timestamp,
-      data: { recordId: record.id, guestId, time, laundryType, bagNumber },
-      description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ""} for guest`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-
-    return record;
-  };
-
-  const cancelLaundryRecord = async (recordId) => {
-    const record = laundryRecords.find((r) => r.id === recordId);
-    if (!record) return false;
-    setLaundryRecords((prev) => prev.filter((r) => r.id !== recordId));
-    if (record.laundryType === "onsite") {
-      setLaundrySlots((prev) =>
-        prev.filter(
-          (s) => !(s.guestId === record.guestId && s.time === record.time),
-        ),
-      );
-    }
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { error } = await supabase
-          .from("laundry_bookings")
-          .delete()
-          .eq("id", recordId);
-        if (error) throw error;
-      } catch (error) {
-        console.error("Failed to cancel laundry booking:", error);
-        toast.error("Unable to cancel laundry booking.");
-        return false;
-      }
-    }
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        time: record.time,
-        laundryType: record.laundryType,
-        snapshot: { ...record },
-      },
-      description: `Cancelled ${record.laundryType} laundry${record.time ? ` at ${record.time}` : ""}`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-    return true;
-  };
-
-  const rescheduleLaundry = async (
-    recordId,
-    { newTime = null, newLaundryType = null } = {},
-  ) => {
-    const record = laundryRecords.find((r) => r.id === recordId);
-    if (!record) throw new Error("Laundry booking not found");
-    const targetType = newLaundryType || record.laundryType;
-    const targetTime =
-      targetType === "onsite" ? (newTime ?? record.time) : null;
-
-    if (targetType === "onsite") {
-      if (!targetTime)
-        throw new Error("A time slot is required for on-site laundry.");
-      const slotTakenByOther = laundrySlots.some(
-        (s) => s.time === targetTime && s.guestId !== record.guestId,
-      );
-      if (slotTakenByOther)
-        throw new Error("That laundry slot is already taken.");
-      const onsiteSlots = laundrySlots.filter(
-        (s) => s.laundryType === "onsite",
-      );
-      const isNewToOnsite = record.laundryType !== "onsite";
-      if (isNewToOnsite && onsiteSlots.length >= settings.maxOnsiteLaundrySlots)
-        throw new Error("All on-site laundry slots are taken for today.");
-    }
-
-    const timestamp = new Date().toISOString();
-    const scheduledFor =
-      record.scheduledFor ||
-      pacificDateStringFrom(record.date) ||
-      todayPacificDateString();
-    const slotStart =
-      targetType === "onsite" ? extractLaundrySlotStart(targetTime) : null;
-    const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
-    const originalRecord = { ...record };
-    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
-    let updatedRecord = {
-      ...record,
-      laundryType: targetType,
-      time: targetTime,
-      status:
-        targetType === "onsite"
-          ? LAUNDRY_STATUS.WAITING
-          : LAUNDRY_STATUS.PENDING,
-      scheduledFor,
-      date:
-        scheduledDateTime ||
-        (targetType === "onsite" ? record.date : timestamp),
-      lastUpdated: timestamp,
-    };
-    let success = true;
-
-    setLaundryRecords((prev) =>
-      prev.map((r) => (r.id === recordId ? updatedRecord : r)),
-    );
-
-    setLaundrySlots((prev) => {
-      let next = prev.filter(
-        (s) => !(s.guestId === record.guestId && s.time === record.time),
-      );
-      if (targetType === "onsite") {
-        next = [
-          ...next,
-          {
-            guestId: record.guestId,
-            time: targetTime,
-            laundryType: "onsite",
-            bagNumber: record.bagNumber,
-            status: LAUNDRY_STATUS.WAITING,
-          },
-        ];
-      }
-      return next;
-    });
-
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { data, error } = await supabase
-          .from("laundry_bookings")
-          .update({
-            laundry_type: targetType,
-            slot_label: targetTime,
-            status:
-              targetType === "onsite"
-                ? LAUNDRY_STATUS.WAITING
-                : LAUNDRY_STATUS.PENDING,
-            updated_at: timestamp,
-          })
-          .eq("id", recordId)
-          .select()
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const mapped = mapLaundryRow(data);
-          updatedRecord = mapped;
-          setLaundryRecords((prev) =>
-            prev.map((r) => (r.id === recordId ? mapped : r)),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to update laundry booking:", error);
-        success = false;
-        setLaundryRecords((prev) =>
-          prev.map((r) => (r.id === recordId ? originalRecord : r)),
-        );
-        setLaundrySlots(previousSlots);
-        enhancedToast.error(
-          "Unable to update laundry booking. Changes were reverted.",
-        );
-      }
-    }
-    if (!success) {
-      return originalRecord;
-    }
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_RESCHEDULED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        from: { type: record.laundryType, time: record.time },
-        to: { type: targetType, time: targetTime },
-      },
-      description: `Updated laundry to ${targetType}${targetTime ? ` at ${targetTime}` : ""}`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-    return updatedRecord;
-  };
-
-  const updateLaundryStatus = async (recordId, newStatus) => {
-    const originalRecord = laundryRecords.find((r) => r.id === recordId);
-    if (!originalRecord) return false;
-    const timestamp = new Date().toISOString();
-    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
-    const updatedRecord = {
-      ...originalRecord,
-      status: newStatus,
-      lastUpdated: timestamp,
-    };
-
-    setLaundryRecords((prev) =>
-      prev.map((record) => (record.id === recordId ? updatedRecord : record)),
-    );
-
-    setLaundrySlots((prev) =>
-      prev.map((slot) =>
-        slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
-          ? { ...slot, status: newStatus, bagNumber: updatedRecord.bagNumber }
-          : slot,
-      ),
-    );
-
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { data, error } = await supabase
-          .from("laundry_bookings")
-          .update({ status: newStatus, updated_at: timestamp })
-          .eq("id", recordId)
-          .select()
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const mapped = mapLaundryRow(data);
-          setLaundryRecords((prev) =>
-            prev.map((r) => (r.id === recordId ? mapped : r)),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to update laundry status:", error);
-        setLaundryRecords((prev) =>
-          prev.map((record) =>
-            record.id === recordId ? originalRecord : record,
-          ),
-        );
-        setLaundrySlots(previousSlots);
-        enhancedToast.error(
-          "Unable to update laundry status. Changes were reverted.",
-        );
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  const importShowerAttendanceRecord = (
-    guestId,
-    { dateSubmitted = null, count = 1, status = "done" } = {},
-  ) => {
-    const timestampIso =
-      normalizeDateInputToISO(dateSubmitted) ?? new Date().toISOString();
-    const scheduledFor = pacificDateStringFrom(timestampIso);
-
-    const importedRecords = Array.from({ length: Math.max(count, 1) }, () => ({
-      id: createLocalId("import-shower"),
-      guestId,
-      time: null,
-      scheduledFor,
-      date: timestampIso,
-      status,
-      createdAt: timestampIso,
-      lastUpdated: timestampIso,
-      source: "import",
-    }));
-
-    setShowerRecords((prev) => [...prev, ...importedRecords]);
-
-    const action = {
-      id: createLocalId("action"),
-      type: "SHOWER_IMPORTED",
-      timestamp: timestampIso,
-      data: { guestId, count: importedRecords.length },
-      description: `Imported ${importedRecords.length} shower record${
-        importedRecords.length === 1 ? "" : "s"
-      }`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-
-    return importedRecords;
-  };
-
-  const importLaundryAttendanceRecord = (
-    guestId,
-    {
-      dateSubmitted = null,
-      count = 1,
-      status = LAUNDRY_STATUS.DONE,
-      laundryType = "offsite",
-      bagNumber = "",
-    } = {},
-  ) => {
-    const timestampIso =
-      normalizeDateInputToISO(dateSubmitted) ?? new Date().toISOString();
-    const scheduledFor = pacificDateStringFrom(timestampIso);
-
-    const importedRecords = Array.from({ length: Math.max(count, 1) }, () => ({
-      id: createLocalId("import-laundry"),
-      guestId,
-      time: null,
-      laundryType,
-      bagNumber,
-      scheduledFor,
-      date: timestampIso,
-      status,
-      createdAt: timestampIso,
-      lastUpdated: timestampIso,
-      source: "import",
-    }));
-
-    setLaundryRecords((prev) => [...prev, ...importedRecords]);
-
-    const action = {
-      id: createLocalId("action"),
-      type: "LAUNDRY_IMPORTED",
-      timestamp: timestampIso,
-      data: { guestId, count: importedRecords.length },
-      description: `Imported ${importedRecords.length} laundry record${
-        importedRecords.length === 1 ? "" : "s"
-      }`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-
-    return importedRecords;
-  };
-
-  const updateLaundryBagNumber = async (recordId, bagNumber) => {
-    const originalRecord = laundryRecords.find((r) => r.id === recordId);
-    if (!originalRecord) return false;
-    const timestamp = new Date().toISOString();
-    const previousSlots = laundrySlots.map((slot) => ({ ...slot }));
-    const updatedRecord = {
-      ...originalRecord,
-      bagNumber: bagNumber || "",
-      lastUpdated: timestamp,
-    };
-
-    setLaundryRecords((prev) =>
-      prev.map((record) => (record.id === recordId ? updatedRecord : record)),
-    );
-
-    setLaundrySlots((prev) =>
-      prev.map((slot) =>
-        slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
-          ? { ...slot, bagNumber: bagNumber || "" }
-          : slot,
-      ),
-    );
-
-    if (supabaseEnabled && supabase && !String(recordId).startsWith("local-")) {
-      try {
-        const { data, error } = await supabase
-          .from("laundry_bookings")
-          .update({
-            bag_number: bagNumber || null,
-            updated_at: timestamp,
-          })
-          .eq("id", recordId)
-          .select()
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const mapped = mapLaundryRow(data);
-          setLaundryRecords((prev) =>
-            prev.map((r) => (r.id === recordId ? mapped : r)),
-          );
-        }
-      } catch (error) {
-        console.error("Failed to update bag number in Supabase:", error);
-        setLaundryRecords((prev) =>
-          prev.map((record) =>
-            record.id === recordId ? originalRecord : record,
-          ),
-        );
-        setLaundrySlots(previousSlots);
-        enhancedToast.error(
-          "Unable to update bag number. Changes were reverted.",
-        );
-        return false;
-      }
-    }
-
-    return true;
-  };
+  const {
+    addLaundryRecord,
+    cancelLaundryRecord,
+    rescheduleLaundry,
+    updateLaundryStatus,
+    updateLaundryBagNumber,
+    importLaundryAttendanceRecord,
+  } = useMemo(
+    () =>
+      createLaundryMutations({
+        supabaseEnabled,
+        supabaseClient: supabase,
+        mapLaundryRow,
+        laundryRecords,
+        setLaundryRecords,
+        laundrySlots,
+        setLaundrySlots,
+        settings,
+        LAUNDRY_STATUS,
+        extractLaundrySlotStart,
+        pacificDateStringFrom,
+        todayPacificDateString,
+        combineDateAndTimeISO,
+        ensureGuestServiceEligible,
+        createLocalId,
+        pushAction,
+        toast,
+        enhancedToast,
+        normalizeDateInputToISO,
+      }),
+    [
+      supabaseEnabled,
+      mapLaundryRow,
+      laundryRecords,
+      laundrySlots,
+      settings,
+      ensureGuestServiceEligible,
+      pushAction,
+    ],
+  );
 
   const getTodayMetrics = () => {
     const today = todayPacificDateString();
