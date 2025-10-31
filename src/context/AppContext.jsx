@@ -21,197 +21,35 @@ import {
 } from "./constants";
 
 import AppContext from "./internalContext";
-
-const toTitleCase = (str) => {
-  if (!str || typeof str !== "string") return "";
-  return str
-    .toLowerCase()
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
-    .trim();
-};
-
-const normalizePreferredName = (value) => {
-  if (!value || typeof value !== "string") return "";
-  return value.trim();
-};
-
-const normalizeBicycleDescription = (value) => {
-  if (!value || typeof value !== "string") return "";
-  return value.trim();
-};
-
-const normalizeHousingStatus = (value) => {
-  const v = (value || "").toString().trim().toLowerCase();
-  if (!v) return "Unhoused";
-  if (HOUSING_STATUSES.map((s) => s.toLowerCase()).includes(v)) {
-    return HOUSING_STATUSES.find((s) => s.toLowerCase() === v) || "Unhoused";
-  }
-  if (/(temp|temporary).*(shelter)/.test(v) || /shelter(ed)?/.test(v))
-    return "Temp. shelter";
-  if (/(rv|vehicle|car|van|truck)/.test(v)) return "RV or vehicle";
-  if (/house(d)?|apartment|home/.test(v)) return "Housed";
-  if (/unhouse(d)?|unshelter(ed)?|street|tent/.test(v)) return "Unhoused";
-  return "Unhoused";
-};
-
-const normalizeTimeComponent = (value) => {
-  if (value == null) return null;
-  const [rawHours, rawMinutes] = value.toString().trim().split(":");
-  if (rawHours == null || rawMinutes == null) return null;
-  const hours = Number.parseInt(rawHours, 10);
-  const minutes = Number.parseInt(rawMinutes, 10);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-};
-
-const combineDateAndTimeISO = (dateStr, timeStr) => {
-  if (!dateStr) return null;
-  const normalizedTime = normalizeTimeComponent(timeStr);
-  if (!normalizedTime) return null;
-  const candidate = new Date(`${dateStr}T${normalizedTime}:00`);
-  if (Number.isNaN(candidate.getTime())) return null;
-  return candidate.toISOString();
-};
-
-const fallbackIsoFromDateOnly = (dateStr) => {
-  if (!dateStr) return null;
-  const candidate = new Date(`${dateStr}T12:00:00`);
-  if (Number.isNaN(candidate.getTime())) return null;
-  return candidate.toISOString();
-};
-
-const createLocalId = (prefix) =>
-  `${prefix}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-
-const extractLaundrySlotStart = (slotLabel) => {
-  if (!slotLabel) return null;
-  const [start] = slotLabel.split("-");
-  return normalizeTimeComponent(start);
-};
-
-const computeIsGuestBanned = (bannedUntil) => {
-  if (!bannedUntil) return false;
-  const parsed = new Date(bannedUntil);
-  if (Number.isNaN(parsed.getTime())) {
-    return false;
-  }
-  return parsed.getTime() > Date.now();
-};
-
-const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-const normalizeDateInputToISO = (value) => {
-  if (!value) return null;
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return null;
-    return value.toISOString();
-  }
-
-  const raw = String(value).trim();
-  if (!raw) return null;
-
-  if (DATE_ONLY_REGEX.test(raw)) {
-    const [year, month, day] = raw.split("-").map(Number);
-    if ([year, month, day].some(Number.isNaN)) return null;
-    const isoDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-    if (Number.isNaN(isoDate.getTime())) return null;
-    return isoDate.toISOString();
-  }
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
-};
-
-const resolveDonationDateParts = (value, fallback = null) => {
-  const normalized =
-    normalizeDateInputToISO(value) ??
-    (fallback ? normalizeDateInputToISO(fallback) : null);
-  if (!normalized) {
-    return { timestamp: null, dateKey: null };
-  }
-  const dateObj = new Date(normalized);
-  if (Number.isNaN(dateObj.getTime())) {
-    return { timestamp: normalized, dateKey: null };
-  }
-  return {
-    timestamp: normalized,
-    dateKey: pacificDateStringFrom(dateObj),
-  };
-};
-
-const ensureDonationRecordShape = (record = {}) => {
-  const base = record || {};
-  const rawDate =
-    base.date ??
-    base.donated_at ??
-    base.donatedAt ??
-    base.createdAt ??
-    base.created_at ??
-    null;
-  const { timestamp, dateKey } = resolveDonationDateParts(rawDate);
-  return {
-    ...base,
-    trays: Number(base.trays) || 0,
-    weightLbs: Number(base.weightLbs) || 0,
-    date: timestamp ?? base.date ?? null,
-    dateKey: dateKey ?? base.dateKey ?? null,
-  };
-};
-
-const DEFAULT_TARGETS = {
-  monthlyMeals: 1500,
-  yearlyMeals: 18000,
-  monthlyShowers: 300,
-  yearlyShowers: 3600,
-  monthlyLaundry: 200,
-  yearlyLaundry: 2400,
-  monthlyBicycles: 50,
-  yearlyBicycles: 600,
-  monthlyHaircuts: 100,
-  yearlyHaircuts: 1200,
-  monthlyHolidays: 80,
-  yearlyHolidays: 960,
-};
-
-const createDefaultSettings = () => ({
-  siteName: "Hope's Corner",
-  maxOnsiteLaundrySlots: 5,
-  enableOffsiteLaundry: true,
-  uiDensity: "comfortable",
-  showCharts: true,
-  defaultReportDays: 7,
-  donationAutofill: true,
-  defaultDonationType: "Protein",
-  targets: { ...DEFAULT_TARGETS },
-});
-
-const mergeSettings = (base, incoming = {}) => {
-  if (!incoming || typeof incoming !== "object") return base;
-
-  const next = {
-    ...base,
-    ...incoming,
-  };
-
-  if (incoming.targets) {
-    next.targets = {
-      ...(base.targets ?? {}),
-      ...(incoming.targets ?? {}),
-    };
-  }
-
-  if (!next.targets) {
-    next.targets = { ...DEFAULT_TARGETS };
-  }
-
-  return next;
-};
+import {
+  toTitleCase,
+  normalizePreferredName,
+  normalizeBicycleDescription,
+  normalizeHousingStatus,
+  combineDateAndTimeISO,
+  createLocalId,
+  extractLaundrySlotStart,
+  computeIsGuestBanned,
+  normalizeDateInputToISO,
+  resolveDonationDateParts,
+  ensureDonationRecordShape,
+} from "./utils/normalizers";
+import {
+  DEFAULT_TARGETS,
+  createDefaultSettings,
+  mergeSettings,
+} from "./utils/settings";
+import {
+  mapGuestRow as mapGuestRowPure,
+  mapMealRow as mapMealRowPure,
+  mapShowerRow as mapShowerRowPure,
+  mapLaundryRow as mapLaundryRowPure,
+  mapBicycleRow as mapBicycleRowPure,
+  mapHolidayRow as mapHolidayRowPure,
+  mapHaircutRow as mapHaircutRowPure,
+  mapItemRow as mapItemRowPure,
+  mapDonationRow as mapDonationRowPure,
+} from "./utils/mappers";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 
@@ -305,161 +143,23 @@ export const AppProvider = ({ children }) => {
     [],
   );
 
-  const mapGuestRow = useCallback(
-    (row) => ({
-      id: row.id,
-      guestId: row.external_id,
-      firstName: toTitleCase(row.first_name || ""),
-      lastName: toTitleCase(row.last_name || ""),
-      name: toTitleCase(
-        row.full_name || `${row.first_name || ""} ${row.last_name || ""}`,
-      ),
-      preferredName: normalizePreferredName(row.preferred_name),
-      housingStatus: normalizeHousingStatus(row.housing_status),
-      age: row.age_group,
-      gender: row.gender,
-      location: row.location || "Mountain View",
-      notes: row.notes || "",
-      bicycleDescription: normalizeBicycleDescription(row.bicycle_description),
-      bannedAt: row.banned_at,
-      bannedUntil: row.banned_until,
-      banReason: row.ban_reason || "",
-      isBanned: computeIsGuestBanned(row.banned_until),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      docId: row.id,
-    }),
-    [],
-  );
+  const mapGuestRow = useCallback(mapGuestRowPure, []);
 
-  const mapMealRow = useCallback((row) => {
-    const recordedAt = row.recorded_at || row.created_at || null;
-    const fallbackDate = row.served_on
-      ? new Date(`${row.served_on}T12:00:00Z`).toISOString()
-      : null;
+  const mapMealRow = useCallback(mapMealRowPure, []);
 
-    return {
-      id: row.id,
-      guestId: row.guest_id,
-      count: row.quantity || 1,
-      date: recordedAt || fallbackDate,
-      recordedAt,
-      servedOn: row.served_on,
-      createdAt: row.created_at,
-      type: row.meal_type,
-    };
-  }, []);
+  const mapShowerRow = useCallback(mapShowerRowPure, []);
 
-  const mapShowerRow = useCallback((row) => {
-    const scheduledTimestamp = combineDateAndTimeISO(
-      row.scheduled_for,
-      row.scheduled_time,
-    );
-    const fallbackTimestamp =
-      row.updated_at ||
-      row.created_at ||
-      fallbackIsoFromDateOnly(row.scheduled_for);
-    return {
-      id: row.id,
-      guestId: row.guest_id,
-      time: row.scheduled_time,
-      scheduledFor: row.scheduled_for,
-      date: scheduledTimestamp || fallbackTimestamp,
-      status: row.status || "booked",
-      createdAt: row.created_at,
-      lastUpdated: row.updated_at,
-    };
-  }, []);
+  const mapLaundryRow = useCallback(mapLaundryRowPure, []);
 
-  const mapLaundryRow = useCallback((row) => {
-    const slotStart = extractLaundrySlotStart(row.slot_label);
-    const scheduledTimestamp = combineDateAndTimeISO(
-      row.scheduled_for,
-      slotStart,
-    );
-    const fallbackTimestamp =
-      row.updated_at ||
-      row.created_at ||
-      fallbackIsoFromDateOnly(row.scheduled_for);
-    return {
-      id: row.id,
-      guestId: row.guest_id,
-      time: row.slot_label,
-      laundryType: row.laundry_type,
-      bagNumber: row.bag_number || "",
-      scheduledFor: row.scheduled_for,
-      date: scheduledTimestamp || fallbackTimestamp,
-      status: row.status,
-      createdAt: row.created_at,
-      lastUpdated: row.updated_at,
-    };
-  }, []);
+  const mapBicycleRow = useCallback(mapBicycleRowPure, []);
 
-  const mapBicycleRow = useCallback(
-    (row) => ({
-      id: row.id,
-      guestId: row.guest_id,
-      date: row.requested_at,
-      type: "bicycle",
-      repairType: row.repair_type, // Keep for backward compatibility
-      repairTypes:
-        row.repair_types || (row.repair_type ? [row.repair_type] : []),
-      completedRepairs: row.completed_repairs || [],
-      notes: row.notes,
-      status: row.status,
-      priority: row.priority || 0,
-      doneAt: row.completed_at,
-      lastUpdated: row.updated_at,
-    }),
-    [],
-  );
+  const mapHolidayRow = useCallback(mapHolidayRowPure, []);
 
-  const mapHolidayRow = useCallback(
-    (row) => ({
-      id: row.id,
-      guestId: row.guest_id,
-      date: row.served_at,
-      type: "holiday",
-    }),
-    [],
-  );
+  const mapHaircutRow = useCallback(mapHaircutRowPure, []);
 
-  const mapHaircutRow = useCallback(
-    (row) => ({
-      id: row.id,
-      guestId: row.guest_id,
-      date: row.served_at,
-      type: "haircut",
-    }),
-    [],
-  );
+  const mapItemRow = useCallback(mapItemRowPure, []);
 
-  const mapItemRow = useCallback(
-    (row) => ({
-      id: row.id,
-      guestId: row.guest_id,
-      item: row.item_key,
-      date: row.distributed_at,
-    }),
-    [],
-  );
-
-  const mapDonationRow = useCallback((row) => {
-    const { timestamp, dateKey } = resolveDonationDateParts(
-      row?.donated_at ?? row?.date ?? row?.created_at ?? null,
-    );
-    return {
-      id: row.id,
-      type: row.donation_type,
-      itemName: row.item_name,
-      trays: Number(row.trays) || 0,
-      weightLbs: Number(row.weight_lbs) || 0,
-      donor: row.donor,
-      date: timestamp,
-      dateKey,
-      createdAt: row.created_at,
-    };
-  }, []);
+  const mapDonationRow = useCallback(mapDonationRowPure, []);
 
   const ensureGuestServiceEligible = useCallback(
     (guestId, serviceLabel = "this service") => {

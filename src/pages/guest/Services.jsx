@@ -51,7 +51,6 @@ import StickyQuickActions from "../../components/StickyQuickActions";
 import Selectize from "../../components/Selectize";
 import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
 import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
-import BicycleKanban from "../../components/lanes/BicycleKanban";
 import ShowerKanban from "../../components/lanes/ShowerKanban";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
 import {
@@ -69,52 +68,15 @@ import {
   getBicycleServiceCount,
   isBicycleStatusCountable,
 } from "../../utils/bicycles";
-
-const MEAL_REPORT_TYPE_ORDER = [
-  "guest",
-  "dayWorker",
-  "rv",
-  "shelter",
-  "unitedEffort",
-  "extras",
-  "lunchBags",
-];
-
-const MEAL_REPORT_TYPE_LABELS = {
-  guest: "Guest meals",
-  dayWorker: "Day Worker Center meals",
-  rv: "RV meals",
-  shelter: "Shelter meals",
-  unitedEffort: "United Effort meals",
-  extras: "Extra meals",
-  lunchBags: "Lunch bags",
-};
-
-const createDefaultMealReportTypes = () => ({
-  guest: true,
-  dayWorker: true,
-  rv: true,
-  shelter: true,
-  unitedEffort: true,
-  extras: true,
-  lunchBags: false,
-});
-
-const createEmptyMealTotals = () =>
-  MEAL_REPORT_TYPE_ORDER.reduce((acc, type) => {
-    acc[type] = 0;
-    return acc;
-  }, {});
-
-const FILTER_STORAGE_KEY = "services-filters-v1";
-
-const toCsvValue = (value) => {
-  const stringValue = String(value ?? "");
-  if (/[",\n]/u.test(stringValue)) {
-    return `"${stringValue.replace(/"/gu, '""')}"`;
-  }
-  return stringValue;
-};
+import {
+  MEAL_REPORT_TYPE_ORDER,
+  MEAL_REPORT_TYPE_LABELS,
+  createDefaultMealReportTypes,
+  createEmptyMealTotals,
+  FILTER_STORAGE_KEY,
+  toCsvValue,
+} from "./services/utils";
+import BicycleRepairsSection from "./services/sections/BicycleRepairsSection";
 
 const Services = () => {
   const {
@@ -1084,349 +1046,25 @@ const Services = () => {
     (record) => pacificDateStringFrom(record.date || "") === selectedDate,
   );
 
-  const repairTypes = [
-    "Flat Tire",
-    "Brake Adjustment",
-    "Gear Adjustment",
-    "Chain Replacement",
-    "Wheel Truing",
-    "Basic Tune Up",
-    "Drivetrain Cleaning",
-    "Cable Replacement",
-    "Headset Adjustment",
-    "Seat Adjustment",
-    "Kickstand",
-    "Basket/Rack",
-    "Bike Lights",
-    "Lock",
-    "New Tube",
-    "New Tire",
-    "New Bicycle",
-    "Other",
-  ];
   const todayBicycleRepairs = (bicycleRecords || []).filter(
     (r) => pacificDateStringFrom(r.date || "") === today,
   );
-  const sortedBicycleRepairs = [...todayBicycleRepairs].sort(
-    (a, b) => (b.priority || 0) - (a.priority || 0),
-  );
-  const renderBicycleRepairsSection = () => (
-    <div className="space-y-6">
-      {/* View Toggle */}
-      <div className="flex items-center justify-between bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Bike className="text-sky-600" size={22} />
-            <span>Today's Bicycle Repairs</span>
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">
-            {todayBicycleRepairs.length} repair
-            {todayBicycleRepairs.length !== 1 ? "s" : ""} logged today
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setBicycleViewMode("kanban")}
-            className={`px-4 py-2 text-sm font-medium rounded transition-all ${
-              bicycleViewMode === "kanban"
-                ? "bg-white text-sky-600 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            Kanban
-          </button>
-          <button
-            onClick={() => setBicycleViewMode("list")}
-            className={`px-4 py-2 text-sm font-medium rounded transition-all ${
-              bicycleViewMode === "list"
-                ? "bg-white text-sky-600 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            List
-          </button>
-        </div>
-      </div>
 
-      {bicycleViewMode === "kanban" ? (
-        <BicycleKanban
-          bicycleRecords={todayBicycleRepairs}
-          guests={guests}
-          updateBicycleRecord={updateBicycleRecord}
-          deleteBicycleRecord={deleteBicycleRecord}
-          setBicycleStatus={setBicycleStatus}
-          repairTypes={repairTypes}
-        />
-      ) : (
-        <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 border border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Bike className="text-sky-600" size={20} />{" "}
-              <span>Repair List</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="bg-sky-100 text-sky-800 text-xs font-medium px-3 py-1 rounded-full">
-                {sortedBicycleRepairs.length} repairs
-              </span>
-            </div>
-          </div>
-          {sortedBicycleRepairs.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-8">
-              No bicycle repairs logged today. Use the Bicycle button when
-              searching for a guest to add one.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {sortedBicycleRepairs.map((rec, idx) => {
-                const nameDetails = getGuestNameDetails(rec.guestId);
-                const guestBikeDescription =
-                  nameDetails.guest?.bicycleDescription?.trim();
-                const isDone = rec.status === BICYCLE_REPAIR_STATUS.DONE;
-                const isExpanded =
-                  !isDone || expandedCompletedBicycleCards[rec.id];
-                return (
-                  <li key={rec.id} className="border rounded-md p-3 bg-white">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
-                            <span>{nameDetails.primaryName}</span>
-                            {nameDetails.hasPreferred && (
-                              <span className="text-xs text-gray-500">
-                                (Legal: {nameDetails.legalName})
-                              </span>
-                            )}
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold ${
-                                isDone
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                                  : "border-sky-200 bg-sky-50 text-sky-600"
-                              }`}
-                            >
-                              {isDone ? "Done" : "Active"}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 mt-1">
-                            <span>Priority {idx + 1}</span>
-                            {isDone ? (
-                              <span>Completed</span>
-                            ) : (
-                              <span>Needs attention</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                          {isDone && (
-                            <button
-                              type="button"
-                              onClick={() => toggleCompletedBicycleCard(rec.id)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900"
-                            >
-                              {isExpanded ? (
-                                <>
-                                  Hide details <ChevronUp size={12} />
-                                </>
-                              ) : (
-                                <>
-                                  Show details <ChevronDown size={12} />
-                                </>
-                              )}
-                            </button>
-                          )}
-                          {isDone ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setBicycleStatus(
-                                  rec.id,
-                                  BICYCLE_REPAIR_STATUS.PENDING,
-                                )
-                              }
-                              className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-                            >
-                              Reopen
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => moveBicycleRecord(rec.id, "up")}
-                                disabled={idx === 0}
-                                className="text-xs px-2 py-1 border rounded disabled:opacity-30"
-                              >
-                                ↑
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  moveBicycleRecord(rec.id, "down")
-                                }
-                                disabled={
-                                  idx === sortedBicycleRepairs.length - 1
-                                }
-                                className="text-xs px-2 py-1 border rounded disabled:opacity-30"
-                              >
-                                ↓
-                              </button>
-                            </>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              deleteBicycleRecord(rec.id);
-                              toast.success("Deleted");
-                            }}
-                            className="text-xs px-2 py-1 border rounded text-red-600"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                        <Bike size={14} className="text-sky-500" />
-                        {guestBikeDescription ? (
-                          <span className="text-gray-600">
-                            {guestBikeDescription}
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 font-medium">
-                            No bicycle description on file — edit the guest
-                            profile to add one.
-                          </span>
-                        )}
-                      </div>
-                      {isDone && !isExpanded ? (
-                        <div className="flex flex-col gap-1 text-xs text-gray-500">
-                          <div className="inline-flex items-center gap-2 font-semibold text-emerald-600">
-                            <CheckCircle2Icon size={14} /> Completed — expand to
-                            adjust details.
-                          </div>
-                          {guestBikeDescription && (
-                            <div>
-                              <span className="font-semibold text-gray-600">
-                                Bike:
-                              </span>{" "}
-                              {guestBikeDescription}
-                            </div>
-                          )}
-                          <div>
-                            <span className="font-semibold text-gray-600">
-                              Repair
-                              {(rec.repairTypes?.length || 0) > 1 ? "s" : ""}:
-                            </span>{" "}
-                            {rec.repairTypes?.length > 0
-                              ? rec.repairTypes.join(", ")
-                              : rec.repairType || "—"}
-                            {(rec.repairTypes?.length || 0) > 1 && (
-                              <span className="ml-1 text-xs text-sky-600 font-medium">
-                                ({rec.repairTypes.length} services)
-                              </span>
-                            )}
-                          </div>
-                          {rec.notes && (
-                            <div>
-                              <span className="font-semibold text-gray-600">
-                                Notes:
-                              </span>{" "}
-                              {rec.notes}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 gap-3 mt-1">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Repair Types (select all that apply)
-                            </label>
-                            <div className="space-y-1 max-h-40 overflow-y-auto border rounded p-2 bg-gray-50">
-                              {repairTypes.map((type) => (
-                                <label
-                                  key={type}
-                                  className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded text-xs"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={(
-                                      rec.repairTypes || [rec.repairType]
-                                    ).includes(type)}
-                                    onChange={(event) => {
-                                      const currentTypes = rec.repairTypes || [
-                                        rec.repairType,
-                                      ];
-                                      const newTypes = event.target.checked
-                                        ? [...currentTypes, type]
-                                        : currentTypes.filter(
-                                            (t) => t !== type,
-                                          );
-                                      updateBicycleRecord(rec.id, {
-                                        repairTypes: newTypes,
-                                      });
-                                    }}
-                                    className="w-3 h-3 text-sky-600 border-gray-300 rounded"
-                                  />
-                                  <span>{type}</span>
-                                </label>
-                              ))}
-                            </div>
-                            {(rec.repairTypes?.length || 0) > 0 && (
-                              <div className="mt-1 text-xs text-sky-700 font-medium">
-                                {rec.repairTypes.length} type
-                                {rec.repairTypes.length > 1 ? "s" : ""} selected
-                                = {rec.repairTypes.length} service
-                                {rec.repairTypes.length > 1 ? "s" : ""}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Status
-                            </label>
-                            <select
-                              value={
-                                rec.status || BICYCLE_REPAIR_STATUS.PENDING
-                              }
-                              onChange={(event) =>
-                                setBicycleStatus(rec.id, event.target.value)
-                              }
-                              className="w-full border rounded px-2 py-1 text-sm"
-                            >
-                              <option value={BICYCLE_REPAIR_STATUS.PENDING}>
-                                Pending
-                              </option>
-                              <option value={BICYCLE_REPAIR_STATUS.IN_PROGRESS}>
-                                Being Worked On
-                              </option>
-                              <option value={BICYCLE_REPAIR_STATUS.DONE}>
-                                Done
-                              </option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              Notes {rec.repairType === "Other" && "(specify)"}
-                            </label>
-                            <input
-                              value={rec.notes || ""}
-                              onChange={(event) =>
-                                updateBicycleRecord(rec.id, {
-                                  notes: event.target.value,
-                                })
-                              }
-                              className="w-full border rounded px-2 py-1 text-sm"
-                              placeholder="Optional notes"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
+  const renderBicycleRepairsSection = () => (
+    <BicycleRepairsSection
+      todayBicycleRepairs={todayBicycleRepairs}
+      bicycleViewMode={bicycleViewMode}
+      onChangeViewMode={setBicycleViewMode}
+      guests={guests}
+      updateBicycleRecord={updateBicycleRecord}
+      deleteBicycleRecord={deleteBicycleRecord}
+      setBicycleStatus={setBicycleStatus}
+      moveBicycleRecord={moveBicycleRecord}
+      expandedCompletedBicycleCards={expandedCompletedBicycleCards}
+      onToggleCompletedCard={toggleCompletedBicycleCard}
+      BICYCLE_REPAIR_STATUS={BICYCLE_REPAIR_STATUS}
+      getGuestNameDetails={getGuestNameDetails}
+    />
   );
 
   const headerSpring = useFadeInUp();
