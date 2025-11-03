@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hope's Corner - Offline</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        text-align: center;
+        max-width: 500px;
+      }
+      .icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 30px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 60px;
+      }
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+      p {
+        font-size: 1.125rem;
+        line-height: 1.6;
+        margin-bottom: 15px;
+        opacity: 0.9;
+      }
+      .features {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 30px;
+        text-align: left;
+      }
+      .features h2 {
+        font-size: 1.25rem;
+        margin-bottom: 15px;
+      }
+      .features ul {
+        list-style: none;
+        padding: 0;
+      }
+      .features li {
+        padding: 8px 0;
+        padding-left: 25px;
+        position: relative;
+      }
+      .features li:before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+      }
+      .retry-button {
+        display: inline-block;
+        margin-top: 30px;
+        padding: 12px 30px;
+        background: #fff;
+        color: #064e3b;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        border: none;
+      }
+      .retry-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      @media (max-width: 640px) {
+        h1 {
+          font-size: 2rem;
+        }
+        p {
+          font-size: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">📡</div>
+      <h1>You're Offline</h1>
+      <p>
+        It looks like you've lost your internet connection. Don't worry, Hope's
+        Corner works offline too!
+      </p>
+      <p>
+        Some features may be limited, but you can still access previously
+        loaded data.
+      </p>
+
+      <div class="features">
+        <h2>Available Offline:</h2>
+        <ul>
+          <li>View previously loaded guest data</li>
+          <li>Access cached reports and statistics</li>
+          <li>Navigate through the application</li>
+        </ul>
+      </div>
+
+      <button class="retry-button" onclick="window.location.reload()">
+        Try Again
+      </button>
+    </div>
+  </body>
+</html>

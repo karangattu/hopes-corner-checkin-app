@@ -11,6 +11,7 @@ import LaundryBooking from "./components/LaundryBooking";
 import BicycleRepairBooking from "./components/BicycleRepairBooking";
 import Login from "./pages/Login";
 import KeyboardShortcutsHelp from "./components/KeyboardShortcutsHelp";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { useState, useEffect } from "react";
 
 const AppContent = () => {
@@ -82,6 +83,7 @@ const AppContent = () => {
         isOpen={showKeyboardHelp}
         onClose={() => setShowKeyboardHelp(false)}
       />
+      <PWAInstallPrompt />
     </MainLayout>
   );
 };
