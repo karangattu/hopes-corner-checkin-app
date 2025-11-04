@@ -11,6 +11,7 @@ import {
 } from "../utils/bicycles";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
+import { addMealWithOffline } from "../utils/offlineOperations";
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
@@ -1825,13 +1826,49 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "guest",
           guest_id: guestId,
           quantity: count,
           served_on: timestamp.slice(0, 10),
           recorded_at: timestamp,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            guestId,
+            count,
+            date: timestamp,
+            recordedAt: timestamp,
+            servedOn: timestamp.slice(0, 10),
+            createdAt: timestamp,
+            type: "guest",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "MEAL_ADDED",
+            timestamp,
+            data: { recordId: localRecord.id, guestId, count },
+            description: `Added ${count} meal${count > 1 ? "s" : ""} for guest (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("Meal recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
 
         if (!inserted) {
           throw new Error("Failed to insert meal attendance");

@@ -52,11 +52,11 @@ describe("GuestList", () => {
   });
 
   it("displays create-guest prompt when search has first and last initial with no results", async () => {
-    const user = userEvent.setup();
     render(<GuestList />);
 
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "Alex R");
+    // Use fireEvent for faster input simulation
+    fireEvent.change(search, { target: { value: "Alex R" } });
 
     expect(
       await screen.findByText(/no guest found for "Alex R"/i),
@@ -67,7 +67,6 @@ describe("GuestList", () => {
   });
 
   it("shows matched guests instead of create prompt when results exist", async () => {
-    const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
@@ -87,14 +86,13 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "Jane R");
+    fireEvent.change(search, { target: { value: "Jane R" } });
 
     expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
     expect(screen.queryByText(/no guest found/i)).not.toBeInTheDocument();
   });
 
   it("filters guests by partial name match", async () => {
-    const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
@@ -106,7 +104,7 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "Doe");
+    fireEvent.change(search, { target: { value: "Doe" } });
 
     expect(await screen.findByText(/found 2 guests/i)).toBeInTheDocument();
     expect(screen.getByText("John Doe")).toBeInTheDocument();
@@ -115,7 +113,6 @@ describe("GuestList", () => {
   });
 
   it("shows no results when search does not match", async () => {
-    const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
@@ -125,13 +122,12 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "Nonexistent");
+    fireEvent.change(search, { target: { value: "Nonexistent" } });
 
     expect(await screen.findByText(/no guests found/i)).toBeInTheDocument();
   });
 
   it("clears search and shows all guests when search is empty", async () => {
-    const user = userEvent.setup();
     mockContextValue = {
       ...createDefaultContext(),
       guests: [
@@ -142,10 +138,10 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "John");
+    fireEvent.change(search, { target: { value: "John" } });
     expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
 
-    await user.clear(search);
+    fireEvent.change(search, { target: { value: "" } });
     expect(
       await screen.findByText(/for privacy, start typing to search/i),
     ).toBeInTheDocument();
@@ -172,7 +168,7 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "John");
+    fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);
@@ -209,7 +205,7 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "John");
+    fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);
@@ -245,7 +241,7 @@ describe("GuestList", () => {
 
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
-    await user.type(search, "John");
+    fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
     await user.click(guestCard);

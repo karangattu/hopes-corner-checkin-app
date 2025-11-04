@@ -1,3 +1,5 @@
+import { addShowerWithOffline } from '../../utils/offlineOperations';
+
 export const createShowerMutations = ({
   supabaseEnabled,
   supabaseClient,
@@ -42,18 +44,48 @@ export const createShowerMutations = ({
 
     if (supabaseEnabled && supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
-          .from("shower_reservations")
-          .insert({
-            guest_id: guestId,
-            scheduled_time: time,
-            scheduled_for: scheduledFor,
+        const payload = {
+          guest_id: guestId,
+          scheduled_time: time,
+          scheduled_for: scheduledFor,
+          status: "booked",
+        };
+
+        // Use offline-aware wrapper
+        const result = await addShowerWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: createLocalId("local-shower"),
+            guestId,
+            time,
+            scheduledFor,
+            date: scheduledDateTime || timestamp,
             status: "booked",
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapShowerRow(data);
+            createdAt: timestamp,
+            lastUpdated: timestamp,
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setShowerRecords((prev) => [...prev, localRecord]);
+          setShowerSlots((prev) => [...prev, { guestId, time }]);
+
+          pushAction({
+            id: Date.now() + Math.random(),
+            type: "SHOWER_BOOKED",
+            timestamp,
+            data: { recordId: localRecord.id, guestId, time },
+            description: `Booked shower at ${time} for guest (pending sync)`,
+          });
+
+          toast.success("Shower booked (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapShowerRow(result.result);
         setShowerRecords((prev) => [...prev, mapped]);
         setShowerSlots((prev) => [...prev, { guestId, time }]);
         pushAction({

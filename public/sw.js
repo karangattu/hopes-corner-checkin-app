@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hopes-corner-cache-v2';
+const CACHE_NAME = 'hopes-corner-cache-v3'; // Bumped version for offline support
 const OFFLINE_URLS = [
   '/',
   '/index.html',
@@ -15,8 +15,10 @@ const RUNTIME_CACHE_PATTERNS = [
 ];
 
 self.addEventListener('install', (event) => {
+  console.log('[ServiceWorker] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('[ServiceWorker] Caching offline assets');
       return cache.addAll(OFFLINE_URLS);
     })
   );
@@ -24,11 +26,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('[ServiceWorker] Activating...');
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key !== CACHE_NAME) {
+            console.log('[ServiceWorker] Deleting old cache:', key);
+            return caches.delete(key);
+          }
         })
       )
     )
@@ -41,7 +47,48 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+
+  // Handle sync trigger from client
+  if (event.data && event.data.type === 'SYNC_NOW') {
+    console.log('[ServiceWorker] Sync requested from client');
+    event.waitUntil(triggerSync());
+  }
 });
+
+// Background Sync - triggers when connection is restored
+self.addEventListener('sync', (event) => {
+  console.log('[ServiceWorker] Background sync event:', event.tag);
+
+  if (event.tag === 'sync-offline-queue') {
+    event.waitUntil(triggerSync());
+  }
+});
+
+// Trigger sync by posting message to all clients
+async function triggerSync() {
+  console.log('[ServiceWorker] Triggering sync for all clients');
+
+  try {
+    const clients = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+
+    console.log(`[ServiceWorker] Found ${clients.length} client(s)`);
+
+    clients.forEach((client) => {
+      client.postMessage({
+        type: 'TRIGGER_SYNC',
+        timestamp: Date.now(),
+      });
+    });
+
+    return Promise.resolve();
+  } catch (error) {
+    console.error('[ServiceWorker] Error triggering sync:', error);
+    return Promise.reject(error);
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests

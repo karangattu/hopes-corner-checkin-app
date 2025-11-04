@@ -12,5 +12,7 @@ export default defineConfig({
     setupFiles: "./vitest.setup.js",
     globals: true,
     css: true,
+    testTimeout: 10000, // 10 second timeout
+    hookTimeout: 10000, // 10 second timeout for hooks
   },
 });

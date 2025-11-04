@@ -1,3 +1,5 @@
+import { addLaundryWithOffline } from '../../utils/offlineOperations';
+
 export const createLaundryMutations = ({
   supabaseEnabled,
   supabaseClient,
@@ -62,23 +64,69 @@ export const createLaundryMutations = ({
 
     if (supabaseEnabled && supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
-          .from("laundry_bookings")
-          .insert({
-            guest_id: guestId,
-            slot_label: laundryType === "onsite" ? time : null,
-            laundry_type: laundryType,
-            bag_number: bagNumber,
-            scheduled_for: scheduledFor,
+        const payload = {
+          guest_id: guestId,
+          slot_label: laundryType === "onsite" ? time : null,
+          laundry_type: laundryType,
+          bag_number: bagNumber,
+          scheduled_for: scheduledFor,
+          status:
+            laundryType === "onsite"
+              ? LAUNDRY_STATUS.WAITING
+              : LAUNDRY_STATUS.PENDING,
+        };
+
+        // Use offline-aware wrapper
+        const result = await addLaundryWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: createLocalId("local-laundry"),
+            guestId,
+            time: laundryType === "onsite" ? time : null,
+            laundryType,
+            bagNumber,
+            scheduledFor,
+            date: scheduledDateTime || timestamp,
             status:
               laundryType === "onsite"
                 ? LAUNDRY_STATUS.WAITING
                 : LAUNDRY_STATUS.PENDING,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapLaundryRow(data);
+            createdAt: timestamp,
+            lastUpdated: timestamp,
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setLaundryRecords((prev) => [...prev, localRecord]);
+          if (laundryType === "onsite") {
+            setLaundrySlots((prev) => [
+              ...prev,
+              {
+                guestId,
+                time,
+                laundryType,
+                bagNumber,
+                status: localRecord.status,
+              },
+            ]);
+          }
+
+          pushAction({
+            id: Date.now() + Math.random(),
+            type: "LAUNDRY_BOOKED",
+            timestamp,
+            data: { recordId: localRecord.id, guestId, time, laundryType, bagNumber },
+            description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ""} for guest (pending sync)`,
+          });
+
+          toast.success("Laundry booked (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapLaundryRow(result.result);
         setLaundryRecords((prev) => [...prev, mapped]);
         if (laundryType === "onsite") {
           setLaundrySlots((prev) => [

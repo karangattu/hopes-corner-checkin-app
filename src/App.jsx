@@ -1,5 +1,6 @@
 import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
+import { SyncProvider } from "./context/SyncContext";
 import { useAuth } from "./context/useAuth";
 import { useAppContext } from "./context/useAppContext";
 import MainLayout from "./layouts/MainLayout";
@@ -12,6 +13,8 @@ import BicycleRepairBooking from "./components/BicycleRepairBooking";
 import Login from "./pages/Login";
 import KeyboardShortcutsHelp from "./components/KeyboardShortcutsHelp";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import SyncStatusIndicator from "./components/SyncStatusIndicator";
+import { EXECUTE_FUNCTIONS } from "./utils/offlineOperations";
 import { useState, useEffect } from "react";
 
 const AppContent = () => {
@@ -84,6 +87,7 @@ const AppContent = () => {
         onClose={() => setShowKeyboardHelp(false)}
       />
       <PWAInstallPrompt />
+      <SyncStatusIndicator />
     </MainLayout>
   );
 };
@@ -92,7 +96,9 @@ export default function App() {
   return (
     <AuthProvider>
       <AppProvider>
-        <AppContent />
+        <SyncProvider executeFunctions={EXECUTE_FUNCTIONS}>
+          <AppContent />
+        </SyncProvider>
       </AppProvider>
     </AuthProvider>
   );
