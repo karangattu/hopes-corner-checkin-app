@@ -33,6 +33,7 @@ import MealReport from "../../components/admin/MealReport";
 import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
+import FailedOperationsPanel from "../../components/FailedOperationsPanel";
 import Selectize from "../../components/Selectize";
 import { animated as Animated } from "@react-spring/web";
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
@@ -1646,6 +1647,8 @@ const Dashboard = () => {
         {renderSystemHealthBanner()}
 
         <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />
+
+        <FailedOperationsPanel />
 
         <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">

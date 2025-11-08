@@ -28,10 +28,16 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       .then((reg) => {
         console.log('Service worker registered.', reg);
 
-        // Check for updates every hour
-        setInterval(() => {
+        // Check for updates immediately on app load, then every 5 minutes
+        const checkUpdates = () => {
           reg.update();
-        }, 60 * 60 * 1000);
+        };
+        
+        // Check immediately
+        checkUpdates();
+        
+        // Then check every 5 minutes (instead of hourly)
+        setInterval(checkUpdates, 5 * 60 * 1000);
 
         // Handle service worker updates
         reg.addEventListener('updatefound', () => {
@@ -41,19 +47,31 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               // New service worker is ready to take over
-              console.log('New service worker installed, prompting user to refresh');
+              console.log('New service worker installed, triggering update');
 
               // Show update notification
-              if (confirm('A new version of Hope\'s Corner is available! Click OK to update.')) {
+              const updateMessage = `A new version of Hope's Corner is available! Updating now...`;
+              console.log(updateMessage);
+              
+              // Dispatch event for app to show toast
+              window.dispatchEvent(
+                new CustomEvent('app-update-available', {
+                  detail: { message: updateMessage },
+                })
+              );
+
+              // Automatically activate the new service worker after 2 seconds
+              // This ensures critical updates are deployed without requiring user action
+              setTimeout(() => {
+                console.log('Activating new service worker');
                 newWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
+              }, 2000);
             }
           });
         });
       })
-      .catch((err) => {
-        console.error('Service worker registration failed:', err);
+      .catch((error) => {
+        console.error('Service worker registration failed:', error);
       });
 
     // Reload page when new service worker takes control
@@ -61,6 +79,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!refreshing) {
         refreshing = true;
+        console.log('Service worker controller changed, reloading page');
         window.location.reload();
       }
     });

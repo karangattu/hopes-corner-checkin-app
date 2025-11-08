@@ -14,6 +14,9 @@ const RUNTIME_CACHE_PATTERNS = [
   /\/assets\//i,
 ];
 
+// Store the current build/deployment timestamp for version tracking
+let CURRENT_VERSION = null;
+
 self.addEventListener('install', (event) => {
   console.log('[ServiceWorker] Installing...');
   event.waitUntil(
@@ -95,8 +98,34 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  const isHtmlDocument = event.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html';
   const shouldCache = RUNTIME_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname));
 
+  // Network-first strategy for HTML documents - ensures users get latest version immediately
+  if (isHtmlDocument) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the new version
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fall back to cache for offline
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match('/offline.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first strategy for assets (JS, CSS, fonts)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
