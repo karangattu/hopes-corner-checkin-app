@@ -995,10 +995,10 @@ const Donations = () => {
                     );
                     toast.success("All today's donations deleted");
                   }}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
+                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
                   title="Delete all entries"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={20} />
                 </button>
               )}
             </div>

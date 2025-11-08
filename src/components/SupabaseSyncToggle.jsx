@@ -125,23 +125,29 @@ const SupabaseSyncToggle = ({ supabaseConfigured }) => {
           <button
             onClick={handleToggle}
             disabled={isChanging}
-            className={`relative inline-flex h-7 w-14 flex-shrink-0 cursor-pointer rounded-full border-0 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              syncEnabled ? "bg-blue-600" : "bg-gray-300"
-            } ${isChanging ? "opacity-70 cursor-not-allowed" : "hover:opacity-90"}`}
+            className={`relative inline-flex h-8 w-16 flex-shrink-0 items-center cursor-pointer rounded-full transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
+              syncEnabled
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 focus:ring-blue-500 hover:shadow-md hover:from-blue-600 hover:to-blue-700"
+                : "bg-gradient-to-r from-gray-300 to-gray-400 focus:ring-gray-400 hover:shadow-md hover:from-gray-400 hover:to-gray-500"
+            } ${isChanging ? "opacity-70 cursor-not-allowed" : ""}`}
             role="switch"
             aria-checked={syncEnabled}
             aria-label="Toggle cloud sync"
           >
             <span
-              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out flex items-center justify-center ${
-                syncEnabled ? "translate-x-7" : "translate-x-0.5"
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-lg transition-all duration-300 ease-in-out transform ${
+                syncEnabled ? "translate-x-[2.125rem]" : "translate-x-0.5"
               }`}
             >
-              {isChanging && (
+              {isChanging ? (
                 <RefreshCcw
-                  className="animate-spin text-gray-500"
+                  className="animate-spin text-blue-500"
                   size={14}
                 />
+              ) : syncEnabled ? (
+                <Cloud className="text-blue-500" size={14} />
+              ) : (
+                <HardDrive className="text-gray-400" size={14} />
               )}
             </span>
           </button>
