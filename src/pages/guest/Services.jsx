@@ -3312,7 +3312,7 @@ const Services = () => {
                             </div>
                           </div>
                           <button
-                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 border-2 border-red-300 text-red-600 shadow-sm transition-all hover:bg-red-200 hover:border-red-400 hover:text-red-700 hover:shadow-md active:scale-95 relative z-10 group/btn"
+                            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 border-2 border-red-300 text-red-600 shadow-md transition-all hover:bg-red-200 hover:border-red-400 hover:text-red-700 hover:shadow-lg active:scale-95 relative z-10 group/btn"
                             title="Delete this entry"
                             aria-label="Delete meal entry"
                             onClick={async () => {
@@ -3357,7 +3357,7 @@ const Services = () => {
                               }
                             }}
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={20} />
                           </button>
                         </div>
                       </div>

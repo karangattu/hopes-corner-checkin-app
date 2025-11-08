@@ -964,8 +964,8 @@ const Donations = () => {
 
           {/* Today's Activity */}
           <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="flex-1">
                 <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
                   <Clock size={22} className="text-blue-600" />
                   Today's Activity
@@ -981,6 +981,26 @@ const Donations = () => {
                   )}
                 </p>
               </div>
+              {selectedStats.entries > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!window.confirm("Delete all donations from today?")) return;
+                    setDonationRecords((prev) =>
+                      prev.filter((donation) => {
+                        const donationDate = new Date(donation.timestamp).toDateString();
+                        const todayDate = new Date().toDateString();
+                        return donationDate !== todayDate;
+                      })
+                    );
+                    toast.success("All today's donations deleted");
+                  }}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
+                  title="Delete all entries"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
 
             {consolidatedActivity.length === 0 ? (
@@ -1132,39 +1152,37 @@ const Donations = () => {
                           )}
                         </div>
 
-                        <div className="flex gap-2 opacity-0 transition group-hover:opacity-100">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const confirmMessage = isMultipleEntries
-                                ? `Delete all ${consolidated.entries.length} entries of this item?`
-                                : "Delete this donation entry?";
-                              if (!window.confirm(confirmMessage)) return;
-                              const idsToDelete = consolidated.entries.map(
-                                (e) => e.id,
-                              );
-                              setDonationRecords((prev) =>
-                                prev.filter(
-                                  (donation) =>
-                                    !idsToDelete.includes(donation.id),
-                                ),
-                              );
-                              toast.success(
-                                isMultipleEntries
-                                  ? `${consolidated.entries.length} entries deleted`
-                                  : "Donation deleted",
-                              );
-                            }}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
-                            title={
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const confirmMessage = isMultipleEntries
+                              ? `Delete all ${consolidated.entries.length} entries of this item?`
+                              : "Delete this donation entry?";
+                            if (!window.confirm(confirmMessage)) return;
+                            const idsToDelete = consolidated.entries.map(
+                              (e) => e.id,
+                            );
+                            setDonationRecords((prev) =>
+                              prev.filter(
+                                (donation) =>
+                                  !idsToDelete.includes(donation.id),
+                              ),
+                            );
+                            toast.success(
                               isMultipleEntries
-                                ? "Delete all entries"
-                                : "Delete"
-                            }
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                                ? `${consolidated.entries.length} entries deleted`
+                                : "Donation deleted",
+                            );
+                          }}
+                          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
+                          title={
+                            isMultipleEntries
+                              ? "Delete all entries"
+                              : "Delete"
+                          }
+                        >
+                          <Trash2 size={20} />
+                        </button>
                       </div>
                     </div>
                   );
