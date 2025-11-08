@@ -8,9 +8,10 @@ import {
   getPendingOperations,
   updateOperationStatus,
   removeFromQueue,
-  moveToFailed,
   initDB,
+  addFailedOperationWithContext,
 } from './indexedDB';
+import { classifyError, getRetryStrategy, formatErrorDetails } from './syncErrorHandler';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000]; // Exponential backoff in ms
@@ -54,10 +55,10 @@ export const queueOperation = async (operationType, payload, executeFunc) => {
 };
 
 /**
- * Process a single operation with retry logic
+ * Process a single operation with retry logic and error classification
  */
 const processOperation = async (operation, executeFunc) => {
-  const { id, payload, retryCount } = operation;
+  const { id, payload, retryCount, operationType } = operation;
 
   try {
     console.log(`[OfflineQueue] Processing operation ${id} (attempt ${retryCount + 1})`);
@@ -73,14 +74,21 @@ const processOperation = async (operation, executeFunc) => {
   } catch (error) {
     console.error(`[OfflineQueue] Operation ${id} failed:`, error);
 
+    // Classify the error
+    const errorInfo = classifyError(error, operationType);
+    const { shouldRetry, maxAttempts } = getRetryStrategy(errorInfo.type);
+    const errorDetails = formatErrorDetails(error, operationType, { failedOperationId: id });
+
+    console.log(`[OfflineQueue] Error classified as ${errorInfo.type}, retriable: ${shouldRetry}`);
+
     // Check if we should retry
-    if (retryCount < MAX_RETRIES - 1) {
+    if (shouldRetry && retryCount < maxAttempts - 1) {
       // Update status for retry
       await updateOperationStatus(id, 'retrying', error.message);
 
       // Calculate retry delay with exponential backoff
       const delay = RETRY_DELAYS[retryCount] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-      console.log(`[OfflineQueue] Will retry operation ${id} in ${delay}ms`);
+      console.log(`[OfflineQueue] Will retry operation ${id} in ${delay}ms (attempt ${retryCount + 1}/${maxAttempts})`);
 
       return {
         success: false,
@@ -89,14 +97,34 @@ const processOperation = async (operation, executeFunc) => {
         error: error.message,
       };
     } else {
-      // Max retries reached, move to failed store
-      console.error(`[OfflineQueue] Operation ${id} failed after ${MAX_RETRIES} attempts`);
-      await moveToFailed(operation);
+      // Max retries reached or non-retriable error - move to failed store
+      console.error(
+        `[OfflineQueue] Operation ${id} failed (${
+          shouldRetry ? 'max retries reached' : errorInfo.type
+        }): ${error.message}`
+      );
+
+      await addFailedOperationWithContext(
+        {
+          ...operation,
+          lastError: error.message,
+        },
+        {
+          errorType: errorInfo.type,
+          userMessage: errorInfo.userMessage,
+          action: errorInfo.action,
+          severity: errorInfo.severity,
+          retriable: shouldRetry,
+          errorDetails,
+        }
+      );
 
       return {
         success: false,
         shouldRetry: false,
         error: error.message,
+        errorType: errorInfo.type,
+        userMessage: errorInfo.userMessage,
         maxRetriesReached: true,
       };
     }

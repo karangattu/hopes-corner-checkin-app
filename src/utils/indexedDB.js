@@ -365,3 +365,129 @@ export const getQueueStats = async () => {
     };
   });
 };
+
+/**
+ * Add failed operation with error context
+ * @param {object} operation - The failed operation with error details
+ * @param {object} errorContext - Error classification and details
+ */
+export const addFailedOperationWithContext = async (operation, errorContext = {}) => {
+  const db = await initDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([FAILED_STORE], 'readwrite');
+    const store = transaction.objectStore(FAILED_STORE);
+
+    const failedItem = {
+      ...operation,
+      failedAt: Date.now(),
+      failureCount: operation.retryCount || 0,
+      ...errorContext, // Include error type, user message, severity, etc.
+    };
+
+    const request = store.add(failedItem);
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      console.error('Failed to add to failed operations store:', request.error);
+      reject(request.error);
+    };
+
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
+
+/**
+ * Retry a failed operation by moving it back to the queue
+ * @param {number} failedOperationId - ID of the failed operation
+ */
+export const retryFailedOperation = async (failedOperationId) => {
+  const db = await initDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([FAILED_STORE, QUEUE_STORE], 'readwrite');
+    const failedStore = transaction.objectStore(FAILED_STORE);
+    const queueStore = transaction.objectStore(QUEUE_STORE);
+
+    const getRequest = failedStore.get(failedOperationId);
+
+    getRequest.onsuccess = () => {
+      const failedOp = getRequest.result;
+
+      if (!failedOp) {
+        reject(new Error(`Failed operation with id ${failedOperationId} not found`));
+        return;
+      }
+
+      // Create new queue item with reset retry count
+      const queueItem = {
+        operationType: failedOp.operationType,
+        payload: failedOp.payload,
+        executeFuncName: failedOp.executeFuncName,
+        timestamp: Date.now(),
+        status: 'pending',
+        retryCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+
+      const addRequest = queueStore.add(queueItem);
+
+      addRequest.onsuccess = () => {
+        // Remove from failed store
+        const deleteRequest = failedStore.delete(failedOperationId);
+
+        deleteRequest.onsuccess = () => {
+          resolve(addRequest.result);
+        };
+
+        deleteRequest.onerror = () => {
+          reject(deleteRequest.error);
+        };
+      };
+
+      addRequest.onerror = () => {
+        reject(addRequest.error);
+      };
+    };
+
+    getRequest.onerror = () => {
+      reject(getRequest.error);
+    };
+
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
+
+/**
+ * Delete a failed operation permanently
+ * @param {number} failedOperationId - ID of the failed operation
+ */
+export const deleteFailedOperation = async (failedOperationId) => {
+  const db = await initDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([FAILED_STORE], 'readwrite');
+    const store = transaction.objectStore(FAILED_STORE);
+    const request = store.delete(failedOperationId);
+
+    request.onsuccess = () => {
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error('Failed to delete failed operation:', request.error);
+      reject(request.error);
+    };
+
+    transaction.oncomplete = () => {
+      db.close();
+    };
+  });
+};
