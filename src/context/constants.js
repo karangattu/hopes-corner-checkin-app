@@ -21,7 +21,16 @@ export const LAUNDRY_STATUS = {
   OFFSITE_PICKED_UP: "offsite_picked_up",
 };
 
-export const DONATION_TYPES = ["Protein", "Carbs", "Vegetables", "Fruit"];
+export const DONATION_TYPES = [
+  "Protein",
+  "Carbs",
+  "Vegetables",
+  "Fruit",
+  "Veggie Protein",
+  "Deli Foods",
+  "Pastries",
+  "School lunch",
+];
 
 export const BICYCLE_REPAIR_STATUS = {
   PENDING: "pending",

@@ -3197,40 +3197,63 @@ const Services = () => {
           </div>
         </div>
 
-        {/* Guest Meal Log */}
-        <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-          <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-100/30 blur-3xl" />
-          <div className="relative space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Guest Meal Log - Revamped */}
+        <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
+          <div className="absolute right-0 top-0 h-40 w-40 -translate-y-12 translate-x-12 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-200/40 blur-3xl" />
+          <div className="absolute left-0 bottom-0 h-32 w-32 translate-y-8 -translate-x-8 rounded-full bg-gradient-to-tr from-blue-200/30 to-emerald-200/30 blur-3xl" />
+          
+          <div className="relative space-y-6">
+            {/* Header Section */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                  <Utensils className="text-emerald-600" size={22} />
-                  Guest Meal Log
-                </h2>
-                <p className="mt-1 text-sm text-gray-600">
-                  Guest-specific meals and extras for {selectedDateLabel}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-3 shadow-lg">
+                    <Utensils size={24} className="text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Guest Meal Log
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-600 ml-0">
+                  Detailed meal entries for {selectedDateLabel}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                  {totalGuestMeals.toLocaleString()} guest meals
-                </span>
-                <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
-                  {totalMealsExcludingLunch.toLocaleString()} total
-                </span>
+                <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-emerald-200 px-4 py-2 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700">
+                    Total Entries
+                  </p>
+                  <p className="text-2xl font-bold text-emerald-900 mt-0.5">
+                    {mergedGuestMeals.length}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-blue-200 px-4 py-2 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-700">
+                    Total Meals
+                  </p>
+                  <p className="text-2xl font-bold text-blue-900 mt-0.5">
+                    {totalGuestMeals.toLocaleString()}
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* Empty State */}
             {mergedGuestMeals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 py-12">
-                <Utensils size={48} className="text-emerald-300" />
-                <p className="mt-4 text-sm font-medium text-emerald-600">
-                  No guest meals logged for this date yet.
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-300 bg-white/40 backdrop-blur-sm py-16">
+                <div className="rounded-full bg-emerald-100 p-4 mb-4">
+                  <Utensils size={40} className="text-emerald-500" />
+                </div>
+                <p className="text-base font-semibold text-gray-700">
+                  No meal entries yet
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Meals will appear here as they are logged
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {mergedGuestMeals.map((rec) => {
+              <div className="space-y-3">
+                {mergedGuestMeals.map((rec, index) => {
                   const isExtraGuestMeal = !!(
                     rec.guestId &&
                     extraMealRecords.some((er) => er.id === rec.id)
@@ -3238,31 +3261,60 @@ const Services = () => {
                   return (
                     <div
                       key={rec.id}
-                      className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 transition hover:border-gray-300 hover:shadow-sm"
+                      className="group relative overflow-visible rounded-2xl border border-emerald-200/60 bg-white/70 backdrop-blur-sm p-4 shadow-sm transition hover:shadow-md hover:border-emerald-300 hover:bg-white/90"
                     >
+                      <div className="absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-emerald-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        {/* Guest Info */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate font-bold text-gray-900">
-                              {getGuestName(rec.guestId)}
-                            </h3>
+                          <div className="flex items-center gap-3 mb-1">
+                            <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-sm">
+                              <span className="text-xs font-bold text-white">
+                                {index + 1}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="truncate font-semibold text-gray-900 text-sm">
+                                {getGuestName(rec.guestId)}
+                              </h3>
+                            </div>
                             {isExtraGuestMeal && (
-                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                                Extra
+                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                                ★ Extra
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            {new Date(rec.date).toLocaleTimeString()}
+                          <div className="flex items-center gap-2 ml-11">
+                            <Clock size={12} className="text-gray-400" />
+                            <span className="text-xs text-gray-500">
+                              {new Date(rec.date).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            {rec.pendingSync && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 animate-pulse">
+                                ⟳ Syncing
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                            {rec.count} meal{rec.count > 1 ? "s" : ""}
-                          </span>
+
+                        {/* Actions */}
+                        <div className="flex flex-shrink-0 items-center gap-2 ml-0 sm:ml-4 pt-2 sm:pt-0">
+                          <div className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-100 to-teal-100 border border-emerald-200 shadow-sm">
+                            <div className="flex items-center gap-1">
+                              <Utensils size={14} className="text-emerald-700" />
+                              <span className="font-bold text-sm text-emerald-900">
+                                {rec.count}
+                              </span>
+                            </div>
+                          </div>
                           <button
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 transition hover:border-red-500 hover:bg-red-50 hover:text-red-700"
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 border-2 border-red-300 text-red-600 shadow-sm transition-all hover:bg-red-200 hover:border-red-400 hover:text-red-700 hover:shadow-md active:scale-95 relative z-10 group/btn"
                             title="Delete this entry"
+                            aria-label="Delete meal entry"
                             onClick={async () => {
                               const matchingMeal = actionHistory.find(
                                 (a) =>

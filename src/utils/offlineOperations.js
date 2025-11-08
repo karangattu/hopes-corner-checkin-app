@@ -148,6 +148,113 @@ export const executeLaundryDeletion = async ({ id }) => {
 };
 
 /**
+ * Execute bicycle insertion with offline fallback
+ * Supports both repair_type (single) and repair_types (array) for backward compatibility
+ */
+export const executeBicycleInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('bicycle_repairs')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
+ * Execute haircut insertion with offline fallback
+ */
+export const executeHaircutInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('haircut_visits')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
+ * Execute holiday insertion with offline fallback
+ */
+export const executeHolidayInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('holiday_visits')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
+ * Execute item insertion with offline fallback
+ */
+export const executeItemInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('items_given')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
+ * Execute donation insertion with offline fallback
+ * Supports donation_type, item_name, trays, weight_lbs, donor, donated_at
+ */
+export const executeDonationInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('donations')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
  * Wrapper: Add meal with offline support
  */
 export const addMealWithOffline = async (payload, isOnline) => {
@@ -232,12 +339,77 @@ export const deleteLaundryWithOffline = async (id, isOnline) => {
 };
 
 /**
+ * Wrapper: Add bicycle repair with offline support
+ */
+export const addBicycleWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_BICYCLE',
+    payload,
+    executeBicycleInsertion,
+    isOnline
+  );
+};
+
+/**
+ * Wrapper: Add haircut with offline support
+ */
+export const addHaircutWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_HAIRCUT',
+    payload,
+    executeHaircutInsertion,
+    isOnline
+  );
+};
+
+/**
+ * Wrapper: Add holiday with offline support
+ */
+export const addHolidayWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_HOLIDAY',
+    payload,
+    executeHolidayInsertion,
+    isOnline
+  );
+};
+
+/**
+ * Wrapper: Add item with offline support
+ */
+export const addItemWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_ITEM',
+    payload,
+    executeItemInsertion,
+    isOnline
+  );
+};
+
+/**
+ * Wrapper: Add donation with offline support
+ */
+export const addDonationWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_DONATION',
+    payload,
+    executeDonationInsertion,
+    isOnline
+  );
+};
+
+/**
  * Map of operation types to execution functions (for sync)
  */
 export const EXECUTE_FUNCTIONS = {
   ADD_MEAL: executeMealInsertion,
   ADD_SHOWER: executeShowerInsertion,
   ADD_LAUNDRY: executeLaundryInsertion,
+  ADD_BICYCLE: executeBicycleInsertion,
+  ADD_HAIRCUT: executeHaircutInsertion,
+  ADD_HOLIDAY: executeHolidayInsertion,
+  ADD_ITEM: executeItemInsertion,
+  ADD_DONATION: executeDonationInsertion,
   UPDATE_SHOWER: executeShowerUpdate,
   UPDATE_LAUNDRY: executeLaundryUpdate,
   DELETE_SHOWER: executeShowerDeletion,

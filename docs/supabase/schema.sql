@@ -50,7 +50,7 @@ create type public.laundry_status_enum as enum (
 );
 
 create type public.bicycle_repair_status_enum as enum ('pending','in_progress','done');
-create type public.donation_type_enum as enum ('Protein','Carbs','Vegetables','Fruit');
+create type public.donation_type_enum as enum ('Protein','Carbs','Vegetables','Fruit','Veggie Protein','Deli Foods','Pastries','School lunch');
 
 create type public.meal_type_enum as enum (
   'guest',          -- primary meal tied to a guest
@@ -242,6 +242,8 @@ create table public.donations (
   item_name text not null,
   trays numeric(6,2) not null default 0,
   weight_lbs numeric(6,2) not null default 0,
+  servings numeric(8,2) default 0,
+  temperature text,
   donor text not null,
   donated_at timestamptz not null default now(),
   created_at timestamptz not null default now(),

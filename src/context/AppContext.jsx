@@ -11,7 +11,13 @@ import {
 } from "../utils/bicycles";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
-import { addMealWithOffline } from "../utils/offlineOperations";
+import {
+  addMealWithOffline,
+  addBicycleWithOffline,
+  addHaircutWithOffline,
+  addHolidayWithOffline,
+  addDonationWithOffline,
+} from "../utils/offlineOperations";
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
@@ -205,24 +211,6 @@ export const AppProvider = ({ children }) => {
     const { dateKey } = resolveDonationDateParts(primary);
     return dateKey;
   }, []);
-
-  const insertMealAttendance = async (payload) => {
-    if (!supabaseEnabled || !supabase) return null;
-    if (payload?.guest_id) {
-      ensureGuestServiceEligible(payload.guest_id, "meal service");
-    }
-    const { data, error } = await supabase
-      .from("meal_attendance")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return data ? mapMealRow(data) : null;
-  };
 
   /**
    * Batch insert meal attendance records
@@ -1201,21 +1189,56 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const { data, error } = await supabase
-          .from("bicycle_repairs")
-          .insert({
-            guest_id: guestId,
-            repair_types: typesToInsert,
+        const payload = {
+          guest_id: guestId,
+          repair_types: typesToInsert,
+          notes,
+          status,
+          priority,
+          requested_at: now,
+          completed_at: completedAt,
+        };
+
+        // Use offline-aware wrapper
+        const result = await addBicycleWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            guestId,
+            date: now,
+            type: "bicycle",
+            repairTypes: typesToInsert,
+            completedRepairs:
+              status === BICYCLE_REPAIR_STATUS.DONE ? [...typesToInsert] : [],
             notes,
             status,
             priority,
-            requested_at: now,
-            completed_at: completedAt,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapBicycleRow(data);
+            doneAt: completedAt,
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setBicycleRecords((prev) => [localRecord, ...prev]);
+          setActionHistory((prev) => [
+            {
+              id: Date.now() + Math.random(),
+              type: "BICYCLE_LOGGED",
+              timestamp: now,
+              data: { recordId: localRecord.id, guestId },
+              description: `Logged bicycle repair (${displayTypes}) (pending sync)`,
+            },
+            ...prev.slice(0, 49),
+          ]);
+          enhancedToast.success(
+            `Bicycle repair logged (will sync when online)`,
+          );
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapBicycleRow(result.result);
         setBicycleRecords((prev) => [mapped, ...prev]);
         setActionHistory((prev) => [
           {
@@ -1381,13 +1404,39 @@ export const AppProvider = ({ children }) => {
     ensureGuestServiceEligible(guestId, "holiday services");
     if (supabaseEnabled && supabase) {
       try {
-        const { data, error } = await supabase
-          .from("holiday_visits")
-          .insert({ guest_id: guestId, served_at: now })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapHolidayRow(data);
+        const payload = { guest_id: guestId, served_at: now };
+
+        // Use offline-aware wrapper
+        const result = await addHolidayWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            guestId,
+            date: now,
+            type: "holiday",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setHolidayRecords((prev) => [localRecord, ...prev]);
+          setActionHistory((prev) => [
+            {
+              id: Date.now() + Math.random(),
+              type: "HOLIDAY_LOGGED",
+              timestamp: now,
+              data: { recordId: localRecord.id, guestId },
+              description: "Logged holiday service (pending sync)",
+            },
+            ...prev.slice(0, 49),
+          ]);
+          toast.success("Holiday logged (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapHolidayRow(result.result);
         setHolidayRecords((prev) => [mapped, ...prev]);
         setActionHistory((prev) => [
           {
@@ -1440,13 +1489,39 @@ export const AppProvider = ({ children }) => {
     ensureGuestServiceEligible(guestId, "haircut services");
     if (supabaseEnabled && supabase) {
       try {
-        const { data, error } = await supabase
-          .from("haircut_visits")
-          .insert({ guest_id: guestId, served_at: now })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapHaircutRow(data);
+        const payload = { guest_id: guestId, served_at: now };
+
+        // Use offline-aware wrapper
+        const result = await addHaircutWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            guestId,
+            date: now,
+            type: "haircut",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setHaircutRecords((prev) => [localRecord, ...prev]);
+          setActionHistory((prev) => [
+            {
+              id: Date.now() + Math.random(),
+              type: "HAIRCUT_LOGGED",
+              timestamp: now,
+              data: { recordId: localRecord.id, guestId },
+              description: "Logged haircut service (pending sync)",
+            },
+            ...prev.slice(0, 49),
+          ]);
+          toast.success("Haircut logged (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapHaircutRow(result.result);
         setHaircutRecords((prev) => [mapped, ...prev]);
         setActionHistory((prev) => [
           {
@@ -1935,13 +2010,48 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "rv",
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "rv",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setRvMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "RV_MEALS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, count: quantity },
+            description: `Added ${quantity} RV meal${quantity > 1 ? "s" : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("RV meals recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setRvMealRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -1997,13 +2107,48 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "shelter",
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "shelter",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setShelterMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "SHELTER_MEALS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, count: quantity },
+            description: `Added ${quantity} Shelter meal${quantity > 1 ? "s" : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("Shelter meals recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setShelterMealRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -2059,13 +2204,48 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "united_effort",
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "united_effort",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setUnitedEffortMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "UNITED_EFFORT_MEALS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, count: quantity },
+            description: `Added ${quantity} United Effort meal${quantity > 1 ? "s" : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("United Effort meals recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setUnitedEffortMealRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -2134,14 +2314,50 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "extra",
           guest_id: guestId,
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            guestId,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "extra",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setExtraMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "EXTRA_MEALS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, guestId, count: quantity },
+            description: `Added ${quantity} extra meal${quantity > 1 ? "s" : ""}${guestId ? " for guest" : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("Extra meals recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setExtraMealRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -2198,13 +2414,48 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "day_worker",
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "day_worker",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setDayWorkerMealRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "DAY_WORKER_MEALS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, count: quantity },
+            description: `Added ${quantity} day worker meal${quantity > 1 ? "s" : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("Day worker meals recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setDayWorkerMealRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -2261,13 +2512,48 @@ export const AppProvider = ({ children }) => {
 
     if (supabaseEnabled && supabase) {
       try {
-        const inserted = await insertMealAttendance({
+        const payload = {
           meal_type: "lunch_bag",
           quantity,
           served_on: servedOn,
           recorded_at: iso,
-        });
+        };
+
+        // Use offline-aware wrapper
+        const result = await addMealWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = {
+            id: `local-${Date.now()}`,
+            count: quantity,
+            date: iso,
+            recordedAt: iso,
+            servedOn: iso.slice(0, 10),
+            type: "lunch_bag",
+            pendingSync: true,
+            queueId: result.queueId,
+          };
+
+          setLunchBagRecords((prev) => [...prev, localRecord]);
+
+          const action = {
+            id: Date.now() + Math.random(),
+            type: "LUNCH_BAGS_ADDED",
+            timestamp: iso,
+            data: { recordId: localRecord.id, count: quantity, date: dateOverride },
+            description: `Added ${quantity} lunch bag${quantity > 1 ? "s" : ""}${dateOverride ? ` on ${dateOverride}` : ""} (pending sync)`,
+          };
+          setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+          toast.success("Lunch bags recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const inserted = mapMealRow(result.result);
         if (!inserted) throw new Error("Insert returned no data");
+
         setLunchBagRecords((prev) => [...prev, inserted]);
         const action = {
           id: Date.now() + Math.random(),
@@ -3063,6 +3349,8 @@ export const AppProvider = ({ children }) => {
     itemName,
     trays = 0,
     weightLbs = 0,
+    servings = 0,
+    temperature = null,
     donor,
     date,
   }) => {
@@ -3081,6 +3369,8 @@ export const AppProvider = ({ children }) => {
       itemName: normalizeDonation(itemName),
       trays: Number(trays) || 0,
       weightLbs: Number(weightLbs) || 0,
+      servings: Number(servings) || 0,
+      temperature: temperature ? normalizeDonation(temperature) : null,
       donor: normalizeDonation(donor),
       date: recordedAt,
       dateKey: recordedDateKey,
@@ -3094,20 +3384,41 @@ export const AppProvider = ({ children }) => {
     if (!clean.donor) throw new Error("Donation source (donor) is required");
     if (supabaseEnabled && supabase) {
       try {
-        const { data, error } = await supabase
-          .from("donations")
-          .insert({
-            donation_type: clean.type,
-            item_name: clean.itemName,
-            trays: clean.trays,
-            weight_lbs: clean.weightLbs,
-            donor: clean.donor,
-            donated_at: recordedAt,
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        const mapped = mapDonationRow(data);
+        const payload = {
+          donation_type: clean.type,
+          item_name: clean.itemName,
+          trays: clean.trays,
+          weight_lbs: clean.weightLbs,
+          servings: clean.servings,
+          temperature: clean.temperature,
+          donor: clean.donor,
+          donated_at: recordedAt,
+        };
+
+        // Use offline-aware wrapper
+        const result = await addDonationWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          // Operation was queued for later sync
+          const localRecord = { id: `local-${Date.now()}`, ...clean, pendingSync: true, queueId: result.queueId };
+
+          setDonationRecords((prev) => [localRecord, ...prev]);
+          setActionHistory((prev) => [
+            {
+              id: Date.now() + Math.random(),
+              type: "DONATION_ADDED",
+              timestamp: actionTimestamp,
+              data: { recordId: localRecord.id },
+              description: `Donation: ${clean.itemName} (${clean.type}) (pending sync)`,
+            },
+            ...prev.slice(0, 49),
+          ]);
+          toast.success("Donation recorded (will sync when online)");
+          return localRecord;
+        }
+
+        // Operation completed successfully
+        const mapped = mapDonationRow(result.result);
         setDonationRecords((prev) => [mapped, ...prev]);
         setActionHistory((prev) => [
           {

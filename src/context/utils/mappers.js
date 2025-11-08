@@ -143,6 +143,8 @@ export const mapDonationRow = (row) => {
     itemName: row.item_name,
     trays: Number(row.trays) || 0,
     weightLbs: Number(row.weight_lbs) || 0,
+    servings: Number(row.servings) || 0,
+    temperature: row.temperature || null,
     donor: row.donor,
     date: timestamp,
     dateKey,

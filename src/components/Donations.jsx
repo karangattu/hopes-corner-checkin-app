@@ -19,6 +19,7 @@ import {
   Clock,
   Users,
   Package,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 
@@ -59,6 +60,17 @@ const shiftDateKey = (dateKey, offsetDays) => {
 
 const formatNumber = (value, options) =>
   Number(value || 0).toLocaleString(undefined, options);
+
+const calculateServings = (type, weightLbs) => {
+  const weight = Number(weightLbs) || 0;
+  if (type === "Carbs") {
+    return weight * 4;
+  } else if (type === "Protein" || type === "Veggie Protein") {
+    return weight * 5;
+  }
+  // For other types (Vegetables, Fruit, Deli Foods, Pastries, School lunch), return weight as is
+  return weight;
+};
 
 const deriveDonationDateKey = (record) => {
   if (!record) return null;
@@ -115,6 +127,7 @@ const Donations = () => {
     trays: "",
     weightLbs: "",
     donor: "",
+    temperature: "",
   });
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState(() => ({
@@ -149,10 +162,17 @@ const Donations = () => {
   const selectedStats = useMemo(() => {
     let trays = 0;
     let weight = 0;
+    let servings = 0;
     const donors = new Set();
     for (const record of dayRecords) {
       trays += Number(record.trays) || 0;
-      weight += Number(record.weightLbs) || 0;
+      const recordWeight = Number(record.weightLbs) || 0;
+      weight += recordWeight;
+      // Use servings from record if available, otherwise calculate
+      const recordServings = record.servings
+        ? Number(record.servings)
+        : calculateServings(record.type, recordWeight);
+      servings += recordServings;
       if (record.donor) {
         const donorName = record.donor.trim();
         if (donorName) donors.add(donorName);
@@ -162,6 +182,7 @@ const Donations = () => {
       entries: dayRecords.length,
       trays,
       weight,
+      servings,
       donors: donors.size,
     };
   }, [dayRecords]);
@@ -399,11 +420,16 @@ const Donations = () => {
     }
     setLoading(true);
     try {
+      const weightLbs = Number(form.weightLbs || 0);
+      const servings = calculateServings(form.type, weightLbs);
+      
       await addDonation({
         type: form.type,
         itemName: form.itemName,
         trays: Number(form.trays || 0),
-        weightLbs: Number(form.weightLbs || 0),
+        weightLbs,
+        servings,
+        temperature: form.temperature || null,
         donor: form.donor || "Anonymous",
         date: selectedDate,
       });
@@ -413,6 +439,7 @@ const Donations = () => {
         itemName: "",
         trays: "",
         weightLbs: "",
+        temperature: "",
       }));
 
       toast.success("Donation logged successfully!");
@@ -457,10 +484,12 @@ const Donations = () => {
       if (!value) continue;
       const parsed = new Date(value);
       if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toLocaleTimeString([], {
+        return new Intl.DateTimeFormat([], {
+          timeZone: "America/Los_Angeles",
           hour: "2-digit",
           minute: "2-digit",
-        });
+          hour12: true,
+        }).format(parsed);
       }
     }
     return "—";
@@ -479,6 +508,7 @@ const Donations = () => {
           donor: record.donor,
           trays: 0,
           weightLbs: 0,
+          servings: 0,
           entries: [],
           latestTimestamp: getRecordTimestamp(record),
         });
@@ -486,7 +516,13 @@ const Donations = () => {
 
       const consolidated = consolidationMap.get(key);
       consolidated.trays += Number(record.trays) || 0;
-      consolidated.weightLbs += Number(record.weightLbs) || 0;
+      const weight = Number(record.weightLbs) || 0;
+      consolidated.weightLbs += weight;
+      // Calculate servings from the record or calculate if not present
+      const recordServings = record.servings 
+        ? Number(record.servings) 
+        : calculateServings(record.type, weight);
+      consolidated.servings += recordServings;
       consolidated.entries.push(record);
 
       const timestamp = getRecordTimestamp(record);
@@ -539,6 +575,8 @@ const Donations = () => {
         Item: record.itemName,
         Trays: record.trays,
         "Weight (lbs)": record.weightLbs,
+        Servings: record.servings || 0,
+        Temperature: record.temperature || "—",
         Donor: record.donor,
       });
     }
@@ -621,7 +659,7 @@ const Donations = () => {
       </div>
 
       {/* Stats Overview Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
           <div className="relative">
@@ -659,6 +697,26 @@ const Donations = () => {
               <span className="text-xl text-gray-500"> lbs</span>
             </p>
             <p className="mt-1 text-sm text-gray-600">Total weight today</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+          <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-teal-100/50 blur-2xl" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div className="rounded-xl bg-teal-100 p-3">
+                <UtensilsCrossed size={24} className="text-teal-600" />
+              </div>
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Servings
+              </span>
+            </div>
+            <p className="mt-4 text-3xl font-bold text-gray-900">
+              {formatNumber(selectedStats.servings, {
+                maximumFractionDigits: 0,
+              })}
+            </p>
+            <p className="mt-1 text-sm text-gray-600">Total servings today</p>
           </div>
         </div>
 
@@ -843,6 +901,34 @@ const Donations = () => {
                 />
               </div>
 
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                  Temperature (Optional)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.temperature}
+                    onChange={(event) =>
+                      setForm({ ...form, temperature: event.target.value })
+                    }
+                    placeholder="e.g., 165°F, Hot, Cold, Room temp"
+                    className="flex-1 rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm({ ...form, temperature: (form.temperature || "") + "°F" });
+                    }}
+                    className="rounded-xl border-2 border-gray-300 bg-gray-50 px-3 py-3 font-bold text-gray-900 transition hover:border-emerald-500 hover:bg-emerald-50"
+                    title="Add degree Fahrenheit symbol"
+                  >
+                    °F
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Tip: Click °F button to add the symbol</p>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -941,7 +1027,7 @@ const Donations = () => {
                           <p className="mt-1 text-sm text-gray-600">
                             From: {consolidated.donor || "Anonymous"}
                           </p>
-                          <div className="mt-3 flex gap-4 text-sm">
+                          <div className="mt-3 flex flex-wrap gap-4 text-sm">
                             <div className="flex items-center gap-1.5">
                               <Package size={14} className="text-amber-600" />
                               <span className="font-semibold text-gray-900">
@@ -961,6 +1047,15 @@ const Donations = () => {
                                 lbs
                               </span>
                             </div>
+                            <div className="flex items-center gap-1.5">
+                              <UtensilsCrossed size={14} className="text-blue-600" />
+                              <span className="font-semibold text-gray-900">
+                                {formatNumber(consolidated.servings, {
+                                  maximumFractionDigits: 0,
+                                })}{" "}
+                                servings
+                              </span>
+                            </div>
                           </div>
 
                           {/* Show individual entries breakdown if multiple */}
@@ -974,25 +1069,12 @@ const Donations = () => {
                                 {consolidated.entries.map((entry, entryIdx) => (
                                   <div
                                     key={entry.id}
-                                    className="flex items-center justify-between text-xs"
+                                    className="flex flex-col gap-2 text-xs"
                                   >
-                                    <span className="text-gray-600">
-                                      Entry {entryIdx + 1} •{" "}
-                                      {formatRecordTime(entry)}
-                                    </span>
-                                    <div className="flex gap-3 text-gray-700">
-                                      <span>
-                                        {formatNumber(entry.trays, {
-                                          maximumFractionDigits: 0,
-                                        })}{" "}
-                                        trays
-                                      </span>
-                                      <span>
-                                        {formatNumber(entry.weightLbs, {
-                                          minimumFractionDigits: 1,
-                                          maximumFractionDigits: 1,
-                                        })}{" "}
-                                        lbs
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-gray-600">
+                                        Entry {entryIdx + 1} •{" "}
+                                        {formatRecordTime(entry)}
                                       </span>
                                       <button
                                         type="button"
@@ -1011,11 +1093,37 @@ const Donations = () => {
                                           );
                                           toast.success("Entry deleted");
                                         }}
-                                        className="ml-2 text-red-600 hover:text-red-700"
+                                        className="text-red-600 hover:text-red-700"
                                         title="Delete this entry"
                                       >
                                         <Trash2 size={12} />
                                       </button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-3 text-gray-700">
+                                      <span>
+                                        {formatNumber(entry.trays, {
+                                          maximumFractionDigits: 0,
+                                        })}{" "}
+                                        trays
+                                      </span>
+                                      <span>
+                                        {formatNumber(entry.weightLbs, {
+                                          minimumFractionDigits: 1,
+                                          maximumFractionDigits: 1,
+                                        })}{" "}
+                                        lbs
+                                      </span>
+                                      <span>
+                                        {formatNumber(entry.servings, {
+                                          maximumFractionDigits: 0,
+                                        })}{" "}
+                                        servings
+                                      </span>
+                                      {entry.temperature && (
+                                        <span className="rounded-full bg-blue-200 px-2 py-0.5 font-semibold text-blue-800">
+                                          {entry.temperature}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 ))}
@@ -1419,7 +1527,7 @@ const Donations = () => {
 
               <p className="text-center text-xs text-gray-500">
                 All dates use Pacific Time • CSV includes date, type, item,
-                trays, weight, and donor
+                trays, weight, servings, temperature, and donor
               </p>
             </div>
           </div>
