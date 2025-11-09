@@ -265,6 +265,9 @@ const Services = () => {
   const [showCompletedShowers, setShowCompletedShowers] = useState(() =>
     Boolean(savedFilters?.showCompletedShowers),
   );
+  const [showEssentialsKit, setShowEssentialsKit] = useState(() =>
+    Boolean(savedFilters?.showEssentialsKit),
+  );
 
   const [laundryTypeFilter, setLaundryTypeFilter] = useState(
     () => savedFilters?.laundryTypeFilter ?? "any",
@@ -297,6 +300,7 @@ const Services = () => {
       showerLaundryFilter,
       showerSort,
       showCompletedShowers,
+      showEssentialsKit,
       laundryTypeFilter,
       laundryStatusFilter,
       laundrySort,
@@ -315,6 +319,7 @@ const Services = () => {
     showerLaundryFilter,
     showerSort,
     showCompletedShowers,
+    showEssentialsKit,
     laundryTypeFilter,
     laundryStatusFilter,
     laundrySort,
@@ -3681,74 +3686,87 @@ const Services = () => {
             </div>
 
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3">
-                <Sparkles size={14} className="text-blue-500" />
-                <span>Guest essentials kit</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {essentialsConfig.map((item) => {
-                  const Icon = item.icon;
-                  const nextDate = item.lastRecord
-                    ? getNextAvailabilityDate(item.key, item.lastRecord.date)
-                    : null;
-                  const nextDateLabel = nextDate
-                    ? nextDate.toLocaleDateString("en-CA")
-                    : null;
-                  return (
-                    <div
-                      key={item.key}
-                      className="bg-white border border-blue-100 rounded-md p-3 shadow-sm"
-                    >
-                      <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                        <Icon size={16} className="text-blue-600" />
-                        <span>{item.label}</span>
-                      </div>
-                      <div className="mt-2 text-xs text-gray-600 space-y-1">
-                        {item.lastRecord ? (
-                          <>
-                            <div>
-                              Last given:{" "}
-                              {new Date(
-                                item.lastRecord.date,
-                              ).toLocaleDateString()}
-                            </div>
-                            {item.canGive ? (
-                              <div className="text-green-600 font-semibold">
-                                Available now
-                              </div>
-                            ) : (
-                              <div className="text-orange-600 font-semibold">
-                                Next: {nextDateLabel} ({item.daysRemaining}d)
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-green-600 font-semibold">
-                            Never given — available now
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        disabled={!item.canGive}
-                        onClick={() =>
-                          handleGiveItem(item.key, item.successMessage)
-                        }
-                        className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={
-                          item.canGive
-                            ? item.buttonLabel
-                            : nextDateLabel
-                              ? `Available ${nextDateLabel}`
-                              : "Not yet available"
-                        }
+              <button
+                type="button"
+                onClick={() => setShowEssentialsKit((prev) => !prev)}
+                className="w-full flex items-center justify-between text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3 hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-blue-500" />
+                  <span>Guest essentials kit</span>
+                </div>
+                {showEssentialsKit ? (
+                  <ChevronUp size={16} className="text-blue-600" />
+                ) : (
+                  <ChevronDown size={16} className="text-blue-600" />
+                )}
+              </button>
+              {showEssentialsKit && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {essentialsConfig.map((item) => {
+                    const Icon = item.icon;
+                    const nextDate = item.lastRecord
+                      ? getNextAvailabilityDate(item.key, item.lastRecord.date)
+                      : null;
+                    const nextDateLabel = nextDate
+                      ? nextDate.toLocaleDateString("en-CA")
+                      : null;
+                    return (
+                      <div
+                        key={item.key}
+                        className="bg-white border border-blue-100 rounded-md p-3 shadow-sm"
                       >
-                        {item.buttonLabel}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
+                          <Icon size={16} className="text-blue-600" />
+                          <span>{item.label}</span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600 space-y-1">
+                          {item.lastRecord ? (
+                            <>
+                              <div>
+                                Last given:{" "}
+                                {new Date(
+                                  item.lastRecord.date,
+                                ).toLocaleDateString()}
+                              </div>
+                              {item.canGive ? (
+                                <div className="text-green-600 font-semibold">
+                                  Available now
+                                </div>
+                              ) : (
+                                <div className="text-orange-600 font-semibold">
+                                  Next: {nextDateLabel} ({item.daysRemaining}d)
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-green-600 font-semibold">
+                              Never given — available now
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!item.canGive}
+                          onClick={() =>
+                            handleGiveItem(item.key, item.successMessage)
+                          }
+                          className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={
+                            item.canGive
+                              ? item.buttonLabel
+                              : nextDateLabel
+                                ? `Available ${nextDateLabel}`
+                                : "Not yet available"
+                          }
+                        >
+                          {item.buttonLabel}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </Animated.div>
