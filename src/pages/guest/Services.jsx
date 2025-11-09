@@ -3685,86 +3685,204 @@ const Services = () => {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-xl p-4 sm:p-5">
+              {/* Header with Toggle */}
               <button
                 type="button"
                 onClick={() => setShowEssentialsKit((prev) => !prev)}
-                className="w-full flex items-center justify-between text-blue-800 font-semibold text-xs uppercase tracking-wide mb-3 hover:opacity-80 transition-opacity"
+                className="w-full flex items-center justify-between text-blue-900 font-bold text-sm sm:text-base mb-4 hover:opacity-75 transition-opacity group"
               >
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} className="text-blue-500" />
-                  <span>Guest essentials kit</span>
-                </div>
-                {showEssentialsKit ? (
-                  <ChevronUp size={16} className="text-blue-600" />
-                ) : (
-                  <ChevronDown size={16} className="text-blue-600" />
-                )}
-              </button>
-              {showEssentialsKit && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {essentialsConfig.map((item) => {
-                    const Icon = item.icon;
-                    const nextDate = item.lastRecord
-                      ? getNextAvailabilityDate(item.key, item.lastRecord.date)
-                      : null;
-                    const nextDateLabel = nextDate
-                      ? nextDate.toLocaleDateString("en-CA")
-                      : null;
-                    return (
-                      <div
-                        key={item.key}
-                        className="bg-white border border-blue-100 rounded-md p-3 shadow-sm"
-                      >
-                        <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-                          <Icon size={16} className="text-blue-600" />
-                          <span>{item.label}</span>
-                        </div>
-                        <div className="mt-2 text-xs text-gray-600 space-y-1">
-                          {item.lastRecord ? (
-                            <>
-                              <div>
-                                Last given:{" "}
-                                {new Date(
-                                  item.lastRecord.date,
-                                ).toLocaleDateString()}
-                              </div>
-                              {item.canGive ? (
-                                <div className="text-green-600 font-semibold">
-                                  Available now
-                                </div>
-                              ) : (
-                                <div className="text-orange-600 font-semibold">
-                                  Next: {nextDateLabel} ({item.daysRemaining}d)
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="text-green-600 font-semibold">
-                              Never given — available now
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          disabled={!item.canGive}
-                          onClick={() =>
-                            handleGiveItem(item.key, item.successMessage)
-                          }
-                          className="mt-3 w-full text-xs font-medium px-2 py-2 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={
-                            item.canGive
-                              ? item.buttonLabel
-                              : nextDateLabel
-                                ? `Available ${nextDateLabel}`
-                                : "Not yet available"
-                          }
-                        >
-                          {item.buttonLabel}
-                        </button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-200 rounded-lg group-hover:bg-blue-300 transition-colors">
+                    <Sparkles size={18} className="text-blue-700" />
+                  </div>
+                  <div className="text-left">
+                    <div>Guest Essentials Kit</div>
+                    {!showEssentialsKit && (
+                      <div className="text-xs text-blue-600 font-medium mt-0.5">
+                        {essentialsConfig.filter((i) => i.canGive).length} of{" "}
+                        {essentialsConfig.length} available
                       </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-shrink-0 p-1.5 bg-blue-100 rounded-lg">
+                  {showEssentialsKit ? (
+                    <ChevronUp size={20} className="text-blue-700" />
+                  ) : (
+                    <ChevronDown size={20} className="text-blue-700" />
+                  )}
+                </div>
+              </button>
+
+              {showEssentialsKit && (
+                <div className="space-y-4">
+                  {/* Available Now Section */}
+                  {(() => {
+                    const availableItems = essentialsConfig.filter(
+                      (i) => i.canGive,
                     );
-                  })}
+                    return availableItems.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <div className="h-1 w-1 rounded-full bg-green-500" />
+                          <span className="text-xs font-bold uppercase tracking-wide text-green-700">
+                            Available now ({availableItems.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {availableItems.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                              <div
+                                key={item.key}
+                                className="flex items-center justify-between gap-3 bg-white rounded-lg p-3 border border-green-100 hover:border-green-300 hover:shadow-sm transition-all group/item"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="flex-shrink-0 p-2 bg-green-100 rounded-lg group-hover/item:bg-green-200 transition-colors">
+                                    <Icon size={18} className="text-green-700" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-semibold text-gray-900 truncate">
+                                      {item.label.split("(")[0].trim()}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {item.lastRecord ? (
+                                        <span>
+                                          Last:{" "}
+                                          {new Date(
+                                            item.lastRecord.date,
+                                          ).toLocaleDateString("en-CA")}
+                                        </span>
+                                      ) : (
+                                        <span className="text-green-600 font-semibold">
+                                          Never given
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleGiveItem(
+                                      item.key,
+                                      item.successMessage,
+                                    )
+                                  }
+                                  className="flex-shrink-0 px-3 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md transition-all active:scale-95 whitespace-nowrap"
+                                  title={item.buttonLabel}
+                                >
+                                  <span className="hidden sm:inline">
+                                    {item.buttonLabel}
+                                  </span>
+                                  <span className="sm:hidden">Give</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Coming Soon Section */}
+                  {(() => {
+                    const comingItems = essentialsConfig.filter(
+                      (i) => !i.canGive,
+                    );
+                    return comingItems.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 px-3 py-2">
+                          <div className="h-1 w-1 rounded-full bg-amber-500" />
+                          <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                            Coming soon ({comingItems.length})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {comingItems.map((item) => {
+                            const Icon = item.icon;
+                            const nextDate = item.lastRecord
+                              ? getNextAvailabilityDate(
+                                  item.key,
+                                  item.lastRecord.date,
+                                )
+                              : null;
+                            const nextDateLabel = nextDate
+                              ? nextDate.toLocaleDateString("en-CA")
+                              : null;
+                            const daysUntil = Math.ceil(
+                              (nextDate - new Date()) / (1000 * 60 * 60 * 24),
+                            );
+                            const progressPercent = Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                ((item.daysRemaining > 0
+                                  ? item.daysRemaining - daysUntil
+                                  : 0) /
+                                  item.daysRemaining) *
+                                  100,
+                              ),
+                            );
+                            return (
+                              <div
+                                key={item.key}
+                                className="flex items-center justify-between gap-3 bg-white rounded-lg p-3 border border-amber-100 hover:border-amber-200 hover:shadow-sm transition-all group/item opacity-80"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <div className="flex-shrink-0 p-2 bg-amber-100 rounded-lg">
+                                    <Icon size={18} className="text-amber-700" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-semibold text-gray-900 truncate">
+                                      {item.label.split("(")[0].trim()}
+                                    </div>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                        <div
+                                          className="bg-gradient-to-r from-amber-400 to-amber-500 h-1.5 rounded-full transition-all"
+                                          style={{
+                                            width: `${progressPercent}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="text-xs text-gray-600">
+                                        {daysUntil > 0 ? (
+                                          <span>
+                                            Available{" "}
+                                            <span className="font-semibold">
+                                              {nextDateLabel}
+                                            </span>{" "}
+                                            ({daysUntil}d left)
+                                          </span>
+                                        ) : (
+                                          <span className="text-green-600 font-semibold">
+                                            Available now!
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="flex-shrink-0 px-3 py-2 bg-gray-200 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed whitespace-nowrap"
+                                  title={`Available ${nextDateLabel}`}
+                                >
+                                  <span className="hidden sm:inline">
+                                    Coming
+                                  </span>
+                                  <span className="sm:hidden">Soon</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               )}
             </div>
