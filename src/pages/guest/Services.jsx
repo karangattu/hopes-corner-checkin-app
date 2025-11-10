@@ -53,6 +53,7 @@ import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
 import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
 import ShowerKanban from "../../components/lanes/ShowerKanban";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
+import { WaiverBadge } from "../../components/ui/WaiverBadge";
 import {
   useFadeInUp,
   useScaleIn,
@@ -1441,15 +1442,30 @@ const Services = () => {
             </>
           )}
         </button>
+        {/* Waiver badge for pending showers (staff dismisses externally-signed waivers) */}
+        {!isCompleted && (
+          <div className="ml-2">
+            <WaiverBadge guestId={record.guestId} serviceType="shower" />
+          </div>
+        )}
       </div>
     );
   };
+
 
   const renderLaundryActions = (event) => {
     if (!event.originalRecord) return null;
 
     const record = event.originalRecord;
     const statusInfo = getLaundryStatusInfo(record.status);
+
+    // Consider these laundry statuses as completed for waiver visibility
+    const laundryCompletedSet = new Set([
+      LAUNDRY_STATUS.DONE,
+      LAUNDRY_STATUS.PICKED_UP,
+      LAUNDRY_STATUS.RETURNED,
+      LAUNDRY_STATUS.OFFSITE_PICKED_UP,
+    ]);
 
     // Get available status transitions based on current status and laundry type
     const getStatusButtons = () => {
@@ -1573,6 +1589,13 @@ const Services = () => {
           <Calendar size={18} />
           <span className="hidden sm:inline">Reschedule</span>
         </button>
+
+        {/* Waiver badge for pending laundry loads (shown before picked up/done) */}
+        {!laundryCompletedSet.has(record.status) && (
+          <div className="ml-2">
+            <WaiverBadge guestId={record.guestId} serviceType="laundry" />
+          </div>
+        )}
       </div>
     );
   };

@@ -447,7 +447,7 @@ const MonthlySummaryReport = () => {
     }
 
     const totals = {
-      month: "TOTAL",
+      month: "Year to Date",
       mondayMeals: months.reduce((sum, m) => sum + m.mondayMeals, 0),
       wednesdayMeals: months.reduce((sum, m) => sum + m.wednesdayMeals, 0),
       saturdayMeals: months.reduce((sum, m) => sum + m.saturdayMeals, 0),
@@ -861,75 +861,11 @@ const MonthlySummaryReport = () => {
       },
     ];
 
-    csvData.push({});
-    csvData.push({ Month: "Bicycle Services Summary" });
-    csvData.push(
-      ...bicycleSummary.rows.map((row) => ({
-        Month: row.month,
-        "New Bikes": row.newBikes,
-        "Bike Services": row.services,
-        Total: row.total,
-      })),
-    );
-    csvData.push({
-      Month: "Year to Date",
-      "New Bikes": bicycleSummary.totals.newBikes,
-      "Bike Services": bicycleSummary.totals.services,
-      Total: bicycleSummary.totals.total,
-    });
-
-    csvData.push({});
-    csvData.push({ Month: "Shower & Laundry Services Summary" });
-    csvData.push(
-      ...showerLaundrySummary.rows.map((row) => ({
-        Month: row.month,
-        "Program Days in Month": row.programDays,
-        "Showers Provided": row.showersProvided,
-        "Participants: Adult": row.participantsAdult,
-        "Participants: Senior": row.participantsSenior,
-        "Participants: Child": row.participantsChild,
-        "Total Participants": row.totalParticipants,
-        "New Guests This Month": row.newGuests,
-        "YTD Total Unduplicated Guests": row.ytdTotalUnduplicatedGuests,
-        "Laundry Loads Processed": row.laundryLoadsProcessed,
-        "Unduplicated Laundry Users": row.unduplicatedLaundryUsers,
-        "Laundry Users: Adult": row.laundryAdult,
-        "Laundry Users: Senior": row.laundrySenior,
-        "Laundry Users: Child": row.laundryChild,
-        "YTD New Guests (Laundry)": row.ytdNewGuestsLaundry,
-        "YTD Total Unduplicated Laundry Users":
-          row.ytdTotalUnduplicatedLaundryUsers,
-      })),
-    );
-    csvData.push({
-      Month: showerLaundrySummary.totals.month,
-      "Program Days in Month": showerLaundrySummary.totals.programDays,
-      "Showers Provided": showerLaundrySummary.totals.showersProvided,
-      "Participants: Adult": showerLaundrySummary.totals.participantsAdult,
-      "Participants: Senior": showerLaundrySummary.totals.participantsSenior,
-      "Participants: Child": showerLaundrySummary.totals.participantsChild,
-      "Total Participants": showerLaundrySummary.totals.totalParticipants,
-      "New Guests This Month": showerLaundrySummary.totals.newGuests,
-      "YTD Total Unduplicated Guests":
-        showerLaundrySummary.totals.ytdTotalUnduplicatedGuests,
-      "Laundry Loads Processed":
-        showerLaundrySummary.totals.laundryLoadsProcessed,
-      "Unduplicated Laundry Users":
-        showerLaundrySummary.totals.unduplicatedLaundryUsers,
-      "Laundry Users: Adult": showerLaundrySummary.totals.laundryAdult,
-      "Laundry Users: Senior": showerLaundrySummary.totals.laundrySenior,
-      "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
-      "YTD New Guests (Laundry)":
-        showerLaundrySummary.totals.ytdNewGuestsLaundry,
-      "YTD Total Unduplicated Laundry Users":
-        showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
-    });
-
     exportDataAsCSV(
       csvData,
-      `monthly-summary-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `meals-monthly-report-${reportYear}-${new Date().toISOString().slice(0, 10)}.csv`,
     );
-    toast.success("Monthly summary exported to CSV");
+    toast.success("Meals monthly report exported to CSV");
   };
 
   const handleExportBicycleCSV = () => {
@@ -1029,7 +965,7 @@ const MonthlySummaryReport = () => {
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Download size={16} />
-            Export to CSV
+            Meals Monthly Report
           </button>
         </div>
 

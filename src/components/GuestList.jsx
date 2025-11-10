@@ -39,6 +39,7 @@ import { useAppContext } from "../context/useAppContext";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
+import { WaiverBadge } from "./ui/WaiverBadge";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -1164,6 +1165,39 @@ const GuestList = () => {
                     </>
                   )}
                 </div>
+              </div>
+              {/* Waiver badges for shower and laundry */}
+              <div className="flex flex-wrap gap-2 mt-2 mb-2">
+                {(() => {
+                  const servicesThatNeedWaivers = [];
+                  
+                  // Check if guest has shower records
+                  const guestShowerRecords = showerRecords.filter(
+                    (r) => r.guestId === guest.id
+                  );
+                  if (guestShowerRecords.length > 0) {
+                    servicesThatNeedWaivers.push('shower');
+                  }
+                  
+                  // Check if guest has laundry records
+                  const guestLaundryRecords = laundryRecords.filter(
+                    (r) => r.guestId === guest.id
+                  );
+                  if (guestLaundryRecords.length > 0) {
+                    servicesThatNeedWaivers.push('laundry');
+                  }
+                  
+                  return servicesThatNeedWaivers.map((service) => (
+                    <WaiverBadge
+                      key={`waiver-${guest.id}-${service}`}
+                      guestId={guest.id}
+                      serviceType={service}
+                      onDismissed={() => {
+                        toast.success(`${service} waiver acknowledged`);
+                      }}
+                    />
+                  ));
+                })()}
               </div>
               {guest.preferredName && (
                 <p className="text-xs text-gray-500 mt-1">

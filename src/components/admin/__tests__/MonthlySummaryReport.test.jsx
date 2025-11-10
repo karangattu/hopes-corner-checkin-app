@@ -128,10 +128,10 @@ describe("MonthlySummaryReport", () => {
     expect(tables[2].textContent).toContain("January");
   });
 
-  it("displays TOTAL row at the bottom", () => {
+  it("displays Year to Date row at the bottom", () => {
     render(<MonthlySummaryReport />);
     const mealsTable = getMealsTable();
-    const totalRowHeader = screen.getByRole("rowheader", { name: "TOTAL" });
+    const totalRowHeader = screen.getByRole("rowheader", { name: "Year to Date" });
     expect(totalRowHeader).toBeInTheDocument();
 
     const totalRow = totalRowHeader.closest("tr");
@@ -281,7 +281,7 @@ describe("MonthlySummaryReport", () => {
 
     render(<MonthlySummaryReport />);
 
-    const exportButton = screen.getByRole("button", { name: /Export to CSV/i });
+    const exportButton = screen.getByRole("button", { name: /Meals Monthly Report/i });
     fireEvent.click(exportButton);
 
     expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
@@ -289,26 +289,25 @@ describe("MonthlySummaryReport", () => {
 
     expect(csvData.length).toBeGreaterThan(0);
     const yearLabel = new Date().getFullYear();
-    expect(filename).toContain(`monthly-summary-${yearLabel}-`);
+    expect(filename).toContain(`meals-monthly-report-${yearLabel}-`);
 
-    // Check that CSV has correct columns
+    // Check that CSV has correct meal columns only
     expect(csvData[0]).toHaveProperty("Month");
     expect(csvData[0]).toHaveProperty("Monday");
     expect(csvData[0]).toHaveProperty("TOTAL HOT MEALS");
 
-    const ytdRow = csvData.find((row) => row?.Month === "Year to Date");
-    expect(ytdRow).toBeTruthy();
-    expect(ytdRow["New Bikes"]).toBe(1);
-    expect(ytdRow["Bike Services"]).toBe(1);
+    // Verify we have at least the months and a totals row
+    expect(csvData.length).toBeGreaterThanOrEqual(2);
 
-    const showerLaundryHeaderIndex = csvData.findIndex(
-      (row) => row?.Month === "Shower & Laundry Services Summary",
-    );
-    expect(showerLaundryHeaderIndex).toBeGreaterThan(-1);
-    const showerLaundryDataRow = csvData[showerLaundryHeaderIndex + 1];
-    expect(showerLaundryDataRow["Program Days in Month"]).toBeDefined();
-    const finalRow = csvData[csvData.length - 1];
-    expect(finalRow["YTD Total Unduplicated Laundry Users"]).toBeDefined();
+    // Find the totals row (last row should have "Year to Date")
+    const totalsRow = csvData[csvData.length - 1];
+    expect(totalsRow).toBeTruthy();
+    expect(totalsRow.Month).toBe("Year to Date");
+
+    // Verify it's a meal-only export (no bicycle or shower/laundry columns)
+    expect(csvData[0]).not.toHaveProperty("New Bikes");
+    expect(csvData[0]).not.toHaveProperty("Bike Services");
+    expect(csvData[0]).not.toHaveProperty("Program Days in Month");
   });
 
   it("renders shower and laundry summary section with headers", () => {
@@ -392,7 +391,7 @@ describe("MonthlySummaryReport", () => {
     const mealsTable = getMealsTable();
     const rows = mealsTable.querySelectorAll("tbody tr");
     const totalRow = Array.from(rows).find((row) =>
-      row.textContent.includes("TOTAL"),
+      row.textContent.includes("Year to Date"),
     );
 
     expect(totalRow).toBeTruthy();

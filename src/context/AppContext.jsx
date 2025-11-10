@@ -30,6 +30,7 @@ import {
 import AppContext from "./internalContext";
 import { createShowerMutations } from "./utils/showerMutations";
 import { createLaundryMutations } from "./utils/laundryMutations";
+import { createWaiverMutations } from "./utils/waiverMutations";
 import {
   toTitleCase,
   normalizePreferredName,
@@ -2669,6 +2670,24 @@ export const AppProvider = ({ children }) => {
     ],
   );
 
+  const {
+    fetchGuestWaivers,
+    guestNeedsWaiverReminder,
+    dismissWaiver,
+    hasActiveWaiver,
+    fetchGuestsNeedingWaivers,
+    getWaiverStatusSummary,
+  } = useMemo(
+    () =>
+      createWaiverMutations({
+        supabaseEnabled,
+        supabaseClient: supabase,
+        pushAction,
+        toast,
+      }),
+    [supabaseEnabled, pushAction],
+  );
+
   const getTodayMetrics = () => {
     const today = todayPacificDateString();
 
@@ -4308,6 +4327,13 @@ export const AppProvider = ({ children }) => {
     resetAllData,
     supabaseEnabled,
     supabaseConfigured,
+    // Waiver operations
+    fetchGuestWaivers,
+    guestNeedsWaiverReminder,
+    dismissWaiver,
+    hasActiveWaiver,
+    fetchGuestsNeedingWaivers,
+    getWaiverStatusSummary,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
