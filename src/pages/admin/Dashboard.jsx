@@ -31,6 +31,7 @@ import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
 import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
+import TableBrowser from "../../components/admin/TableBrowser";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import FailedOperationsPanel from "../../components/FailedOperationsPanel";
@@ -642,6 +643,7 @@ const Dashboard = () => {
     { id: "meal-report", label: "Meal Report", icon: Utensils },
     { id: "monthly-summary", label: "Monthly Summary", icon: ClipboardList },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
+    { id: "tables", label: "Tables", icon: Database },
     { id: "donations", label: "Donations", icon: FileText },
     { id: "export", label: "Data Export", icon: Download },
     { id: "system", label: "System", icon: ShieldAlert },
@@ -659,6 +661,8 @@ const Dashboard = () => {
         return renderMonthlySummarySection();
       case "batch-upload":
         return renderBatchUploadSection();
+      case "tables":
+        return renderTablesSection();
       case "export":
         return renderExportSection();
       case "donations":
@@ -721,6 +725,20 @@ const Dashboard = () => {
         </p>
         <AttendanceBatchUpload />
       </div>
+    </div>
+  );
+
+  const renderTablesSection = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+        <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Database size={20} className="text-blue-600" /> Database Tables
+        </h2>
+        <p className="text-gray-600 mb-4">
+          View and export database tables without requiring Supabase access. Select any table to view its contents and download as CSV.
+        </p>
+      </div>
+      <TableBrowser />
     </div>
   );
 
