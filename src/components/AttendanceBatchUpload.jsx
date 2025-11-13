@@ -122,6 +122,67 @@ const formatErrorSnippet = (error) => {
   return `${context}${error.message}`;
 };
 
+// Filter attendance records: skip rows where guest doesn't exist (for non-special IDs)
+const filterValidAttendanceRecords = (records) => {
+  const validRecords = [];
+  const skippedRecords = [];
+
+  records.forEach((record) => {
+    // Check if guest ID is provided
+    if (!record.guestIdProvided) {
+      skippedRecords.push({
+        guestId: record.guestId || "missing",
+        program: record.program,
+        rowIndex: record.rowIndex,
+        reason: "Guest ID missing",
+      });
+      return;
+    }
+
+    // Check if program type is valid
+    if (!record.programValid) {
+      skippedRecords.push({
+        guestId: record.guestId,
+        program: record.program,
+        rowIndex: record.rowIndex,
+        reason: "Invalid program type",
+      });
+      return;
+    }
+
+    // Check if special ID is being used with non-Meal program
+    if (!record.specialIdValid) {
+      skippedRecords.push({
+        guestId: record.guestId,
+        program: record.program,
+        rowIndex: record.rowIndex,
+        reason: "Special ID only valid for Meal",
+      });
+      return;
+    }
+
+    // Keep special IDs (they don't require a guest to exist)
+    if (record.isSpecialId) {
+      validRecords.push(record);
+      return;
+    }
+
+    // For regular guest IDs, only keep if guestExists is true
+    if (record.guestExists) {
+      validRecords.push(record);
+    } else {
+      skippedRecords.push({
+        guestId: record.guestId,
+        program: record.program,
+        rowIndex: record.rowIndex,
+        reason: "Guest not found",
+      });
+    }
+  });
+
+  return { validRecords, skippedRecords };
+};
+
 const AttendanceBatchUpload = () => {
   const {
     guests,
@@ -305,11 +366,7 @@ const AttendanceBatchUpload = () => {
           (key) => key.toLowerCase() === program.toLowerCase(),
         );
 
-        if (!normalizedProgram) {
-          throw new Error(
-            `Invalid program type "${program}" on row ${rowIndex + 2}. Valid types: ${Object.keys(PROGRAM_TYPES).join(", ")}`,
-          );
-        }
+        const programValid = normalizedProgram !== undefined;
 
         // Validate and parse date format
         let parsedDate;
@@ -349,34 +406,24 @@ const AttendanceBatchUpload = () => {
         const normalizedDateIso =
           normalizeDateInputToISO(parsedDate) ?? parsedDate.toISOString();
 
-        // For guest-specific programs, validate guest exists
-        // Exception: Special guest IDs that map to meal types (only for Meal program)
-        if (!guestId) {
-          throw new Error(
-            `Guest_ID is required for program "${program}" on row ${rowIndex + 2}`,
-          );
-        }
+        // Check if guest ID is provided
+        const guestIdProvided = !!guestId;
 
         // Check if this is a special guest ID (only valid for Meal program)
         const specialMapping = SPECIAL_GUEST_IDS[guestId];
         const isSpecialId = specialMapping !== undefined;
 
-        if (isSpecialId && normalizedProgram !== "Meal") {
-          throw new Error(
-            `Special guest ID "${guestId}" can only be used with Meal program, not "${program}" on row ${rowIndex + 2}`,
-          );
-        }
+        // Check if special ID is being used with non-Meal program
+        const specialIdValid = !isSpecialId || normalizedProgram === "Meal";
 
-        // For regular guest IDs (not special), validate guest exists
-        if (!isSpecialId) {
+        // For regular guest IDs (not special), check if guest exists
+        // Don't throw error here - mark for validation during import
+        let guestExists = true;
+        if (!isSpecialId && guestIdProvided) {
           const guest = guests.find(
             (g) => String(g.id) === String(guestId) || g.guestId === guestId,
           );
-          if (!guest) {
-            throw new Error(
-              `Guest with ID "${guestId}" not found on row ${rowIndex + 2}`,
-            );
-          }
+          guestExists = guest !== undefined;
         }
 
         return {
@@ -390,6 +437,11 @@ const AttendanceBatchUpload = () => {
           rawCount,
           isSpecialId,
           specialMapping,
+          guestExists,
+          programValid,
+          specialIdValid,
+          guestIdProvided,
+          rowIndex,
         };
       });
     } catch (e) {
@@ -786,11 +838,43 @@ const AttendanceBatchUpload = () => {
         setUploadProgress("Parsing CSV file...");
         const parsedRecords = parseCSV(content);
 
+        // Filter out records where the guest doesn't exist (skip non-special guest IDs not in system)
+        const { validRecords, skippedRecords } = filterValidAttendanceRecords(
+          parsedRecords,
+        );
+        const skippedCount = skippedRecords.length;
+
+        if (skippedCount > 0) {
+          const skippedSummary = skippedRecords
+            .map(
+              (r) => {
+                if (r.reason === "Guest ID missing") {
+                  return `Row ${r.rowIndex + 2}: Guest ID is required for program "${r.program}"`;
+                } else if (r.reason === "Invalid program type") {
+                  return `Row ${r.rowIndex + 2}: Program type "${r.program}" not recognized`;
+                } else if (r.reason === "Special ID only valid for Meal") {
+                  return `Row ${r.rowIndex + 2}: Special ID "${r.guestId}" only works with Meal program, not "${r.program}"`;
+                } else {
+                  return `Row ${r.rowIndex + 2}: Guest ID "${r.guestId}" not found`;
+                }
+              },
+            )
+            .slice(0, 3)
+            .join("; ");
+          const moreText =
+            skippedCount > 3
+              ? `; and ${skippedCount - 3} more row${skippedCount - 3 === 1 ? "" : "s"}`
+              : "";
+          console.info(
+            `Skipped ${skippedCount} attendance record${skippedCount === 1 ? "" : "s"}: ${skippedSummary}${moreText}`,
+          );
+        }
+
         setUploadProgress(
-          `Preparing to import ${parsedRecords.length} records...`,
+          `Preparing to import ${validRecords.length} records...`,
         );
         const { successCount, errorCount, errors, specialMealCounts } =
-          await importAttendanceRecords(parsedRecords);
+          await importAttendanceRecords(validRecords);
 
         // Build message with special meal counts if any
         let specialMealsSummary = "";
@@ -801,10 +885,15 @@ const AttendanceBatchUpload = () => {
           specialMealsSummary = ` (including ${mealDetails})`;
         }
 
+        let skippedSummaryText = "";
+        if (skippedCount > 0) {
+          skippedSummaryText = ` (skipped ${skippedCount} record${skippedCount === 1 ? "" : "s"} with missing guest ID${skippedCount === 1 ? "" : "s"})`;
+        }
+
         if (errorCount === 0) {
           setUploadResult({
             success: true,
-            message: `Successfully imported ${successCount} attendance records${specialMealsSummary}`,
+            message: `Successfully imported ${successCount} attendance records${specialMealsSummary}${skippedSummaryText}`,
           });
           setRecentErrors([]);
           setErrorReportName("");
@@ -824,7 +913,7 @@ const AttendanceBatchUpload = () => {
           setErrorReportName(generatedReportName);
 
           if (successCount > 0) {
-            const baseMessage = `Imported ${successCount} records${specialMealsSummary} with ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
+            const baseMessage = `Imported ${successCount} records${specialMealsSummary}${skippedSummaryText} with ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
             setUploadResult({
               success: false,
               message: firstSnippets
@@ -832,7 +921,7 @@ const AttendanceBatchUpload = () => {
                 : baseMessage,
             });
           } else {
-            const baseMessage = `No records were imported. Encountered ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
+            const baseMessage = `No records were imported. Encountered ${errorCount} error${errorCount === 1 ? "" : "s"}${skippedSummaryText}. Review the error table below.`;
             setUploadResult({
               success: false,
               message: firstSnippets

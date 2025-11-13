@@ -23,6 +23,7 @@ import {
   Wifi,
   AlertTriangle,
   Clock,
+  MapPin,
 } from "lucide-react";
 import Donations from "../../components/Donations";
 import { useAppContext } from "../../context/useAppContext";
@@ -31,6 +32,7 @@ import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
 import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
+import GuestsByCityReport from "../../components/admin/GuestsByCityReport";
 import TableBrowser from "../../components/admin/TableBrowser";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
@@ -642,6 +644,7 @@ const Dashboard = () => {
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "meal-report", label: "Meal Report", icon: Utensils },
     { id: "monthly-summary", label: "Monthly Summary", icon: ClipboardList },
+    { id: "guests-by-city", label: "Guests by City", icon: MapPin },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "tables", label: "Tables", icon: Database },
     { id: "donations", label: "Donations", icon: FileText },
@@ -659,6 +662,8 @@ const Dashboard = () => {
         return renderMealReportSection();
       case "monthly-summary":
         return renderMonthlySummarySection();
+      case "guests-by-city":
+        return renderGuestsByCitySection();
       case "batch-upload":
         return renderBatchUploadSection();
       case "tables":
@@ -697,6 +702,12 @@ const Dashboard = () => {
   const renderMonthlySummarySection = () => (
     <div className="space-y-6">
       <MonthlySummaryReport />
+    </div>
+  );
+
+  const renderGuestsByCitySection = () => (
+    <div className="space-y-6">
+      <GuestsByCityReport />
     </div>
   );
 

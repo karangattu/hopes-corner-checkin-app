@@ -7,6 +7,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { AGE_GROUPS } from "../context/constants";
 
 // Special guest IDs that should not create guest profiles
 // These represent aggregate meal types, not individual guests
@@ -18,6 +19,43 @@ const SPECIAL_GUEST_IDS = [
   "M61706731", // Shelter meals
   "M65842216", // United Effort meals
 ];
+
+// Filter out special guest IDs and rows with invalid/missing age values
+const filterValidGuests = (guests) => {
+  const validGuests = [];
+  const skippedInfo = {
+    specialIds: [],
+    invalidAge: [],
+  };
+
+  guests.forEach((guest, index) => {
+    const rowNumber = index + 2;
+
+    // Skip special guest IDs
+    if (SPECIAL_GUEST_IDS.includes(guest.guest_id)) {
+      skippedInfo.specialIds.push({
+        rowNumber,
+        guestId: guest.guest_id,
+      });
+      return;
+    }
+
+    // Skip rows with invalid or missing age
+    const age = (guest.age || "").trim();
+    if (!age || !AGE_GROUPS.includes(age)) {
+      skippedInfo.invalidAge.push({
+        rowNumber,
+        providedAge: age || "(missing)",
+        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+      });
+      return;
+    }
+
+    validGuests.push(guest);
+  });
+
+  return { validGuests, skippedInfo };
+};
 
 const GuestBatchUpload = () => {
   const { importGuestsFromCSV } = useAppContext();
@@ -142,11 +180,24 @@ const GuestBatchUpload = () => {
         setUploadProgress("Parsing CSV file...");
         const parsedData = parseCSV(content);
 
-        const validGuests = parsedData.filter(
-          (guest) => !SPECIAL_GUEST_IDS.includes(guest.guest_id),
-        );
+        // Filter out special guest IDs and invalid/missing age values
+        const { validGuests, skippedInfo } = filterValidGuests(parsedData);
 
-        const skippedCount = parsedData.length - validGuests.length;
+        // Check if all rows were filtered out
+        if (validGuests.length === 0) {
+          const reasons = [];
+          if (skippedInfo.specialIds.length > 0) {
+            reasons.push(`${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length === 1 ? "" : "s"}`);
+          }
+          if (skippedInfo.invalidAge.length > 0) {
+            reasons.push(`${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age`);
+          }
+          setUploadResult({
+            success: false,
+            message: `No valid guests to import. Skipped all ${parsedData.length} row${parsedData.length === 1 ? "" : "s"}: ${reasons.join(" and ")}.`,
+          });
+          return;
+        }
 
         setUploadProgress(`Importing ${validGuests.length} guests...`);
         const {
@@ -164,8 +215,11 @@ const GuestBatchUpload = () => {
           if (successCount > 0) {
             message += ` ${successCount} guest${successCount === 1 ? "" : "s"} imported successfully.`;
           }
-          if (skippedCount > 0) {
-            message += ` Skipped ${skippedCount} special meal ID${skippedCount === 1 ? "" : "s"}.`;
+          if (skippedInfo.specialIds.length > 0) {
+            message += ` Skipped ${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length === 1 ? "" : "s"}.`;
+          }
+          if (skippedInfo.invalidAge.length > 0) {
+            message += ` Skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age.`;
           }
 
           setUploadResult({
@@ -176,8 +230,11 @@ const GuestBatchUpload = () => {
         }
 
         let message = `Successfully imported ${successCount} guest${successCount === 1 ? "" : "s"}`;
-        if (skippedCount > 0) {
-          message += ` (skipped ${skippedCount} special meal ID${skippedCount > 1 ? "s" : ""})`;
+        if (skippedInfo.specialIds.length > 0) {
+          message += ` (skipped ${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length > 1 ? "s" : ""})`;
+        }
+        if (skippedInfo.invalidAge.length > 0) {
+          message += ` (skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length > 1 ? "s" : ""} with invalid/missing age)`;
         }
         if (partialFailure && failedCount > 0) {
           message += ` (${failedCount} guest${failedCount === 1 ? "" : "s"} could not be synced)`;
@@ -301,7 +358,7 @@ const GuestBatchUpload = () => {
           ))}
         </div>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Provide Age exactly matching allowed groups (e.g. 18-25).</li>
+          <li>Provide Age exactly matching allowed groups: {AGE_GROUPS.join(", ")}.</li>
           <li>Gender must match allowed values (e.g. Male, Female).</li>
           <li>City is required (or use Location column).</li>
           <li>
