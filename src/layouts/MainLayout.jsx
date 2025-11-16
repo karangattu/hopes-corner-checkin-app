@@ -1,7 +1,7 @@
 import React from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
-import { HomeIcon, ClipboardList, BarChart3, UserPlus } from "lucide-react";
+import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
 
@@ -37,9 +37,9 @@ const MainLayout = ({ children }) => {
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-12 md:h-16">
             <div className="flex items-center gap-3">
-              <SpringIcon className="bg-emerald-700 p-2 rounded-lg">
-                <HomeIcon size={24} aria-hidden="true" />
-              </SpringIcon>
+              <a href="/" className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200">
+                <img src="/hope-corner-logo-v2.svg" alt="Hope's Corner logo" className="h-8 md:h-10 w-auto" />
+              </a>
               <div>
                 <h1 className="text-lg md:text-xl font-bold leading-tight">
                   {settings?.siteName || "Hope's Corner"}
