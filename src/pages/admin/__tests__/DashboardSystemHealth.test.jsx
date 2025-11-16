@@ -47,6 +47,10 @@ vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContext,
 }));
 
+vi.mock("../../../context/useAuth", () => ({
+  useAuth: () => ({ user: { role: "admin" } }),
+}));
+
 vi.mock("react-hot-toast", () => ({
   default: toastMock,
 }));

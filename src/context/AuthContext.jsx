@@ -103,6 +103,7 @@ export const AuthProvider = ({ children, useFirebaseOverride }) => {
   const inferRole = (emailLike) => {
     const base = (emailLike || "").toLowerCase();
     if (base.startsWith("admin")) return "admin";
+    if (base.startsWith("board")) return "board";
     if (base.startsWith("checkin")) return "checkin";
     return "staff";
   };

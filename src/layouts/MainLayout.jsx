@@ -15,8 +15,17 @@ const MainLayout = ({ children }) => {
     { id: "admin", label: "Admin Dashboard", icon: BarChart3 },
   ];
   const role = user?.role || "checkin";
+  const roleLabel = (() => {
+    if (role === "board") return "Board (read-only)";
+    if (role === "admin") return "Admin";
+    if (role === "staff") return "Staff";
+    if (role === "checkin") return "Check-in";
+    return role;
+  })();
+  const headerRoleDisplay = roleLabel.includes("(") ? roleLabel : `(${roleLabel})`;
   const navItems = navItemsAll.filter((item) => {
     if (role === "admin") return true;
+    if (role === "board") return item.id === "admin";
     if (role === "staff") return item.id !== "admin";
     if (role === "checkin") return item.id === "check-in";
     return false;
@@ -45,7 +54,7 @@ const MainLayout = ({ children }) => {
 
             <div className="hidden md:flex items-center gap-3">
               <span className="text-emerald-100 text-sm">
-                {user?.name} ({role})
+                {user?.name} {headerRoleDisplay}
               </span>
               <button
                 onClick={logout}

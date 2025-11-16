@@ -69,6 +69,8 @@ const EXPORT_CATEGORY_ORDER = [
   "Case management",
 ];
 
+import { useAuth } from "../../context/useAuth";
+
 const Dashboard = () => {
   const {
     getDateRangeMetrics,
@@ -639,7 +641,13 @@ const Dashboard = () => {
   const overviewGridAnim = useFadeInUp();
   const monthGridAnim = useFadeInUp();
   const yearGridAnim = useFadeInUp();
-  const sections = [
+  const auth = useAuth();
+  const user = auth?.user || null;
+  const role = user?.role || "staff";
+  const isAdmin = role === "admin";
+  const isBoard = role === "board";
+
+  const baseSections = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "meal-report", label: "Meal Report", icon: Utensils },
@@ -652,7 +660,19 @@ const Dashboard = () => {
     { id: "system", label: "System", icon: ShieldAlert },
   ];
 
+  const sections = baseSections.filter((s) => {
+    // Admin sees everything
+    if (isAdmin) return true;
+    // Board users get only the admin dashboard sections (read-only reports & exports)
+    if (isBoard) return s.id !== "batch-upload" && s.id !== "system";
+    // Default staff/checkin: no admin sections; fall back to showing overview & reports only
+    return ["overview", "analytics", "meal-report", "monthly-summary", "guests-by-city", "donations", "export", "tables"].includes(s.id);
+  });
+
   const renderSectionContent = () => {
+    // Ensure the current active section is visible to this user; otherwise fall back to overview
+    const currentAllowed = sections.some((s) => s.id === activeSection);
+    if (!currentAllowed) return renderOverviewSection();
     switch (activeSection) {
       case "overview":
         return renderOverviewSection();
@@ -713,6 +733,11 @@ const Dashboard = () => {
 
   const renderBatchUploadSection = () => (
     <div className="space-y-6">
+      {!isAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="text-sm text-gray-700">Batch upload features are restricted to admin users.</div>
+        </div>
+      )}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
         <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
           <Upload size={20} className="text-purple-600" /> Batch Guest Upload
@@ -721,7 +746,7 @@ const Dashboard = () => {
           Upload multiple guests at once using a CSV file. This feature is
           restricted to admin users.
         </p>
-        <GuestBatchUpload />
+        {isAdmin ? <GuestBatchUpload /> : null}
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
@@ -734,7 +759,7 @@ const Dashboard = () => {
           Supports all service types including meals, showers, laundry, and
           more.
         </p>
-        <AttendanceBatchUpload />
+        {isAdmin ? <AttendanceBatchUpload /> : null}
       </div>
     </div>
   );
@@ -1210,14 +1235,16 @@ const Dashboard = () => {
           >
             Back to settings
           </button>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleResetWizard}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-purple-200 hover:text-purple-600"
-            >
-              Reset wizard
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleResetWizard}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-purple-200 hover:text-purple-600"
+              >
+                Reset wizard
+              </button>
+            )}
             <button
               type="button"
               onClick={handleExport}
@@ -1675,11 +1702,12 @@ const Dashboard = () => {
       <div className="space-y-6">
         {renderSystemHealthBanner()}
 
-        <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />
+        {isAdmin && <SupabaseSyncToggle supabaseConfigured={supabaseConfigured} />}
 
-        <FailedOperationsPanel />
+        {isAdmin && <FailedOperationsPanel />}
 
-        <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
+        {isAdmin ? (
+          <div className="bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white rounded-2xl shadow-sm p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-100">
@@ -1724,7 +1752,12 @@ const Dashboard = () => {
               </p>
             </div>
           </div>
-        </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+            <p className="text-gray-700">System controls are restricted to admin users.</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
           <div className="space-y-6">
