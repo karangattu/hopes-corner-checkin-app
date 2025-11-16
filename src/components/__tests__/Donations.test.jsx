@@ -343,10 +343,10 @@ describe("Donations Component", () => {
       expect(screen.getByText("Donors")).toBeInTheDocument();
     });
 
-    it("displays tray size selector", () => {
+    it("displays density selector", () => {
       render(<Donations />);
-      expect(screen.getByText("Tray size")).toBeInTheDocument();
-      expect(screen.getByText("Full tray (20 servings)")).toBeInTheDocument();
+      expect(screen.getByText("Density")).toBeInTheDocument();
+      expect(screen.getByText("Medium density (20 servings)")).toBeInTheDocument();
     });
 
     it("requires item name for non-minimal types (not School lunch or Pastries)", async () => {
@@ -493,7 +493,7 @@ describe("Donations Component", () => {
       expect(totalWeight).toBe(25);
       expect(uniqueDonors.size).toBe(2);
       // calculate servings using new tray size mapping
-      const TRAY_SERVINGS = { half: 10, full: 20, heavy: 30 };
+      const DENSITY_SERVINGS = { light: 10, medium: 20, high: 30 };
       let totalServings = 0;
       for (const record of donationRecords) {
         if (record.servings) {
@@ -501,15 +501,15 @@ describe("Donations Component", () => {
           continue;
         }
         if (Number(record.trays || 0) > 0) {
-          const size = (record.traySize || "full");
-          totalServings += (Number(record.trays) || 0) * (TRAY_SERVINGS[size] || TRAY_SERVINGS.full);
+          const size = (record.density || "medium");
+          totalServings += (Number(record.trays) || 0) * (DENSITY_SERVINGS[size] || DENSITY_SERVINGS.medium);
         } else {
           if (record.type === "Carbs") totalServings += (Number(record.weightLbs || 0) * 4);
           else if (record.type === "Protein") totalServings += (Number(record.weightLbs || 0) * 5);
           else totalServings += (Number(record.weightLbs || 0));
         }
       }
-      // For the records above: 2 trays default full = 2*20=40 and 3 trays full = 3*20=60 -> 100
+      // For the records above: 2 trays default medium density = 2*20=40 and 3 trays medium density = 3*20=60 -> 100
       expect(totalServings).toBe(100);
     });
   });

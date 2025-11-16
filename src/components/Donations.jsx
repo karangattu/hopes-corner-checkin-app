@@ -61,20 +61,20 @@ const shiftDateKey = (dateKey, offsetDays) => {
 const formatNumber = (value, options) =>
   Number(value || 0).toLocaleString(undefined, options);
 
-const TRAY_SERVINGS = {
-  half: 10,
-  full: 20,
-  heavy: 30,
+const DENSITY_SERVINGS = {
+  light: 10,
+  medium: 20,
+  high: 30,
 };
 
 const MINIMAL_TYPES = new Set(["School lunch", "Pastries", "Deli Foods"]);
 
-const calculateServings = (type, weightLbs, trays = 0, traySize = "full") => {
+const calculateServings = (type, weightLbs, trays = 0, density = "medium") => {
   // Prefer tray-based calculation if trays were provided
   const parsedTrays = Number(trays) || 0;
   if (parsedTrays > 0) {
-    const size = traySize || "full";
-    const perTray = TRAY_SERVINGS[size] || TRAY_SERVINGS.full;
+    const size = density || "medium";
+    const perTray = DENSITY_SERVINGS[size] || DENSITY_SERVINGS.medium;
     return parsedTrays * perTray;
   }
 
@@ -142,7 +142,7 @@ const Donations = () => {
     itemName: "",
     trays: "",
     weightLbs: "",
-    traySize: "full",
+    density: "medium",
     donor: "",
     temperature: "",
   });
@@ -193,7 +193,7 @@ const Donations = () => {
             record.type,
             recordWeight,
             Number(record.trays || 0),
-            record.traySize || "full",
+            record.density || "medium",
           );
       servings += recordServings;
       if (record.donor) {
@@ -458,14 +458,14 @@ const Donations = () => {
     try {
       const weightLbs = Number(form.weightLbs || 0);
       const trays = Number(form.trays || 0);
-      const traySize = form.traySize || "full";
-      const servings = calculateServings(form.type, weightLbs, trays, traySize);
+      const density = form.density || "medium";
+      const servings = calculateServings(form.type, weightLbs, trays, density);
       
       await addDonation({
         type: form.type,
         itemName: form.itemName,
         trays: Number(form.trays || 0),
-        traySize: form.traySize || "full",
+        density: form.density || "medium",
         weightLbs,
         servings,
         temperature: form.temperature || null,
@@ -478,7 +478,7 @@ const Donations = () => {
         itemName: "",
         trays: "",
         weightLbs: "",
-        traySize: "full",
+        density: "medium",
         temperature: "",
       }));
 
@@ -565,7 +565,7 @@ const Donations = () => {
             record.type,
             weight,
             Number(record.trays || 0),
-            record.traySize || "full",
+            record.density || "medium",
           );
       consolidated.servings += recordServings;
       consolidated.entries.push(record);
@@ -619,7 +619,7 @@ const Donations = () => {
         Type: record.type,
         Item: record.itemName,
         Trays: record.trays,
-        "Tray size": record.traySize || "full",
+        Density: record.density || "medium",
         "Weight (lbs)": record.weightLbs,
         Servings: record.servings || 0,
         Temperature: record.temperature || "—",
@@ -921,18 +921,18 @@ const Donations = () => {
                 {!isMinimalType && (
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                    Tray size
+                    Density
                   </label>
                   <select
-                    value={form.traySize}
+                    value={form.density}
                     onChange={(event) =>
-                      setForm({ ...form, traySize: event.target.value })
+                      setForm({ ...form, density: event.target.value })
                     }
                     className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   >
-                    <option value="half">Half tray (10 servings)</option>
-                    <option value="full">Full tray (20 servings)</option>
-                    <option value="heavy">Heavy tray (30 servings)</option>
+                    <option value="light">Light density (10 servings)</option>
+                    <option value="medium">Medium density (20 servings)</option>
+                    <option value="high">High density (30 servings)</option>
                   </select>
                 </div>
                 )}
