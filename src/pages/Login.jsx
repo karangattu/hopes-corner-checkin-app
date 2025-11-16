@@ -5,14 +5,13 @@ import { LogIn, User, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 
 const Login = () => {
-  const { login, resetPassword, useFirebase } = useAuth();
+  const { login, useFirebase } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [mode, setMode] = useState("login");
   const cardAnim = useScaleIn();
   const ctaAnim = useFadeInUp();
   const usernameId = useId();
@@ -23,13 +22,7 @@ const Login = () => {
     setError("");
     setLoading(true);
     try {
-      if (mode === "login") {
-        await Promise.resolve(login(username.trim(), password, { remember }));
-      } else if (mode === "reset") {
-        if (!useFirebase)
-          throw new Error("Password reset requires Firebase Auth");
-        await Promise.resolve(resetPassword(username.trim()));
-      }
+      await Promise.resolve(login(username.trim(), password, { remember }));
     } catch (err) {
       setError(err?.message || "Login failed. Please check your credentials.");
     } finally {
@@ -55,6 +48,7 @@ const Login = () => {
             <p className="text-sm text-emerald-600">
               Staff & guest check-in portal
             </p>
+            <p className="text-xs text-emerald-500 mt-1">Sign in to manage check-ins & schedules</p>
           </div>
         </header>
 
@@ -100,7 +94,7 @@ const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 id={usernameId}
-                className="w-full border rounded-md px-3 py-2 pl-12 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="w-full border border-gray-200 rounded-md bg-gray-50 px-3 py-2 pl-12 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 placeholder={useFirebase ? "you@hope.org" : "username"}
                 autoComplete="username"
                 required
@@ -126,7 +120,7 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 id={passwordId}
-                className="w-full border rounded-md px-3 py-2 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="w-full border border-gray-200 rounded-md bg-gray-50 px-3 py-2 pl-12 pr-12 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 placeholder="Your secure password"
                 autoComplete="current-password"
                 required
@@ -154,44 +148,21 @@ const Login = () => {
               />
               Remember me
             </label>
-            {useFirebase && (
-              <div className="flex items-center gap-3">
-                {mode === "reset" ? (
-                  <button
-                    type="button"
-                    className="text-emerald-700 hover:underline"
-                    onClick={() => setMode("login")}
-                  >
-                    Back to login
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="text-emerald-700 hover:underline"
-                    onClick={() => setMode("reset")}
-                  >
-                    Forgot?
-                  </button>
-                )}
-              </div>
-            )}
+            {/* Removed the 'Forgot?' / reset password option for a cleaner, professional login UX */}
           </div>
 
           <Animated.button
             type="submit"
-            disabled={loading || !username || (!password && mode !== "reset")}
-            className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-60 text-white font-medium py-2 rounded-md flex items-center justify-center gap-2 transition-all shadow-md"
+            disabled={loading || !username || !password}
+            className="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
             style={ctaAnim}
           >
             <LogIn size={18} />{" "}
-            {loading
-              ? mode === "login"
-                ? "Signing in…"
-                : "Sending…"
-              : mode === "login"
-                ? "Sign In"
-                : "Reset Password"}
+            {loading ? "Signing in…" : "Sign In"}
           </Animated.button>
+          <div className="mt-4 border-t border-gray-100 pt-3 text-center text-xs text-emerald-600">
+            Need access? Contact your administrator.
+          </div>
         </form>
 
         <footer className="mt-6 text-center text-xs text-emerald-700">

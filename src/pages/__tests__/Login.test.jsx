@@ -67,4 +67,9 @@ describe("Login", () => {
       expect(screen.getByText(/invalid credentials/i)).toBeInTheDocument();
     });
   });
+
+  it("does not render a forgot password link", () => {
+    render(<Login />);
+    expect(screen.queryByText(/forgot/i)).not.toBeInTheDocument();
+  });
 });
