@@ -3,10 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Dashboard from "../Dashboard";
 
-let mockContext;
+let mockContext = {};
 
 vi.mock("../../../context/useAppContext", () => ({
-  useAppContext: () => mockContext,
+  useAppContext: () => mockContext || {},
 }));
 
 vi.mock("../../../context/useAuth", () => ({
@@ -54,8 +54,9 @@ const setupMockContext = (overrides = {}) => {
 };
 
 describe("Dashboard role 'board'", () => {
+  beforeEach(() => setupMockContext());
+
   it("shows only admin dashboard nav and hides batch upload & system items", () => {
-    setupMockContext();
     render(<Dashboard />);
 
     // Overview should be available

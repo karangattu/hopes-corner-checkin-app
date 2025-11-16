@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import MonthlySummaryReport from "../MonthlySummaryReport";
 import { LAUNDRY_STATUS } from "../../../context/constants";
 
-let mockContext;
+let mockContext = {};
 const exportDataAsCSVMock = vi.fn();
 
 // Mock Firebase modules
@@ -27,7 +27,7 @@ vi.mock("firebase/functions", () => ({
 }));
 
 vi.mock("../../../context/useAppContext", () => ({
-  useAppContext: () => mockContext,
+  useAppContext: () => mockContext || {},
 }));
 
 vi.mock("react-hot-toast", () => ({

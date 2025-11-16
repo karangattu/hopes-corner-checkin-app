@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Dashboard from "../Dashboard";
 
-let mockContext;
+let mockContext = {};
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
@@ -44,7 +44,7 @@ vi.mock("../../../supabaseProxyClient", () => ({
 }));
 
 vi.mock("../../../context/useAppContext", () => ({
-  useAppContext: () => mockContext,
+  useAppContext: () => mockContext || {},
 }));
 
 vi.mock("../../../context/useAuth", () => ({
@@ -157,6 +157,7 @@ const setupMockContext = (overrides = {}) => {
 describe("Dashboard System Health Banner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setupMockContext();
   });
 
   describe("Visibility and Location", () => {

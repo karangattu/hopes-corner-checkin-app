@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Dashboard from "../Dashboard";
 
-let mockContext;
+let mockContext = {};
 let exportDataAsCSVMock;
 let getDateRangeMetricsMock;
 const toastMock = vi.hoisted(() => ({
@@ -46,7 +46,7 @@ vi.mock("../../../supabaseProxyClient", () => ({
 }));
 
 vi.mock("../../../context/useAppContext", () => ({
-  useAppContext: () => mockContext,
+  useAppContext: () => mockContext || {},
 }));
 
 vi.mock("react-hot-toast", () => ({
