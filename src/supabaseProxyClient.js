@@ -1,16 +1,24 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "./firebase";
 
-// Initialize Firebase Functions
-const functions = getFunctions(app);
-
 /**
  * Supabase Proxy Client
  * Routes all Supabase requests through Firebase Functions to avoid exposing credentials
  */
 class SupabaseProxyClient {
   constructor() {
-    this.proxyFunction = httpsCallable(functions, "supabaseProxy");
+    // Lazily obtain a functions instance to avoid calling Firebase APIs at import time,
+    // which can fail in test environments where `app` isn't initialized (CI).
+    try {
+      this.functions = getFunctions(app);
+      this.proxyFunction = httpsCallable(this.functions, "supabaseProxy");
+    } catch (e) {
+      // If there is no initialized Firebase app, keep a noop function that throws when used.
+      this.functions = null;
+      this.proxyFunction = async () => {
+        throw new Error("Supabase proxy is not available: Firebase app not initialized.");
+      };
+    }
   }
 
   /**
@@ -240,11 +248,9 @@ class TableQueryBuilder {
 }
 
 // Create and export the proxy client
-const isSupabaseProxyEnabled = Boolean(
-  import.meta.env.VITE_USE_SUPABASE_PROXY === "true"
-);
+const isSupabaseProxyEnabled = Boolean(import.meta.env.VITE_USE_SUPABASE_PROXY === "true");
 
-export const supabaseProxy = new SupabaseProxyClient();
 export const isSupabaseProxyAvailable = isSupabaseProxyEnabled;
+export const supabaseProxy = isSupabaseProxyEnabled ? new SupabaseProxyClient() : null;
 
-export default isSupabaseProxyEnabled ? supabaseProxy : null;
+export default supabaseProxy;
