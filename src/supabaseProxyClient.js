@@ -14,6 +14,8 @@ class SupabaseProxyClient {
       this.proxyFunction = httpsCallable(this.functions, "supabaseProxy");
     } catch (e) {
       // If there is no initialized Firebase app, keep a noop function that throws when used.
+      // Log the error for debugging in CI environments.
+      console.warn("SupabaseProxyClient: Firebase functions initialization failed:", e);
       this.functions = null;
       this.proxyFunction = async () => {
         throw new Error("Supabase proxy is not available: Firebase app not initialized.");
