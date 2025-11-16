@@ -61,14 +61,30 @@ const shiftDateKey = (dateKey, offsetDays) => {
 const formatNumber = (value, options) =>
   Number(value || 0).toLocaleString(undefined, options);
 
-const calculateServings = (type, weightLbs) => {
+const TRAY_SERVINGS = {
+  half: 10,
+  full: 20,
+  heavy: 30,
+};
+
+const MINIMAL_TYPES = new Set(["School lunch", "Pastries", "Deli Foods"]);
+
+const calculateServings = (type, weightLbs, trays = 0, traySize = "full") => {
+  // Prefer tray-based calculation if trays were provided
+  const parsedTrays = Number(trays) || 0;
+  if (parsedTrays > 0) {
+    const size = traySize || "full";
+    const perTray = TRAY_SERVINGS[size] || TRAY_SERVINGS.full;
+    return parsedTrays * perTray;
+  }
+
+  // Fallback: previously we calculated servings by weight for some types, preserve for older records
   const weight = Number(weightLbs) || 0;
   if (type === "Carbs") {
     return weight * 4;
   } else if (type === "Protein" || type === "Veggie Protein") {
     return weight * 5;
   }
-  // For other types (Vegetables, Fruit, Deli Foods, Pastries, School lunch), return weight as is
   return weight;
 };
 
@@ -126,9 +142,11 @@ const Donations = () => {
     itemName: "",
     trays: "",
     weightLbs: "",
+    traySize: "full",
     donor: "",
     temperature: "",
   });
+  const isMinimalType = useMemo(() => MINIMAL_TYPES.has(form.type), [form.type]);
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState(() => ({
     start: getDateKeyNDaysBefore(todayKey, 7) || todayKey,
@@ -171,7 +189,12 @@ const Donations = () => {
       // Use servings from record if available, otherwise calculate
       const recordServings = record.servings
         ? Number(record.servings)
-        : calculateServings(record.type, recordWeight);
+        : calculateServings(
+            record.type,
+            recordWeight,
+            Number(record.trays || 0),
+            record.traySize || "full",
+          );
       servings += recordServings;
       if (record.donor) {
         const donorName = record.donor.trim();
@@ -414,19 +437,35 @@ const Donations = () => {
       toast.error("Pick a date before logging a donation");
       return;
     }
-    if (!form.itemName.trim()) {
-      toast.error("Item name is required");
-      return;
+    // For minimal types (School lunch, Pastries), only donor and weight are required
+    if (isMinimalType) {
+      if (!form.donor || !form.donor.trim()) {
+        toast.error(`Donor is required for ${form.type} entries`);
+        return;
+      }
+      const weightLbsFloat = Number(form.weightLbs || 0);
+      if (!weightLbsFloat || weightLbsFloat <= 0) {
+        toast.error(`Weight (lbs) is required for ${form.type} entries`);
+        return;
+      }
+    } else {
+      if (!form.itemName.trim()) {
+        toast.error("Item name is required");
+        return;
+      }
     }
     setLoading(true);
     try {
       const weightLbs = Number(form.weightLbs || 0);
-      const servings = calculateServings(form.type, weightLbs);
+      const trays = Number(form.trays || 0);
+      const traySize = form.traySize || "full";
+      const servings = calculateServings(form.type, weightLbs, trays, traySize);
       
       await addDonation({
         type: form.type,
         itemName: form.itemName,
         trays: Number(form.trays || 0),
+        traySize: form.traySize || "full",
         weightLbs,
         servings,
         temperature: form.temperature || null,
@@ -439,6 +478,7 @@ const Donations = () => {
         itemName: "",
         trays: "",
         weightLbs: "",
+        traySize: "full",
         temperature: "",
       }));
 
@@ -521,7 +561,12 @@ const Donations = () => {
       // Calculate servings from the record or calculate if not present
       const recordServings = record.servings 
         ? Number(record.servings) 
-        : calculateServings(record.type, weight);
+        : calculateServings(
+            record.type,
+            weight,
+            Number(record.trays || 0),
+            record.traySize || "full",
+          );
       consolidated.servings += recordServings;
       consolidated.entries.push(record);
 
@@ -574,6 +619,7 @@ const Donations = () => {
         Type: record.type,
         Item: record.itemName,
         Trays: record.trays,
+        "Tray size": record.traySize || "full",
         "Weight (lbs)": record.weightLbs,
         Servings: record.servings || 0,
         Temperature: record.temperature || "—",
@@ -834,24 +880,27 @@ const Donations = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                  Item Name *
-                </label>
-                <input
-                  type="text"
-                  value={form.itemName}
-                  onChange={(event) =>
-                    setForm({ ...form, itemName: event.target.value })
-                  }
-                  placeholder="e.g., Chicken tikka masala, Fresh vegetables"
-                  className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              {!isMinimalType && (
                 <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                    Item Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={form.itemName}
+                    onChange={(event) =>
+                      setForm({ ...form, itemName: event.target.value })
+                    }
+                    placeholder="e.g., Chicken tikka masala, Fresh vegetables"
+                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    required
+                  />
+                  </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {!isMinimalType && (
+                  <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
                     Trays
                   </label>
@@ -866,7 +915,27 @@ const Donations = () => {
                     placeholder="0"
                     className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
+                  </div>
+                )}
+
+                {!isMinimalType && (
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                    Tray size
+                  </label>
+                  <select
+                    value={form.traySize}
+                    onChange={(event) =>
+                      setForm({ ...form, traySize: event.target.value })
+                    }
+                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  >
+                    <option value="half">Half tray (10 servings)</option>
+                    <option value="full">Full tray (20 servings)</option>
+                    <option value="heavy">Heavy tray (30 servings)</option>
+                  </select>
                 </div>
+                )}
 
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
@@ -881,6 +950,7 @@ const Donations = () => {
                       setForm({ ...form, weightLbs: event.target.value })
                     }
                     placeholder="0.0"
+                    required={isMinimalType}
                     className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                   />
                 </div>
@@ -897,9 +967,13 @@ const Donations = () => {
                     setForm({ ...form, donor: event.target.value })
                   }
                   placeholder="e.g., Waymo, LinkedIn, Anonymous"
+                  required={isMinimalType}
                   className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
+                {isMinimalType && (
+                <p className="mt-2 text-xs text-gray-500">For {form.type} entries, only Donor and Weight are required.</p>
+              )}
 
               <div>
                 <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">

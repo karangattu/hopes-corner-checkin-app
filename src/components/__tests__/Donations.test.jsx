@@ -1,7 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import Donations from "../Donations";
+import toast from "react-hot-toast";
 import { useAppContext } from "../../context/useAppContext";
 
 // Mock the useAppContext hook
@@ -18,7 +20,7 @@ vi.mock("react-hot-toast", () => ({
 describe("Donations Component", () => {
   const mockDate = "2025-01-15";
   const mockContext = {
-    DONATION_TYPES: ["Protein", "Produce", "Dairy", "Bakery", "Prepared"],
+    DONATION_TYPES: ["Protein", "Produce", "Dairy", "Bakery", "Prepared", "School lunch", "Pastries", "Deli Foods"],
     donationRecords: [],
     addDonation: vi.fn(),
     getRecentDonations: vi.fn(() => []),
@@ -28,6 +30,7 @@ describe("Donations Component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockContext.addDonation = vi.fn().mockResolvedValue({});
     useAppContext.mockReturnValue(mockContext);
   });
 
@@ -339,6 +342,116 @@ describe("Donations Component", () => {
       expect(screen.getAllByText("Trays").length).toBeGreaterThan(0);
       expect(screen.getByText("Donors")).toBeInTheDocument();
     });
+
+    it("displays tray size selector", () => {
+      render(<Donations />);
+      expect(screen.getByText("Tray size")).toBeInTheDocument();
+      expect(screen.getByText("Full tray (20 servings)")).toBeInTheDocument();
+    });
+
+    it("requires item name for non-minimal types (not School lunch or Pastries)", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<Donations />);
+
+      // Ensure type is not School lunch (default is Protein)
+      const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
+      expect(typeSelect.value).not.toBe("School lunch");
+
+      // Ensure item name is blank
+      const itemInput = screen.getByPlaceholderText(/e.g., Chicken tikka masala, Fresh vegetables/i);
+      await user.clear(itemInput);
+
+      // Submit the form
+      const formEl = container.querySelector('form');
+      fireEvent.submit(formEl);
+
+      expect(mockContext.addDonation).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith("Item name is required");
+    });
+
+    it("allows adding a School lunch donation with only donor and weight", async () => {
+      const user = userEvent.setup();
+      render(<Donations />);
+
+      // Select 'School lunch'
+      const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
+      await user.selectOptions(typeSelect, "School lunch");
+
+      // Fill in donor and weight only
+      const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
+      await user.clear(donorInput);
+      await user.type(donorInput, "Local Elementary");
+
+      const weightInput = screen.getByPlaceholderText(/0.0/i);
+      await user.clear(weightInput);
+      await user.type(weightInput, "12");
+
+      // Click add donation
+      const addButton = screen.getByRole("button", { name: /add donation/i });
+      await user.click(addButton);
+
+      expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
+      const calledWith = mockContext.addDonation.mock.calls[0][0];
+      expect(calledWith.type).toBe("School lunch");
+      expect(calledWith.donor).toBe("Local Elementary");
+      expect(calledWith.weightLbs).toBe(12);
+    });
+
+    it("allows adding a Pastries donation with only donor and weight", async () => {
+      const user = userEvent.setup();
+      render(<Donations />);
+
+      // Select 'Pastries'
+      const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
+      await user.selectOptions(typeSelect, "Pastries");
+
+      // Fill in donor and weight only
+      const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
+      await user.clear(donorInput);
+      await user.type(donorInput, "Local Bakery");
+
+      const weightInput = screen.getByPlaceholderText(/0.0/i);
+      await user.clear(weightInput);
+      await user.type(weightInput, "5");
+
+      // Click add donation
+      const addButton = screen.getByRole("button", { name: /add donation/i });
+      await user.click(addButton);
+
+      expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
+      const calledWith = mockContext.addDonation.mock.calls[0][0];
+      expect(calledWith.type).toBe("Pastries");
+      expect(calledWith.donor).toBe("Local Bakery");
+      expect(calledWith.weightLbs).toBe(5);
+    });
+
+    it("allows adding a Deli Foods donation with only donor and weight", async () => {
+      const user = userEvent.setup();
+      render(<Donations />);
+
+      // Select 'Deli Foods'
+      const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
+      await user.selectOptions(typeSelect, "Deli Foods");
+
+      // Fill in donor and weight only
+      const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
+      await user.clear(donorInput);
+      await user.type(donorInput, "Community Deli");
+
+      const weightInput = screen.getByPlaceholderText(/0.0/i);
+      await user.clear(weightInput);
+      await user.type(weightInput, "7");
+
+      // Click add donation
+      const addButton = screen.getByRole("button", { name: /add donation/i });
+      await user.click(addButton);
+
+      expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
+      const calledWith = mockContext.addDonation.mock.calls[0][0];
+      expect(calledWith.type).toBe("Deli Foods");
+      expect(calledWith.donor).toBe("Community Deli");
+      expect(calledWith.weightLbs).toBe(7);
+    });
   });
 
   describe("Stats Calculation", () => {
@@ -379,6 +492,25 @@ describe("Donations Component", () => {
       expect(totalTrays).toBe(5);
       expect(totalWeight).toBe(25);
       expect(uniqueDonors.size).toBe(2);
+      // calculate servings using new tray size mapping
+      const TRAY_SERVINGS = { half: 10, full: 20, heavy: 30 };
+      let totalServings = 0;
+      for (const record of donationRecords) {
+        if (record.servings) {
+          totalServings += Number(record.servings);
+          continue;
+        }
+        if (Number(record.trays || 0) > 0) {
+          const size = (record.traySize || "full");
+          totalServings += (Number(record.trays) || 0) * (TRAY_SERVINGS[size] || TRAY_SERVINGS.full);
+        } else {
+          if (record.type === "Carbs") totalServings += (Number(record.weightLbs || 0) * 4);
+          else if (record.type === "Protein") totalServings += (Number(record.weightLbs || 0) * 5);
+          else totalServings += (Number(record.weightLbs || 0));
+        }
+      }
+      // For the records above: 2 trays default full = 2*20=40 and 3 trays full = 3*20=60 -> 100
+      expect(totalServings).toBe(100);
     });
   });
 });
