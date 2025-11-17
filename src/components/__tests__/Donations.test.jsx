@@ -1,8 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Donations from "../Donations";
+import { formatProteinAndCarbsClipboardText } from "../../utils/donationFormatting";
 import toast from "react-hot-toast";
 import { useAppContext } from "../../context/useAppContext";
 
@@ -452,6 +453,30 @@ describe("Donations Component", () => {
       expect(calledWith.donor).toBe("Community Deli");
       expect(calledWith.weightLbs).toBe(7);
     });
+    it("formats protein and carbs clipboard text correctly", () => {
+      const consolidated = [
+        { type: "Protein", itemName: "Chile con Carne", trays: 4, servings: 120 },
+        { type: "Protein", itemName: "Chicken Thighs", trays: 2, servings: 40 },
+        { type: "Protein", itemName: "Lamb", trays: 1, servings: 30 },
+        { type: "Protein", itemName: "Tofu", trays: 2, servings: 40 },
+        { type: "Protein", itemName: "Turkey Wraps", trays: 2, servings: 56 },
+        { type: "Carbs", itemName: "Veggie Chow Mein", trays: 4, servings: 80 },
+        { type: "Carbs", itemName: "Chicken Carbonara", trays: 2, servings: 40 },
+        { type: "Carbs", itemName: "Pasta Salad", trays: 1, servings: 20 },
+        { type: "Carbs", itemName: "Veggie Baked Ziti", trays: 2, servings: 40 },
+        { type: "Carbs", itemName: "Quinoa Orzo Pilaf", trays: 2, servings: 40 },
+        { type: "Carbs", itemName: "White Rice", trays: 4, servings: 80 },
+      ];
+      const formatted = formatProteinAndCarbsClipboardText(consolidated);
+      // Ensure header
+      expect(formatted.startsWith("Donations")).toBe(true);
+      // Ensure Protein header and at least one item
+      expect(formatted.includes("Protein")).toBe(true);
+      expect(formatted.includes("Chile con Carne: 4 trays, 120 servings")).toBe(true);
+      // Ensure Carbs header and at least one item
+      expect(formatted.includes("Carbs")).toBe(true);
+      expect(formatted.includes("White Rice: 4 trays, 80 servings")).toBe(true);
+    });
   });
 
   describe("Stats Calculation", () => {
@@ -511,6 +536,62 @@ describe("Donations Component", () => {
       }
       // For the records above: 2 trays default medium density = 2*20=40 and 3 trays medium density = 3*20=60 -> 100
       expect(totalServings).toBe(100);
+    });
+
+    it("clicking copy button copies formatted text for protein and carbs to clipboard", async () => {
+      const user = userEvent.setup();
+      // prepare donation records so the component renders consolidated entries
+      const donationRecords = [
+        {
+          id: "1",
+          type: "Protein",
+          itemName: "Chile con Carne",
+          donor: "Waymo",
+          trays: 4,
+          weightLbs: 24,
+          servings: 120,
+          date: mockDate,
+        },
+        {
+          id: "2",
+          type: "Carbs",
+          itemName: "White Rice",
+          donor: "LinkedIn",
+          trays: 4,
+          weightLbs: 20,
+          servings: 80,
+          date: mockDate,
+        },
+      ];
+      mockContext.donationRecords = donationRecords;
+      // Mock clipboard
+      const writeText = vi.fn().mockResolvedValue();
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        writable: true,
+      });
+
+      const { container } = render(<Donations />);
+
+      // Select the donation date so the entries appear on today's activity
+      const dateInput = container.querySelector('input[type="date"]');
+      await user.clear(dateInput);
+      await user.type(dateInput, mockDate);
+
+      // Wait for UI to show entries
+      expect(screen.getByText("Today's Activity")).toBeInTheDocument();
+      // The copy button should be visible
+      const copyButton = screen.getByRole("button", { name: /Copy Protein & Carbs/i });
+      expect(copyButton).toBeInTheDocument();
+      await user.click(copyButton);
+      // Ensure clipboard called
+      expect(writeText).toHaveBeenCalled();
+      // Ensure toast success shown
+      expect(toast.success).toHaveBeenCalledWith("Copied protein & carbs to clipboard");
+      // Ensure the transient copied badge appears
+      expect(screen.getByText(/Copied!/i)).toBeInTheDocument();
+      // It should disappear after the timeout
+      await waitFor(() => expect(screen.queryByText(/Copied!/i)).not.toBeInTheDocument(), { timeout: 3000 });
     });
   });
 });

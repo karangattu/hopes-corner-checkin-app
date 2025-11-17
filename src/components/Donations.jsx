@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import toast from "react-hot-toast";
-import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+import { todayPacificDateString } from "../utils/date";
+import { formatProteinAndCarbsClipboardText } from "../utils/donationFormatting";
+import { DENSITY_SERVINGS, MINIMAL_TYPES, calculateServings, deriveDonationDateKey as deriveDonationDateKeyUtil } from "../utils/donationUtils";
 import {
   PackagePlus,
   Save,
@@ -20,6 +22,7 @@ import {
   Users,
   Package,
   UtensilsCrossed,
+  Copy,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 
@@ -61,67 +64,11 @@ const shiftDateKey = (dateKey, offsetDays) => {
 const formatNumber = (value, options) =>
   Number(value || 0).toLocaleString(undefined, options);
 
-const DENSITY_SERVINGS = {
-  light: 10,
-  medium: 20,
-  high: 30,
-};
+// DENSITY_SERVINGS, MINIMAL_TYPES, calculateServings, deriveDonationDateKey
+// moved to src/utils/donationUtils.js for reuse and to keep this file component-only
+const deriveDonationDateKey = deriveDonationDateKeyUtil;
 
-const MINIMAL_TYPES = new Set(["School lunch", "Pastries", "Deli Foods"]);
-
-const calculateServings = (type, weightLbs, trays = 0, density = "medium") => {
-  // Prefer tray-based calculation if trays were provided
-  const parsedTrays = Number(trays) || 0;
-  if (parsedTrays > 0) {
-    const size = density || "medium";
-    const perTray = DENSITY_SERVINGS[size] || DENSITY_SERVINGS.medium;
-    return parsedTrays * perTray;
-  }
-
-  // Fallback: previously we calculated servings by weight for some types, preserve for older records
-  const weight = Number(weightLbs) || 0;
-  if (type === "Carbs") {
-    return weight * 4;
-  } else if (type === "Protein" || type === "Veggie Protein") {
-    return weight * 5;
-  }
-  return weight;
-};
-
-const deriveDonationDateKey = (record) => {
-  if (!record) return null;
-  if (record.dateKey) return record.dateKey;
-  const candidates = [
-    record.date,
-    record.donatedAt,
-    record.donated_at,
-    record.createdAt,
-    record.created_at,
-  ];
-  for (const value of candidates) {
-    if (!value) continue;
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (DATE_ONLY_REGEX.test(trimmed)) {
-        return trimmed;
-      }
-      const parsed = new Date(trimmed);
-      if (!Number.isNaN(parsed.getTime())) {
-        return pacificDateStringFrom(parsed);
-      }
-    } else if (value instanceof Date) {
-      if (!Number.isNaN(value.getTime())) {
-        return pacificDateStringFrom(value);
-      }
-    } else {
-      const parsed = new Date(value);
-      if (!Number.isNaN(parsed.getTime())) {
-        return pacificDateStringFrom(parsed);
-      }
-    }
-  }
-  return null;
-};
+// moved to src/utils/donationFormatting.js to satisfy react-refresh only-export-components eslint rule
 
 const Donations = () => {
   const {
@@ -148,6 +95,8 @@ const Donations = () => {
   });
   const isMinimalType = useMemo(() => MINIMAL_TYPES.has(form.type), [form.type]);
   const [loading, setLoading] = useState(false);
+  const [copiedBadgeVisible, setCopiedBadgeVisible] = useState(false);
+  const copiedTimeoutRef = useRef(null);
   const [range, setRange] = useState(() => ({
     start: getDateKeyNDaysBefore(todayKey, 7) || todayKey,
     end: todayKey,
@@ -580,6 +529,53 @@ const Donations = () => {
       (a, b) => b.latestTimestamp - a.latestTimestamp,
     );
   }, [dayRecords]);
+
+  const hasProteinOrCarbs = useMemo(() => {
+    return (consolidatedActivity || []).some(
+      (c) => c.type === "Protein" || c.type === "Carbs",
+    );
+  }, [consolidatedActivity]);
+
+  const copyProteinAndCarbsToClipboard = async () => {
+    try {
+      const text = formatProteinAndCarbsClipboardText(consolidatedActivity);
+      if (!text) {
+        toast.error("No protein or carbs donations to copy.");
+        return;
+      }
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback - create temporary textarea
+        const el = document.createElement("textarea");
+        el.value = text;
+        el.style.position = "fixed";
+        el.style.top = "0";
+        el.style.left = "0";
+        el.style.width = "1px";
+        el.style.height = "1px";
+        el.style.opacity = "0";
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      toast.success("Copied protein & carbs to clipboard");
+      setCopiedBadgeVisible(true);
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      copiedTimeoutRef.current = setTimeout(() => setCopiedBadgeVisible(false), 1500);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
 
   const exportDonationsRange = () => {
     if (!rangePreview) {
@@ -1056,24 +1052,44 @@ const Donations = () => {
                 </p>
               </div>
               {selectedStats.entries > 0 && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!window.confirm("Delete all donations from today?")) return;
-                    setDonationRecords((prev) =>
-                      prev.filter((donation) => {
-                        const donationDate = new Date(donation.timestamp).toDateString();
-                        const todayDate = new Date().toDateString();
-                        return donationDate !== todayDate;
-                      })
-                    );
-                    toast.success("All today's donations deleted");
-                  }}
-                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
-                  title="Delete all entries"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                    type="button"
+                    onClick={copyProteinAndCarbsToClipboard}
+                    disabled={!hasProteinOrCarbs}
+                    className="flex h-12 items-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-md transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="Copy protein and carbs donations to clipboard"
+                  >
+                    <Copy size={16} className="text-emerald-700" />
+                    Copy Protein & Carbs
+                  </button>
+                    {copiedBadgeVisible && (
+                      <span className="rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-bold">
+                        Copied!
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!window.confirm("Delete all donations from today?")) return;
+                      setDonationRecords((prev) =>
+                        prev.filter((donation) => {
+                          const donationDate = new Date(donation.timestamp).toDateString();
+                          const todayDate = new Date().toDateString();
+                          return donationDate !== todayDate;
+                        })
+                      );
+                      toast.success("All today's donations deleted");
+                    }}
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
+                    title="Delete all entries"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
               )}
             </div>
 
