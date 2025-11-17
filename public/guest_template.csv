@@ -1,6 +1,6 @@
 Guest_ID,First_Name,Last_Name,Preferred_Name,Full_Name,City,Housing_status,Age,Gender,Notes
-,John,Doe,Johnny,,Downtown,Unhoused,Adult 18-59,Male,Prefers evening services
-,Jane,Smith,Jenny,,Shelter on Main St,Temporarily Housed,Senior 60+,Female,Has dietary restrictions
-,Robert,Johnson,Bobby,,Hope Housing Program,Transitional Housing,Child 0-17,Male,
-,Maria,Garcia,Mary,,Oak Street,Housed,Senior 60+,Female,Volunteer on weekends
-,David,Wilson,Dave,,Community Center,Sheltered,Adult 18-59,Male,Needs assistance with paperwork
+,John,Doe,Johnny,,San Francisco,Housed,Adult 18-59,Male,Sample: Housed, Adult 18-59
+,Jane,Smith,Jenny,,Oakland,Unhoused,Senior 60+,Female,Sample: Unhoused, Senior 60+
+,Sam,Gonzalez,Sam,Sam Gonzalez,San Jose,RV or Vehicle,Child 0-17,Male,Sample: RV or Vehicle, Child 0-17
+,Alex,Chen,Alex,Alex Chen,Berkeley,Temp Shelter,Adult 18-59,Female,Sample: Temp Shelter, Adult 18-59
+,Example,Example,,Palo Alto,Housed,Adult 18-59,Other,Notes: Allowed Ages = Adult 18-59 | Senior 60+ | Child 0-17; Allowed Housing_status = RV or Vehicle | Temp Shelter | Unhoused | Housed
