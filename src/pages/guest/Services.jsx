@@ -4717,6 +4717,7 @@ const Services = () => {
                 updateLaundryStatus={updateLaundryStatus}
                 updateLaundryBagNumber={updateLaundryBagNumber}
                 cancelLaundryRecord={cancelLaundryRecord}
+                attemptLaundryStatusChange={attemptLaundryStatusChange}
               />
             ) : (
               <>

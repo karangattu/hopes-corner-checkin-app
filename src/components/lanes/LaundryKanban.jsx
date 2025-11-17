@@ -19,16 +19,69 @@ const LaundryKanban = ({
   updateLaundryStatus,
   updateLaundryBagNumber,
   cancelLaundryRecord,
+  attemptLaundryStatusChange,
 }) => {
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const applyStatusUpdate = async (recordId, newStatus) => {
-    const success = await updateLaundryStatus(recordId, newStatus);
+  const applyStatusUpdate = async (record, newStatus) => {
+    if (!record) return false;
+    const success = await updateLaundryStatus(record.id, newStatus);
     if (success) {
       toast.success("Status updated");
     }
     return success;
+  };
+
+  const hasBagNumber = (record) =>
+    Boolean(String(record?.bagNumber ?? "").trim().length);
+
+  const requiresBagPrompt = (record, newStatus) =>
+    !record?.offsite &&
+    record?.status === LAUNDRY_STATUS.WAITING &&
+    newStatus !== LAUNDRY_STATUS.WAITING &&
+    !hasBagNumber(record);
+
+  const promptForBagNumber = async (record, newStatus) => {
+    if (!record) {
+      return;
+    }
+
+    if (attemptLaundryStatusChange) {
+      await attemptLaundryStatusChange(record, newStatus);
+      return;
+    }
+
+    const manualBag = window.prompt(
+      "A bag number is required before moving out of waiting. Enter one to continue.",
+    );
+    const trimmedBag = (manualBag || "").trim();
+
+    if (!trimmedBag) {
+      toast.error("Please enter a bag number to continue");
+      return;
+    }
+
+    const saved = await updateLaundryBagNumber(record.id, trimmedBag);
+    if (!saved) {
+      return;
+    }
+
+    toast.success("Bag number saved");
+    await applyStatusUpdate(record, newStatus);
+  };
+
+  const processStatusChange = async (record, newStatus) => {
+    if (!record) {
+      return;
+    }
+
+    if (requiresBagPrompt(record, newStatus)) {
+      await promptForBagNumber(record, newStatus);
+      return;
+    }
+
+    await applyStatusUpdate(record, newStatus);
   };
 
   const getGuestNameDetails = (guestId) => {
@@ -77,7 +130,7 @@ const LaundryKanban = ({
   const handleDrop = async (e, newStatus) => {
     e.preventDefault();
     if (draggedItem && draggedItem.status !== newStatus) {
-      await applyStatusUpdate(draggedItem.id, newStatus);
+      await processStatusChange(draggedItem, newStatus);
     }
     setDraggedItem(null);
   };
@@ -251,6 +304,7 @@ const LaundryKanban = ({
         key={record.id}
         draggable
         onDragStart={(e) => handleDragStart(e, record)}
+        data-testid={`laundry-card-${record.id}`}
         className={`bg-white rounded-lg border-2 shadow-sm p-3 cursor-move transition-all hover:shadow-md ${
           draggedItem?.id === record.id ? "opacity-50" : ""
         } ${
@@ -280,6 +334,9 @@ const LaundryKanban = ({
             type="button"
             onClick={() => toggleCard(record.id)}
             className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+            aria-label={`${
+              isExpanded ? "Collapse" : "Expand"
+            } laundry details for ${nameDetails.primaryName}`}
           >
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
@@ -327,8 +384,11 @@ const LaundryKanban = ({
                 </label>
                 <select
                   value={record.status}
-                  onChange={(e) => applyStatusUpdate(record.id, e.target.value)}
+                  onChange={(e) =>
+                    processStatusChange(record, e.target.value)
+                  }
                   className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                  aria-label={`Update laundry status for ${nameDetails.primaryName}`}
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -393,6 +453,7 @@ const LaundryKanban = ({
                 key={column.id}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, column.id)}
+                data-testid={`onsite-column-${column.id}`}
                 className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors ${
                   draggedItem?.status !== column.id && !draggedItem?.offsite
                     ? "hover:border-opacity-75"
@@ -462,6 +523,7 @@ const LaundryKanban = ({
                   key={column.id}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
+                  data-testid={`offsite-column-${column.id}`}
                   className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors ${
                     draggedItem?.status !== column.id && draggedItem?.offsite
                       ? "hover:border-opacity-75"
