@@ -99,8 +99,7 @@ const ShowerBooking = () => {
       })
       .sort((a, b) => {
         if (a.isFull !== b.isFull) return a.isFull ? 1 : -1;
-        if (a.isNearlyFull !== b.isNearlyFull) return a.isNearlyFull ? 1 : -1;
-        return a.sortKey - b.sortKey;
+        return a.sortKey - b.sortKey; // keep timeline order for remaining capacity
       });
   }, [allShowerSlots, showerRecords, guests, todayString]);
 
