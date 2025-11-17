@@ -125,25 +125,20 @@ const SupabaseSyncToggle = ({ supabaseConfigured }) => {
           <button
             onClick={handleToggle}
             disabled={isChanging}
-            className={`relative inline-flex h-8 w-16 flex-shrink-0 items-center cursor-pointer rounded-full transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm ${
+            className={`relative inline-flex h-9 w-[4.25rem] flex-shrink-0 items-center rounded-full border px-1 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               syncEnabled
-                ? "bg-gradient-to-r from-blue-500 to-blue-600 focus:ring-blue-500 hover:shadow-md hover:from-blue-600 hover:to-blue-700"
-                : "bg-gradient-to-r from-gray-300 to-gray-400 focus:ring-gray-400 hover:shadow-md hover:from-gray-400 hover:to-gray-500"
-            } ${isChanging ? "opacity-70 cursor-not-allowed" : ""}`}
+                ? "justify-end border-transparent bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm hover:shadow-md focus:ring-blue-500"
+                : "justify-start border-gray-200 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-500 shadow-inner hover:from-gray-200 hover:to-gray-300 focus:ring-gray-400"
+            } ${isChanging ? "opacity-70 cursor-wait" : "cursor-pointer"}`}
             role="switch"
             aria-checked={syncEnabled}
             aria-label="Toggle cloud sync"
           >
             <span
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-lg transition-all duration-300 ease-in-out transform ${
-                syncEnabled ? "translate-x-[2.125rem]" : "translate-x-0.5"
-              }`}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md transition-all duration-300 ease-in-out"
             >
               {isChanging ? (
-                <RefreshCcw
-                  className="animate-spin text-blue-500"
-                  size={14}
-                />
+                <RefreshCcw className="animate-spin text-blue-500" size={14} />
               ) : syncEnabled ? (
                 <Cloud className="text-blue-500" size={14} />
               ) : (

@@ -1,6 +1,21 @@
 Guest_ID,First_Name,Last_Name,Preferred_Name,Full_Name,City,Housing_status,Age,Gender,Notes
-,John,Doe,Johnny,,San Francisco,Housed,Adult 18-59,Male,Sample: Housed, Adult 18-59
-,Jane,Smith,Jenny,,Oakland,Unhoused,Senior 60+,Female,Sample: Unhoused, Senior 60+
-,Sam,Gonzalez,Sam,Sam Gonzalez,San Jose,RV or Vehicle,Child 0-17,Male,Sample: RV or Vehicle, Child 0-17
-,Alex,Chen,Alex,Alex Chen,Berkeley,Temp Shelter,Adult 18-59,Female,Sample: Temp Shelter, Adult 18-59
-,Example,Example,,Palo Alto,Housed,Adult 18-59,Other,Notes: Allowed Ages = Adult 18-59 | Senior 60+ | Child 0-17; Allowed Housing_status = RV or Vehicle | Temp Shelter | Unhoused | Housed
+,Bugs,Bunny,,Bugs Bunny,San Francisco,Housed,Adult 18-59,Male,Carrots enthusiast
+,Daffy,Duck,,Daffy Duck,Fremont,Temp Shelter,Adult 18-59,Male,Prone to dramatics
+,Porky,Pig,,Porky Pig,San Jose,Temp Shelter,Adult 18-59,Male,Stutters while speaking
+,Elmer,Fudd,,Elmer Fudd,Daly City,Housed,Adult 18-59,Male,Hates wabbits
+,Tweety,Bird,,Tweety Bird,Berkeley,Housed,Child 0-17,Female,Looks adorable but sly
+,Sylvester,Cat,,Sylvester Cat,Oakland,RV or Vehicle,Adult 18-59,Male,Always chasing Tweety
+,Yosemite,Sam,,Yosemite Sam,Hayward,Housed,Adult 18-59,Male,Hot-tempered cowboy
+,Road,Runner,,Road Runner,Union City,Unhoused,Adult 18-59,Male,Beep Beep!
+,Wile,E. Coyote,Wile E.,Wile E. Coyote,Richmond,Unhoused,Adult 18-59,Male,Acme apparatus collector
+,Foghorn,Leghorn,,Foghorn Leghorn,Palo Alto,Housed,Adult 18-59,Male,Loud and proud
+,Marvin,Martian,,Marvin Martian,Mountain View,Temp Shelter,Adult 18-59,Male,Strategic-minded
+,Taz,Devil,,Taz,Sunnyvale,Temp Shelter,Adult 18-59,Male,Whirlwind of activity
+,Granny,,Granny,Granny,Burlingame,Housed,Senior 60+,Female,Kind and sharp-witted
+,Pepe,Le Pew,,Pepe Le Pew,Millbrae,Housed,Adult 18-59,Male,Constantly in love
+,Speedy,Gonzales,,Speedy Gonzales,Santa Clara,Housed,Child 0-17,Male,Fastest mouse in Mexico
+,Lola,Bunny,,Lola Bunny,Redwood City,Housed,Adult 18-59,Female,Skilled athlete
+,Petunia,Pig,,Petunia Pig,Alameda,Housed,Adult 18-59,Female,Caring friend
+,Gossamer,Monster,,Gossamer Monster,Walnut Creek,Temp Shelter,Adult 18-59,Male,Shy but lovable
+,Witch,Hazel,,Witch Hazel,Emeryville,Unhoused,Adult 18-59,Female,Mischief-maker
+,Michigan,J. Frog,,Michigan J. Frog,San Mateo,Temp Shelter,Adult 18-59,Male,Sings on stage
