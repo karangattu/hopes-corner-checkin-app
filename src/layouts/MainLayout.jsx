@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
 import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
@@ -30,6 +30,52 @@ const MainLayout = ({ children }) => {
     if (role === "checkin") return item.id === "check-in";
     return false;
   });
+
+  const [isTouch, setIsTouch] = useState(false);
+  const [bottomFixedHeight, setBottomFixedHeight] = useState(120);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    setIsTouch(mediaQuery.matches);
+    const handle = (e) => setIsTouch(e.matches);
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handle);
+      return () => mediaQuery.removeEventListener("change", handle);
+    }
+    mediaQuery.addListener(handle);
+    return () => mediaQuery.removeListener(handle);
+  }, []);
+
+  useEffect(() => {
+    const updateBottomHeight = () => {
+      try {
+        const els = Array.from(document.querySelectorAll("[data-fixed-bottom]"));
+        const total = els.reduce((sum, el) => sum + (el?.getBoundingClientRect()?.height || 0), 0);
+        setBottomFixedHeight(total || 120);
+      } catch {
+        setBottomFixedHeight(120);
+      }
+    };
+
+    updateBottomHeight();
+    window.addEventListener("resize", updateBottomHeight);
+    let observer;
+    try {
+      observer = new MutationObserver(updateBottomHeight);
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    } catch {
+      // ignore if MutationObserver isn't available
+    }
+    return () => {
+      window.removeEventListener("resize", updateBottomHeight);
+      if (observer) observer.disconnect();
+    };
+  }, []);
+
+  const mobileContentPadding = isTouch
+    ? { paddingBottom: `calc(${bottomFixedHeight}px + env(safe-area-inset-bottom, 0px))` }
+    : { paddingBottom: "max(env(safe-area-inset-bottom), 120px)" };
 
   return (
     <div className="min-h-screen bg-emerald-50 flex flex-col">
@@ -90,7 +136,7 @@ const MainLayout = ({ children }) => {
 
       <main
         className="container mx-auto flex-1 px-4 pt-4 pb-[7.5rem] md:pb-8 md:px-6 min-h-[calc(100vh-4rem)]"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 120px)" }}
+        style={mobileContentPadding}
       >
         <div className="max-w-7xl mx-auto space-y-4">
           <SyncStatus />
@@ -100,6 +146,7 @@ const MainLayout = ({ children }) => {
 
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-emerald-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80"
+        data-fixed-bottom
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 18px)" }}
       >
         {/** Dynamic columns based on nav item count */}
