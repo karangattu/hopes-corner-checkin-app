@@ -198,11 +198,61 @@ const MEAL_COLUMN_DEFINITIONS = [
   },
 ];
 
+const MEAL_COLUMN_MAP = MEAL_COLUMN_DEFINITIONS.reduce((acc, column) => {
+  acc[column.key] = column;
+  return acc;
+}, {});
+
+const MEAL_TABLE_GROUPS = [
+  {
+    key: "onsite",
+    title: "Onsite Guest Meals",
+    subtitle: "Served on campus",
+    headerClass: "bg-slate-50 text-slate-700",
+    columns: [
+      "mondayMeals",
+      "wednesdayMeals",
+      "fridayMeals",
+      "saturdayMeals",
+      "onsiteHotMeals",
+    ],
+  },
+  {
+    key: "outreach",
+    title: "Outreach & Partner",
+    subtitle: "Meals delivered offsite",
+    headerClass: "bg-orange-50 text-orange-800",
+    columns: ["dayWorkerMeals", "rvWedSat", "rvMonThu"],
+  },
+  {
+    key: "production",
+    title: "Production Extras",
+    subtitle: "Beyond plated hot meals",
+    headerClass: "bg-purple-50 text-purple-800",
+    columns: ["extraMeals", "lunchBags"],
+  },
+  {
+    key: "totals",
+    title: "Totals",
+    subtitle: "YTD meal output",
+    headerClass: "bg-gray-100 text-gray-700",
+    columns: ["totalHotMeals", "totalWithLunchBags"],
+  },
+];
+
+const MEAL_DETAIL_COLUMN_KEYS = MEAL_TABLE_GROUPS.flatMap((group) => group.columns);
+
 const formatNumber = (value) => {
   if (value == null) return "0";
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return String(value);
   return numeric.toLocaleString();
+};
+
+const formatAverage = (value, decimals = 1) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "0.0";
+  return numeric.toFixed(decimals);
 };
 
 const buildCellClass = (column, { isTotal } = {}) => {
@@ -661,6 +711,15 @@ const MonthlySummaryReport = () => {
       [],
     );
 
+    const laundryGuestFirstMonth = new Map();
+    completedLaundryRecords.forEach((record) => {
+      if (!record.guestId) return;
+      const existing = laundryGuestFirstMonth.get(record.guestId);
+      if (existing == null || record.monthIndex < existing) {
+        laundryGuestFirstMonth.set(record.guestId, record.monthIndex);
+      }
+    });
+
     const allServiceRecords = [
       ...completedShowerRecords,
       ...completedLaundryRecords,
@@ -690,6 +749,7 @@ const MonthlySummaryReport = () => {
     };
 
     let runningNewGuests = 0;
+    let runningNewLaundryGuests = 0;
 
     const totalsAccumulator = {
       programDays: 0,
@@ -746,7 +806,12 @@ const MonthlySummaryReport = () => {
       });
 
       const isYearToDate = monthIndex <= currentMonth;
-      let newGuestsThisMonth = 0;
+      const newGuestsThisMonth = [...monthGuestSet].filter(
+        (guestId) => guestFirstMonth.get(guestId) === monthIndex,
+      ).length;
+      const newLaundryGuestsThisMonth = [...laundryGuestSet].filter(
+        (guestId) => laundryGuestFirstMonth.get(guestId) === monthIndex,
+      ).length;
 
       if (isYearToDate) {
         monthGuestSet.forEach((guestId) => {
@@ -759,19 +824,22 @@ const MonthlySummaryReport = () => {
           const bucket = categorizeAge(guestId);
           ytdLaundryAgeSets[bucket].add(guestId);
         });
-        newGuestsThisMonth = [...monthGuestSet].filter(
-          (guestId) => guestFirstMonth.get(guestId) === monthIndex,
-        ).length;
         runningNewGuests += newGuestsThisMonth;
+        runningNewLaundryGuests += newLaundryGuestsThisMonth;
 
         totalsAccumulator.programDays += programDaysSet.size;
         totalsAccumulator.showersProvided += showersForMonth.length;
         totalsAccumulator.laundryLoadsProcessed += laundryForMonth.length;
-      } else {
-        newGuestsThisMonth = [...monthGuestSet].filter(
-          (guestId) => guestFirstMonth.get(guestId) === monthIndex,
-        ).length;
       }
+
+      const avgShowersPerDay =
+        programDaysSet.size > 0
+          ? showersForMonth.length / programDaysSet.size
+          : 0;
+      const avgLaundryLoadsPerDay =
+        programDaysSet.size > 0
+          ? laundryForMonth.length / programDaysSet.size
+          : 0;
 
       rows.push({
         month: monthName,
@@ -791,7 +859,10 @@ const MonthlySummaryReport = () => {
         laundryAdult: laundryCounts.adult,
         laundrySenior: laundryCounts.senior,
         laundryChild: laundryCounts.child,
-        ytdNewGuestsLaundry: runningNewGuests,
+        newLaundryGuests: newLaundryGuestsThisMonth,
+        avgShowersPerDay,
+        avgLaundryLoadsPerDay,
+        ytdNewGuestsLaundry: runningNewLaundryGuests,
         ytdTotalUnduplicatedLaundryUsers: ytdLaundrySet.size,
         isYearToDate,
       });
@@ -815,7 +886,18 @@ const MonthlySummaryReport = () => {
       laundryAdult: ytdLaundryAgeSets.adult.size,
       laundrySenior: ytdLaundryAgeSets.senior.size,
       laundryChild: ytdLaundryAgeSets.child.size,
-      ytdNewGuestsLaundry: runningNewGuests,
+      avgShowersPerDay:
+        totalsAccumulator.programDays > 0
+          ? totalsAccumulator.showersProvided / totalsAccumulator.programDays
+          : 0,
+      avgLaundryLoadsPerDay:
+        totalsAccumulator.programDays > 0
+          ?
+              totalsAccumulator.laundryLoadsProcessed /
+              totalsAccumulator.programDays
+          : 0,
+      newLaundryGuests: runningNewLaundryGuests,
+      ytdNewGuestsLaundry: runningNewLaundryGuests,
       ytdTotalUnduplicatedLaundryUsers: ytdLaundrySet.size,
     };
 
@@ -897,6 +979,9 @@ const MonthlySummaryReport = () => {
         Month: row.month,
         "Program Days in Month": row.programDays,
         "Showers Provided": row.showersProvided,
+        "Average Showers per Program Day": Number(
+          row.avgShowersPerDay.toFixed(2),
+        ),
         "Participants: Adult": row.participantsAdult,
         "Participants: Senior": row.participantsSenior,
         "Participants: Child": row.participantsChild,
@@ -904,10 +989,14 @@ const MonthlySummaryReport = () => {
         "New Guests This Month": row.newGuests,
         "YTD Total Unduplicated Guests": row.ytdTotalUnduplicatedGuests,
         "Laundry Loads Processed": row.laundryLoadsProcessed,
+        "Average Laundry Loads per Program Day": Number(
+          row.avgLaundryLoadsPerDay.toFixed(2),
+        ),
         "Unduplicated Laundry Users": row.unduplicatedLaundryUsers,
         "Laundry Users: Adult": row.laundryAdult,
         "Laundry Users: Senior": row.laundrySenior,
         "Laundry Users: Child": row.laundryChild,
+        "New Laundry Guests This Month": row.newLaundryGuests,
         "YTD New Guests (Laundry)": row.ytdNewGuestsLaundry,
         "YTD Total Unduplicated Laundry Users":
           row.ytdTotalUnduplicatedLaundryUsers,
@@ -916,6 +1005,9 @@ const MonthlySummaryReport = () => {
         Month: showerLaundrySummary.totals.month,
         "Program Days in Month": showerLaundrySummary.totals.programDays,
         "Showers Provided": showerLaundrySummary.totals.showersProvided,
+        "Average Showers per Program Day": Number(
+          showerLaundrySummary.totals.avgShowersPerDay.toFixed(2),
+        ),
         "Participants: Adult": showerLaundrySummary.totals.participantsAdult,
         "Participants: Senior": showerLaundrySummary.totals.participantsSenior,
         "Participants: Child": showerLaundrySummary.totals.participantsChild,
@@ -925,11 +1017,16 @@ const MonthlySummaryReport = () => {
           showerLaundrySummary.totals.ytdTotalUnduplicatedGuests,
         "Laundry Loads Processed":
           showerLaundrySummary.totals.laundryLoadsProcessed,
+        "Average Laundry Loads per Program Day": Number(
+          showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(2),
+        ),
         "Unduplicated Laundry Users":
           showerLaundrySummary.totals.unduplicatedLaundryUsers,
         "Laundry Users: Adult": showerLaundrySummary.totals.laundryAdult,
         "Laundry Users: Senior": showerLaundrySummary.totals.laundrySenior,
         "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
+        "New Laundry Guests This Month":
+          showerLaundrySummary.totals.newLaundryGuests,
         "YTD New Guests (Laundry)":
           showerLaundrySummary.totals.ytdNewGuestsLaundry,
         "YTD Total Unduplicated Laundry Users":
@@ -944,6 +1041,17 @@ const MonthlySummaryReport = () => {
     toast.success("Shower & laundry summary exported to CSV");
   };
 
+  const ytdShowerLaundryRows = showerLaundrySummary.rows.filter(
+    (row) => row.isYearToDate,
+  );
+  const upcomingShowerLaundryRows = showerLaundrySummary.rows.filter(
+    (row) => !row.isYearToDate,
+  );
+  const showerLaundryRowsToRender =
+    ytdShowerLaundryRows.length > 0
+      ? ytdShowerLaundryRows
+      : showerLaundrySummary.rows;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -953,7 +1061,7 @@ const MonthlySummaryReport = () => {
             <Calendar className="text-blue-600" size={24} />
             <div>
               <h2 className="text-xl font-semibold text-gray-900 font-heading">
-                Monthly Summary Report - {reportYear}
+                Monthly Summary Report for Meals - {reportYear}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 Comprehensive breakdown of meals by month and type
@@ -994,54 +1102,72 @@ const MonthlySummaryReport = () => {
         <div className="mt-6 overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-50">
-                {mealColumns.map((column) => (
-                  <TooltipHeader key={column.key} column={column} />
+              <tr className="bg-gray-100 text-[0.75rem] uppercase tracking-wide text-gray-600">
+                <th
+                  rowSpan={2}
+                  className="border border-gray-300 px-3 py-3 text-left font-heading text-sm font-semibold text-gray-900"
+                >
+                  Month
+                </th>
+                {MEAL_TABLE_GROUPS.map((group) => (
+                  <th
+                    key={group.key}
+                    colSpan={group.columns.length}
+                    className={`border border-gray-300 px-3 py-3 text-center font-heading text-sm font-semibold ${group.headerClass}`}
+                  >
+                    <div>{group.title}</div>
+                    <div className="mt-1 text-[11px] font-normal leading-4 text-gray-600">
+                      {group.subtitle}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+              <tr className="bg-white text-xs uppercase tracking-wide text-gray-500">
+                {MEAL_DETAIL_COLUMN_KEYS.map((columnKey) => (
+                  <TooltipHeader key={columnKey} column={MEAL_COLUMN_MAP[columnKey]} />
                 ))}
               </tr>
             </thead>
             <tbody>
               {monthlyData.months.map((row) => (
                 <tr key={row.month} className="hover:bg-gray-50">
-                  {mealColumns.map((column) => {
-                    const CellTag = column.key === "month" ? "th" : "td";
-                    const rawValue = row[column.key];
-                    const displayValue = column.isNumeric
-                      ? rawValue == null
-                        ? "N/A"
-                        : formatNumber(rawValue)
-                      : rawValue ?? "N/A";
-
+                  <th
+                    scope="row"
+                    className="border border-gray-300 px-3 py-2 text-left font-heading font-semibold text-gray-900"
+                  >
+                    {row.month}
+                  </th>
+                  {MEAL_DETAIL_COLUMN_KEYS.map((columnKey) => {
+                    const columnMeta = MEAL_COLUMN_MAP[columnKey];
                     return (
-                      <CellTag
-                        key={column.key}
-                        className={buildCellClass(column)}
-                        scope={column.key === "month" ? "row" : undefined}
+                      <td
+                        key={`${row.month}-${columnKey}`}
+                        data-column={columnKey}
+                        className={buildCellClass(columnMeta)}
                       >
-                        {displayValue}
-                      </CellTag>
+                        {formatNumber(row[columnKey])}
+                      </td>
                     );
                   })}
                 </tr>
               ))}
-              <tr className="bg-gray-200">
-                {mealColumns.map((column) => {
-                  const CellTag = column.key === "month" ? "th" : "td";
-                  const rawValue = monthlyData.totals[column.key];
-                  const displayValue = column.isNumeric
-                    ? rawValue == null
-                      ? "N/A"
-                      : formatNumber(rawValue)
-                    : rawValue ?? "N/A";
-
+              <tr className="bg-gray-200 font-semibold text-gray-900">
+                <th
+                  scope="row"
+                  className="border border-gray-300 px-3 py-2 text-left"
+                >
+                  {monthlyData.totals.month}
+                </th>
+                {MEAL_DETAIL_COLUMN_KEYS.map((columnKey) => {
+                  const columnMeta = MEAL_COLUMN_MAP[columnKey];
                   return (
-                    <CellTag
-                      key={column.key}
-                      className={buildCellClass(column, { isTotal: true })}
-                      scope={column.key === "month" ? "row" : undefined}
+                    <td
+                      key={`totals-${columnKey}`}
+                      data-column={columnKey}
+                      className={buildCellClass(columnMeta, { isTotal: true })}
                     >
-                      {displayValue}
-                    </CellTag>
+                      {formatNumber(monthlyData.totals[columnKey])}
+                    </td>
                   );
                 })}
               </tr>
@@ -1220,201 +1346,259 @@ const MonthlySummaryReport = () => {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900">
+              <tr className="bg-gray-100 text-[0.75rem] uppercase tracking-wide text-gray-600">
+                <th
+                  className="border border-gray-300 px-3 py-3 text-left font-semibold text-gray-900"
+                  rowSpan={2}
+                >
                   Month
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-yellow-50">
-                  Program Days in Month
+                <th
+                  className="border border-gray-300 px-3 py-3 text-center font-semibold text-amber-800 bg-yellow-50"
+                  colSpan={5}
+                >
+                  Program & Shower Reach
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-yellow-50">
-                  Showers Provided
+                <th
+                  className="border border-gray-300 px-3 py-3 text-center font-semibold text-emerald-800 bg-emerald-50"
+                  colSpan={4}
+                >
+                  Participant Mix
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
-                  Participants: Adult
+                <th
+                  className="border border-gray-300 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50"
+                  colSpan={5}
+                >
+                  Laundry Services
                 </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
-                  Participants: Senior
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
-                  Participants: Child
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-emerald-50">
-                  Total Participants
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
-                  New Guests This Month
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
-                  YTD Total Unduplicated Guests
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  Laundry Loads Processed
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  Unduplicated Laundry Users
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  Laundry Users: Adult
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  Laundry Users: Senior
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  Laundry Users: Child
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-blue-50">
-                  YTD New Guests (Laundry)
-                </th>
-                <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900 bg-purple-50">
-                  YTD Total Unduplicated Laundry Users
-                </th>
+              </tr>
+              <tr className="bg-gray-50 text-[0.7rem] uppercase tracking-wide text-gray-500">
+                <th className="border border-gray-200 px-2 py-2 text-center">Program Days</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Showers</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">New Guests</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">YTD Unique Guests</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Adult</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Senior</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Child</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Total</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Loads</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Unique Users</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">New Laundry Guests</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">YTD Laundry Users</th>
               </tr>
             </thead>
             <tbody>
-              {showerLaundrySummary.rows.map((row) => (
-                <tr
-                  key={row.month}
-                  className={
-                    row.isYearToDate
-                      ? "hover:bg-gray-50"
-                      : "bg-gray-50 text-gray-500"
-                  }
-                >
-                  <td
-                    className={`border border-gray-300 px-3 py-2 font-medium ${row.isYearToDate ? "text-gray-900" : "text-gray-500"}`}
+              {showerLaundryRowsToRender.map((row) => (
+                <tr key={row.month} className="hover:bg-gray-50">
+                  <th
+                    scope="row"
+                    className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900"
                   >
                     {row.month}
-                  </td>
+                  </th>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="program-days"
+                    className="border border-gray-300 px-3 py-2 text-right"
                   >
                     {row.programDays.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="showers"
+                    className="border border-gray-300 px-3 py-2 text-right"
                   >
                     {row.showersProvided.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="avg-showers"
+                    className="border border-gray-300 px-3 py-2 text-right"
                   >
-                    {row.participantsAdult.toLocaleString()}
+                    {formatAverage(row.avgShowersPerDay)}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
-                  >
-                    {row.participantsSenior.toLocaleString()}
-                  </td>
-                  <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
-                  >
-                    {row.participantsChild.toLocaleString()}
-                  </td>
-                  <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-emerald-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
-                  >
-                    {row.totalParticipants.toLocaleString()}
-                  </td>
-                  <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="new-guests"
+                    className="border border-gray-300 px-3 py-2 text-right"
                   >
                     {row.newGuests.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="ytd-unique-guests"
+                    className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900"
                   >
                     {row.ytdTotalUnduplicatedGuests.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="participants-adult"
+                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                  >
+                    {row.participantsAdult.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="participants-senior"
+                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                  >
+                    {row.participantsSenior.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="participants-child"
+                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                  >
+                    {row.participantsChild.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="participants-total"
+                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50 font-semibold text-gray-900"
+                  >
+                    {row.totalParticipants.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="laundry-loads"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
                     {row.laundryLoadsProcessed.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="avg-laundry"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
-                    {row.unduplicatedLaundryUsers.toLocaleString()}
+                    {formatAverage(row.avgLaundryLoadsPerDay)}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="laundry-unique-users"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
-                    {row.laundryAdult.toLocaleString()}
+                    <div className="font-semibold text-gray-900">
+                      {row.unduplicatedLaundryUsers.toLocaleString()}
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-600">
+                      <div>Adult · {row.laundryAdult.toLocaleString()}</div>
+                      <div>Senior · {row.laundrySenior.toLocaleString()}</div>
+                      <div>Child · {row.laundryChild.toLocaleString()}</div>
+                    </div>
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="new-laundry-guests"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold text-gray-900"
                   >
-                    {row.laundrySenior.toLocaleString()}
+                    {row.newLaundryGuests.toLocaleString()}
                   </td>
                   <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 ${row.isYearToDate ? "" : "text-gray-500"}`}
-                  >
-                    {row.laundryChild.toLocaleString()}
-                  </td>
-                  <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-blue-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
-                  >
-                    {row.ytdNewGuestsLaundry.toLocaleString()}
-                  </td>
-                  <td
-                    className={`border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold ${row.isYearToDate ? "" : "text-gray-500"}`}
+                    data-column="ytd-laundry-users"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold text-gray-900"
                   >
                     {row.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
                   </td>
                 </tr>
               ))}
-              <tr className="bg-gray-200 font-bold">
-                <td className="border border-gray-300 px-3 py-2 text-gray-900">
+              <tr className="bg-gray-200 font-semibold text-gray-900">
+                <th
+                  scope="row"
+                  className="border border-gray-300 px-3 py-2 text-left"
+                >
                   {showerLaundrySummary.totals.month}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-yellow-50">
+                </th>
+                <td
+                  data-column="program-days"
+                  className="border border-gray-300 px-3 py-2 text-right"
+                >
                   {showerLaundrySummary.totals.programDays.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-yellow-50">
+                <td
+                  data-column="showers"
+                  className="border border-gray-300 px-3 py-2 text-right"
+                >
                   {showerLaundrySummary.totals.showersProvided.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
-                  {showerLaundrySummary.totals.participantsAdult.toLocaleString()}
+                <td
+                  data-column="avg-showers"
+                  className="border border-gray-300 px-3 py-2 text-right"
+                >
+                  {formatAverage(showerLaundrySummary.totals.avgShowersPerDay)}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
-                  {showerLaundrySummary.totals.participantsSenior.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
-                  {showerLaundrySummary.totals.participantsChild.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-emerald-50">
-                  {showerLaundrySummary.totals.totalParticipants.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                <td
+                  data-column="new-guests"
+                  className="border border-gray-300 px-3 py-2 text-right"
+                >
                   {showerLaundrySummary.totals.newGuests.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
+                <td
+                  data-column="ytd-unique-guests"
+                  className="border border-gray-300 px-3 py-2 text-right"
+                >
                   {showerLaundrySummary.totals.ytdTotalUnduplicatedGuests.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                <td
+                  data-column="participants-adult"
+                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                >
+                  {showerLaundrySummary.totals.participantsAdult.toLocaleString()}
+                </td>
+                <td
+                  data-column="participants-senior"
+                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                >
+                  {showerLaundrySummary.totals.participantsSenior.toLocaleString()}
+                </td>
+                <td
+                  data-column="participants-child"
+                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                >
+                  {showerLaundrySummary.totals.participantsChild.toLocaleString()}
+                </td>
+                <td
+                  data-column="participants-total"
+                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
+                >
+                  {showerLaundrySummary.totals.totalParticipants.toLocaleString()}
+                </td>
+                <td
+                  data-column="laundry-loads"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
                   {showerLaundrySummary.totals.laundryLoadsProcessed.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
-                  {showerLaundrySummary.totals.unduplicatedLaundryUsers.toLocaleString()}
+                <td
+                  data-column="avg-laundry"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
+                  {formatAverage(showerLaundrySummary.totals.avgLaundryLoadsPerDay)}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
-                  {showerLaundrySummary.totals.laundryAdult.toLocaleString()}
+                <td
+                  data-column="laundry-unique-users"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
+                  <div className="font-semibold text-gray-900">
+                    {showerLaundrySummary.totals.unduplicatedLaundryUsers.toLocaleString()}
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-700">
+                    <div>Adult · {showerLaundrySummary.totals.laundryAdult.toLocaleString()}</div>
+                    <div>Senior · {showerLaundrySummary.totals.laundrySenior.toLocaleString()}</div>
+                    <div>Child · {showerLaundrySummary.totals.laundryChild.toLocaleString()}</div>
+                  </div>
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
-                  {showerLaundrySummary.totals.laundrySenior.toLocaleString()}
+                <td
+                  data-column="new-laundry-guests"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
+                  {showerLaundrySummary.totals.newLaundryGuests.toLocaleString()}
                 </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
-                  {showerLaundrySummary.totals.laundryChild.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-blue-50">
-                  {showerLaundrySummary.totals.ytdNewGuestsLaundry.toLocaleString()}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right bg-purple-50">
+                <td
+                  data-column="ytd-laundry-users"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
                   {showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
                 </td>
               </tr>
             </tbody>
           </table>
+          {upcomingShowerLaundryRows.length > 0 ? (
+            <p className="mt-3 text-xs text-gray-500">
+              Upcoming months ({upcomingShowerLaundryRows
+                .map((row) => row.month)
+                .join(", ")}) will populate as data is recorded.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

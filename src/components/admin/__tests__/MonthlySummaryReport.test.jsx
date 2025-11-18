@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import MonthlySummaryReport from "../MonthlySummaryReport";
 import { LAUNDRY_STATUS } from "../../../context/constants";
 
@@ -63,8 +63,28 @@ const getMealsTable = () => {
 };
 
 const getMealsTableHeaderIndex = (table, headerText) => {
-  const headers = Array.from(table.querySelectorAll("thead th"));
-  return headers.findIndex((th) => {
+  const headerRows = table.querySelectorAll("thead tr");
+  const monthHeader = table.querySelector("thead th[rowspan]");
+
+  if (monthHeader && monthHeader.textContent?.trim() === headerText) {
+    return 0;
+  }
+
+  if (headerRows.length > 1) {
+    const detailHeaders = Array.from(headerRows[1].querySelectorAll("th"));
+    const detailIndex = detailHeaders.findIndex((th) => {
+      const label = th.querySelector("span");
+      const textContent = label ? label.textContent : th.textContent;
+      return textContent?.trim() === headerText;
+    });
+
+    if (detailIndex >= 0) {
+      return detailIndex + 1; // account for the Month column occupying index 0
+    }
+  }
+
+  const fallbackHeaders = Array.from(table.querySelectorAll("thead th"));
+  return fallbackHeaders.findIndex((th) => {
     const label = th.querySelector("span");
     const textContent = label ? label.textContent : th.textContent;
     return textContent?.trim() === headerText;
@@ -80,6 +100,25 @@ const getRowCellByHeader = (row, headerIndex) => {
   }
   const cells = row.querySelectorAll("td");
   return cells[headerIndex - 1];
+};
+
+const getShowerLaundryTable = () => {
+  const tables = screen.getAllByRole("table");
+  return tables[2];
+};
+
+const getShowerLaundryRow = (monthLabel) => {
+  const table = getShowerLaundryTable();
+  const rows = Array.from(table.querySelectorAll("tbody tr"));
+  return rows.find((row) => {
+    const header = row.querySelector("th[scope='row']");
+    return header?.textContent?.trim() === monthLabel;
+  });
+};
+
+const getShowerLaundryCellText = (row, columnKey) => {
+  const cell = row?.querySelector(`[data-column='${columnKey}']`);
+  return cell?.textContent?.trim();
 };
 
 describe("MonthlySummaryReport", () => {
@@ -99,13 +138,17 @@ describe("MonthlySummaryReport", () => {
 
     const yearLabel = new Date().getFullYear();
     expect(
-      screen.getByText(`Monthly Summary Report - ${yearLabel}`),
+      screen.getByText(`Monthly Summary Report for Meals - ${yearLabel}`),
     ).toBeInTheDocument();
 
     // Check for table headers in the thead
     const [mealsTable] = screen.getAllByRole("table");
     const thead = mealsTable.querySelector("thead");
 
+    expect(thead.textContent).toContain("Onsite Guest Meals");
+    expect(thead.textContent).toContain("Outreach & Partner");
+    expect(thead.textContent).toContain("Production Extras");
+    expect(thead.textContent).toContain("Totals");
     expect(thead.textContent).toContain("Monday");
     expect(thead.textContent).toContain("Wednesday");
     expect(thead.textContent).toContain("Saturday");
@@ -131,7 +174,9 @@ describe("MonthlySummaryReport", () => {
   it("displays Year to Date row at the bottom", () => {
     render(<MonthlySummaryReport />);
     const mealsTable = getMealsTable();
-    const totalRowHeader = screen.getByRole("rowheader", { name: "Year to Date" });
+    const totalRowHeader = within(mealsTable).getByRole("rowheader", {
+      name: "Year to Date",
+    });
     expect(totalRowHeader).toBeInTheDocument();
 
     const totalRow = totalRowHeader.closest("tr");
@@ -316,10 +361,8 @@ describe("MonthlySummaryReport", () => {
     expect(
       screen.getByText("Shower & Laundry Services Summary"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Program Days in Month")).toBeInTheDocument();
-    expect(
-      screen.getByText("YTD Total Unduplicated Laundry Users"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Program & Shower Reach")).toBeInTheDocument();
+    expect(screen.getByText("New Laundry Guests")).toBeInTheDocument();
   });
 
   it("exports bicycle summary via the dedicated button", () => {
@@ -376,6 +419,56 @@ describe("MonthlySummaryReport", () => {
     expect(
       csvData[csvData.length - 1]["YTD Total Unduplicated Laundry Users"],
     ).toBeDefined();
+    expect(csvData[0]).toHaveProperty("Average Showers per Program Day");
+    expect(csvData[0]).toHaveProperty("Average Laundry Loads per Program Day");
+    expect(csvData[0]).toHaveProperty("New Laundry Guests This Month");
+  });
+
+  it("calculates shower averages and separates new laundry guests", () => {
+    setupMockContext({
+      guests: [
+        { id: "guest-1", age: "Adult 18-59" },
+        { id: "guest-2", age: "Senior 60+" },
+      ],
+      showerRecords: [
+        { guestId: "guest-1", date: "2025-01-03T12:00:00Z", status: "done" },
+        { guestId: "guest-2", date: "2025-01-04T12:00:00Z", status: "done" },
+        { guestId: "guest-2", date: "2025-02-06T12:00:00Z", status: "done" },
+      ],
+      laundryRecords: [
+        {
+          guestId: "guest-1",
+          date: "2025-01-03T08:00:00Z",
+          status: LAUNDRY_STATUS.DONE,
+        },
+        {
+          guestId: "guest-1",
+          date: "2025-01-03T10:00:00Z",
+          status: LAUNDRY_STATUS.RETURNED,
+        },
+        {
+          guestId: "guest-2",
+          date: "2025-02-05T09:00:00Z",
+          status: LAUNDRY_STATUS.DONE,
+        },
+      ],
+    });
+
+    render(<MonthlySummaryReport />);
+
+    const januaryRow = getShowerLaundryRow("January");
+    const februaryRow = getShowerLaundryRow("February");
+
+    expect(januaryRow).toBeTruthy();
+    expect(februaryRow).toBeTruthy();
+
+    expect(getShowerLaundryCellText(januaryRow, "avg-showers")).toBe("1.0");
+    expect(getShowerLaundryCellText(januaryRow, "avg-laundry")).toBe("1.0");
+    expect(getShowerLaundryCellText(januaryRow, "new-laundry-guests")).toBe("1");
+    expect(getShowerLaundryCellText(januaryRow, "ytd-laundry-users")).toBe("1");
+
+    expect(getShowerLaundryCellText(februaryRow, "new-laundry-guests")).toBe("1");
+    expect(getShowerLaundryCellText(februaryRow, "ytd-laundry-users")).toBe("2");
   });
 
   it("shows totals row with correct calculations", () => {
@@ -418,7 +511,8 @@ describe("MonthlySummaryReport", () => {
 
     // Bicycle summary always displays full year
     expect(bicycleTable.textContent).toContain("February");
-    expect(showerLaundryTable.textContent).toContain("December");
+    expect(showerLaundryTable.textContent).not.toContain("February");
+    expect(showerLaundryTable.textContent).not.toContain("December");
 
     vi.setSystemTime(DEFAULT_REPORT_DATE);
   });
