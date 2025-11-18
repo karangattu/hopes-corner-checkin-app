@@ -207,7 +207,7 @@ const MEAL_TABLE_GROUPS = [
   {
     key: "onsite",
     title: "Onsite Guest Meals",
-    subtitle: "Served on campus",
+    subtitle: "Served onsite",
     headerClass: "bg-slate-50 text-slate-700",
     columns: [
       "mondayMeals",
