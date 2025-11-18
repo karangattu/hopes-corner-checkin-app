@@ -10,6 +10,16 @@ import {
   resolveDonationDateParts,
 } from "./normalizers";
 
+export const mapShowerStatusToApp = (status) => {
+  if (!status) return "awaiting";
+  return status === "booked" ? "awaiting" : status;
+};
+
+export const mapShowerStatusToDb = (status) => {
+  if (!status) return "booked";
+  return status === "awaiting" ? "booked" : status;
+};
+
 export const mapGuestRow = (row) => ({
   id: row.id,
   guestId: row.external_id,
@@ -67,7 +77,7 @@ export const mapShowerRow = (row) => {
     time: row.scheduled_time,
     scheduledFor: row.scheduled_for,
     date: scheduledTimestamp || fallbackTimestamp,
-    status: row.status || "booked",
+    status: mapShowerStatusToApp(row.status),
     createdAt: row.created_at,
     lastUpdated: row.updated_at,
   };

@@ -4220,19 +4220,43 @@ const Services = () => {
                             })}
                           </div>
                         </div>
-                        <button
-                          onClick={() => {
-                            try {
-                              cancelShowerRecord(record.id);
-                              toast.success("Waitlist entry cancelled");
-                            } catch (err) {
-                              toast.error(err.message);
-                            }
-                          }}
-                          className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-                        >
-                          Cancel
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const success = await updateShowerStatus(
+                                  record.id,
+                                  "done",
+                                );
+                                if (success) {
+                                  toast.success(
+                                    "Waitlisted shower marked complete",
+                                  );
+                                }
+                              } catch (err) {
+                                toast.error(err.message);
+                              }
+                            }}
+                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Mark complete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                cancelShowerRecord(record.id);
+                                toast.success("Waitlist entry cancelled");
+                              } catch (err) {
+                                toast.error(err.message);
+                              }
+                            }}
+                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {waitlistActions.map((action) => {

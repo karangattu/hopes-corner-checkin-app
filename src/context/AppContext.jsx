@@ -59,6 +59,7 @@ import {
   mapHaircutRow as mapHaircutRowPure,
   mapItemRow as mapItemRowPure,
   mapDonationRow as mapDonationRowPure,
+  mapShowerStatusToDb,
 } from "./utils/mappers";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
@@ -3794,6 +3795,51 @@ export const AppProvider = ({ children }) => {
           toast.success("Removed shower waitlist entry");
           break;
         }
+        case "SHOWER_WAITLIST_COMPLETED": {
+          const recordId = action.data?.recordId;
+          if (!recordId) return false;
+          const timestamp = new Date().toISOString();
+          let updatedRecord = null;
+          if (
+            supabaseEnabled &&
+            supabase &&
+            !(typeof recordId === "string" && recordId.startsWith("local-"))
+          ) {
+            try {
+              const { data, error } = await supabase
+                .from("shower_reservations")
+                .update({ status: "waitlisted", updated_at: timestamp })
+                .eq("id", recordId)
+                .select()
+                .maybeSingle();
+              if (error) throw error;
+              if (data) {
+                updatedRecord = mapShowerRow(data);
+              }
+            } catch (error) {
+              console.error(
+                "Failed to restore waitlist status in Supabase:",
+                error,
+              );
+              toast.error("Unable to undo waitlist completion.");
+              return false;
+            }
+          }
+
+          setShowerRecords((prev) =>
+            prev.map((record) =>
+              record.id === recordId
+                ? updatedRecord || {
+                    ...record,
+                    status: "waitlisted",
+                    lastUpdated: timestamp,
+                  }
+                : record,
+            ),
+          );
+          toast.success("Returned shower to waitlist");
+          break;
+        }
         case "SHOWER_CANCELLED": {
           const snap = action.data?.snapshot;
           if (!snap) return false;
@@ -3811,7 +3857,7 @@ export const AppProvider = ({ children }) => {
               scheduled_for: snap.date
                 ? snap.date.split("T")[0]
                 : todayPacificDateString(),
-              status: snap.status || "booked",
+              status: mapShowerStatusToDb(snap.status),
               created_at: snap.createdAt || snap.date,
               updated_at: snap.lastUpdated || new Date().toISOString(),
             };

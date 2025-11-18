@@ -135,4 +135,54 @@ describe("AppContext shower and laundry mutations", () => {
       bagNumber: "BAG-1",
     });
   });
+
+  it("marks waitlisted showers complete and supports undoing the action", async () => {
+    const { result } = renderHook(() => useAppContext(), { wrapper });
+
+    const guest = await createGuest(result);
+
+    let waitlistRecord;
+    await act(async () => {
+      waitlistRecord = await result.current.addShowerWaitlist(guest.id);
+    });
+
+    expect(waitlistRecord.status).toBe("waitlisted");
+
+    await act(async () => {
+      const success = await result.current.updateShowerStatus(
+        waitlistRecord.id,
+        "done",
+      );
+      expect(success).toBe(true);
+    });
+
+    const updatedRecord = result.current.showerRecords.find(
+      (record) => record.id === waitlistRecord.id,
+    );
+    expect(updatedRecord).toBeTruthy();
+    expect(updatedRecord.status).toBe("done");
+
+    const completionAction = result.current.actionHistory.find(
+      (entry) =>
+        entry.type === "SHOWER_WAITLIST_COMPLETED" &&
+        entry.data?.recordId === waitlistRecord.id,
+    );
+    expect(completionAction).toBeTruthy();
+
+    await act(async () => {
+      const undone = await result.current.undoAction(completionAction.id);
+      expect(undone).toBe(true);
+    });
+
+    const restoredRecord = result.current.showerRecords.find(
+      (record) => record.id === waitlistRecord.id,
+    );
+    expect(restoredRecord).toBeTruthy();
+    expect(restoredRecord.status).toBe("waitlisted");
+
+    const historyEntryStillPresent = result.current.actionHistory.find(
+      (entry) => entry.id === completionAction.id,
+    );
+    expect(historyEntryStillPresent).toBeUndefined();
+  });
 });

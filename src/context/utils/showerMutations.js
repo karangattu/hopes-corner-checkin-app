@@ -1,4 +1,5 @@
 import { addShowerWithOffline } from '../../utils/offlineOperations';
+import { mapShowerStatusToDb } from './mappers';
 
 export const createShowerMutations = ({
   supabaseEnabled,
@@ -62,7 +63,7 @@ export const createShowerMutations = ({
             time,
             scheduledFor,
             date: scheduledDateTime || timestamp,
-            status: "booked",
+            status: "awaiting",
             createdAt: timestamp,
             lastUpdated: timestamp,
             pendingSync: true,
@@ -109,7 +110,7 @@ export const createShowerMutations = ({
       time,
       scheduledFor,
       date: scheduledDateTime || timestamp,
-      status: "booked",
+      status: "awaiting",
       createdAt: timestamp,
       lastUpdated: timestamp,
     };
@@ -346,11 +347,13 @@ export const createShowerMutations = ({
       ),
     );
 
+    const dbStatus = mapShowerStatusToDb(newStatus);
+
     if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
       try {
         const { data, error } = await supabaseClient
           .from("shower_reservations")
-          .update({ status: newStatus, updated_at: timestamp })
+          .update({ status: dbStatus, updated_at: timestamp })
           .eq("id", recordId)
           .select()
           .maybeSingle();
@@ -375,6 +378,23 @@ export const createShowerMutations = ({
         );
         return false;
       }
+    }
+
+    const isWaitlistCompletion =
+      previousRecord.status === "waitlisted" && newStatus === "done";
+    if (isWaitlistCompletion) {
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "SHOWER_WAITLIST_COMPLETED",
+        timestamp,
+        data: {
+          recordId,
+          guestId: previousRecord.guestId,
+          fromStatus: previousRecord.status,
+          time: previousRecord.time,
+        },
+        description: "Marked waitlisted shower complete",
+      });
     }
 
     return true;
