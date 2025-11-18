@@ -422,6 +422,12 @@ describe("MonthlySummaryReport", () => {
     expect(csvData[0]).toHaveProperty("Average Showers per Program Day");
     expect(csvData[0]).toHaveProperty("Average Laundry Loads per Program Day");
     expect(csvData[0]).toHaveProperty("New Laundry Guests This Month");
+    expect(csvData[0]).toHaveProperty("Shower Service Days", 1);
+    expect(csvData[0]).toHaveProperty("Laundry Service Days", 1);
+    expect(csvData[csvData.length - 1]).toHaveProperty(
+      "Shower Service Days",
+      csvData[0]["Shower Service Days"],
+    );
   });
 
   it("calculates shower averages and separates new laundry guests", () => {
@@ -463,7 +469,7 @@ describe("MonthlySummaryReport", () => {
     expect(februaryRow).toBeTruthy();
 
     expect(getShowerLaundryCellText(januaryRow, "avg-showers")).toBe("1.0");
-    expect(getShowerLaundryCellText(januaryRow, "avg-laundry")).toBe("1.0");
+    expect(getShowerLaundryCellText(januaryRow, "avg-laundry")).toBe("2.0");
     expect(getShowerLaundryCellText(januaryRow, "new-laundry-guests")).toBe("1");
     expect(getShowerLaundryCellText(januaryRow, "ytd-laundry-users")).toBe("1");
 

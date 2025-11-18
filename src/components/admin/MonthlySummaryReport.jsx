@@ -755,6 +755,8 @@ const MonthlySummaryReport = () => {
       programDays: 0,
       showersProvided: 0,
       laundryLoadsProcessed: 0,
+      showerServiceDays: 0,
+      laundryServiceDays: 0,
     };
 
     MONTH_NAMES.forEach((monthName, monthIndex) => {
@@ -771,6 +773,18 @@ const MonthlySummaryReport = () => {
           record.date.toISOString().slice(0, 10),
         ),
       );
+      const showerServiceDaysSet = new Set(
+        showersForMonth.map((record) =>
+          record.date.toISOString().slice(0, 10),
+        ),
+      );
+      const laundryServiceDaysSet = new Set(
+        laundryForMonth.map((record) =>
+          record.date.toISOString().slice(0, 10),
+        ),
+      );
+      const showerServiceDays = showerServiceDaysSet.size;
+      const laundryServiceDays = laundryServiceDaysSet.size;
 
       const monthGuestSet = new Set();
       combinedForMonth.forEach((record) => {
@@ -830,20 +844,24 @@ const MonthlySummaryReport = () => {
         totalsAccumulator.programDays += programDaysSet.size;
         totalsAccumulator.showersProvided += showersForMonth.length;
         totalsAccumulator.laundryLoadsProcessed += laundryForMonth.length;
+        totalsAccumulator.showerServiceDays += showerServiceDays;
+        totalsAccumulator.laundryServiceDays += laundryServiceDays;
       }
 
       const avgShowersPerDay =
-        programDaysSet.size > 0
-          ? showersForMonth.length / programDaysSet.size
+        showerServiceDays > 0
+          ? showersForMonth.length / showerServiceDays
           : 0;
       const avgLaundryLoadsPerDay =
-        programDaysSet.size > 0
-          ? laundryForMonth.length / programDaysSet.size
+        laundryServiceDays > 0
+          ? laundryForMonth.length / laundryServiceDays
           : 0;
 
       rows.push({
         month: monthName,
         programDays: programDaysSet.size,
+        showerServiceDays,
+        laundryServiceDays,
         showersProvided: showersForMonth.length,
         participantsAdult: participantsCounts.adult,
         participantsSenior: participantsCounts.senior,
@@ -871,6 +889,8 @@ const MonthlySummaryReport = () => {
     const totals = {
       month: "Year to Date",
       programDays: totalsAccumulator.programDays,
+      showerServiceDays: totalsAccumulator.showerServiceDays,
+      laundryServiceDays: totalsAccumulator.laundryServiceDays,
       showersProvided: totalsAccumulator.showersProvided,
       participantsAdult: ytdParticipantAgeSets.adult.size,
       participantsSenior: ytdParticipantAgeSets.senior.size,
@@ -887,14 +907,14 @@ const MonthlySummaryReport = () => {
       laundrySenior: ytdLaundryAgeSets.senior.size,
       laundryChild: ytdLaundryAgeSets.child.size,
       avgShowersPerDay:
-        totalsAccumulator.programDays > 0
-          ? totalsAccumulator.showersProvided / totalsAccumulator.programDays
+        totalsAccumulator.showerServiceDays > 0
+          ? totalsAccumulator.showersProvided / totalsAccumulator.showerServiceDays
           : 0,
       avgLaundryLoadsPerDay:
-        totalsAccumulator.programDays > 0
+        totalsAccumulator.laundryServiceDays > 0
           ?
               totalsAccumulator.laundryLoadsProcessed /
-              totalsAccumulator.programDays
+              totalsAccumulator.laundryServiceDays
           : 0,
       newLaundryGuests: runningNewLaundryGuests,
       ytdNewGuestsLaundry: runningNewLaundryGuests,
@@ -978,6 +998,8 @@ const MonthlySummaryReport = () => {
       ...showerLaundrySummary.rows.map((row) => ({
         Month: row.month,
         "Program Days in Month": row.programDays,
+        "Shower Service Days": row.showerServiceDays,
+        "Laundry Service Days": row.laundryServiceDays,
         "Showers Provided": row.showersProvided,
         "Average Showers per Program Day": Number(
           row.avgShowersPerDay.toFixed(2),
@@ -1004,6 +1026,8 @@ const MonthlySummaryReport = () => {
       {
         Month: showerLaundrySummary.totals.month,
         "Program Days in Month": showerLaundrySummary.totals.programDays,
+        "Shower Service Days": showerLaundrySummary.totals.showerServiceDays,
+        "Laundry Service Days": showerLaundrySummary.totals.laundryServiceDays,
         "Showers Provided": showerLaundrySummary.totals.showersProvided,
         "Average Showers per Program Day": Number(
           showerLaundrySummary.totals.avgShowersPerDay.toFixed(2),
