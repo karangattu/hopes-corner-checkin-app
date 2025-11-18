@@ -77,11 +77,6 @@ vi.mock("../../../components/lanes/BicycleKanban", () => ({
   default: () => <div data-testid="bicycle-kanban" />,
 }));
 
-vi.mock("../../../components/lanes/ShowerKanban", () => ({
-  __esModule: true,
-  default: () => <div data-testid="shower-kanban" />,
-}));
-
 vi.mock("../../../components/lanes/LaundryKanban", () => ({
   __esModule: true,
   default: () => <div data-testid="laundry-kanban" />,
@@ -380,7 +375,6 @@ describe("Services page", () => {
       laundrySort: "time-asc",
       showCompletedLaundry: false,
       bicycleViewMode: "kanban",
-      showerViewMode: "list",
       laundryViewMode: "list",
     };
 
