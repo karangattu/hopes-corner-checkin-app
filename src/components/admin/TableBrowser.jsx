@@ -32,100 +32,151 @@ const TableBrowser = () => {
         name: "Guests",
         data: guests || [],
         columns: [
-          "id",
-          "firstName",
-          "lastName",
-          "email",
-          "phone",
-          "dateOfBirth",
-          "housingStatus",
-          "notes",
-          "createdAt",
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "external_id", label: "external_id", map: (r) => r.guestId },
+          { key: "first_name", label: "first_name", map: (r) => r.firstName },
+          { key: "last_name", label: "last_name", map: (r) => r.lastName },
+          { key: "full_name", label: "full_name", map: (r) => r.name || `${r.firstName || ''} ${r.lastName || ''}`.trim() },
+          { key: "preferred_name", label: "preferred_name", map: (r) => r.preferredName || null },
+          { key: "housing_status", label: "housing_status", map: (r) => r.housingStatus || 'Unhoused' },
+          { key: "age_group", label: "age_group", map: (r) => r.age || 'Adult 18-59' },
+          { key: "gender", label: "gender", map: (r) => r.gender || 'Unknown' },
+          { key: "location", label: "location", map: (r) => r.location || 'Mountain View' },
+          { key: "notes", label: "notes", map: (r) => r.notes || null },
+          { key: "bicycle_description", label: "bicycle_description", map: (r) => r.bicycleDescription || null },
+          { key: "ban_reason", label: "ban_reason", map: (r) => r.banReason || null },
+          { key: "banned_at", label: "banned_at", map: (r) => r.bannedAt || null },
+          { key: "banned_until", label: "banned_until", map: (r) => r.bannedUntil || null },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
         ],
       },
       {
-        id: "meals",
-        name: "Meal Attendance",
-        data: mealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
+        id: "meal_attendance",
+        name: "Meal Attendance (All Types)",
+        data: [
+          ...(mealRecords || []).map(r => ({ ...r, meal_type: 'guest' })),
+          ...(rvMealRecords || []).map(r => ({ ...r, meal_type: 'rv' })),
+          ...(shelterMealRecords || []).map(r => ({ ...r, meal_type: 'shelter' })),
+          ...(unitedEffortMealRecords || []).map(r => ({ ...r, meal_type: 'united_effort' })),
+          ...(extraMealRecords || []).map(r => ({ ...r, meal_type: 'extra' })),
+          ...(dayWorkerMealRecords || []).map(r => ({ ...r, meal_type: 'day_worker' })),
+          ...(lunchBagRecords || []).map(r => ({ ...r, meal_type: 'lunch_bag' })),
+        ],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId || null },
+          { key: "meal_type", label: "meal_type", map: (r) => r.meal_type },
+          { key: "quantity", label: "quantity", map: (r) => r.count || 1 },
+          { key: "served_on", label: "served_on", map: (r) => r.date ? new Date(r.date).toISOString().split('T')[0] : null },
+          { key: "recorded_at", label: "recorded_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "notes", label: "notes", map: (r) => r.notes || null },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "rv-meals",
-        name: "RV Meal Attendance",
-        data: rvMealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "shelter-meals",
-        name: "Shelter Meal Attendance",
-        data: shelterMealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "united-effort-meals",
-        name: "United Effort Meal Attendance",
-        data: unitedEffortMealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "extra-meals",
-        name: "Extra Meal Attendance",
-        data: extraMealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "day-worker-meals",
-        name: "Day Worker Meal Attendance",
-        data: dayWorkerMealRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "lunch-bags",
-        name: "Lunch Bag Distribution",
-        data: lunchBagRecords || [],
-        columns: ["id", "guestId", "type", "date", "count", "createdAt"],
-      },
-      {
-        id: "showers",
+        id: "shower_reservations",
         name: "Shower Reservations",
         data: showerRecords || [],
-        columns: ["id", "guestId", "date", "time", "status", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId },
+          { key: "scheduled_for", label: "scheduled_for", map: (r) => r.date ? new Date(r.date).toISOString().split('T')[0] : null },
+          { key: "scheduled_time", label: "scheduled_time", map: (r) => r.time || null },
+          { key: "status", label: "status", map: (r) => r.status || 'booked' },
+          { key: "waitlist_position", label: "waitlist_position", map: (r) => r.waitlistPosition || null },
+          { key: "note", label: "note", map: (r) => r.note || null },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "laundry",
+        id: "laundry_bookings",
         name: "Laundry Bookings",
         data: laundryRecords || [],
-        columns: ["id", "guestId", "date", "time", "status", "bagNumber", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId },
+          { key: "scheduled_for", label: "scheduled_for", map: (r) => r.date ? new Date(r.date).toISOString().split('T')[0] : null },
+          { key: "slot_label", label: "slot_label", map: (r) => r.slotLabel || r.time || null },
+          { key: "laundry_type", label: "laundry_type", map: (r) => r.laundryType || 'onsite' },
+          { key: "bag_number", label: "bag_number", map: (r) => r.bagNumber || null },
+          { key: "status", label: "status", map: (r) => r.status || 'waiting' },
+          { key: "note", label: "note", map: (r) => r.note || null },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "bicycles",
+        id: "bicycle_repairs",
         name: "Bicycle Repairs",
         data: bicycleRecords || [],
-        columns: ["id", "guestId", "date", "status", "repairType", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId || null },
+          { key: "requested_at", label: "requested_at", map: (r) => r.requestedAt || r.date || new Date().toISOString() },
+          { key: "repair_type", label: "repair_type", map: (r) => r.repairType || null },
+          { key: "repair_types", label: "repair_types", map: (r) => JSON.stringify(r.repairTypes || [r.repairType].filter(Boolean)) },
+          { key: "completed_repairs", label: "completed_repairs", map: (r) => JSON.stringify(r.completedRepairs || []) },
+          { key: "notes", label: "notes", map: (r) => r.notes || null },
+          { key: "status", label: "status", map: (r) => r.status || 'pending' },
+          { key: "priority", label: "priority", map: (r) => r.priority || 0 },
+          { key: "completed_at", label: "completed_at", map: (r) => r.completedAt || null },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
+        ],
       },
       {
         id: "donations",
         name: "Donations",
         data: donationRecords || [],
-        columns: ["id", "donor", "type", "itemName", "trays", "weightLbs", "servings", "temperature", "date", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "donation_type", label: "donation_type", map: (r) => r.type },
+          { key: "item_name", label: "item_name", map: (r) => r.itemName },
+          { key: "trays", label: "trays", map: (r) => r.trays || 0 },
+          { key: "weight_lbs", label: "weight_lbs", map: (r) => r.weightLbs || 0 },
+          { key: "servings", label: "servings", map: (r) => r.servings || 0 },
+          { key: "temperature", label: "temperature", map: (r) => r.temperature || null },
+          { key: "donor", label: "donor", map: (r) => r.donor },
+          { key: "donated_at", label: "donated_at", map: (r) => r.date || r.donatedAt || new Date().toISOString() },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+          { key: "updated_at", label: "updated_at", map: (r) => r.updatedAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "items-given",
-        name: "Items Given",
+        id: "items_distributed",
+        name: "Items Distributed",
         data: itemGivenRecords || [],
-        columns: ["id", "guestId", "item", "date", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId },
+          { key: "item_key", label: "item_key", map: (r) => r.item || r.itemKey },
+          { key: "distributed_at", label: "distributed_at", map: (r) => r.date || r.distributedAt || new Date().toISOString() },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "haircuts",
-        name: "Haircuts",
+        id: "haircut_visits",
+        name: "Haircut Visits",
         data: haircutRecords || [],
-        columns: ["id", "guestId", "date", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId },
+          { key: "served_at", label: "served_at", map: (r) => r.date || r.servedAt || new Date().toISOString() },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+        ],
       },
       {
-        id: "holidays",
-        name: "Holidays",
+        id: "holiday_visits",
+        name: "Holiday Visits",
         data: holidayRecords || [],
-        columns: ["id", "guestId", "date", "createdAt"],
+        columns: [
+          { key: "id", label: "id", map: (r) => r.id },
+          { key: "guest_id", label: "guest_id", map: (r) => r.guestId },
+          { key: "served_at", label: "served_at", map: (r) => r.date || r.servedAt || new Date().toISOString() },
+          { key: "created_at", label: "created_at", map: (r) => r.createdAt || new Date().toISOString() },
+        ],
       },
     ],
     [guests, mealRecords, rvMealRecords, shelterMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, donationRecords, itemGivenRecords, haircutRecords, holidayRecords],
@@ -145,13 +196,13 @@ const TableBrowser = () => {
     const csvData = currentTable.data.map((row) => {
       const csvRow = {};
       currentTable.columns.forEach((col) => {
-        const value = row[col];
+        const value = col.map ? col.map(row) : row[col.key];
         if (Array.isArray(value)) {
-          csvRow[col] = JSON.stringify(value);
+          csvRow[col.label] = JSON.stringify(value);
         } else if (typeof value === "object" && value !== null) {
-          csvRow[col] = JSON.stringify(value);
+          csvRow[col.label] = JSON.stringify(value);
         } else {
-          csvRow[col] = value || "";
+          csvRow[col.label] = value ?? "";
         }
       });
       return csvRow;
@@ -201,8 +252,13 @@ const TableBrowser = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <Download size={16} />
-                Download CSV
+                Download CSV (Supabase-ready)
               </button>
+            </div>
+
+            <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="font-semibold text-blue-900 mb-1">📥 Supabase-Compatible Export</p>
+              <p>Column names match the Supabase schema exactly. CSV files can be imported directly into Supabase without modification.</p>
             </div>
           </div>
         </div>
@@ -213,10 +269,10 @@ const TableBrowser = () => {
               <tr className="bg-gray-50 border-b border-gray-200">
                 {currentTable.columns.map((col) => (
                   <th
-                    key={col}
+                    key={col.key}
                     className="px-4 py-3 text-left font-semibold text-gray-700"
                   >
-                    {col}
+                    {col.label}
                   </th>
                 ))}
               </tr>
@@ -238,7 +294,7 @@ const TableBrowser = () => {
                     className="border-b border-gray-200 hover:bg-gray-50"
                   >
                     {currentTable.columns.map((col) => {
-                      const value = row[col];
+                      const value = col.map ? col.map(row) : row[col.key];
                       let displayValue = "";
 
                       if (value === null || value === undefined) {
@@ -255,7 +311,7 @@ const TableBrowser = () => {
 
                       return (
                         <td
-                          key={`${row.id || idx}-${col}`}
+                          key={`${row.id || idx}-${col.key}`}
                           className="px-4 py-3 text-gray-900 max-w-xs truncate"
                           title={displayValue}
                         >

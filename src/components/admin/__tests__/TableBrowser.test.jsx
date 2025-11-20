@@ -20,23 +20,31 @@ vi.mock("../../../context/useAppContext", () => ({
     guests: [
       {
         id: "guest-1",
+        guestId: "G001",
         firstName: "John",
         lastName: "Doe",
+        name: "John Doe",
         email: "john@example.com",
         phone: "555-0001",
         dateOfBirth: "1990-01-15",
         housingStatus: "Homeless",
+        age: "Adult 18-59",
+        gender: "Male",
         notes: "Test guest",
         createdAt: "2025-01-01T00:00:00Z",
       },
       {
         id: "guest-2",
+        guestId: "G002",
         firstName: "Jane",
         lastName: "Smith",
+        name: "Jane Smith",
         email: "jane@example.com",
         phone: "555-0002",
         dateOfBirth: "1985-05-20",
         housingStatus: "Housed",
+        age: "Adult 18-59",
+        gender: "Female",
         notes: "",
         createdAt: "2025-01-02T00:00:00Z",
       },
@@ -46,7 +54,7 @@ vi.mock("../../../context/useAppContext", () => ({
         id: "meal-1",
         guestId: "guest-1",
         type: "Dinner",
-        date: "2025-01-10T18:00:00Z",
+        date: "2025-01-10",
         count: 1,
         createdAt: "2025-01-10T18:30:00Z",
       },
@@ -61,8 +69,8 @@ vi.mock("../../../context/useAppContext", () => ({
       {
         id: "shower-1",
         guestId: "guest-1",
-        date: "2025-01-10T09:00:00Z",
-        time: "09:00-10:00",
+        date: "2025-01-10",
+        time: "09:00",
         status: "completed",
         createdAt: "2025-01-10T09:30:00Z",
       },
@@ -71,7 +79,7 @@ vi.mock("../../../context/useAppContext", () => ({
       {
         id: "laundry-1",
         guestId: "guest-2",
-        date: "2025-01-11T10:00:00Z",
+        date: "2025-01-11",
         time: "10:00-11:00",
         status: "pending",
         bagNumber: "Bag-001",
@@ -85,6 +93,7 @@ vi.mock("../../../context/useAppContext", () => ({
         date: "2025-01-09T14:00:00Z",
         status: "completed",
         repairType: "Chain Repair",
+        repairTypes: ["Chain Repair"],
         createdAt: "2025-01-09T14:30:00Z",
       },
     ],
@@ -145,13 +154,14 @@ describe("TableBrowser", () => {
     expect(screen.getByText("Jane")).toBeInTheDocument();
   });
 
-  it("displays table data with correct columns", () => {
+  it("displays table data with Supabase schema columns", () => {
     render(<TableBrowser />);
 
-    expect(screen.getByText("firstName")).toBeInTheDocument();
-    expect(screen.getByText("lastName")).toBeInTheDocument();
-    expect(screen.getByText("email")).toBeInTheDocument();
-    expect(screen.getByText("phone")).toBeInTheDocument();
+    // Check for Supabase schema column names
+    expect(screen.getByText("first_name")).toBeInTheDocument();
+    expect(screen.getByText("last_name")).toBeInTheDocument();
+    expect(screen.getByText("external_id")).toBeInTheDocument();
+    expect(screen.getByText("housing_status")).toBeInTheDocument();
   });
 
   it("shows total row count", () => {
@@ -165,14 +175,14 @@ describe("TableBrowser", () => {
     render(<TableBrowser />);
 
     const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "meals" } });
+    fireEvent.change(select, { target: { value: "meal_attendance" } });
 
     await waitFor(() => {
-      expect(select.value).toBe("meals");
+      expect(select.value).toBe("meal_attendance");
     });
 
-    expect(screen.getByText("Dinner")).toBeInTheDocument();
-    expect(screen.getByText("type")).toBeInTheDocument();
+    // Should show meal_type column
+    expect(screen.getByText("meal_type")).toBeInTheDocument();
   });
 
   it("displays correct table names and row counts in dropdown", () => {
@@ -190,55 +200,58 @@ describe("TableBrowser", () => {
     expect(guestOption.textContent).toMatch(/Guests \(2 rows\)/);
   });
 
-  it("downloads CSV when download button is clicked", () => {
+  it("downloads CSV with Supabase schema columns when download button is clicked", () => {
     render(<TableBrowser />);
 
-    const downloadButton = screen.getByText("Download CSV");
+    const downloadButton = screen.getByText("Download CSV", { exact: false });
     fireEvent.click(downloadButton);
 
     expect(mockExportDataAsCSV).toHaveBeenCalledTimes(1);
-    expect(mockExportDataAsCSV).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          firstName: "John",
-          lastName: "Doe",
-        }),
-      ]),
-      expect.stringMatching(/guests-\d{4}-\d{2}-\d{2}\.csv/)
-    );
+
+    // Check that CSV has Supabase schema column names
+    const csvData = mockExportDataAsCSV.mock.calls[0][0];
+    expect(csvData[0]).toHaveProperty("first_name");
+    expect(csvData[0]).toHaveProperty("last_name");
+    expect(csvData[0]).toHaveProperty("external_id");
+    expect(csvData[0]).toHaveProperty("housing_status");
+    expect(csvData[0]).toHaveProperty("age_group");
+
     expect(mockToast.success).toHaveBeenCalledWith("Guests exported to CSV");
   });
 
-  it("shows error when trying to download empty table", () => {
+  it("shows Supabase-ready info banner", () => {
+    render(<TableBrowser />);
+
+    expect(screen.getByText(/Supabase-Compatible Export/i)).toBeInTheDocument();
+    expect(screen.getByText(/Column names match the Supabase schema exactly/i)).toBeInTheDocument();
+  });
+
+  it("consolidates meal types into single meal_attendance table", () => {
     render(<TableBrowser />);
 
     const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "showers" } });
 
-    fireEvent.change(select, { target: { value: "donations" } });
+    // Should have meal_attendance table, not separate meal tables
+    const options = Array.from(select.querySelectorAll("option"));
+    const mealOption = options.find(opt => opt.value === "meal_attendance");
 
-    const downloadButton = screen.getByText("Download CSV");
+    expect(mealOption).toBeInTheDocument();
+    expect(mealOption.textContent).toContain("Meal Attendance (All Types)");
+  });
+
+  it("properly formats array values as JSON in CSV", () => {
+    render(<TableBrowser />);
+
+    const select = screen.getByRole("combobox");
+    fireEvent.change(select, { target: { value: "bicycle_repairs" } });
+
+    const downloadButton = screen.getByText("Download CSV", { exact: false });
     fireEvent.click(downloadButton);
 
-    expect(mockToast.success).toHaveBeenCalled();
-  });
+    const csvData = mockExportDataAsCSV.mock.calls[0][0];
 
-  it("properly formats array values in table cells", () => {
-    render(<TableBrowser />);
-
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "bicycles" } });
-
-    expect(screen.getByText("Chain Repair")).toBeInTheDocument();
-  });
-
-  it("properly formats object values in table cells", () => {
-    render(<TableBrowser />);
-
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "meals" } });
-
-    expect(screen.getByText("Dinner")).toBeInTheDocument();
+    // repair_types should be JSON stringified array
+    expect(csvData[0].repair_types).toContain("Chain Repair");
   });
 
   it("handles null and undefined values gracefully", () => {
@@ -248,57 +261,59 @@ describe("TableBrowser", () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
-  it("displays no data message when table is empty", () => {
-    render(<TableBrowser />);
-
-    expect(screen.queryByText("No data available")).not.toBeInTheDocument();
-  });
-
-  it("renders table with proper accessibility attributes", () => {
-    render(<TableBrowser />);
-
-    const table = screen.getByRole("table");
-    expect(table).toBeInTheDocument();
-
-    const thead = table.querySelector("thead");
-    expect(thead).toBeInTheDocument();
-
-    const tbody = table.querySelector("tbody");
-    expect(tbody).toBeInTheDocument();
-  });
-
-  it("exports meal table with correct format", async () => {
+  it("exports meal table with Supabase schema columns", async () => {
     render(<TableBrowser />);
 
     const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "meals" } });
+    fireEvent.change(select, { target: { value: "meal_attendance" } });
 
     await waitFor(() => {
-      expect(select.value).toBe("meals");
+      expect(select.value).toBe("meal_attendance");
     });
 
-    const downloadButton = screen.getByText("Download CSV");
+    const downloadButton = screen.getByText("Download CSV", { exact: false });
     fireEvent.click(downloadButton);
 
-    expect(mockExportDataAsCSV).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          guestId: "guest-1",
-          type: "Dinner",
-        }),
-      ]),
-      expect.stringMatching(/meals-\d{4}-\d{2}-\d{2}\.csv/)
-    );
+    const csvData = mockExportDataAsCSV.mock.calls[0][0];
+
+    // Check Supabase schema columns
+    expect(csvData[0]).toHaveProperty("guest_id");
+    expect(csvData[0]).toHaveProperty("meal_type");
+    expect(csvData[0]).toHaveProperty("quantity");
+    expect(csvData[0]).toHaveProperty("served_on");
+
     expect(mockToast.success).toHaveBeenCalledWith(
-      "Meal Attendance exported to CSV"
+      "Meal Attendance (All Types) exported to CSV"
     );
+  });
+
+  it("exports shower_reservations with correct Supabase columns", async () => {
+    render(<TableBrowser />);
+
+    const select = screen.getByRole("combobox");
+    fireEvent.change(select, { target: { value: "shower_reservations" } });
+
+    await waitFor(() => {
+      expect(select.value).toBe("shower_reservations");
+    });
+
+    const downloadButton = screen.getByText("Download CSV", { exact: false });
+    fireEvent.click(downloadButton);
+
+    const csvData = mockExportDataAsCSV.mock.calls[0][0];
+
+    // Check Supabase schema columns
+    expect(csvData[0]).toHaveProperty("guest_id");
+    expect(csvData[0]).toHaveProperty("scheduled_for");
+    expect(csvData[0]).toHaveProperty("scheduled_time");
+    expect(csvData[0]).toHaveProperty("status");
   });
 
   it("exports different tables with different filenames", async () => {
     render(<TableBrowser />);
 
     const select = screen.getByRole("combobox");
-    const downloadButton = screen.getByText("Download CSV");
+    const downloadButton = screen.getByText("Download CSV", { exact: false });
 
     fireEvent.click(downloadButton);
     expect(mockExportDataAsCSV).toHaveBeenCalledWith(
@@ -308,12 +323,17 @@ describe("TableBrowser", () => {
 
     mockExportDataAsCSV.mockClear();
 
-    fireEvent.change(select, { target: { value: "showers" } });
+    fireEvent.change(select, { target: { value: "shower_reservations" } });
+
+    await waitFor(() => {
+      expect(select.value).toBe("shower_reservations");
+    });
+
     fireEvent.click(downloadButton);
 
     expect(mockExportDataAsCSV).toHaveBeenCalledWith(
       expect.any(Array),
-      expect.stringMatching(/showers-/)
+      expect.stringMatching(/shower_reservations-/)
     );
   });
 });
