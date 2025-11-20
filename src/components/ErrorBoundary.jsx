@@ -31,11 +31,11 @@ class ErrorBoundary extends React.Component {
             console.error("Failed to update error count in localStorage:", storageError);
         }
 
-        this.setState(prevState => ({
+        this.setState({
             error,
             errorInfo,
             errorCount: newCount,
-        }));
+        });
 
         // Log to external service if configured
         if (typeof window !== "undefined" && window.gtag) {
