@@ -5,18 +5,21 @@ import "./styles.css";
 import "./App.css";
 import App from "./App.jsx";
 import { Toaster } from "react-hot-toast";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
-    <Toaster
-      position="top-center"
-      toastOptions={{
-        duration: 2000,
-        success: { duration: 1500 },
-        error: { duration: 4000 },
-      }}
-    />
+    <ErrorBoundary>
+      <App />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 2000,
+          success: { duration: 1500 },
+          error: { duration: 4000 },
+        }}
+      />
+    </ErrorBoundary>
   </StrictMode>,
 );
 
@@ -32,10 +35,10 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         const checkUpdates = () => {
           reg.update();
         };
-        
+
         // Check immediately
         checkUpdates();
-        
+
         // Then check every 5 minutes (instead of hourly)
         setInterval(checkUpdates, 5 * 60 * 1000);
 
@@ -52,7 +55,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
               // Show update notification
               const updateMessage = `A new version of Hope's Corner is available! Updating now...`;
               console.log(updateMessage);
-              
+
               // Dispatch event for app to show toast
               window.dispatchEvent(
                 new CustomEvent('app-update-available', {

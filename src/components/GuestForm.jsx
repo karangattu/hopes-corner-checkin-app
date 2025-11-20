@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Selectize from "./Selectize";
 import { useAppContext } from "../context/useAppContext";
+import { sanitizeString } from "../utils/validation";
 
 const GuestForm = () => {
   const { addGuest } = useAppContext();
@@ -60,15 +61,39 @@ const GuestForm = () => {
     e.preventDefault();
     setError("");
 
-    if (!formData.name.trim()) {
-      setError("Please enter a guest name");
+    // Sanitize and validate name
+    const sanitizedName = sanitizeString(formData.name, { maxLength: 100 });
+    if (!sanitizedName.trim()) {
+      setError("Please enter a valid guest name");
       return;
     }
+
+    // Sanitize notes and bicycle description to prevent XSS
+    const sanitizedNotes = sanitizeString(formData.notes, {
+      maxLength: 500,
+      allowHTML: false
+    });
+
+    const sanitizedBicycleDesc = sanitizeString(formData.bicycleDescription, {
+      maxLength: 200,
+      allowHTML: false
+    });
+
+    // Validate location if provided
+    const sanitizedLocation = sanitizeString(formData.location, { maxLength: 100 });
 
     setIsSubmitting(true);
 
     try {
-      addGuest(formData);
+      // Create guest with sanitized data
+      await addGuest({
+        ...formData,
+        name: sanitizedName,
+        location: sanitizedLocation,
+        notes: sanitizedNotes,
+        bicycleDescription: sanitizedBicycleDesc,
+      });
+
       setFormData({
         name: "",
         housingStatus: "Unhoused",

@@ -31,7 +31,7 @@ describe("GuestForm", () => {
     await user.click(screen.getByRole("button", { name: /register guest/i }));
 
     expect(
-      await screen.findByText(/please enter a guest name/i),
+      await screen.findByText(/please enter a valid guest name/i),
     ).toBeInTheDocument();
     expect(mockAddGuest).not.toHaveBeenCalled();
   });

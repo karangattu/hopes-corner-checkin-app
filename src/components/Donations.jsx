@@ -25,6 +25,7 @@ import {
   Copy,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { sanitizeString, isValidNumber } from "../utils/validation";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -139,11 +140,11 @@ const Donations = () => {
       const recordServings = record.servings
         ? Number(record.servings)
         : calculateServings(
-            record.type,
-            recordWeight,
-            Number(record.trays || 0),
-            record.density || "medium",
-          );
+          record.type,
+          recordWeight,
+          Number(record.trays || 0),
+          record.density || "medium",
+        );
       servings += recordServings;
       if (record.donor) {
         const donorName = record.donor.trim();
@@ -314,9 +315,9 @@ const Donations = () => {
         label: "This week",
         range: periodSnapshots.currentWeek
           ? {
-              start: periodSnapshots.currentWeek.startKey,
-              end: periodSnapshots.currentWeek.endKey,
-            }
+            start: periodSnapshots.currentWeek.startKey,
+            end: periodSnapshots.currentWeek.endKey,
+          }
           : null,
       },
       {
@@ -324,9 +325,9 @@ const Donations = () => {
         label: "Last 30 days",
         range: periodSnapshots.rollingMonth
           ? {
-              start: periodSnapshots.rollingMonth.startKey,
-              end: periodSnapshots.rollingMonth.endKey,
-            }
+            start: periodSnapshots.rollingMonth.startKey,
+            end: periodSnapshots.rollingMonth.endKey,
+          }
           : null,
       },
     ],
@@ -386,39 +387,70 @@ const Donations = () => {
       toast.error("Pick a date before logging a donation");
       return;
     }
+
+    // Sanitize and validate donor name
+    const sanitizedDonor = sanitizeString(form.donor, { maxLength: 100 });
+
+    // Validate numeric inputs
+    const weightLbsFloat = Number(form.weightLbs || 0);
+    const traysInt = Number(form.trays || 0);
+
+    if (!isValidNumber(weightLbsFloat, { min: 0, positive: false })) {
+      toast.error("Weight must be a valid number");
+      return;
+    }
+
+    if (!isValidNumber(traysInt, { min: 0, integer: false })) {
+      toast.error("Trays must be a valid number");
+      return;
+    }
+
     // For minimal types (School lunch, Pastries), only donor and weight are required
     if (isMinimalType) {
-      if (!form.donor || !form.donor.trim()) {
+      if (!sanitizedDonor.trim()) {
         toast.error(`Donor is required for ${form.type} entries`);
         return;
       }
-      const weightLbsFloat = Number(form.weightLbs || 0);
-      if (!weightLbsFloat || weightLbsFloat <= 0) {
+      if (weightLbsFloat <= 0) {
         toast.error(`Weight (lbs) is required for ${form.type} entries`);
         return;
       }
     } else {
-      if (!form.itemName.trim()) {
+      // Sanitize and validate item name for non-minimal types
+      const sanitizedItemName = sanitizeString(form.itemName, {
+        maxLength: 200,
+        allowHTML: false
+      });
+
+      if (!sanitizedItemName.trim()) {
         toast.error("Item name is required");
         return;
       }
     }
+
     setLoading(true);
     try {
-      const weightLbs = Number(form.weightLbs || 0);
-      const trays = Number(form.trays || 0);
+      const weightLbs = weightLbsFloat;
+      const trays = traysInt;
       const density = form.density || "medium";
       const servings = calculateServings(form.type, weightLbs, trays, density);
-      
+
+      // Sanitize all text inputs
+      const sanitizedItemName = sanitizeString(form.itemName, {
+        maxLength: 200,
+        allowHTML: false
+      });
+      const sanitizedTemperature = sanitizeString(form.temperature, { maxLength: 50 });
+
       await addDonation({
         type: form.type,
-        itemName: form.itemName,
-        trays: Number(form.trays || 0),
-        density: form.density || "medium",
+        itemName: sanitizedItemName,
+        trays,
+        density,
         weightLbs,
         servings,
-        temperature: form.temperature || null,
-        donor: form.donor || "Anonymous",
+        temperature: sanitizedTemperature || null,
+        donor: sanitizedDonor || "Anonymous",
         date: selectedDate,
       });
 
@@ -508,14 +540,14 @@ const Donations = () => {
       const weight = Number(record.weightLbs) || 0;
       consolidated.weightLbs += weight;
       // Calculate servings from the record or calculate if not present
-      const recordServings = record.servings 
-        ? Number(record.servings) 
+      const recordServings = record.servings
+        ? Number(record.servings)
         : calculateServings(
-            record.type,
-            weight,
-            Number(record.trays || 0),
-            record.density || "medium",
-          );
+          record.type,
+          weight,
+          Number(record.trays || 0),
+          record.density || "medium",
+        );
       consolidated.servings += recordServings;
       consolidated.entries.push(record);
 
@@ -806,11 +838,10 @@ const Donations = () => {
         <button
           type="button"
           onClick={() => setActiveTab("log")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-            activeTab === "log"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "log"
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
+            : "text-gray-600 hover:bg-gray-100"
+            }`}
         >
           <PackagePlus size={18} />
           Log Donations
@@ -818,11 +849,10 @@ const Donations = () => {
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-            activeTab === "analytics"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "analytics"
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
+            : "text-gray-600 hover:bg-gray-100"
+            }`}
         >
           <BarChart3 size={18} />
           Analytics
@@ -830,11 +860,10 @@ const Donations = () => {
         <button
           type="button"
           onClick={() => setActiveTab("export")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-            activeTab === "export"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "export"
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
+            : "text-gray-600 hover:bg-gray-100"
+            }`}
         >
           <Download size={18} />
           Export
@@ -891,46 +920,46 @@ const Donations = () => {
                     className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     required
                   />
-                  </div>
+                </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {!isMinimalType && (
                   <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                    Trays
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={form.trays}
-                    onChange={(event) =>
-                      setForm({ ...form, trays: event.target.value })
-                    }
-                    placeholder="0"
-                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  />
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                      Trays
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={form.trays}
+                      onChange={(event) =>
+                        setForm({ ...form, trays: event.target.value })
+                      }
+                      placeholder="0"
+                      className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    />
                   </div>
                 )}
 
                 {!isMinimalType && (
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                    Density
-                  </label>
-                  <select
-                    value={form.density}
-                    onChange={(event) =>
-                      setForm({ ...form, density: event.target.value })
-                    }
-                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  >
-                    <option value="light">Light density (10 servings)</option>
-                    <option value="medium">Medium density (20 servings)</option>
-                    <option value="high">High density (30 servings)</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                      Density
+                    </label>
+                    <select
+                      value={form.density}
+                      onChange={(event) =>
+                        setForm({ ...form, density: event.target.value })
+                      }
+                      className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    >
+                      <option value="light">Light density (10 servings)</option>
+                      <option value="medium">Medium density (20 servings)</option>
+                      <option value="high">High density (30 servings)</option>
+                    </select>
+                  </div>
                 )}
 
                 <div>
@@ -967,7 +996,7 @@ const Donations = () => {
                   className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 />
               </div>
-                {isMinimalType && (
+              {isMinimalType && (
                 <p className="mt-2 text-xs text-gray-500">For {form.type} entries, only Donor and Weight are required.</p>
               )}
 
@@ -1055,15 +1084,15 @@ const Donations = () => {
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-2">
                     <button
-                    type="button"
-                    onClick={copyProteinAndCarbsToClipboard}
-                    disabled={!hasProteinOrCarbs}
-                    className="flex h-12 items-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-md transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Copy protein and carbs donations to clipboard"
-                  >
-                    <Copy size={16} className="text-emerald-700" />
-                    Copy Protein & Carbs
-                  </button>
+                      type="button"
+                      onClick={copyProteinAndCarbsToClipboard}
+                      disabled={!hasProteinOrCarbs}
+                      className="flex h-12 items-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-md transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="Copy protein and carbs donations to clipboard"
+                    >
+                      <Copy size={16} className="text-emerald-700" />
+                      Copy Protein & Carbs
+                    </button>
                     {copiedBadgeVisible && (
                       <span className="rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-bold">
                         Copied!
@@ -1359,15 +1388,14 @@ const Donations = () => {
                     className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-gradient-to-r from-gray-50 to-white p-4"
                   >
                     <div
-                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full font-bold text-white ${
-                        index === 0
-                          ? "bg-gradient-to-br from-yellow-400 to-yellow-600"
-                          : index === 1
-                            ? "bg-gradient-to-br from-gray-300 to-gray-500"
-                            : index === 2
-                              ? "bg-gradient-to-br from-orange-400 to-orange-600"
-                              : "bg-gradient-to-br from-emerald-400 to-emerald-600"
-                      }`}
+                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full font-bold text-white ${index === 0
+                        ? "bg-gradient-to-br from-yellow-400 to-yellow-600"
+                        : index === 1
+                          ? "bg-gradient-to-br from-gray-300 to-gray-500"
+                          : index === 2
+                            ? "bg-gradient-to-br from-orange-400 to-orange-600"
+                            : "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                        }`}
                     >
                       {index + 1}
                     </div>
@@ -1440,13 +1468,12 @@ const Donations = () => {
                 {weeklyComparison.deltaWeight !== null && (
                   <>
                     <div
-                      className={`rounded-2xl border p-6 ${
-                        weeklyComparison.trend === "up"
-                          ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100"
-                          : weeklyComparison.trend === "down"
-                            ? "border-rose-200 bg-gradient-to-br from-rose-50 to-rose-100"
-                            : "border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100"
-                      }`}
+                      className={`rounded-2xl border p-6 ${weeklyComparison.trend === "up"
+                        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100"
+                        : weeklyComparison.trend === "down"
+                          ? "border-rose-200 bg-gradient-to-br from-rose-50 to-rose-100"
+                          : "border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100"
+                        }`}
                     >
                       <p className="text-sm font-bold uppercase tracking-wide text-gray-700">
                         Change
@@ -1463,13 +1490,12 @@ const Donations = () => {
                           <div className="h-7 w-7 rounded-full bg-gray-400" />
                         )}
                         <p
-                          className={`text-4xl font-bold ${
-                            weeklyComparison.trend === "up"
-                              ? "text-emerald-700"
-                              : weeklyComparison.trend === "down"
-                                ? "text-rose-700"
-                                : "text-gray-700"
-                          }`}
+                          className={`text-4xl font-bold ${weeklyComparison.trend === "up"
+                            ? "text-emerald-700"
+                            : weeklyComparison.trend === "down"
+                              ? "text-rose-700"
+                              : "text-gray-700"
+                            }`}
                         >
                           {weeklyComparison.deltaWeight > 0 ? "+" : ""}
                           {formatNumber(weeklyComparison.deltaWeight, {
