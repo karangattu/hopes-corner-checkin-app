@@ -141,7 +141,7 @@ export const persistentStore = {
       return fallbackGet(key);
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const transaction = db.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(key);

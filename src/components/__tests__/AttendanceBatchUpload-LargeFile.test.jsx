@@ -195,7 +195,7 @@ describe("AttendanceBatchUpload - Large File Performance (100k rows)", () => {
         }, { timeout: 30000 });
 
         // Verify all batches are 500 or less
-        batchSizes.forEach((size, index) => {
+        batchSizes.forEach((size) => {
             expect(size).toBeLessThanOrEqual(500);
         });
 

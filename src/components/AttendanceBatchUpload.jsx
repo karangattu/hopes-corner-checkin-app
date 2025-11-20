@@ -422,7 +422,7 @@ const AttendanceBatchUpload = () => {
     let errorCount = 0;
     const errors = [];
     const specialMealCounts = {}; // Track special meal types for summary
-    
+
     // Collections for state updates at the end
     const allNewMealRecords = [];
     const allNewShowerRecords = [];
@@ -823,238 +823,235 @@ const AttendanceBatchUpload = () => {
 
     const processUpload = async () => {
       try {
-      const content = await file.text();
-      const text = content.replace(/\r\n/g, "\n");
-      // Use Set for deduplication, then convert back to array
-      const linesSet = new Set(text.split("\n").filter((l) => l.trim().length > 0));
-      const lines = Array.from(linesSet);
-      
-      // Clear the text variable to free memory
-      const totalFileSize = content.length;
+        const content = await file.text();
+        const text = content.replace(/\r\n/g, "\n");
+        // Use Set for deduplication, then convert back to array
+        const linesSet = new Set(text.split("\n").filter((l) => l.trim().length > 0));
+        const lines = Array.from(linesSet);
 
-      if (lines.length < 2) {
-        throw new Error("CSV needs header + at least one data row");
-      }
-
-      // Parse headers
-      const rawHeaders = splitCSVLine(lines[0]).map((h) =>
-        h.replace(/^\uFEFF/, ""),
-      );
-      const norm = (h) => h.toLowerCase().replace(/\s+/g, "_");
-      const headers = rawHeaders.map((h) => ({ raw: h, norm: norm(h) }));
-
-      const headerIndex = (needle) => {
-        const idx = headers.findIndex((h) => h.norm === needle);
-        return idx >= 0 ? idx : -1;
-      };
-
-      // Validate headers
-      const requiredNorm = [
-        "attendance_id",
-        "count",
-        "program",
-        "date_submitted",
-      ];
-      const missing = requiredNorm.filter((r) => headerIndex(r) === -1);
-
-      if (missing.length) {
-        throw new Error(
-          `Missing required column(s): ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
-        );
-      }
-
-      // Chunk processing with optimized memory usage
-      const CHUNK_SIZE = 500;
-      const MAX_LOGGED_ERRORS = 1000;
-      const MAX_LOGGED_SKIPPED = 1000;
-      const totalLines = lines.length - 1;
-      let totalSuccess = 0;
-      let totalErrors = 0;
-      let sampledErrors = [];
-      let sampledSkipped = [];
-      let totalSkippedCount = 0;
-      let allSpecialMealCounts = {};
-      
-      // Use arrays to accumulate records incrementally
-      const recordCollections = {
-        meals: [],
-        showers: [],
-        laundry: [],
-        bicycles: [],
-        haircuts: [],
-        holidays: [],
-      };
-
-      for (let i = 1; i < lines.length; i += CHUNK_SIZE) {
-        const chunkLines = lines.slice(i, i + CHUNK_SIZE);
-        const startIndex = i - 1; // 0-based index relative to data rows
-        const progress = ((i / totalLines) * 100).toFixed(1);
-
-        setUploadProgress(
-          `Processing records ${i} to ${Math.min(i + CHUNK_SIZE - 1, totalLines)} of ${totalLines} (${progress}%)...`,
-        );
-
-        // Yield to UI to prevent freezing
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        // Parse chunk
-        const parsedChunk = chunkLines
-          .map((line, idx) => {
-            const rowIndex = startIndex + idx;
-            return parseCSVRow(line, rowIndex, headerIndex);
-          })
-          .filter(Boolean);
-
-        // Validate chunk
-        const { validRecords, skippedRecords } =
-          filterValidAttendanceRecords(parsedChunk);
-
-        totalSkippedCount += skippedRecords.length;
-        if (sampledSkipped.length < MAX_LOGGED_SKIPPED && skippedRecords.length) {
-          const available = MAX_LOGGED_SKIPPED - sampledSkipped.length;
-          sampledSkipped.push(...skippedRecords.slice(0, available));
+        if (lines.length < 2) {
+          throw new Error("CSV needs header + at least one data row");
         }
 
-        // Import chunk
-        if (validRecords.length > 0) {
-          const {
-            successCount,
-            errorCount,
-            errors,
-            specialMealCounts,
-            newRecords,
-          } = await importAttendanceRecords(validRecords);
+        // Parse headers
+        const rawHeaders = splitCSVLine(lines[0]).map((h) =>
+          h.replace(/^\uFEFF/, ""),
+        );
+        const norm = (h) => h.toLowerCase().replace(/\s+/g, "_");
+        const headers = rawHeaders.map((h) => ({ raw: h, norm: norm(h) }));
 
-          totalSuccess += successCount;
-          totalErrors += errorCount;
+        const headerIndex = (needle) => {
+          const idx = headers.findIndex((h) => h.norm === needle);
+          return idx >= 0 ? idx : -1;
+        };
 
-          if (sampledErrors.length < MAX_LOGGED_ERRORS && errors.length) {
-            const available = MAX_LOGGED_ERRORS - sampledErrors.length;
-            sampledErrors.push(...errors.slice(0, available));
+        // Validate headers
+        const requiredNorm = [
+          "attendance_id",
+          "count",
+          "program",
+          "date_submitted",
+        ];
+        const missing = requiredNorm.filter((r) => headerIndex(r) === -1);
+
+        if (missing.length) {
+          throw new Error(
+            `Missing required column(s): ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
+          );
+        }
+
+        // Chunk processing with optimized memory usage
+        const CHUNK_SIZE = 500;
+        const MAX_LOGGED_ERRORS = 1000;
+        const MAX_LOGGED_SKIPPED = 1000;
+        const totalLines = lines.length - 1;
+        let totalSuccess = 0;
+        let totalErrors = 0;
+        let sampledErrors = [];
+        let sampledSkipped = [];
+        let totalSkippedCount = 0;
+        let allSpecialMealCounts = {};
+
+        // Use arrays to accumulate records incrementally
+        const recordCollections = {
+          meals: [],
+          showers: [],
+          laundry: [],
+          bicycles: [],
+          haircuts: [],
+          holidays: [],
+        };
+
+        for (let i = 1; i < lines.length; i += CHUNK_SIZE) {
+          const chunkLines = lines.slice(i, i + CHUNK_SIZE);
+          const startIndex = i - 1; // 0-based index relative to data rows
+          const progress = ((i / totalLines) * 100).toFixed(1);
+
+          setUploadProgress(
+            `Processing records ${i} to ${Math.min(i + CHUNK_SIZE - 1, totalLines)} of ${totalLines} (${progress}%)...`,
+          );
+
+          // Yield to UI to prevent freezing
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          // Parse chunk
+          const parsedChunk = chunkLines
+            .map((line, idx) => {
+              const rowIndex = startIndex + idx;
+              return parseCSVRow(line, rowIndex, headerIndex);
+            })
+            .filter(Boolean);
+
+          // Validate chunk
+          const { validRecords, skippedRecords } =
+            filterValidAttendanceRecords(parsedChunk);
+
+          totalSkippedCount += skippedRecords.length;
+          if (sampledSkipped.length < MAX_LOGGED_SKIPPED && skippedRecords.length) {
+            const available = MAX_LOGGED_SKIPPED - sampledSkipped.length;
+            sampledSkipped.push(...skippedRecords.slice(0, available));
           }
 
-          // Collect new records incrementally  
-          if (newRecords) {
-            if (newRecords.meals.length > 0) recordCollections.meals.push(...newRecords.meals);
-            if (newRecords.showers.length > 0) recordCollections.showers.push(...newRecords.showers);
-            if (newRecords.laundry.length > 0) recordCollections.laundry.push(...newRecords.laundry);
-            if (newRecords.bicycles.length > 0) recordCollections.bicycles.push(...newRecords.bicycles);
-            if (newRecords.haircuts.length > 0) recordCollections.haircuts.push(...newRecords.haircuts);
-            if (newRecords.holidays.length > 0) recordCollections.holidays.push(...newRecords.holidays);
-          }
+          // Import chunk
+          if (validRecords.length > 0) {
+            const {
+              successCount,
+              errorCount,
+              errors,
+              specialMealCounts,
+              newRecords,
+            } = await importAttendanceRecords(validRecords);
 
-          // Merge special meal counts
-          if (specialMealCounts) {
-            Object.entries(specialMealCounts).forEach(([key, val]) => {
-              allSpecialMealCounts[key] =
-                (allSpecialMealCounts[key] || 0) + val;
+            totalSuccess += successCount;
+            totalErrors += errorCount;
+
+            if (sampledErrors.length < MAX_LOGGED_ERRORS && errors.length) {
+              const available = MAX_LOGGED_ERRORS - sampledErrors.length;
+              sampledErrors.push(...errors.slice(0, available));
+            }
+
+            // Collect new records incrementally  
+            if (newRecords) {
+              if (newRecords.meals.length > 0) recordCollections.meals.push(...newRecords.meals);
+              if (newRecords.showers.length > 0) recordCollections.showers.push(...newRecords.showers);
+              if (newRecords.laundry.length > 0) recordCollections.laundry.push(...newRecords.laundry);
+              if (newRecords.bicycles.length > 0) recordCollections.bicycles.push(...newRecords.bicycles);
+              if (newRecords.haircuts.length > 0) recordCollections.haircuts.push(...newRecords.haircuts);
+              if (newRecords.holidays.length > 0) recordCollections.holidays.push(...newRecords.holidays);
+            }
+
+            // Merge special meal counts
+            if (specialMealCounts) {
+              Object.entries(specialMealCounts).forEach(([key, val]) => {
+                allSpecialMealCounts[key] =
+                  (allSpecialMealCounts[key] || 0) + val;
+              });
+            }
+          }
+        }
+
+        // Finalize results
+        const skippedCount = totalSkippedCount;
+
+        // Batch update all state records at once (avoid per-chunk re-renders)
+        // Use functional updates to ensure consistency
+        if (recordCollections.meals.length > 0) {
+          setMealRecords((prev) => [...recordCollections.meals, ...prev]);
+        }
+        if (recordCollections.showers.length > 0) {
+          setShowerRecords((prev) => [...recordCollections.showers, ...prev]);
+        }
+        if (recordCollections.laundry.length > 0) {
+          setLaundryRecords((prev) => [...recordCollections.laundry, ...prev]);
+        }
+        if (recordCollections.bicycles.length > 0) {
+          setBicycleRecords((prev) => [...recordCollections.bicycles, ...prev]);
+        }
+        if (recordCollections.haircuts.length > 0) {
+          setHaircutRecords((prev) => [...recordCollections.haircuts, ...prev]);
+        }
+        if (recordCollections.holidays.length > 0) {
+          setHolidayRecords((prev) => [...recordCollections.holidays, ...prev]);
+        }
+
+        if (skippedCount > 0) {
+          const skippedSummary = sampledSkipped
+            .map((r) => {
+              if (r.reason === "Guest ID missing") {
+                return `Row ${r.rowIndex + 2}: Guest ID is required for program "${r.program}"`;
+              } else if (r.reason === "Invalid program type") {
+                return `Row ${r.rowIndex + 2}: Program type "${r.program}" not recognized`;
+              } else if (r.reason === "Special ID only valid for Meal") {
+                return `Row ${r.rowIndex + 2}: Special ID "${r.guestId}" only works with Meal program, not "${r.program}"`;
+              } else {
+                return `Row ${r.rowIndex + 2}: Guest ID "${r.guestId}" not found`;
+              }
+            })
+            .slice(0, 3)
+            .join("; ");
+          const moreText =
+            skippedCount > 3
+              ? `; and ${skippedCount - 3} more row${skippedCount - 3 === 1 ? "" : "s"}`
+              : "";
+          console.info(
+            `Skipped ${skippedCount} attendance record${skippedCount === 1 ? "" : "s"}: ${skippedSummary}${moreText}`,
+          );
+        }
+
+        // Build message with special meal counts if any
+        let specialMealsSummary = "";
+        if (Object.keys(allSpecialMealCounts).length > 0) {
+          const mealDetails = Object.entries(allSpecialMealCounts)
+            .map(([label, count]) => `${count} ${label}`)
+            .join(", ");
+          specialMealsSummary = ` (including ${mealDetails})`;
+        }
+
+        let skippedSummaryText = "";
+        if (skippedCount > 0) {
+          skippedSummaryText = ` (skipped ${skippedCount} record${skippedCount === 1 ? "" : "s"} with missing guest ID${skippedCount === 1 ? "" : "s"})`;
+        }
+
+        if (totalErrors === 0) {
+          setUploadResult({
+            success: true,
+            message: `Successfully imported ${totalSuccess} attendance records${specialMealsSummary}${skippedSummaryText}`,
+          });
+          setRecentErrors([]);
+          setErrorReportName("");
+        } else {
+          const firstSnippets = sampledErrors
+            .slice(0, 3)
+            .map((error) => formatErrorSnippet(error))
+            .filter(Boolean)
+            .join("; ");
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const baseFileName = file.name.replace(/\.[^/.]+$/i, "");
+          const generatedReportName = `${baseFileName || "attendance_import"}_errors_${timestamp}.csv`;
+
+          setRecentErrors(sampledErrors);
+          setErrorReportName(generatedReportName);
+
+          if (totalSuccess > 0) {
+            const baseMessage = `Imported ${totalSuccess} records${specialMealsSummary}${skippedSummaryText} with ${totalErrors} error${totalErrors === 1 ? "" : "s"}. Review the error table below.`;
+            setUploadResult({
+              success: false,
+              message: firstSnippets
+                ? `${baseMessage} First issues: ${firstSnippets}`
+                : baseMessage,
+            });
+          } else {
+            const baseMessage = `No records were imported. Encountered ${totalErrors} error${totalErrors === 1 ? "" : "s"}${skippedSummaryText}. Review the error table below.`;
+            setUploadResult({
+              success: false,
+              message: firstSnippets
+                ? `${baseMessage} Example issues: ${firstSnippets}`
+                : baseMessage,
             });
           }
+
+          console.error("All batch upload errors (sampled):", sampledErrors);
         }
-      }
-
-      // Finalize results
-      const skippedCount = totalSkippedCount;
-
-      // Batch update all state records at once (avoid per-chunk re-renders)
-      // Use functional updates to ensure consistency
-      if (recordCollections.meals.length > 0) {
-        setMealRecords((prev) => [...recordCollections.meals, ...prev]);
-      }
-      if (recordCollections.showers.length > 0) {
-        setShowerRecords((prev) => [...recordCollections.showers, ...prev]);
-      }
-      if (recordCollections.laundry.length > 0) {
-        setLaundryRecords((prev) => [...recordCollections.laundry, ...prev]);
-      }
-      if (recordCollections.bicycles.length > 0) {
-        setBicycleRecords((prev) => [...recordCollections.bicycles, ...prev]);
-      }
-      if (recordCollections.haircuts.length > 0) {
-        setHaircutRecords((prev) => [...recordCollections.haircuts, ...prev]);
-      }
-      if (recordCollections.holidays.length > 0) {
-        setHolidayRecords((prev) => [...recordCollections.holidays, ...prev]);
-      }
-
-      if (skippedCount > 0) {
-        const skippedSummary = sampledSkipped
-          .map((r) => {
-            if (r.reason === "Guest ID missing") {
-              return `Row ${r.rowIndex + 2}: Guest ID is required for program "${r.program}"`;
-            } else if (r.reason === "Invalid program type") {
-              return `Row ${r.rowIndex + 2}: Program type "${r.program}" not recognized`;
-            } else if (r.reason === "Special ID only valid for Meal") {
-              return `Row ${r.rowIndex + 2}: Special ID "${r.guestId}" only works with Meal program, not "${r.program}"`;
-            } else {
-              return `Row ${r.rowIndex + 2}: Guest ID "${r.guestId}" not found`;
-            }
-          })
-          .slice(0, 3)
-          .join("; ");
-        const moreText =
-          skippedCount > 3
-            ? `; and ${skippedCount - 3} more row${skippedCount - 3 === 1 ? "" : "s"}`
-            : "";
-        console.info(
-          `Skipped ${skippedCount} attendance record${skippedCount === 1 ? "" : "s"}: ${skippedSummary}${moreText}`,
-        );
-      }
-
-      // Build message with special meal counts if any
-      let specialMealsSummary = "";
-      if (Object.keys(allSpecialMealCounts).length > 0) {
-        const mealDetails = Object.entries(allSpecialMealCounts)
-          .map(([label, count]) => `${count} ${label}`)
-          .join(", ");
-        specialMealsSummary = ` (including ${mealDetails})`;
-      }
-
-      let skippedSummaryText = "";
-      if (skippedCount > 0) {
-        skippedSummaryText = ` (skipped ${skippedCount} record${skippedCount === 1 ? "" : "s"} with missing guest ID${skippedCount === 1 ? "" : "s"})`;
-      }
-
-      if (totalErrors === 0) {
-        setUploadResult({
-          success: true,
-          message: `Successfully imported ${totalSuccess} attendance records${specialMealsSummary}${skippedSummaryText}`,
-        });
-        setRecentErrors([]);
-        setErrorReportName("");
-      } else {
-        const firstSnippets = sampledErrors
-          .slice(0, 3)
-          .map((error) => formatErrorSnippet(error))
-          .filter(Boolean)
-          .join("; ");
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const baseFileName = file.name.replace(/\.[^/.]+$/i, "");
-        const generatedReportName = `${baseFileName || "attendance_import"}_errors_${timestamp}.csv`;
-
-        setRecentErrors(sampledErrors);
-        setErrorReportName(generatedReportName);
-
-        if (totalSuccess > 0) {
-          const baseMessage = `Imported ${totalSuccess} records${specialMealsSummary}${skippedSummaryText} with ${totalErrors} error${totalErrors === 1 ? "" : "s"}. Review the error table below.`;
-          setUploadResult({
-            success: false,
-            message: firstSnippets
-              ? `${baseMessage} First issues: ${firstSnippets}`
-              : baseMessage,
-          });
-        } else {
-          const baseMessage = `No records were imported. Encountered ${totalErrors} error${totalErrors === 1 ? "" : "s"}${skippedSummaryText}. Review the error table below.`;
-          setUploadResult({
-            success: false,
-            message: firstSnippets
-              ? `${baseMessage} Example issues: ${firstSnippets}`
-              : baseMessage,
-          });
-        }
-
-        console.error("All batch upload errors (sampled):", sampledErrors);
-      }
       } catch (error) {
         setUploadResult({
           success: false,
@@ -1102,11 +1099,10 @@ const AttendanceBatchUpload = () => {
 
       {uploadResult && (
         <div
-          className={`mb-4 p-3 rounded flex items-center gap-2 ${
-            uploadResult.success
+          className={`mb-4 p-3 rounded flex items-center gap-2 ${uploadResult.success
               ? "bg-green-100 text-green-700 border border-green-200"
               : "bg-red-100 text-red-700 border border-red-200"
-          }`}
+            }`}
         >
           {uploadResult.success ? (
             <CheckCircle size={18} />
