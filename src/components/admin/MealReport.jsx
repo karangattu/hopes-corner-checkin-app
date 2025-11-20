@@ -88,6 +88,7 @@ const MealReport = () => {
     extraMealRecords,
     dayWorkerMealRecords,
     exportDataAsCSV,
+    guests,
   } = useAppContext();
 
   const currentDate = new Date();
@@ -256,6 +257,30 @@ const MealReport = () => {
           .filter(Boolean),
       );
 
+      // Calculate Age Groups for Unique Guests
+      const ageGroups = {
+        "Adult 18-59": 0,
+        "Child 0-17": 0,
+        "Senior 60+": 0,
+        Unknown: 0,
+      };
+
+      uniqueGuestIds.forEach((guestId) => {
+        const guest = guests.find(
+          (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+        );
+
+        if (guest && guest.age) {
+          if (ageGroups[guest.age] !== undefined) {
+            ageGroups[guest.age] += 1;
+          } else {
+            ageGroups.Unknown += 1;
+          }
+        } else {
+          ageGroups.Unknown += 1;
+        }
+      });
+
       const totalMealsServed =
         guestMealsCount +
         extraMealsCount +
@@ -283,6 +308,7 @@ const MealReport = () => {
         uniqueGuests: uniqueGuestIds.size,
         validDaysCount,
         isCurrentMonth: monthOffset === 0,
+        ageGroups,
       });
     }
 
@@ -300,6 +326,7 @@ const MealReport = () => {
     dayWorkerMealRecords,
     mealTypeFilters,
     months,
+    guests,
   ]);
 
   const currentMonthData = useMemo(() => {
@@ -337,6 +364,21 @@ const MealReport = () => {
         value: currentMonthData.unitedEffortMeals,
         color: "#6366f1",
       },
+    ].filter((item) => item.value > 0);
+  }, [currentMonthData]);
+
+  const ageGroupBreakdown = useMemo(() => {
+    if (!currentMonthData) return [];
+    const { ageGroups } = currentMonthData;
+    return [
+      {
+        name: "Adult 18-59",
+        value: ageGroups["Adult 18-59"],
+        color: "#3b82f6",
+      },
+      { name: "Child 0-17", value: ageGroups["Child 0-17"], color: "#10b981" },
+      { name: "Senior 60+", value: ageGroups["Senior 60+"], color: "#f59e0b" },
+      { name: "Unknown", value: ageGroups.Unknown, color: "#9ca3af" },
     ].filter((item) => item.value > 0);
   }, [currentMonthData]);
 
@@ -634,6 +676,22 @@ const MealReport = () => {
           <p className="text-indigo-600">
             United Effort: {data.unitedEffortMeals}
           </p>
+          {data.ageGroups && (
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-1">
+                Unique Guest Age Groups
+              </p>
+              <p className="text-blue-600">
+                Adults: {data.ageGroups["Adult 18-59"]}
+              </p>
+              <p className="text-green-600">
+                Children: {data.ageGroups["Child 0-17"]}
+              </p>
+              <p className="text-orange-600">
+                Seniors: {data.ageGroups["Senior 60+"]}
+              </p>
+            </div>
+          )}
           <p className="font-semibold text-gray-800 mt-2 pt-2 border-t">
             Total: {data.totalMeals}
           </p>
@@ -1064,6 +1122,58 @@ const MealReport = () => {
                   </ResponsiveContainer>
                   <div className="mt-6 space-y-2">
                     {mealTypeBreakdown.map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-4 w-4 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-gray-900">
+                          {item.value.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Age Group Breakdown Pie Chart */}
+              {ageGroupBreakdown.length > 0 && (
+                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
+                    <Users size={22} className="text-blue-600" />
+                    Guest Age Demographics
+                  </h2>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RePieChart>
+                      <Pie
+                        data={ageGroupBreakdown}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) =>
+                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        }
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {ageGroupBreakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-6 space-y-2">
+                    {ageGroupBreakdown.map((item) => (
                       <div
                         key={item.name}
                         className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"

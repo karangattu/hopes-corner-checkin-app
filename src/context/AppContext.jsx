@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   supabase,
   isSupabaseEnabled,
@@ -61,8 +61,27 @@ import {
   mapDonationRow as mapDonationRowPure,
   mapShowerStatusToDb,
 } from "./utils/mappers";
+import { persistentStore } from "../utils/persistentStore";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
+
+const STORAGE_KEYS = {
+  guests: "hopes-corner-guests",
+  mealRecords: "hopes-corner-meal-records",
+  rvMealRecords: "hopes-corner-rv-meal-records",
+  unitedEffortMealRecords: "hopes-corner-united-effort-meal-records",
+  extraMealRecords: "hopes-corner-extra-meal-records",
+  dayWorkerMealRecords: "hopes-corner-day-worker-meal-records",
+  showerRecords: "hopes-corner-shower-records",
+  laundryRecords: "hopes-corner-laundry-records",
+  bicycleRecords: "hopes-corner-bicycle-records",
+  holidayRecords: "hopes-corner-holiday-records",
+  haircutRecords: "hopes-corner-haircut-records",
+  itemRecords: "hopes-corner-item-records",
+  donationRecords: "hopes-corner-donation-records",
+  lunchBagRecords: "hopes-corner-lunch-bag-records",
+  settings: "hopes-corner-settings",
+};
 
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
@@ -82,6 +101,10 @@ export const AppProvider = ({ children }) => {
   const [haircutRecords, setHaircutRecords] = useState([]);
   const [itemGivenRecords, setItemGivenRecords] = useState([]);
   const [donationRecords, setDonationRecords] = useState([]);
+
+  const persistencePauseCountRef = useRef(0);
+  const pendingPersistenceSnapshotRef = useRef(null);
+  const [isPersistencePaused, setIsPersistencePaused] = useState(false);
 
   const [showerSlots, setShowerSlots] = useState([]);
   const [laundrySlots, setLaundrySlots] = useState([]);
@@ -600,156 +623,177 @@ export const AppProvider = ({ children }) => {
     mapDonationRow,
   ]);
 
-  // Fallback to localStorage only if Supabase is disabled or fails
+  // Load cached data (IndexedDB/localStorage fallback) for offline or initial hydration
   useEffect(() => {
-    if (supabaseEnabled) return; // Skip localStorage if cloud sync is enabled
+    let cancelled = false;
 
-    try {
-      const savedGuests = localStorage.getItem("hopes-corner-guests");
-      const savedMealRecords = localStorage.getItem(
-        "hopes-corner-meal-records",
-      );
-      const savedRvMealRecords = localStorage.getItem(
-        "hopes-corner-rv-meal-records",
-      );
-      const savedUnitedEffortMealRecords = localStorage.getItem(
-        "hopes-corner-united-effort-meal-records",
-      );
-      const savedExtraMealRecords = localStorage.getItem(
-        "hopes-corner-extra-meal-records",
-      );
-      const savedDayWorkerMealRecords = localStorage.getItem(
-        "hopes-corner-day-worker-meal-records",
-      );
-      const savedShowerRecords = localStorage.getItem(
-        "hopes-corner-shower-records",
-      );
-      const savedLaundryRecords = localStorage.getItem(
-        "hopes-corner-laundry-records",
-      );
-      const savedBicycleRecords = localStorage.getItem(
-        "hopes-corner-bicycle-records",
-      );
-      const savedHolidayRecords = localStorage.getItem(
-        "hopes-corner-holiday-records",
-      );
-      const savedHaircutRecords = localStorage.getItem(
-        "hopes-corner-haircut-records",
-      );
-      const savedItemRecords = localStorage.getItem(
-        "hopes-corner-item-records",
-      );
-      const savedSettings = localStorage.getItem("hopes-corner-settings");
-      const savedDonations = localStorage.getItem(
-        "hopes-corner-donation-records",
-      );
-      const savedLunchBags = localStorage.getItem(
-        "hopes-corner-lunch-bag-records",
-      );
-
-      if (savedGuests) {
-        const parsedGuests = JSON.parse(savedGuests);
-        const migratedGuests = migrateGuestData(parsedGuests);
-        const normalizedGuests = (migratedGuests || []).map((g) => ({
-          ...g,
-          housingStatus: normalizeHousingStatus(g.housingStatus),
-        }));
-        setGuests(normalizedGuests);
-      }
-      if (savedMealRecords) setMealRecords(JSON.parse(savedMealRecords));
-      if (savedRvMealRecords) setRvMealRecords(JSON.parse(savedRvMealRecords));
-      if (savedUnitedEffortMealRecords)
-        setUnitedEffortMealRecords(JSON.parse(savedUnitedEffortMealRecords));
-      if (savedExtraMealRecords)
-        setExtraMealRecords(JSON.parse(savedExtraMealRecords));
-      if (savedDayWorkerMealRecords)
-        setDayWorkerMealRecords(JSON.parse(savedDayWorkerMealRecords));
-      if (savedShowerRecords) setShowerRecords(JSON.parse(savedShowerRecords));
-      if (savedLaundryRecords)
-        setLaundryRecords(JSON.parse(savedLaundryRecords));
-      if (savedBicycleRecords)
-        setBicycleRecords(JSON.parse(savedBicycleRecords));
-      if (savedHolidayRecords)
-        setHolidayRecords(JSON.parse(savedHolidayRecords));
-      if (savedHaircutRecords)
-        setHaircutRecords(JSON.parse(savedHaircutRecords));
-      if (savedItemRecords) setItemGivenRecords(JSON.parse(savedItemRecords));
-      if (savedSettings) {
-        const parsedSettings = JSON.parse(savedSettings);
-        setSettings((prev) => mergeSettings(prev, parsedSettings));
-      }
-      if (savedDonations)
-        setDonationRecords(
-          JSON.parse(savedDonations).map(ensureDonationRecordShape),
+    const loadFromPersistentStore = async () => {
+      try {
+        const storedValues = await persistentStore.getItems(
+          Object.values(STORAGE_KEYS),
         );
-      if (savedLunchBags) setLunchBagRecords(JSON.parse(savedLunchBags));
-    } catch (error) {
-      console.error("Error loading data from localStorage:", error);
-    }
-  }, [supabaseEnabled]);
+        if (cancelled || !storedValues) return;
 
-  // Cache to localStorage only when Supabase is disabled - cloud sync handles persistence
-  useEffect(() => {
-    if (supabaseEnabled) return; // Skip localStorage caching when using cloud sync
+        const savedGuests = storedValues[STORAGE_KEYS.guests];
+        if (savedGuests?.length) {
+          const migratedGuests = migrateGuestData(savedGuests);
+          const normalizedGuests = (migratedGuests || []).map((g) => ({
+            ...g,
+            housingStatus: normalizeHousingStatus(g.housingStatus),
+          }));
+          setGuests(normalizedGuests);
+        }
 
+        const savedMealRecords = storedValues[STORAGE_KEYS.mealRecords];
+        if (savedMealRecords) setMealRecords(savedMealRecords);
+
+        const savedRvMealRecords = storedValues[STORAGE_KEYS.rvMealRecords];
+        if (savedRvMealRecords) setRvMealRecords(savedRvMealRecords);
+
+        const savedUnitedEffort =
+          storedValues[STORAGE_KEYS.unitedEffortMealRecords];
+        if (savedUnitedEffort) setUnitedEffortMealRecords(savedUnitedEffort);
+
+        const savedExtraMeals = storedValues[STORAGE_KEYS.extraMealRecords];
+        if (savedExtraMeals) setExtraMealRecords(savedExtraMeals);
+
+        const savedDayWorkerMeals =
+          storedValues[STORAGE_KEYS.dayWorkerMealRecords];
+        if (savedDayWorkerMeals) setDayWorkerMealRecords(savedDayWorkerMeals);
+
+        const savedShowers = storedValues[STORAGE_KEYS.showerRecords];
+        if (savedShowers) setShowerRecords(savedShowers);
+
+        const savedLaundry = storedValues[STORAGE_KEYS.laundryRecords];
+        if (savedLaundry) setLaundryRecords(savedLaundry);
+
+        const savedBicycles = storedValues[STORAGE_KEYS.bicycleRecords];
+        if (savedBicycles) setBicycleRecords(savedBicycles);
+
+        const savedHolidays = storedValues[STORAGE_KEYS.holidayRecords];
+        if (savedHolidays) setHolidayRecords(savedHolidays);
+
+        const savedHaircuts = storedValues[STORAGE_KEYS.haircutRecords];
+        if (savedHaircuts) setHaircutRecords(savedHaircuts);
+
+        const savedItems = storedValues[STORAGE_KEYS.itemRecords];
+        if (savedItems) setItemGivenRecords(savedItems);
+
+        const savedSettings = storedValues[STORAGE_KEYS.settings];
+        if (savedSettings) {
+          setSettings((prev) => mergeSettings(prev, savedSettings));
+        }
+
+        const savedDonations = storedValues[STORAGE_KEYS.donationRecords];
+        if (savedDonations) {
+          setDonationRecords(savedDonations.map(ensureDonationRecordShape));
+        }
+
+        const savedLunchBags = storedValues[STORAGE_KEYS.lunchBagRecords];
+        if (savedLunchBags) setLunchBagRecords(savedLunchBags);
+      } catch (error) {
+        console.error("Error loading data from persistent storage:", error);
+      }
+    };
+
+    loadFromPersistentStore();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const persistStateSnapshot = useCallback(async (snapshot) => {
+    if (!snapshot) return;
     try {
-      localStorage.setItem("hopes-corner-guests", JSON.stringify(guests));
-      localStorage.setItem(
-        "hopes-corner-meal-records",
-        JSON.stringify(mealRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-rv-meal-records",
-        JSON.stringify(rvMealRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-united-effort-meal-records",
-        JSON.stringify(unitedEffortMealRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-extra-meal-records",
-        JSON.stringify(extraMealRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-day-worker-meal-records",
-        JSON.stringify(dayWorkerMealRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-shower-records",
-        JSON.stringify(showerRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-laundry-records",
-        JSON.stringify(laundryRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-bicycle-records",
-        JSON.stringify(bicycleRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-holiday-records",
-        JSON.stringify(holidayRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-haircut-records",
-        JSON.stringify(haircutRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-item-records",
-        JSON.stringify(itemGivenRecords),
-      );
-      localStorage.setItem(
-        "hopes-corner-donation-records",
-        JSON.stringify(donationRecords),
-      );
-      localStorage.setItem("hopes-corner-settings", JSON.stringify(settings));
-      localStorage.setItem(
-        "hopes-corner-lunch-bag-records",
-        JSON.stringify(lunchBagRecords),
-      );
+      await persistentStore.setItems([
+        [STORAGE_KEYS.guests, snapshot.guests],
+        [STORAGE_KEYS.mealRecords, snapshot.mealRecords],
+        [STORAGE_KEYS.rvMealRecords, snapshot.rvMealRecords],
+        [
+          STORAGE_KEYS.unitedEffortMealRecords,
+          snapshot.unitedEffortMealRecords,
+        ],
+        [STORAGE_KEYS.extraMealRecords, snapshot.extraMealRecords],
+        [STORAGE_KEYS.dayWorkerMealRecords, snapshot.dayWorkerMealRecords],
+        [STORAGE_KEYS.showerRecords, snapshot.showerRecords],
+        [STORAGE_KEYS.laundryRecords, snapshot.laundryRecords],
+        [STORAGE_KEYS.bicycleRecords, snapshot.bicycleRecords],
+        [STORAGE_KEYS.holidayRecords, snapshot.holidayRecords],
+        [STORAGE_KEYS.haircutRecords, snapshot.haircutRecords],
+        [STORAGE_KEYS.itemRecords, snapshot.itemGivenRecords],
+        [STORAGE_KEYS.donationRecords, snapshot.donationRecords],
+        [STORAGE_KEYS.lunchBagRecords, snapshot.lunchBagRecords],
+        [STORAGE_KEYS.settings, snapshot.settings],
+      ]);
     } catch (error) {
-      console.error("Error saving data to localStorage:", error);
+      console.error("Error saving data to persistent storage:", error);
     }
+  }, []);
+
+  const flushPendingPersistence = useCallback(async () => {
+    if (!pendingPersistenceSnapshotRef.current) return;
+    const snapshot = pendingPersistenceSnapshotRef.current;
+    pendingPersistenceSnapshotRef.current = null;
+    await persistStateSnapshot(snapshot);
+  }, [persistStateSnapshot]);
+
+  const pausePersistence = useCallback(() => {
+    if (persistencePauseCountRef.current === 0) {
+      setIsPersistencePaused(true);
+    }
+    persistencePauseCountRef.current += 1;
+  }, []);
+
+  const resumePersistence = useCallback(async () => {
+    if (persistencePauseCountRef.current === 0) return;
+    persistencePauseCountRef.current -= 1;
+    if (persistencePauseCountRef.current <= 0) {
+      persistencePauseCountRef.current = 0;
+      setIsPersistencePaused(false);
+      await flushPendingPersistence();
+    }
+  }, [flushPendingPersistence]);
+
+  const withPersistencePaused = useCallback(
+    async (fn) => {
+      if (typeof fn !== "function") return undefined;
+      pausePersistence();
+      try {
+        return await fn();
+      } finally {
+        await resumePersistence();
+      }
+    },
+    [pausePersistence, resumePersistence],
+  );
+
+  // Persist data to IndexedDB (with localStorage fallback) for offline resilience
+  useEffect(() => {
+    const snapshot = {
+      guests,
+      mealRecords,
+      rvMealRecords,
+      unitedEffortMealRecords,
+      extraMealRecords,
+      dayWorkerMealRecords,
+      showerRecords,
+      laundryRecords,
+      bicycleRecords,
+      holidayRecords,
+      haircutRecords,
+      itemGivenRecords,
+      donationRecords,
+      lunchBagRecords,
+      settings,
+    };
+
+    if (isPersistencePaused) {
+      pendingPersistenceSnapshotRef.current = snapshot;
+      return;
+    }
+
+    persistStateSnapshot(snapshot);
   }, [
     guests,
     mealRecords,
@@ -766,7 +810,8 @@ export const AppProvider = ({ children }) => {
     dayWorkerMealRecords,
     lunchBagRecords,
     settings,
-    supabaseEnabled,
+    isPersistencePaused,
+    persistStateSnapshot,
   ]);
 
   const persistSettingsToSupabase = useCallback(
@@ -4373,6 +4418,8 @@ export const AppProvider = ({ children }) => {
     resetAllData,
     supabaseEnabled,
     supabaseConfigured,
+    isPersistencePaused,
+    withPersistencePaused,
     // Waiver operations
     fetchGuestWaivers,
     guestNeedsWaiverReminder,

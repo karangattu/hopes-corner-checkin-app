@@ -30,13 +30,14 @@ vi.mock("html2canvas", () => ({
 const BASE_DATE = "2024-03-11T12:00:00Z";
 
 const buildContext = (overrides = {}) => ({
-  mealRecords: [{ id: "guest-1", date: BASE_DATE, count: 50 }],
+  mealRecords: [{ id: "guest-1", date: BASE_DATE, count: 50, guestId: "g1" }],
   extraMealRecords: [{ id: "extra-1", date: BASE_DATE, count: 10 }],
   rvMealRecords: [{ id: "rv-1", date: BASE_DATE, count: 5 }],
   dayWorkerMealRecords: [],
   shelterMealRecords: [],
   unitedEffortMealRecords: [],
   exportDataAsCSV: vi.fn(),
+  guests: [{ id: "g1", age: "Adult 18-59" }],
   ...overrides,
 });
 

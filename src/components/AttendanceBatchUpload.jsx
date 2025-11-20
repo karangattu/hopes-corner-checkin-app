@@ -211,6 +211,7 @@ const AttendanceBatchUpload = () => {
     setBicycleRecords,
     setHaircutRecords,
     setHolidayRecords,
+    withPersistencePaused = async (fn) => fn(),
   } = useAppContext();
 
   const [isUploading, setIsUploading] = useState(false);
@@ -289,171 +290,146 @@ const AttendanceBatchUpload = () => {
     return null;
   };
 
-  const parseCSV = (content) => {
-    try {
-      const text = content.replace(/\r\n/g, "\n");
-      const lines = text.split("\n").filter((l) => l.trim().length > 0);
-      if (lines.length < 2)
-        throw new Error("CSV needs header + at least one data row");
-
-      const splitCSVLine = (line) => {
-        const out = [];
-        let cur = "";
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              cur += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (ch === "," && !inQuotes) {
-            out.push(cur.trim());
-            cur = "";
-          } else {
-            cur += ch;
-          }
+  const splitCSVLine = (line) => {
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
         }
+      } else if (ch === "," && !inQuotes) {
         out.push(cur.trim());
-        return out;
-      };
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur.trim());
+    return out;
+  };
 
-      const rawHeaders = splitCSVLine(lines[0]).map((h) =>
-        h.replace(/^\uFEFF/, ""),
-      );
-      const norm = (h) => h.toLowerCase().replace(/\s+/g, "_");
-      const headers = rawHeaders.map((h) => ({ raw: h, norm: norm(h) }));
+  const parseCSVRow = (line, rowIndex, headerIndex) => {
+    const values = splitCSVLine(line);
+    const get = (key) => {
+      const i = headerIndex(key);
+      return i === -1 ? "" : (values[i] || "").trim();
+    };
 
-      const headerIndex = (needle) => {
-        const idx = headers.findIndex((h) => h.norm === needle);
-        return idx >= 0 ? idx : -1;
-      };
+    const attendanceId = get("attendance_id");
+    const guestId = get("guest_id");
+    const rawCount = get("count");
+    const parsedCount = Number.parseInt(rawCount, 10);
+    const count = Number.isNaN(parsedCount) ? 1 : Math.max(parsedCount, 1);
+    const program = get("program").trim();
+    const dateSubmitted = get("date_submitted").trim();
 
-      // Required columns for attendance records
-      const requiredNorm = [
-        "attendance_id",
-        "count",
-        "program",
-        "date_submitted",
-      ];
-      const missing = requiredNorm.filter((r) => headerIndex(r) === -1);
+    // Validate program type
+    const normalizedProgram = Object.keys(PROGRAM_TYPES).find(
+      (key) => key.toLowerCase() === program.toLowerCase(),
+    );
 
-      if (missing.length) {
-        throw new Error(
-          `Missing required column(s): ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
+    const programValid = normalizedProgram !== undefined;
+
+    // Validate and parse date format
+    let parsedDate;
+    try {
+      if (dateSubmitted.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // YYYY-MM-DD format
+        parsedDate = new Date(`${dateSubmitted}T12:00:00`);
+      } else if (dateSubmitted.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+        // M/D/YYYY or MM/DD/YYYY format
+        const [month, day, year] = dateSubmitted.split("/");
+        parsedDate = new Date(
+          `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T12:00:00`,
         );
+      } else if (
+        dateSubmitted.match(
+          /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i,
+        )
+      ) {
+        // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/YYYY 11:53:58 AM")
+        parsedDate = new Date(dateSubmitted);
+      } else {
+        // Try generic Date parsing as fallback
+        parsedDate = new Date(dateSubmitted);
       }
 
-      return lines.slice(1).map((line, rowIndex) => {
-        const values = splitCSVLine(line);
-        const get = (key) => {
-          const i = headerIndex(key);
-          return i === -1 ? "" : (values[i] || "").trim();
-        };
-
-        const attendanceId = get("attendance_id");
-        const guestId = get("guest_id");
-        const rawCount = get("count");
-        const parsedCount = Number.parseInt(rawCount, 10);
-        const count = Number.isNaN(parsedCount) ? 1 : Math.max(parsedCount, 1);
-        const program = get("program").trim();
-        const dateSubmitted = get("date_submitted").trim();
-
-        // Validate program type
-        const normalizedProgram = Object.keys(PROGRAM_TYPES).find(
-          (key) => key.toLowerCase() === program.toLowerCase(),
+      if (isNaN(parsedDate.getTime())) {
+        console.warn(
+          `Skipping row ${rowIndex + 2}: Invalid date format "${dateSubmitted}". Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
         );
-
-        const programValid = normalizedProgram !== undefined;
-
-        // Validate and parse date format
-        let parsedDate;
-        try {
-          if (dateSubmitted.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            // YYYY-MM-DD format
-            parsedDate = new Date(`${dateSubmitted}T12:00:00`);
-          } else if (dateSubmitted.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-            // M/D/YYYY or MM/DD/YYYY format
-            const [month, day, year] = dateSubmitted.split("/");
-            parsedDate = new Date(
-              `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T12:00:00`,
-            );
-          } else if (
-            dateSubmitted.match(
-              /^\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(AM|PM)$/i,
-            )
-          ) {
-            // M/D/YYYY H:MM:SS AM/PM format (e.g., "4/29/YYYY 11:53:58 AM")
-            parsedDate = new Date(dateSubmitted);
-          } else {
-            // Try generic Date parsing as fallback
-            parsedDate = new Date(dateSubmitted);
-          }
-
-          if (isNaN(parsedDate.getTime())) {
-            throw new Error(
-              `Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
-            );
-          }
-        } catch {
-          throw new Error(
-            `Invalid date format "${dateSubmitted}" on row ${rowIndex + 2}. Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
-          );
-        }
-
-        const normalizedDateIso =
-          normalizeDateInputToISO(parsedDate) ?? parsedDate.toISOString();
-
-        // Check if guest ID is provided
-        const guestIdProvided = !!guestId;
-
-        // Check if this is a special guest ID (only valid for Meal program)
-        const specialMapping = SPECIAL_GUEST_IDS[guestId];
-        const isSpecialId = specialMapping !== undefined;
-
-        // Check if special ID is being used with non-Meal program
-        const specialIdValid = !isSpecialId || normalizedProgram === "Meal";
-
-        // For regular guest IDs (not special), check if guest exists
-        // Don't throw error here - mark for validation during import
-        let guestExists = true;
-        if (!isSpecialId && guestIdProvided) {
-          const guest = guests.find(
-            (g) => String(g.id) === String(guestId) || g.guestId === guestId,
-          );
-          guestExists = guest !== undefined;
-        }
-
-        return {
-          attendanceId,
-          guestId,
-          count,
-          program: normalizedProgram,
-          programType: PROGRAM_TYPES[normalizedProgram],
-          dateSubmitted: normalizedDateIso,
-          originalDate: dateSubmitted,
-          rawCount,
-          isSpecialId,
-          specialMapping,
-          guestExists,
-          programValid,
-          specialIdValid,
-          guestIdProvided,
-          rowIndex,
-        };
-      });
-    } catch (e) {
-      throw new Error(`Failed to parse CSV: ${e.message}`);
+        return null;
+      }
+    } catch {
+      console.warn(
+        `Skipping row ${rowIndex + 2}: Invalid date format "${dateSubmitted}". Supported formats: YYYY-MM-DD, M/D/YYYY, or M/D/YYYY H:MM:SS AM/PM`,
+      );
+      return null;
     }
+
+    const normalizedDateIso =
+      normalizeDateInputToISO(parsedDate) ?? parsedDate.toISOString();
+
+    // Check if guest ID is provided
+    const guestIdProvided = !!guestId;
+
+    // Check if this is a special guest ID (only valid for Meal program)
+    const specialMapping = SPECIAL_GUEST_IDS[guestId];
+    const isSpecialId = specialMapping !== undefined;
+
+    // Check if special ID is being used with non-Meal program
+    const specialIdValid = !isSpecialId || normalizedProgram === "Meal";
+
+    // For regular guest IDs (not special), check if guest exists
+    // Don't throw error here - mark for validation during import
+    let guestExists = true;
+    if (!isSpecialId && guestIdProvided) {
+      const guest = guests.find(
+        (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+      );
+      guestExists = guest !== undefined;
+    }
+
+    return {
+      attendanceId,
+      guestId,
+      count,
+      program: normalizedProgram,
+      programType: PROGRAM_TYPES[normalizedProgram],
+      dateSubmitted: normalizedDateIso,
+      originalDate: dateSubmitted,
+      rawCount,
+      isSpecialId,
+      specialMapping,
+      guestExists,
+      programValid,
+      specialIdValid,
+      guestIdProvided,
+      rowIndex,
+    };
   };
+
+
 
   const importAttendanceRecords = async (records) => {
     let successCount = 0;
     let errorCount = 0;
     const errors = [];
     const specialMealCounts = {}; // Track special meal types for summary
+    
+    // Collections for state updates at the end
+    const allNewMealRecords = [];
+    const allNewShowerRecords = [];
+    const allNewLaundryRecords = [];
+    const allNewBicycleRecords = [];
+    const allNewHaircutRecords = [];
+    const allNewHolidayRecords = [];
 
     // Group records by type for batch processing
     const recordsByType = {
@@ -588,7 +564,8 @@ const AttendanceBatchUpload = () => {
           });
 
           const inserted = await insertMealAttendanceBatch(mealPayloads);
-          setMealRecords((prev) => [...inserted, ...prev]);
+          // Don't update state here; collect results and update once at end
+          allNewMealRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           // Fallback to individual inserts if batch not available
@@ -624,7 +601,7 @@ const AttendanceBatchUpload = () => {
           );
 
           const inserted = await insertShowerReservationsBatch(showerPayloads);
-          setShowerRecords((prev) => [...inserted, ...prev]);
+          allNewShowerRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.showers) {
@@ -665,7 +642,7 @@ const AttendanceBatchUpload = () => {
           );
 
           const inserted = await insertLaundryBookingsBatch(laundryPayloads);
-          setLaundryRecords((prev) => [...inserted, ...prev]);
+          allNewLaundryRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.laundry) {
@@ -706,7 +683,7 @@ const AttendanceBatchUpload = () => {
           );
 
           const inserted = await insertBicycleRepairsBatch(bicyclePayloads);
-          setBicycleRecords((prev) => [...inserted, ...prev]);
+          allNewBicycleRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.bicycles) {
@@ -747,7 +724,7 @@ const AttendanceBatchUpload = () => {
           );
 
           const inserted = await insertHaircutVisitsBatch(haircutPayloads);
-          setHaircutRecords((prev) => [...inserted, ...prev]);
+          allNewHaircutRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.haircuts) {
@@ -787,7 +764,7 @@ const AttendanceBatchUpload = () => {
           });
 
           const inserted = await insertHolidayVisitsBatch(holidayPayloads);
-          setHolidayRecords((prev) => [...inserted, ...prev]);
+          allNewHolidayRecords.push(...inserted);
           successCount += inserted.length;
         } else {
           for (const record of recordsByType.holidays) {
@@ -810,10 +787,23 @@ const AttendanceBatchUpload = () => {
       }
     }
 
-    return { successCount, errorCount, errors, specialMealCounts };
+    return {
+      successCount,
+      errorCount,
+      errors,
+      specialMealCounts,
+      newRecords: {
+        meals: allNewMealRecords,
+        showers: allNewShowerRecords,
+        laundry: allNewLaundryRecords,
+        bicycles: allNewBicycleRecords,
+        haircuts: allNewHaircutRecords,
+        holidays: allNewHolidayRecords,
+      },
+    };
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -825,113 +815,246 @@ const AttendanceBatchUpload = () => {
       return;
     }
 
-  setIsUploading(true);
-  setUploadResult(null);
-  setUploadProgress(null);
-  setRecentErrors([]);
-  setErrorReportName("");
+    setIsUploading(true);
+    setUploadResult(null);
+    setUploadProgress("Reading file...");
+    setRecentErrors([]);
+    setErrorReportName("");
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    const processUpload = async () => {
       try {
-        const content = e.target.result;
-        setUploadProgress("Parsing CSV file...");
-        const parsedRecords = parseCSV(content);
+      const content = await file.text();
+      const text = content.replace(/\r\n/g, "\n");
+      // Use Set for deduplication, then convert back to array
+      const linesSet = new Set(text.split("\n").filter((l) => l.trim().length > 0));
+      const lines = Array.from(linesSet);
+      
+      // Clear the text variable to free memory
+      const totalFileSize = content.length;
 
-        // Filter out records where the guest doesn't exist (skip non-special guest IDs not in system)
-        const { validRecords, skippedRecords } = filterValidAttendanceRecords(
-          parsedRecords,
+      if (lines.length < 2) {
+        throw new Error("CSV needs header + at least one data row");
+      }
+
+      // Parse headers
+      const rawHeaders = splitCSVLine(lines[0]).map((h) =>
+        h.replace(/^\uFEFF/, ""),
+      );
+      const norm = (h) => h.toLowerCase().replace(/\s+/g, "_");
+      const headers = rawHeaders.map((h) => ({ raw: h, norm: norm(h) }));
+
+      const headerIndex = (needle) => {
+        const idx = headers.findIndex((h) => h.norm === needle);
+        return idx >= 0 ? idx : -1;
+      };
+
+      // Validate headers
+      const requiredNorm = [
+        "attendance_id",
+        "count",
+        "program",
+        "date_submitted",
+      ];
+      const missing = requiredNorm.filter((r) => headerIndex(r) === -1);
+
+      if (missing.length) {
+        throw new Error(
+          `Missing required column(s): ${missing.map((m) => m.replace("_", " ")).join(", ")}`,
         );
-        const skippedCount = skippedRecords.length;
+      }
 
-        if (skippedCount > 0) {
-          const skippedSummary = skippedRecords
-            .map(
-              (r) => {
-                if (r.reason === "Guest ID missing") {
-                  return `Row ${r.rowIndex + 2}: Guest ID is required for program "${r.program}"`;
-                } else if (r.reason === "Invalid program type") {
-                  return `Row ${r.rowIndex + 2}: Program type "${r.program}" not recognized`;
-                } else if (r.reason === "Special ID only valid for Meal") {
-                  return `Row ${r.rowIndex + 2}: Special ID "${r.guestId}" only works with Meal program, not "${r.program}"`;
-                } else {
-                  return `Row ${r.rowIndex + 2}: Guest ID "${r.guestId}" not found`;
-                }
-              },
-            )
-            .slice(0, 3)
-            .join("; ");
-          const moreText =
-            skippedCount > 3
-              ? `; and ${skippedCount - 3} more row${skippedCount - 3 === 1 ? "" : "s"}`
-              : "";
-          console.info(
-            `Skipped ${skippedCount} attendance record${skippedCount === 1 ? "" : "s"}: ${skippedSummary}${moreText}`,
-          );
-        }
+      // Chunk processing with optimized memory usage
+      const CHUNK_SIZE = 500;
+      const MAX_LOGGED_ERRORS = 1000;
+      const MAX_LOGGED_SKIPPED = 1000;
+      const totalLines = lines.length - 1;
+      let totalSuccess = 0;
+      let totalErrors = 0;
+      let sampledErrors = [];
+      let sampledSkipped = [];
+      let totalSkippedCount = 0;
+      let allSpecialMealCounts = {};
+      
+      // Use arrays to accumulate records incrementally
+      const recordCollections = {
+        meals: [],
+        showers: [],
+        laundry: [],
+        bicycles: [],
+        haircuts: [],
+        holidays: [],
+      };
+
+      for (let i = 1; i < lines.length; i += CHUNK_SIZE) {
+        const chunkLines = lines.slice(i, i + CHUNK_SIZE);
+        const startIndex = i - 1; // 0-based index relative to data rows
+        const progress = ((i / totalLines) * 100).toFixed(1);
 
         setUploadProgress(
-          `Preparing to import ${validRecords.length} records...`,
+          `Processing records ${i} to ${Math.min(i + CHUNK_SIZE - 1, totalLines)} of ${totalLines} (${progress}%)...`,
         );
-        const { successCount, errorCount, errors, specialMealCounts } =
-          await importAttendanceRecords(validRecords);
 
-        // Build message with special meal counts if any
-        let specialMealsSummary = "";
-        if (specialMealCounts && Object.keys(specialMealCounts).length > 0) {
-          const mealDetails = Object.entries(specialMealCounts)
-            .map(([label, count]) => `${count} ${label}`)
-            .join(", ");
-          specialMealsSummary = ` (including ${mealDetails})`;
+        // Yield to UI to prevent freezing
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Parse chunk
+        const parsedChunk = chunkLines
+          .map((line, idx) => {
+            const rowIndex = startIndex + idx;
+            return parseCSVRow(line, rowIndex, headerIndex);
+          })
+          .filter(Boolean);
+
+        // Validate chunk
+        const { validRecords, skippedRecords } =
+          filterValidAttendanceRecords(parsedChunk);
+
+        totalSkippedCount += skippedRecords.length;
+        if (sampledSkipped.length < MAX_LOGGED_SKIPPED && skippedRecords.length) {
+          const available = MAX_LOGGED_SKIPPED - sampledSkipped.length;
+          sampledSkipped.push(...skippedRecords.slice(0, available));
         }
 
-        let skippedSummaryText = "";
-        if (skippedCount > 0) {
-          skippedSummaryText = ` (skipped ${skippedCount} record${skippedCount === 1 ? "" : "s"} with missing guest ID${skippedCount === 1 ? "" : "s"})`;
-        }
+        // Import chunk
+        if (validRecords.length > 0) {
+          const {
+            successCount,
+            errorCount,
+            errors,
+            specialMealCounts,
+            newRecords,
+          } = await importAttendanceRecords(validRecords);
 
-        if (errorCount === 0) {
-          setUploadResult({
-            success: true,
-            message: `Successfully imported ${successCount} attendance records${specialMealsSummary}${skippedSummaryText}`,
-          });
-          setRecentErrors([]);
-          setErrorReportName("");
-        } else {
-          const firstSnippets = errors
-            .slice(0, 3)
-            .map((error) => formatErrorSnippet(error))
-            .filter(Boolean)
-            .join("; ");
-          const timestamp = new Date()
-            .toISOString()
-            .replace(/[:.]/g, "-");
-          const baseFileName = file.name.replace(/\.[^/.]+$/i, "");
-          const generatedReportName = `${baseFileName || "attendance_import"}_errors_${timestamp}.csv`;
+          totalSuccess += successCount;
+          totalErrors += errorCount;
 
-          setRecentErrors(errors);
-          setErrorReportName(generatedReportName);
-
-          if (successCount > 0) {
-            const baseMessage = `Imported ${successCount} records${specialMealsSummary}${skippedSummaryText} with ${errorCount} error${errorCount === 1 ? "" : "s"}. Review the error table below.`;
-            setUploadResult({
-              success: false,
-              message: firstSnippets
-                ? `${baseMessage} First issues: ${firstSnippets}`
-                : baseMessage,
-            });
-          } else {
-            const baseMessage = `No records were imported. Encountered ${errorCount} error${errorCount === 1 ? "" : "s"}${skippedSummaryText}. Review the error table below.`;
-            setUploadResult({
-              success: false,
-              message: firstSnippets
-                ? `${baseMessage} Example issues: ${firstSnippets}`
-                : baseMessage,
-            });
+          if (sampledErrors.length < MAX_LOGGED_ERRORS && errors.length) {
+            const available = MAX_LOGGED_ERRORS - sampledErrors.length;
+            sampledErrors.push(...errors.slice(0, available));
           }
 
-          console.error("All batch upload errors:", errors);
+          // Collect new records incrementally  
+          if (newRecords) {
+            if (newRecords.meals.length > 0) recordCollections.meals.push(...newRecords.meals);
+            if (newRecords.showers.length > 0) recordCollections.showers.push(...newRecords.showers);
+            if (newRecords.laundry.length > 0) recordCollections.laundry.push(...newRecords.laundry);
+            if (newRecords.bicycles.length > 0) recordCollections.bicycles.push(...newRecords.bicycles);
+            if (newRecords.haircuts.length > 0) recordCollections.haircuts.push(...newRecords.haircuts);
+            if (newRecords.holidays.length > 0) recordCollections.holidays.push(...newRecords.holidays);
+          }
+
+          // Merge special meal counts
+          if (specialMealCounts) {
+            Object.entries(specialMealCounts).forEach(([key, val]) => {
+              allSpecialMealCounts[key] =
+                (allSpecialMealCounts[key] || 0) + val;
+            });
+          }
         }
+      }
+
+      // Finalize results
+      const skippedCount = totalSkippedCount;
+
+      // Batch update all state records at once (avoid per-chunk re-renders)
+      // Use functional updates to ensure consistency
+      if (recordCollections.meals.length > 0) {
+        setMealRecords((prev) => [...recordCollections.meals, ...prev]);
+      }
+      if (recordCollections.showers.length > 0) {
+        setShowerRecords((prev) => [...recordCollections.showers, ...prev]);
+      }
+      if (recordCollections.laundry.length > 0) {
+        setLaundryRecords((prev) => [...recordCollections.laundry, ...prev]);
+      }
+      if (recordCollections.bicycles.length > 0) {
+        setBicycleRecords((prev) => [...recordCollections.bicycles, ...prev]);
+      }
+      if (recordCollections.haircuts.length > 0) {
+        setHaircutRecords((prev) => [...recordCollections.haircuts, ...prev]);
+      }
+      if (recordCollections.holidays.length > 0) {
+        setHolidayRecords((prev) => [...recordCollections.holidays, ...prev]);
+      }
+
+      if (skippedCount > 0) {
+        const skippedSummary = sampledSkipped
+          .map((r) => {
+            if (r.reason === "Guest ID missing") {
+              return `Row ${r.rowIndex + 2}: Guest ID is required for program "${r.program}"`;
+            } else if (r.reason === "Invalid program type") {
+              return `Row ${r.rowIndex + 2}: Program type "${r.program}" not recognized`;
+            } else if (r.reason === "Special ID only valid for Meal") {
+              return `Row ${r.rowIndex + 2}: Special ID "${r.guestId}" only works with Meal program, not "${r.program}"`;
+            } else {
+              return `Row ${r.rowIndex + 2}: Guest ID "${r.guestId}" not found`;
+            }
+          })
+          .slice(0, 3)
+          .join("; ");
+        const moreText =
+          skippedCount > 3
+            ? `; and ${skippedCount - 3} more row${skippedCount - 3 === 1 ? "" : "s"}`
+            : "";
+        console.info(
+          `Skipped ${skippedCount} attendance record${skippedCount === 1 ? "" : "s"}: ${skippedSummary}${moreText}`,
+        );
+      }
+
+      // Build message with special meal counts if any
+      let specialMealsSummary = "";
+      if (Object.keys(allSpecialMealCounts).length > 0) {
+        const mealDetails = Object.entries(allSpecialMealCounts)
+          .map(([label, count]) => `${count} ${label}`)
+          .join(", ");
+        specialMealsSummary = ` (including ${mealDetails})`;
+      }
+
+      let skippedSummaryText = "";
+      if (skippedCount > 0) {
+        skippedSummaryText = ` (skipped ${skippedCount} record${skippedCount === 1 ? "" : "s"} with missing guest ID${skippedCount === 1 ? "" : "s"})`;
+      }
+
+      if (totalErrors === 0) {
+        setUploadResult({
+          success: true,
+          message: `Successfully imported ${totalSuccess} attendance records${specialMealsSummary}${skippedSummaryText}`,
+        });
+        setRecentErrors([]);
+        setErrorReportName("");
+      } else {
+        const firstSnippets = sampledErrors
+          .slice(0, 3)
+          .map((error) => formatErrorSnippet(error))
+          .filter(Boolean)
+          .join("; ");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const baseFileName = file.name.replace(/\.[^/.]+$/i, "");
+        const generatedReportName = `${baseFileName || "attendance_import"}_errors_${timestamp}.csv`;
+
+        setRecentErrors(sampledErrors);
+        setErrorReportName(generatedReportName);
+
+        if (totalSuccess > 0) {
+          const baseMessage = `Imported ${totalSuccess} records${specialMealsSummary}${skippedSummaryText} with ${totalErrors} error${totalErrors === 1 ? "" : "s"}. Review the error table below.`;
+          setUploadResult({
+            success: false,
+            message: firstSnippets
+              ? `${baseMessage} First issues: ${firstSnippets}`
+              : baseMessage,
+          });
+        } else {
+          const baseMessage = `No records were imported. Encountered ${totalErrors} error${totalErrors === 1 ? "" : "s"}${skippedSummaryText}. Review the error table below.`;
+          setUploadResult({
+            success: false,
+            message: firstSnippets
+              ? `${baseMessage} Example issues: ${firstSnippets}`
+              : baseMessage,
+          });
+        }
+
+        console.error("All batch upload errors (sampled):", sampledErrors);
+      }
       } catch (error) {
         setUploadResult({
           success: false,
@@ -948,18 +1071,7 @@ const AttendanceBatchUpload = () => {
       }
     };
 
-    reader.onerror = () => {
-      setUploadResult({
-        success: false,
-        message: "Failed to read the file",
-      });
-      setRecentErrors([]);
-      setErrorReportName("");
-      setIsUploading(false);
-      setUploadProgress(null);
-    };
-
-    reader.readAsText(file);
+    await withPersistencePaused(processUpload);
   };
 
   const downloadTemplateCSV = () => {
