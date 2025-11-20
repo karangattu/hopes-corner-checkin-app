@@ -528,18 +528,6 @@ const MealReport = () => {
     mealTypeFilters,
   ]);
 
-  const scatterLegend = useMemo(() => {
-    const categoryMap = new Map();
-    dailyScatterData.forEach((point) => {
-      if (!categoryMap.has(point.categoryLabel)) {
-        categoryMap.set(point.categoryLabel, point.color);
-      }
-    });
-    return Array.from(categoryMap.entries()).map(([label, color]) => ({
-      label,
-      color,
-    }));
-  }, [dailyScatterData]);
 
   const exportCSV = () => {
     if (calculateMealData.length === 0) {
@@ -810,11 +798,10 @@ const MealReport = () => {
             <button
               key={day.value}
               onClick={() => toggleDay(day.value)}
-              className={`flex flex-col items-center rounded-xl border-2 px-6 py-3 transition-all ${
-                selectedDays.includes(day.value)
-                  ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-              }`}
+              className={`flex flex-col items-center rounded-xl border-2 px-6 py-3 transition-all ${selectedDays.includes(day.value)
+                ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg"
+                : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
+                }`}
             >
               <span className="text-xs font-medium opacity-80">
                 {day.short}
@@ -854,11 +841,10 @@ const MealReport = () => {
               type="button"
               onClick={clearMealTypes}
               disabled={enabledMealTypeCount === 0}
-              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                enabledMealTypeCount === 0
-                  ? "border-gray-200 text-gray-400"
-                  : "border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600"
-              }`}
+              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${enabledMealTypeCount === 0
+                ? "border-gray-200 text-gray-400"
+                : "border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600"
+                }`}
             >
               <RotateCcw size={12} /> Clear all
             </button>
@@ -871,11 +857,10 @@ const MealReport = () => {
             return (
               <label
                 key={option.key}
-                className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
-                  isActive
-                    ? "border-blue-200 bg-blue-50/80 shadow-sm"
-                    : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
-                }`}
+                className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${isActive
+                  ? "border-blue-200 bg-blue-50/80 shadow-sm"
+                  : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
+                  }`}
               >
                 <input
                   type="checkbox"
@@ -1014,9 +999,9 @@ const MealReport = () => {
                       const noun = magnitude === 1 ? "meal" : "meals";
                       const percentChange = previousMonthData.totalMeals
                         ? (
-                            (delta / previousMonthData.totalMeals) *
-                            100
-                          ).toFixed(1)
+                          (delta / previousMonthData.totalMeals) *
+                          100
+                        ).toFixed(1)
                         : "0.0";
 
                       if (delta === 0) {
@@ -1054,11 +1039,10 @@ const MealReport = () => {
             <button
               type="button"
               onClick={() => setActiveTab("overview")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-                activeTab === "overview"
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "overview"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                : "text-gray-600 hover:bg-gray-100"
+                }`}
             >
               <PieChart size={18} />
               Overview
@@ -1066,11 +1050,10 @@ const MealReport = () => {
             <button
               type="button"
               onClick={() => setActiveTab("trends")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-                activeTab === "trends"
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "trends"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                : "text-gray-600 hover:bg-gray-100"
+                }`}
             >
               <BarChart3 size={18} />
               Trends
@@ -1078,11 +1061,10 @@ const MealReport = () => {
             <button
               type="button"
               onClick={() => setActiveTab("export")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${
-                activeTab === "export"
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "export"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                : "text-gray-600 hover:bg-gray-100"
+                }`}
             >
               <Download size={18} />
               Export
@@ -1196,80 +1178,182 @@ const MealReport = () => {
                 </div>
               )}
 
-              {/* Daily Service Mix Scatter */}
+              {/* Daily Service Volume by Day of Week */}
               {dailyScatterData.length > 0 && (
-                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-4 text-xl font-bold text-gray-900">
-                    Daily Service Volume
+                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+                  <h2 className="mb-2 text-xl font-bold text-gray-900">
+                    Service Day Trends
                   </h2>
-                  <p className="mb-4 text-sm text-gray-600">
-                    Each dot represents a service day. Colors indicate service
-                    characteristics.
+                  <p className="mb-6 text-sm text-gray-600">
+                    Compare meal volume trends across different service days throughout the month.
                   </p>
-                  {scatterLegend.length > 0 && (
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {scatterLegend.map(({ label, color }) => (
+
+                  {/* Legend for day colors */}
+                  <div className="mb-4 flex flex-wrap gap-3">
+                    {DAYS_OF_WEEK.filter(day => selectedDays.includes(day.value)).map((day) => {
+                      const dayColor =
+                        day.value === 1 ? "#3b82f6" : // Monday - Blue
+                          day.value === 3 ? "#10b981" : // Wednesday - Green
+                            day.value === 5 ? "#f59e0b" : // Friday - Amber
+                              "#8b5cf6"; // Saturday - Purple
+
+                      return (
                         <span
-                          key={label}
-                          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                          key={day.value}
+                          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700"
                         >
                           <span
-                            className="inline-block h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: color }}
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: dayColor }}
                           />
-                          {label}
+                          {day.label}
                         </span>
-                      ))}
-                    </div>
-                  )}
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ScatterChart
-                      margin={{ top: 16, right: 24, bottom: 40, left: 0 }}
+                      );
+                    })}
+                  </div>
+
+                  <ResponsiveContainer width="100%" height={350}>
+                    <ComposedChart
+                      data={dailyScatterData}
+                      margin={{ top: 16, right: 24, bottom: 60, left: 0 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis
-                        type="number"
-                        dataKey="timestamp"
-                        scale="time"
-                        domain={["auto", "auto"]}
-                        tickFormatter={(value) =>
-                          new Date(value).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                          })
-                        }
+                        dataKey="dateLabel"
+                        tick={{ fontSize: 11 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
                         label={{
-                          value: "Service Day",
+                          value: "Service Date",
                           position: "insideBottom",
-                          offset: -20,
+                          offset: -35,
                         }}
-                        tick={{ fontSize: 12 }}
                       />
                       <YAxis
-                        type="number"
-                        dataKey="totalMeals"
                         tick={{ fontSize: 12 }}
                         label={{
-                          value: "Total Meals",
+                          value: "Total Meals Served",
                           angle: -90,
                           position: "insideLeft",
                           offset: 10,
                         }}
                       />
                       <Tooltip
-                        cursor={{ strokeDasharray: "3 3" }}
-                        content={<ScatterTooltip />}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length > 0) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-lg border-2 border-gray-300 bg-white p-4 shadow-xl">
+                                <p className="mb-2 font-bold text-gray-900">
+                                  {data.weekdayLabel}, {data.dateLabel}
+                                </p>
+                                <div className="space-y-1 text-sm">
+                                  <p className="font-semibold text-blue-700">
+                                    Total Meals: {data.totalMeals}
+                                  </p>
+                                  <p className="text-gray-600">
+                                    Unique Guests: {data.uniqueGuests}
+                                  </p>
+                                  <div className="mt-2 border-t border-gray-200 pt-2 text-xs text-gray-500">
+                                    <p>Guest: {data.guestMeals} | Extras: {data.extrasMeals}</p>
+                                    {data.rvMeals > 0 && <p>RV: {data.rvMeals}</p>}
+                                    {data.dayWorkerMeals > 0 && <p>Day Worker: {data.dayWorkerMeals}</p>}
+                                    {data.shelterMeals > 0 && <p>Shelter: {data.shelterMeals}</p>}
+                                    {data.unitedEffortMeals > 0 && <p>United Effort: {data.unitedEffortMeals}</p>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
                       />
-                      <Scatter data={dailyScatterData} name="Total Meals">
-                        {dailyScatterData.map((point, index) => (
-                          <Cell
-                            key={`${point.timestamp}-${index}`}
-                            fill={point.color}
-                          />
-                        ))}
-                      </Scatter>
-                    </ScatterChart>
+
+                      {/* Lines for each day of the week */}
+                      {selectedDays.includes(1) && (
+                        <Line
+                          type="monotone"
+                          dataKey={(entry) => entry.weekdayLabel === "Monday" ? entry.totalMeals : null}
+                          stroke="#3b82f6"
+                          strokeWidth={2.5}
+                          dot={{ r: 5, fill: "#3b82f6" }}
+                          name="Monday"
+                          connectNulls={false}
+                        />
+                      )}
+                      {selectedDays.includes(3) && (
+                        <Line
+                          type="monotone"
+                          dataKey={(entry) => entry.weekdayLabel === "Wednesday" ? entry.totalMeals : null}
+                          stroke="#10b981"
+                          strokeWidth={2.5}
+                          dot={{ r: 5, fill: "#10b981" }}
+                          name="Wednesday"
+                          connectNulls={false}
+                        />
+                      )}
+                      {selectedDays.includes(5) && (
+                        <Line
+                          type="monotone"
+                          dataKey={(entry) => entry.weekdayLabel === "Friday" ? entry.totalMeals : null}
+                          stroke="#f59e0b"
+                          strokeWidth={2.5}
+                          dot={{ r: 5, fill: "#f59e0b" }}
+                          name="Friday"
+                          connectNulls={false}
+                        />
+                      )}
+                      {selectedDays.includes(6) && (
+                        <Line
+                          type="monotone"
+                          dataKey={(entry) => entry.weekdayLabel === "Saturday" ? entry.totalMeals : null}
+                          stroke="#8b5cf6"
+                          strokeWidth={2.5}
+                          dot={{ r: 5, fill: "#8b5cf6" }}
+                          name="Saturday"
+                          connectNulls={false}
+                        />
+                      )}
+                    </ComposedChart>
                   </ResponsiveContainer>
+
+                  {/* Summary stats by day of week */}
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {DAYS_OF_WEEK.filter(day => selectedDays.includes(day.value)).map((day) => {
+                      const dayData = dailyScatterData.filter(d => d.weekdayLabel === day.label);
+                      if (dayData.length === 0) return null;
+
+                      const avgMeals = Math.round(
+                        dayData.reduce((sum, d) => sum + d.totalMeals, 0) / dayData.length
+                      );
+                      const maxMeals = Math.max(...dayData.map(d => d.totalMeals));
+                      const minMeals = Math.min(...dayData.map(d => d.totalMeals));
+
+                      const dayColor =
+                        day.value === 1 ? "blue" :
+                          day.value === 3 ? "emerald" :
+                            day.value === 5 ? "amber" :
+                              "purple";
+
+                      return (
+                        <div key={day.value} className={`rounded-xl border-2 border-${dayColor}-200 bg-${dayColor}-50 p-3`}>
+                          <p className={`text-xs font-bold uppercase tracking-wide text-${dayColor}-700`}>
+                            {day.label}s
+                          </p>
+                          <p className={`mt-1 text-2xl font-bold text-${dayColor}-900`}>
+                            {avgMeals}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-600">
+                            avg meals ({dayData.length} days)
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Range: {minMeals} - {maxMeals}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
