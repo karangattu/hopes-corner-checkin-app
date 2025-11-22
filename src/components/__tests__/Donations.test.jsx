@@ -370,7 +370,7 @@ describe("Donations Component", () => {
       expect(toast.error).toHaveBeenCalledWith("Item name is required");
     });
 
-    it("allows adding a School lunch donation with only donor and weight", async () => {
+    it("allows adding a School lunch donation with item name, donor, and weight", async () => {
       const user = userEvent.setup();
       render(<Donations />);
 
@@ -378,7 +378,10 @@ describe("Donations Component", () => {
       const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
       await user.selectOptions(typeSelect, "School lunch");
 
-      // Fill in donor and weight only
+      // Fill in item name, donor, and weight
+      const itemInput = screen.getByPlaceholderText(/e.g., Sandwich, Cookie, Brownie/i);
+      await user.type(itemInput, "Sandwich");
+
       const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
       await user.clear(donorInput);
       await user.type(donorInput, "Local Elementary");
@@ -394,11 +397,12 @@ describe("Donations Component", () => {
       expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
       const calledWith = mockContext.addDonation.mock.calls[0][0];
       expect(calledWith.type).toBe("School lunch");
+      expect(calledWith.itemName).toBe("Sandwich");
       expect(calledWith.donor).toBe("Local Elementary");
       expect(calledWith.weightLbs).toBe(12);
     });
 
-    it("allows adding a Pastries donation with only donor and weight", async () => {
+    it("allows adding a Pastries donation with item name, donor, and weight", async () => {
       const user = userEvent.setup();
       render(<Donations />);
 
@@ -406,7 +410,10 @@ describe("Donations Component", () => {
       const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
       await user.selectOptions(typeSelect, "Pastries");
 
-      // Fill in donor and weight only
+      // Fill in item name, donor, and weight
+      const itemInput = screen.getByPlaceholderText(/e.g., Sandwich, Cookie, Brownie/i);
+      await user.type(itemInput, "Cookie");
+
       const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
       await user.clear(donorInput);
       await user.type(donorInput, "Local Bakery");
@@ -422,11 +429,12 @@ describe("Donations Component", () => {
       expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
       const calledWith = mockContext.addDonation.mock.calls[0][0];
       expect(calledWith.type).toBe("Pastries");
+      expect(calledWith.itemName).toBe("Cookie");
       expect(calledWith.donor).toBe("Local Bakery");
       expect(calledWith.weightLbs).toBe(5);
     });
 
-    it("allows adding a Deli Foods donation with only donor and weight", async () => {
+    it("allows adding a Deli Foods donation with item name, donor, and weight", async () => {
       const user = userEvent.setup();
       render(<Donations />);
 
@@ -434,7 +442,10 @@ describe("Donations Component", () => {
       const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
       await user.selectOptions(typeSelect, "Deli Foods");
 
-      // Fill in donor and weight only
+      // Fill in item name, donor, and weight
+      const itemInput = screen.getByPlaceholderText(/e.g., Sandwich, Cookie, Brownie/i);
+      await user.type(itemInput, "Sandwich Platter");
+
       const donorInput = screen.getByPlaceholderText(/e.g., Waymo, LinkedIn, Anonymous/i);
       await user.clear(donorInput);
       await user.type(donorInput, "Community Deli");
@@ -450,6 +461,7 @@ describe("Donations Component", () => {
       expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
       const calledWith = mockContext.addDonation.mock.calls[0][0];
       expect(calledWith.type).toBe("Deli Foods");
+      expect(calledWith.itemName).toBe("Sandwich Platter");
       expect(calledWith.donor).toBe("Community Deli");
       expect(calledWith.weightLbs).toBe(7);
     });

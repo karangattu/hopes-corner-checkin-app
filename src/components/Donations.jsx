@@ -405,7 +405,7 @@ const Donations = () => {
       return;
     }
 
-    // For minimal types (School lunch, Pastries), only donor and weight are required
+    // For minimal types (School lunch, Pastries), require donor, weight, and item name
     if (isMinimalType) {
       if (!sanitizedDonor.trim()) {
         toast.error(`Donor is required for ${form.type} entries`);
@@ -413,6 +413,16 @@ const Donations = () => {
       }
       if (weightLbsFloat <= 0) {
         toast.error(`Weight (lbs) is required for ${form.type} entries`);
+        return;
+      }
+      // Sanitize and validate item name for minimal types
+      const sanitizedItemName = sanitizeString(form.itemName, {
+        maxLength: 200,
+        allowHTML: false
+      });
+
+      if (!sanitizedItemName.trim()) {
+        toast.error(`Item name is required for ${form.type} entries`);
         return;
       }
     } else {
@@ -905,23 +915,21 @@ const Donations = () => {
                 </select>
               </div>
 
-              {!isMinimalType && (
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                    Item Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={form.itemName}
-                    onChange={(event) =>
-                      setForm({ ...form, itemName: event.target.value })
-                    }
-                    placeholder="e.g., Chicken tikka masala, Fresh vegetables"
-                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                    required
-                  />
-                </div>
-              )}
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                  Item Name {isMinimalType && "*"}
+                </label>
+                <input
+                  type="text"
+                  value={form.itemName}
+                  onChange={(event) =>
+                    setForm({ ...form, itemName: event.target.value })
+                  }
+                  placeholder={isMinimalType ? "e.g., Sandwich, Cookie, Brownie" : "e.g., Chicken tikka masala, Fresh vegetables"}
+                  className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  required
+                />
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {!isMinimalType && (
@@ -997,7 +1005,7 @@ const Donations = () => {
                 />
               </div>
               {isMinimalType && (
-                <p className="mt-2 text-xs text-gray-500">For {form.type} entries, only Donor and Weight are required.</p>
+                <p className="mt-2 text-xs text-gray-500">For {form.type} entries, Item Name, Donor, and Weight are required.</p>
               )}
 
               <div>
