@@ -300,6 +300,36 @@ const normalizeRow = (row) => {
 
 const fetchCollection = async (client, tableName) => {
   const filter = COLLECTION_FILTERS[tableName];
+  
+  // Special handling for guests table - fetch all with offset-based pagination
+  if (tableName === "guests") {
+    const pageSize = 1000;
+    let allData = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await client
+        .from(tableName)
+        .select("*")
+        .order("created_at", { ascending: false, nullsLast: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = allData.concat(data);
+        offset += data.length;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allData;
+  }
+
+  // Standard filtering for other collections
   let builder = client.from(tableName).select("*");
 
   if (filter?.dateField && filter?.since) {

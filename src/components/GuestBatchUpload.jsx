@@ -52,6 +52,7 @@ const filterValidGuests = (guests) => {
   const validGuests = [];
   const skippedInfo = {
     specialIds: [],
+    missingNames: [],
     invalidAge: [],
     invalidGender: [],
     invalidHousing: [],
@@ -68,6 +69,19 @@ const filterValidGuests = (guests) => {
       skippedInfo.specialIds.push({
         rowNumber,
         guestId: guest.guest_id,
+      });
+      return;
+    }
+
+    // Check for missing names
+    const firstName = (guest.first_name || "").trim();
+    const fullName = (guest.full_name || "").trim();
+    
+    if (!firstName && !fullName) {
+      skippedInfo.missingNames.push({
+        rowNumber,
+        guestId: guest.guest_id,
+        reason: "Missing first name and full name",
       });
       return;
     }
@@ -267,11 +281,37 @@ const GuestBatchUpload = () => {
         // Filter out special guest IDs and invalid/missing age values
         const { validGuests, skippedInfo } = filterValidGuests(parsedData);
 
+        // Log detailed skip information
+        const totalSkipped = 
+          skippedInfo.specialIds.length + 
+          skippedInfo.missingNames.length +
+          skippedInfo.invalidAge.length + 
+          skippedInfo.invalidGender.length + 
+          skippedInfo.invalidHousing.length + 
+          skippedInfo.duplicateIds.length;
+
+        console.log('Guest Upload Filter Summary:', {
+          totalRows: parsedData.length,
+          validGuests: validGuests.length,
+          totalSkipped,
+          breakdown: {
+            specialIds: skippedInfo.specialIds.length,
+            missingNames: skippedInfo.missingNames.length,
+            invalidAge: skippedInfo.invalidAge.length,
+            invalidGender: skippedInfo.invalidGender.length,
+            invalidHousing: skippedInfo.invalidHousing.length,
+            duplicateIds: skippedInfo.duplicateIds.length,
+          }
+        });
+
         // Check if all rows were filtered out
         if (validGuests.length === 0) {
           const reasons = [];
           if (skippedInfo.specialIds.length > 0) {
             reasons.push(`${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length === 1 ? "" : "s"}`);
+          }
+          if (skippedInfo.missingNames.length > 0) {
+            reasons.push(`${skippedInfo.missingNames.length} row${skippedInfo.missingNames.length === 1 ? "" : "s"} with missing names`);
           }
           if (skippedInfo.invalidAge.length > 0) {
             const samples = skippedInfo.invalidAge.slice(0, 2).map(a => `"${a.providedAge}"`).join(", ");
@@ -340,6 +380,9 @@ const GuestBatchUpload = () => {
         let message = `Successfully processed ${successCount} guest${successCount === 1 ? "" : "s"} (new or updated)`;
         if (skippedInfo.specialIds.length > 0) {
           message += ` (skipped ${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length > 1 ? "s" : ""})`;
+        }
+        if (skippedInfo.missingNames.length > 0) {
+          message += ` (skipped ${skippedInfo.missingNames.length} row${skippedInfo.missingNames.length > 1 ? "s" : ""} with missing names)`;
         }
         if (skippedInfo.invalidAge.length > 0) {
           message += ` (skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length > 1 ? "s" : ""} with invalid/missing age)`;

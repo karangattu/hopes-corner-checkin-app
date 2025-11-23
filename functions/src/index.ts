@@ -43,6 +43,10 @@ interface SupabaseQueryRequest {
     ascending?: boolean;
   };
   limit?: number;
+  range?: {
+    from: number;
+    to: number;
+  };
   single?: boolean;
   select?: string;
   match?: Record<string, any>;
@@ -67,13 +71,11 @@ export const supabaseProxy = onCall(
       );
     }
 
-    const data = request.data as SupabaseQueryRequest;
+      const data = request.data as SupabaseQueryRequest;
 
     try {
       const supabase = getSupabaseClient();
-      const { table, operation, data: payload, filters, order, limit, single, select, match } = data;
-
-      // Validate table name (whitelist approach for security)
+      const { table, operation, data: payload, filters, order, limit, range, single, select, match } = data;      // Validate table name (whitelist approach for security)
       const allowedTables = [
         "guests",
         "meal_attendance",
@@ -152,8 +154,11 @@ export const supabaseProxy = onCall(
             });
           }
 
-          // Apply limit
-          if (limit) {
+          // Apply range (offset-based pagination)
+          if (range) {
+            query = query.range(range.from, range.to);
+          } else if (limit) {
+            // Apply limit only if range is not used
             query = query.limit(limit);
           }
 

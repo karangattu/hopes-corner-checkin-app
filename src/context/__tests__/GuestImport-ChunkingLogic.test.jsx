@@ -94,7 +94,9 @@ describe("Guest import chunking", () => {
       if (table === "guests") {
         return {
           select: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
+            order: () => ({
+              range: () => Promise.resolve({ data: [], error: null }),
+            }),
             in: () => {
               selectCalls.push(null);
               // Return empty array for check - no existing guests
@@ -126,7 +128,9 @@ describe("Guest import chunking", () => {
 
       return {
         select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
           in: () =>
             Promise.resolve({ data: [], error: null }),
           eq: () => ({
@@ -177,7 +181,9 @@ describe("Guest import chunking", () => {
       if (table === "guests") {
         return {
           select: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
+            order: () => ({
+              range: () => Promise.resolve({ data: [], error: null }),
+            }),
             in: () => {
               // Return empty array for check - no existing guests
               return Promise.resolve({ data: [], error: null });
@@ -218,7 +224,9 @@ describe("Guest import chunking", () => {
 
       return {
         select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
           in: () =>
             Promise.resolve({ data: [], error: null }),
           eq: () => ({

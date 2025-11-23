@@ -498,8 +498,36 @@ export const AppProvider = ({ children }) => {
 
     const fetchCloudData = async () => {
       try {
+        // Fetch guests with pagination to handle more than 1000 records
+        const fetchAllGuests = async () => {
+          const pageSize = 1000;
+          let allGuests = [];
+          let offset = 0;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data, error } = await supabase
+              .from("guests")
+              .select("*")
+              .order("created_at", { ascending: false })
+              .range(offset, offset + pageSize - 1);
+
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+              allGuests = allGuests.concat(data);
+              offset += data.length;
+              hasMore = data.length === pageSize;
+            } else {
+              hasMore = false;
+            }
+          }
+
+          return allGuests;
+        };
+
         const [
-          guestsRes,
+          guestsData,
           mealsRes,
           showersRes,
           laundryRes,
@@ -510,10 +538,7 @@ export const AppProvider = ({ children }) => {
           donationsRes,
           settingsRes,
         ] = await Promise.all([
-          supabase
-            .from("guests")
-            .select("*")
-            .order("created_at", { ascending: false }),
+          fetchAllGuests(),
           supabase
             .from("meal_attendance")
             .select("*")
@@ -555,7 +580,7 @@ export const AppProvider = ({ children }) => {
 
         if (cancelled) return;
 
-        const guestRows = guestsRes.data?.map(mapGuestRow) || [];
+        const guestRows = guestsData?.map(mapGuestRow) || [];
         const migratedGuests = migrateGuestData(guestRows);
         setGuests(
           migratedGuests.map((g) => ({

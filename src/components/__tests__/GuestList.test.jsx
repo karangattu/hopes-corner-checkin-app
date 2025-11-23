@@ -293,4 +293,296 @@ describe("GuestList", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("Guest sorting", () => {
+    it("displays sort buttons when search results exist", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Charlie" } });
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /first name/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /last name/i })).toBeInTheDocument();
+      });
+    });
+
+    it("sorts guests by first name in ascending order", async () => {
+      const user = userEvent.setup();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+          {
+            id: "g3",
+            name: "Bob Jones",
+            firstName: "Bob",
+            lastName: "Jones",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "A" } });
+
+      const firstNameButton = await screen.findByRole("button", { name: /first name/i });
+      await user.click(firstNameButton);
+
+      // After sorting by first name ascending, should be: Alice, Bob, Charlie
+      const guestCards = await screen.findAllByText(/Smith|Jones|Brown/);
+      expect(guestCards[0]).toHaveTextContent("Alice Smith");
+    });
+
+    it("sorts guests by last name in ascending order", async () => {
+      const user = userEvent.setup();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+          {
+            id: "g3",
+            name: "Bob Jones",
+            firstName: "Bob",
+            lastName: "Jones",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      // Search with pattern that matches all: space or empty initial filters
+      fireEvent.change(search, { target: { value: "B" } });
+
+      const lastNameButton = await screen.findByRole("button", { name: /last name/i });
+      await user.click(lastNameButton);
+
+      // After sorting by last name ascending with "B" search
+      // Bob Jones (Jones) should appear, followed by alphabetical order
+      await waitFor(() => {
+        expect(screen.getByText(/Bob Jones/)).toBeInTheDocument();
+      });
+    });
+
+    it("toggles sort direction when clicking the same sort button", async () => {
+      const user = userEvent.setup();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "A" } });
+
+      const firstNameButton = await screen.findByRole("button", { name: /first name/i });
+
+      // First click - ascending
+      await user.click(firstNameButton);
+      expect(firstNameButton).toHaveTextContent("↑");
+
+      // Second click - descending
+      await user.click(firstNameButton);
+      await waitFor(() => {
+        expect(firstNameButton).toHaveTextContent("↓");
+      });
+    });
+
+    it("shows visual indicator for active sort button", async () => {
+      const user = userEvent.setup();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "A" } });
+
+      const firstNameButton = await screen.findByRole("button", { name: /first name/i });
+      const lastNameButton = screen.getByRole("button", { name: /last name/i });
+
+      // First name button should be gray initially
+      expect(firstNameButton).toHaveClass("bg-gray-100");
+
+      // Click first name button
+      await user.click(firstNameButton);
+
+      // First name button should be blue (active)
+      await waitFor(() => {
+        expect(firstNameButton).toHaveClass("bg-blue-600");
+        expect(lastNameButton).toHaveClass("bg-gray-100");
+      });
+
+      // Click last name button
+      await user.click(lastNameButton);
+
+      // Last name button should now be blue
+      await waitFor(() => {
+        expect(lastNameButton).toHaveClass("bg-blue-600");
+        expect(firstNameButton).toHaveClass("bg-gray-100");
+      });
+    });
+
+    it("switches sort key and resets to ascending when clicking different sort button", async () => {
+      const user = userEvent.setup();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Charlie Brown",
+            firstName: "Charlie",
+            lastName: "Brown",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "A" } });
+
+      const firstNameButton = await screen.findByRole("button", { name: /first name/i });
+      const lastNameButton = screen.getByRole("button", { name: /last name/i });
+
+      // Click first name button to sort ascending
+      await user.click(firstNameButton);
+      expect(firstNameButton).toHaveTextContent("↑");
+
+      // Click last name button - should switch to last name with ascending
+      await user.click(lastNameButton);
+      await waitFor(() => {
+        expect(lastNameButton).toHaveTextContent("↑");
+        expect(firstNameButton).not.toHaveTextContent("↑");
+        expect(firstNameButton).not.toHaveTextContent("↓");
+      });
+    });
+  });
 });

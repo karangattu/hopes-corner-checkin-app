@@ -81,8 +81,9 @@ describe("Optimistic update rollbacks", () => {
       if (table === "guests") {
         return {
           select: () => ({
-            order: () =>
-              Promise.resolve({ data: [insertedRowBase], error: null }),
+            order: () => ({
+              range: () => Promise.resolve({ data: [insertedRowBase], error: null }),
+            }),
             eq: () => ({
               maybeSingle: () => Promise.resolve({ data: null, error: null }),
               single: () => Promise.resolve({ data: null, error: null }),
@@ -102,7 +103,9 @@ describe("Optimistic update rollbacks", () => {
 
       return {
         select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
             single: () => Promise.resolve({ data: null, error: null }),
@@ -159,7 +162,9 @@ describe("Optimistic update rollbacks", () => {
       if (table === "laundry_bookings") {
         return {
           select: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
+            order: () => ({
+              range: () => Promise.resolve({ data: [], error: null }),
+            }),
             eq: () => ({
               maybeSingle: () => Promise.resolve({ data: null, error: null }),
               single: () => Promise.resolve({ data: null, error: null }),
@@ -183,7 +188,9 @@ describe("Optimistic update rollbacks", () => {
 
       return {
         select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
             single: () => Promise.resolve({ data: null, error: null }),
@@ -249,7 +256,9 @@ describe("Optimistic update rollbacks", () => {
       if (table === "laundry_bookings") {
         return {
           select: () => ({
-            order: () => Promise.resolve({ data: [], error: null }),
+            order: () => ({
+              range: () => Promise.resolve({ data: [], error: null }),
+            }),
             eq: () => ({
               maybeSingle: () => Promise.resolve({ data: null, error: null }),
               single: () => Promise.resolve({ data: null, error: null }),
@@ -273,7 +282,9 @@ describe("Optimistic update rollbacks", () => {
 
       return {
         select: () => ({
-          order: () => Promise.resolve({ data: [], error: null }),
+          order: () => ({
+            range: () => Promise.resolve({ data: [], error: null }),
+          }),
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
             single: () => Promise.resolve({ data: null, error: null }),

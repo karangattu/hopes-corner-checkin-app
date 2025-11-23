@@ -189,6 +189,14 @@ class TableQueryBuilder {
   }
 
   /**
+   * Range pagination (offset-based)
+   */
+  range(from, to) {
+    this.queryConfig.range = { from, to };
+    return this;
+  }
+
+  /**
    * Return single result (throws error if multiple)
    */
   async single() {

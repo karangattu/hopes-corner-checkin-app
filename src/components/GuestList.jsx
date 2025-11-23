@@ -73,6 +73,7 @@ const GuestList = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [expandedGuest, setExpandedGuest] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedGuestIndex, setSelectedGuestIndex] = useState(-1);
@@ -335,8 +336,48 @@ const GuestList = () => {
     return scored.map((s) => s.guest);
   }, [guestsList, debouncedSearchTerm]);
 
+  // Apply sorting to filtered guests
+  const sortedGuests = useMemo(() => {
+    if (!sortConfig.key || filteredGuests.length === 0) {
+      return filteredGuests;
+    }
+
+    const sorted = [...filteredGuests].sort((a, b) => {
+      let aValue = "";
+      let bValue = "";
+
+      if (sortConfig.key === "firstName") {
+        aValue = (a.firstName || "").toLowerCase();
+        bValue = (b.firstName || "").toLowerCase();
+      } else if (sortConfig.key === "lastName") {
+        aValue = (a.lastName || "").toLowerCase();
+        bValue = (b.lastName || "").toLowerCase();
+      }
+
+      const comparison = aValue.localeCompare(bValue);
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [filteredGuests, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        // Toggle direction if same key is clicked
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      } else {
+        // Set new sort key with ascending direction
+        return { key, direction: "asc" };
+      }
+    });
+  };
+
   const shouldVirtualize =
-    filteredGuests.length > VIRTUALIZATION_THRESHOLD &&
+    sortedGuests.length > VIRTUALIZATION_THRESHOLD &&
     expandedGuest === null &&
     !showCreateForm;
 
@@ -2491,15 +2532,41 @@ const GuestList = () => {
               key={`search-results-${searchTerm}-${filteredGuests.length}`}
             >
               {searchTerm && filteredGuests.length > 0 && (
-                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg flex items-center justify-between">
-                  <span>
-                    Found {filteredGuests.length} guest
-                    {filteredGuests.length !== 1 ? "s" : ""} matching "
-                    {searchTerm}"
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Use ↑↓ arrows to navigate, Enter to expand
-                  </span>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg flex items-center justify-between">
+                    <span>
+                      Found {filteredGuests.length} guest
+                      {filteredGuests.length !== 1 ? "s" : ""} matching "
+                      {searchTerm}"
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      Use ↑↓ arrows to navigate, Enter to expand
+                    </span>
+                  </div>
+                  <div className="flex gap-2 px-4">
+                    <button
+                      onClick={() => handleSort("firstName")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+                        sortConfig.key === "firstName"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      title="Sort by first name"
+                    >
+                      First Name {sortConfig.key === "firstName" && (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </button>
+                    <button
+                      onClick={() => handleSort("lastName")}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+                        sortConfig.key === "lastName"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                      title="Sort by last name"
+                    >
+                      Last Name {sortConfig.key === "lastName" && (sortConfig.direction === "asc" ? "↑" : "↓")}
+                    </button>
+                  </div>
                 </div>
               )}
               {shouldVirtualize ? (
@@ -2510,21 +2577,21 @@ const GuestList = () => {
                 >
                   <List
                     height={listHeight}
-                    itemCount={filteredGuests.length}
+                    itemCount={sortedGuests.length}
                     itemSize={VIRTUAL_ITEM_SIZE}
                     overscanCount={6}
                     width="100%"
                     ref={listRef}
                   >
                     {({ index, style }) =>
-                      renderGuestCard(filteredGuests[index], index, {
+                      renderGuestCard(sortedGuests[index], index, {
                         style,
                       })
                     }
                   </List>
                 </div>
               ) : (
-                filteredGuests.map((guest, i) => {
+                sortedGuests.map((guest, i) => {
                   const lastService = latestServiceByGuest.get(
                     String(guest.id),
                   );
