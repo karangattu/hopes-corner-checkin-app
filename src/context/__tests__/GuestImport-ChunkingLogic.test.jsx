@@ -87,6 +87,7 @@ describe("Guest import chunking", () => {
 
   it("chunks guest imports into 100-row batches and merges Supabase results", async () => {
     const insertCalls = [];
+    const selectCalls = [];
     let callCount = 0;
 
     __setSupabaseHandler((table) => {
@@ -94,6 +95,11 @@ describe("Guest import chunking", () => {
         return {
           select: () => ({
             order: () => Promise.resolve({ data: [], error: null }),
+            in: () => {
+              selectCalls.push(null);
+              // Return empty array for check - no existing guests
+              return Promise.resolve({ data: [], error: null });
+            },
             eq: () => ({
               maybeSingle: () => Promise.resolve({ data: null, error: null }),
               single: () => Promise.resolve({ data: null, error: null }),
@@ -111,12 +117,18 @@ describe("Guest import chunking", () => {
               select: () => Promise.resolve({ data: rows, error: null }),
             };
           },
+          update: () => ({
+            eq: () =>
+              Promise.resolve({ data: [], error: null }),
+          }),
         };
       }
 
       return {
         select: () => ({
           order: () => Promise.resolve({ data: [], error: null }),
+          in: () =>
+            Promise.resolve({ data: [], error: null }),
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
             single: () => Promise.resolve({ data: null, error: null }),
@@ -166,6 +178,10 @@ describe("Guest import chunking", () => {
         return {
           select: () => ({
             order: () => Promise.resolve({ data: [], error: null }),
+            in: () => {
+              // Return empty array for check - no existing guests
+              return Promise.resolve({ data: [], error: null });
+            },
             eq: () => ({
               maybeSingle: () => Promise.resolve({ data: null, error: null }),
               single: () => Promise.resolve({ data: null, error: null }),
@@ -193,12 +209,18 @@ describe("Guest import chunking", () => {
               select: () => Promise.resolve({ data: rows, error: null }),
             };
           },
+          update: () => ({
+            eq: () =>
+              Promise.resolve({ data: [], error: null }),
+          }),
         };
       }
 
       return {
         select: () => ({
           order: () => Promise.resolve({ data: [], error: null }),
+          in: () =>
+            Promise.resolve({ data: [], error: null }),
           eq: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
             single: () => Promise.resolve({ data: null, error: null }),

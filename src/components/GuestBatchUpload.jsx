@@ -9,6 +9,19 @@ import {
 import { useAppContext } from "../context/useAppContext";
 import { AGE_GROUPS, GENDERS, HOUSING_STATUSES } from "../context/constants";
 
+// Mapping of common housing status variations to correct values
+const HOUSING_STATUS_MAPPING = {
+  "temp shelter": "Temp. shelter",
+  "temporary shelter": "Temp. shelter",
+  "shelter": "Temp. shelter",
+  "rv": "RV or vehicle",
+  "rv or car": "RV or vehicle",
+  "vehicle": "RV or vehicle",
+  "car": "RV or vehicle",
+  "homeless": "Unhoused",
+  "unhouse": "Unhoused",
+};
+
 // Special guest IDs that should not create guest profiles
 // These represent aggregate meal types, not individual guests
 const SPECIAL_GUEST_IDS = [
@@ -19,6 +32,20 @@ const SPECIAL_GUEST_IDS = [
   "M61706731", // Shelter meals
   "M65842216", // United Effort meals
 ];
+
+// Normalize housing status to correct value
+const normalizeHousingStatusValue = (value) => {
+  if (!value) return value;
+  const trimmed = value.trim();
+  const mapped = HOUSING_STATUS_MAPPING[trimmed.toLowerCase()];
+  if (mapped) return mapped;
+  
+  // Try case-insensitive match with allowed values
+  const caseInsensitiveMatch = HOUSING_STATUSES.find(
+    status => status.toLowerCase() === trimmed.toLowerCase()
+  );
+  return caseInsensitiveMatch || trimmed;
+};
 
 // Filter out special guest IDs and rows with invalid/missing/enum values
 const filterValidGuests = (guests) => {
@@ -60,36 +87,52 @@ const filterValidGuests = (guests) => {
     // Skip rows with invalid age (only if provided AND invalid)
     // Note: Empty/NULL age is OK - will default to "Adult 18-59" later
     const age = (guest.age || "").trim();
-    if (age && !AGE_GROUPS.includes(age)) {
-      skippedInfo.invalidAge.push({
-        rowNumber,
-        providedAge: age,
-        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
-      });
-      return;
+    if (age) {
+      // Try exact match first, then case-insensitive
+      const validAge = AGE_GROUPS.includes(age) ||
+        AGE_GROUPS.some(ag => ag.toLowerCase() === age.toLowerCase());
+      if (!validAge) {
+        skippedInfo.invalidAge.push({
+          rowNumber,
+          providedAge: age,
+          name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+        });
+        return;
+      }
     }
 
     // Skip rows with invalid gender
     const gender = (guest.gender || "").trim();
-    if (gender && !GENDERS.includes(gender)) {
-      skippedInfo.invalidGender.push({
-        rowNumber,
-        providedGender: gender,
-        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
-      });
-      return;
+    if (gender) {
+      // Try exact match first, then case-insensitive
+      const validGender = GENDERS.includes(gender) ||
+        GENDERS.some(g => g.toLowerCase() === gender.toLowerCase());
+      if (!validGender) {
+        skippedInfo.invalidGender.push({
+          rowNumber,
+          providedGender: gender,
+          name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+        });
+        return;
+      }
     }
 
     // Skip rows with invalid housing status
     // Note: Empty/NULL housing_status is OK - will default to "Unhoused" later
     const housing = (guest.housing_status || "").trim();
-    if (housing && !HOUSING_STATUSES.includes(housing)) {
-      skippedInfo.invalidHousing.push({
-        rowNumber,
-        providedHousing: housing,
-        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
-      });
-      return;
+    if (housing) {
+      // Normalize to correct value (handles "Temp Shelter" -> "Temp. shelter", etc)
+      const normalized = normalizeHousingStatusValue(housing);
+      if (!HOUSING_STATUSES.includes(normalized)) {
+        skippedInfo.invalidHousing.push({
+          rowNumber,
+          providedHousing: housing,
+          name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+        });
+        return;
+      }
+      // Store normalized value
+      guest.housing_status = normalized;
     }
 
     validGuests.push(guest);
@@ -231,13 +274,16 @@ const GuestBatchUpload = () => {
             reasons.push(`${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length === 1 ? "" : "s"}`);
           }
           if (skippedInfo.invalidAge.length > 0) {
-            reasons.push(`${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age`);
+            const samples = skippedInfo.invalidAge.slice(0, 2).map(a => `"${a.providedAge}"`).join(", ");
+            reasons.push(`${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid age (samples: ${samples})`);
           }
           if (skippedInfo.invalidGender.length > 0) {
-            reasons.push(`${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender`);
+            const samples = skippedInfo.invalidGender.slice(0, 2).map(g => `"${g.providedGender}"`).join(", ");
+            reasons.push(`${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender (samples: ${samples})`);
           }
           if (skippedInfo.invalidHousing.length > 0) {
-            reasons.push(`${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status`);
+            const samples = skippedInfo.invalidHousing.slice(0, 2).map(h => `"${h.providedHousing}"`).join(", ");
+            reasons.push(`${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status (samples: ${samples})`);
           }
           if (skippedInfo.duplicateIds.length > 0) {
             reasons.push(`${skippedInfo.duplicateIds.length} duplicate guest ID${skippedInfo.duplicateIds.length === 1 ? "" : "s"}`);
@@ -269,13 +315,16 @@ const GuestBatchUpload = () => {
             message += ` Skipped ${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length === 1 ? "" : "s"}.`;
           }
           if (skippedInfo.invalidAge.length > 0) {
-            message += ` Skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age.`;
+            const samples = skippedInfo.invalidAge.slice(0, 3).map(a => `"${a.providedAge}"`).join(", ");
+            message += ` Skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid age (samples: ${samples}).`;
           }
           if (skippedInfo.invalidGender.length > 0) {
-            message += ` Skipped ${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender.`;
+            const samples = skippedInfo.invalidGender.slice(0, 3).map(g => `"${g.providedGender}"`).join(", ");
+            message += ` Skipped ${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender (samples: ${samples}).`;
           }
           if (skippedInfo.invalidHousing.length > 0) {
-            message += ` Skipped ${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status.`;
+            const samples = skippedInfo.invalidHousing.slice(0, 3).map(h => `"${h.providedHousing}"`).join(", ");
+            message += ` Skipped ${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status (samples: ${samples}).`;
           }
           if (skippedInfo.duplicateIds.length > 0) {
             message += ` Skipped ${skippedInfo.duplicateIds.length} row${skippedInfo.duplicateIds.length === 1 ? "" : "s"} with duplicate guest ID.`;
@@ -288,7 +337,7 @@ const GuestBatchUpload = () => {
           return;
         }
 
-        let message = `Successfully imported ${successCount} guest${successCount === 1 ? "" : "s"}`;
+        let message = `Successfully processed ${successCount} guest${successCount === 1 ? "" : "s"} (new or updated)`;
         if (skippedInfo.specialIds.length > 0) {
           message += ` (skipped ${skippedInfo.specialIds.length} special meal ID${skippedInfo.specialIds.length > 1 ? "s" : ""})`;
         }

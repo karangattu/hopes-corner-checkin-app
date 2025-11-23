@@ -932,10 +932,18 @@ export const AppProvider = ({ children }) => {
   };
 
   const generateUniqueGuestId = (preferredId, takenSet) => {
-    let id =
-      preferredId && !takenSet.has(preferredId)
-        ? preferredId
-        : generateGuestId();
+    let id;
+    
+    // Accept any preferredId from CSV if not already taken (supports legacy IDs like M80926591)
+    if (preferredId && !takenSet.has(preferredId)) {
+      id = preferredId;
+    } else if (preferredId) {
+      // If preferredId is taken, generate new unique ID
+      id = generateGuestId();
+    } else {
+      id = generateGuestId();
+    }
+    
     while (takenSet.has(id)) {
       id = generateGuestId();
     }
@@ -1082,12 +1090,36 @@ export const AppProvider = ({ children }) => {
       fullName = `${firstName} ${lastName}`.trim();
 
       const housingStatusRaw = (row.housing_status || "").trim();
-      // Default to "Unhoused" if empty/NULL
-      const housingStatus = housingStatusRaw ? normalizeHousingStatus(housingStatusRaw) : "Unhoused";
-      // Default to "Adult 18-59" if empty/NULL
-      const age = (row.age || "").trim() || "Adult 18-59";
+      // Default to "Unhoused" if empty/NULL, normalize case
+      let housingStatus = housingStatusRaw ? normalizeHousingStatus(housingStatusRaw) : "Unhoused";
+      // Try to find case-insensitive match if not found
+      if (housingStatusRaw && !HOUSING_STATUSES.includes(housingStatus)) {
+        const caseInsensitiveMatch = HOUSING_STATUSES.find(
+          status => status.toLowerCase() === housingStatusRaw.toLowerCase()
+        );
+        housingStatus = caseInsensitiveMatch || housingStatus;
+      }
+      
+      // Default to "Adult 18-59" if empty/NULL, normalize case
+      let age = (row.age || "").trim() || "Adult 18-59";
+      // Try to find case-insensitive match if not found
+      if (row.age && !AGE_GROUPS.includes(age)) {
+        const caseInsensitiveMatch = AGE_GROUPS.find(
+          ag => ag.toLowerCase() === age.toLowerCase()
+        );
+        age = caseInsensitiveMatch || age;
+      }
+      
       const genderRaw = (row.gender || "").trim();
-      const gender = genderRaw ? genderRaw : "Unknown";
+      let gender = genderRaw ? genderRaw : "Unknown";
+      // Try to find case-insensitive match if not found
+      if (genderRaw && !GENDERS.includes(gender)) {
+        const caseInsensitiveMatch = GENDERS.find(
+          g => g.toLowerCase() === gender.toLowerCase()
+        );
+        gender = caseInsensitiveMatch || gender;
+      }
+      
       const location =
         (row.city || row.location || "").trim() || "Mountain View";
 
@@ -1127,52 +1159,119 @@ export const AppProvider = ({ children }) => {
     });
 
     if (supabaseEnabled && supabase) {
-      const payload = newGuests.map((g) => ({
-        external_id: g.guestId,
-        first_name: g.firstName,
-        last_name: g.lastName,
-        full_name: g.name,
-        preferred_name: g.preferredName,
-        housing_status: g.housingStatus,
-        age_group: g.age,
-        gender: g.gender,
-        location: g.location,
-        notes: g.notes || "",
-        bicycle_description: g.bicycleDescription,
-      }));
-
       const insertedRecords = [];
       let encounteredError = null;
+      const guestIdToNewData = new Map();
 
-      for (
-        let start = 0;
-        start < payload.length;
-        start += GUEST_IMPORT_CHUNK_SIZE
-      ) {
-        const chunk = payload.slice(start, start + GUEST_IMPORT_CHUNK_SIZE);
-        try {
-          const { data, error } = await supabase
-            .from("guests")
-            .insert(chunk)
-            .select();
+      // Build map of guest IDs to their new data
+      newGuests.forEach((g) => {
+        guestIdToNewData.set(g.guestId, {
+          external_id: g.guestId,
+          first_name: g.firstName,
+          last_name: g.lastName,
+          full_name: g.name,
+          preferred_name: g.preferredName,
+          housing_status: g.housingStatus,
+          age_group: g.age,
+          gender: g.gender,
+          location: g.location,
+          notes: g.notes || "",
+          bicycle_description: g.bicycleDescription,
+        });
+      });
 
-          if (error) {
-            encounteredError = error;
-            break;
+      const guestIds = Array.from(guestIdToNewData.keys());
+
+      // Check which guest IDs already exist
+      const { data: existingGuests, error: fetchError } = await supabase
+        .from("guests")
+        .select("id, external_id")
+        .in("external_id", guestIds);
+
+      if (fetchError) {
+        console.error("Failed to check for existing guests:", fetchError);
+        encounteredError = fetchError;
+      } else {
+        const existingIds = new Set(existingGuests.map((g) => g.external_id));
+        const idsToInsert = guestIds.filter((id) => !existingIds.has(id));
+        const idsToUpdate = guestIds.filter((id) => existingIds.has(id));
+
+        console.log(
+          `Guest import: ${idsToInsert.length} new, ${idsToUpdate.length} existing (to update)`,
+        );
+
+        // Insert new guests
+        if (idsToInsert.length > 0) {
+          const insertPayload = idsToInsert.map((id) =>
+            guestIdToNewData.get(id),
+          );
+
+          for (
+            let start = 0;
+            start < insertPayload.length;
+            start += GUEST_IMPORT_CHUNK_SIZE
+          ) {
+            const chunk = insertPayload.slice(
+              start,
+              start + GUEST_IMPORT_CHUNK_SIZE,
+            );
+            try {
+              const { data, error } = await supabase
+                .from("guests")
+                .insert(chunk)
+                .select();
+
+              if (error) {
+                encounteredError = error;
+                break;
+              }
+
+              if (data) {
+                const mapped = data.map(mapGuestRow);
+                insertedRecords.push(...mapped);
+              }
+            } catch (error) {
+              encounteredError = error;
+              break;
+            }
           }
+        }
 
-          if (data) {
-            const mapped = data.map(mapGuestRow);
-            insertedRecords.push(...mapped);
+        // Update existing guests
+        if (!encounteredError && idsToUpdate.length > 0) {
+          for (const guestId of idsToUpdate) {
+            const updateData = guestIdToNewData.get(guestId);
+            try {
+              const { data, error } = await supabase
+                .from("guests")
+                .update(updateData)
+                .eq("external_id", guestId)
+                .select();
+
+              if (error) {
+                encounteredError = error;
+                break;
+              }
+
+              if (data && data.length > 0) {
+                const mapped = data.map(mapGuestRow);
+                insertedRecords.push(...mapped);
+              }
+            } catch (error) {
+              encounteredError = error;
+              break;
+            }
           }
-        } catch (error) {
-          encounteredError = error;
-          break;
         }
       }
 
       if (insertedRecords.length > 0) {
-        setGuests((prev) => [...prev, ...insertedRecords]);
+        setGuests((prev) => {
+          // Remove any existing guests with same IDs and add/update with new data
+          const existingIds = new Set(insertedRecords.map((g) => g.guestId));
+          const filtered = prev.filter((g) => !existingIds.has(g.guestId));
+          return [...filtered, ...insertedRecords];
+        });
       }
 
       const failedCount = newGuests.length - insertedRecords.length;
@@ -1184,7 +1283,7 @@ export const AppProvider = ({ children }) => {
           "Failed to bulk import guests to Supabase:",
           encounteredError,
         );
-        
+
         // Log detailed error info to help diagnose the issue
         console.error("Supabase error details:", {
           message: encounteredError.message,
@@ -1196,26 +1295,21 @@ export const AppProvider = ({ children }) => {
           totalGuests: newGuests.length,
           insertedRecords: insertedRecords.length,
         });
-        
-        // Log sample of payload that failed
-        if (payload.length > 0) {
-          console.error("Sample payload (first record):", payload[0]);
-        }
-        
+
         // Provide more helpful error message based on error code
         let errorDetail = "";
-        if (encounteredError.code === '23505') {
-          errorDetail = " (Likely duplicate external_id - check CSV for duplicate guest IDs)";
-        } else if (encounteredError.code === '23514') {
-          errorDetail = " (Constraint violation - verify enum values: age_group, gender, housing_status match allowed values)";
-        } else if (encounteredError.code === '42P01') {
-          errorDetail = " (Table not found - check Supabase connection and table permissions)";
+        if (encounteredError.code === "23514") {
+          errorDetail =
+            " (Constraint violation - verify enum values: age_group, gender, housing_status match allowed values)";
+        } else if (encounteredError.code === "42P01") {
+          errorDetail =
+            " (Table not found - check Supabase connection and table permissions)";
         }
-        
+
         errorMessage =
           failedCount === newGuests.length
             ? `Unable to sync guest import with Supabase. No records were saved.${errorDetail}`
-            : `Unable to sync ${failedCount} guest${failedCount === 1 ? "" : "s"} with Supabase. ${insertedRecords.length} imported before the error.${errorDetail}`;
+            : `Unable to sync ${failedCount} guest${failedCount === 1 ? "" : "s"} with Supabase. ${insertedRecords.length} imported.${errorDetail}`;
       }
 
       return {

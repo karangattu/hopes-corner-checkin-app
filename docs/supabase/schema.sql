@@ -107,7 +107,7 @@ END$$;
 -- 3. Core reference tables
 create table if not exists public.guests (
   id uuid primary key default gen_random_uuid(),
-  external_id text unique not null,           -- matches Firestore guestId (e.g. "GABC123")
+  external_id text unique not null,           -- matches Firestore guestId or legacy ID (e.g. "GABC123" or "M80926591")
   first_name text not null,
   last_name text not null,
   full_name text not null,
@@ -123,7 +123,6 @@ create table if not exists public.guests (
   banned_until timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint guests_external_id_format check (external_id ~ '^G[A-Z0-9]{3,}$'),
   constraint guests_ban_window_valid check (
     banned_until is null
     or banned_at is null
