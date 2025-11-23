@@ -1182,11 +1182,25 @@ export const AppProvider = ({ children }) => {
 
       const guestIds = Array.from(guestIdToNewData.keys());
 
-      // Check which guest IDs already exist
-      const { data: existingGuests, error: fetchError } = await supabase
-        .from("guests")
-        .select("id, external_id")
-        .in("external_id", guestIds);
+      // Check which guest IDs already exist (chunked to avoid request size limits)
+      let existingGuests = [];
+      let fetchError = null;
+
+      for (let i = 0; i < guestIds.length; i += GUEST_IMPORT_CHUNK_SIZE) {
+        const chunk = guestIds.slice(i, i + GUEST_IMPORT_CHUNK_SIZE);
+        const { data, error } = await supabase
+          .from("guests")
+          .select("id, external_id")
+          .in("external_id", chunk);
+
+        if (error) {
+          fetchError = error;
+          break;
+        }
+        if (data) {
+          existingGuests.push(...data);
+        }
+      }
 
       if (fetchError) {
         console.error("Failed to check for existing guests:", fetchError);
