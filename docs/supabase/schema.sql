@@ -1,7 +1,4 @@
--- Consolidated schema: includes base schema and all migrations under `docs/supabase/migrations/`
 -- Run this once on a fresh database to create the correct schema with triggers, functions, views, and helpers.
--- For migrations that update ENUMs or add new values, the final types are included here.
--- NOTE: This file is intended for a fresh DB or as a canonical source. For existing DBs, apply migrations in `docs/supabase/migrations/`.
 
 -- 1. Extensions & helper updated-at trigger
 create extension if not exists "pgcrypto";
