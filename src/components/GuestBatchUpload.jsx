@@ -7,7 +7,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
-import { AGE_GROUPS } from "../context/constants";
+import { AGE_GROUPS, GENDERS, HOUSING_STATUSES } from "../context/constants";
 
 // Special guest IDs that should not create guest profiles
 // These represent aggregate meal types, not individual guests
@@ -20,13 +20,18 @@ const SPECIAL_GUEST_IDS = [
   "M65842216", // United Effort meals
 ];
 
-// Filter out special guest IDs and rows with invalid/missing age values
+// Filter out special guest IDs and rows with invalid/missing/enum values
 const filterValidGuests = (guests) => {
   const validGuests = [];
   const skippedInfo = {
     specialIds: [],
     invalidAge: [],
+    invalidGender: [],
+    invalidHousing: [],
+    duplicateIds: [],
   };
+
+  const seenGuestIds = new Set();
 
   guests.forEach((guest, index) => {
     const rowNumber = index + 2;
@@ -40,12 +45,48 @@ const filterValidGuests = (guests) => {
       return;
     }
 
-    // Skip rows with invalid or missing age
+    // Check for duplicate guest IDs in the batch
+    if (guest.guest_id && seenGuestIds.has(guest.guest_id)) {
+      skippedInfo.duplicateIds.push({
+        rowNumber,
+        guestId: guest.guest_id,
+      });
+      return;
+    }
+    if (guest.guest_id) {
+      seenGuestIds.add(guest.guest_id);
+    }
+
+    // Skip rows with invalid age (only if provided AND invalid)
+    // Note: Empty/NULL age is OK - will default to "Adult 18-59" later
     const age = (guest.age || "").trim();
-    if (!age || !AGE_GROUPS.includes(age)) {
+    if (age && !AGE_GROUPS.includes(age)) {
       skippedInfo.invalidAge.push({
         rowNumber,
-        providedAge: age || "(missing)",
+        providedAge: age,
+        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+      });
+      return;
+    }
+
+    // Skip rows with invalid gender
+    const gender = (guest.gender || "").trim();
+    if (gender && !GENDERS.includes(gender)) {
+      skippedInfo.invalidGender.push({
+        rowNumber,
+        providedGender: gender,
+        name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
+      });
+      return;
+    }
+
+    // Skip rows with invalid housing status
+    // Note: Empty/NULL housing_status is OK - will default to "Unhoused" later
+    const housing = (guest.housing_status || "").trim();
+    if (housing && !HOUSING_STATUSES.includes(housing)) {
+      skippedInfo.invalidHousing.push({
+        rowNumber,
+        providedHousing: housing,
         name: guest.full_name || `${guest.first_name} ${guest.last_name}`,
       });
       return;
@@ -192,6 +233,15 @@ const GuestBatchUpload = () => {
           if (skippedInfo.invalidAge.length > 0) {
             reasons.push(`${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age`);
           }
+          if (skippedInfo.invalidGender.length > 0) {
+            reasons.push(`${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender`);
+          }
+          if (skippedInfo.invalidHousing.length > 0) {
+            reasons.push(`${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status`);
+          }
+          if (skippedInfo.duplicateIds.length > 0) {
+            reasons.push(`${skippedInfo.duplicateIds.length} duplicate guest ID${skippedInfo.duplicateIds.length === 1 ? "" : "s"}`);
+          }
           setUploadResult({
             success: false,
             message: `No valid guests to import. Skipped all ${parsedData.length} row${parsedData.length === 1 ? "" : "s"}: ${reasons.join(" and ")}.`,
@@ -221,6 +271,15 @@ const GuestBatchUpload = () => {
           if (skippedInfo.invalidAge.length > 0) {
             message += ` Skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length === 1 ? "" : "s"} with invalid/missing age.`;
           }
+          if (skippedInfo.invalidGender.length > 0) {
+            message += ` Skipped ${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length === 1 ? "" : "s"} with invalid gender.`;
+          }
+          if (skippedInfo.invalidHousing.length > 0) {
+            message += ` Skipped ${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length === 1 ? "" : "s"} with invalid housing status.`;
+          }
+          if (skippedInfo.duplicateIds.length > 0) {
+            message += ` Skipped ${skippedInfo.duplicateIds.length} row${skippedInfo.duplicateIds.length === 1 ? "" : "s"} with duplicate guest ID.`;
+          }
 
           setUploadResult({
             success: false,
@@ -235,6 +294,15 @@ const GuestBatchUpload = () => {
         }
         if (skippedInfo.invalidAge.length > 0) {
           message += ` (skipped ${skippedInfo.invalidAge.length} row${skippedInfo.invalidAge.length > 1 ? "s" : ""} with invalid/missing age)`;
+        }
+        if (skippedInfo.invalidGender.length > 0) {
+          message += ` (skipped ${skippedInfo.invalidGender.length} row${skippedInfo.invalidGender.length > 1 ? "s" : ""} with invalid gender)`;
+        }
+        if (skippedInfo.invalidHousing.length > 0) {
+          message += ` (skipped ${skippedInfo.invalidHousing.length} row${skippedInfo.invalidHousing.length > 1 ? "s" : ""} with invalid housing status)`;
+        }
+        if (skippedInfo.duplicateIds.length > 0) {
+          message += ` (skipped ${skippedInfo.duplicateIds.length} duplicate ID${skippedInfo.duplicateIds.length > 1 ? "s" : ""})`;
         }
         if (partialFailure && failedCount > 0) {
           message += ` (${failedCount} guest${failedCount === 1 ? "" : "s"} could not be synced)`;

@@ -1082,8 +1082,10 @@ export const AppProvider = ({ children }) => {
       fullName = `${firstName} ${lastName}`.trim();
 
       const housingStatusRaw = (row.housing_status || "").trim();
-      const housingStatus = normalizeHousingStatus(housingStatusRaw);
-      const age = (row.age || "").trim();
+      // Default to "Unhoused" if empty/NULL
+      const housingStatus = housingStatusRaw ? normalizeHousingStatus(housingStatusRaw) : "Unhoused";
+      // Default to "Adult 18-59" if empty/NULL
+      const age = (row.age || "").trim() || "Adult 18-59";
       const genderRaw = (row.gender || "").trim();
       const gender = genderRaw ? genderRaw : "Unknown";
       const location =
@@ -1091,7 +1093,7 @@ export const AppProvider = ({ children }) => {
 
       if (!AGE_GROUPS.includes(age)) {
         throw new Error(
-          `Invalid or missing Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`,
+          `Invalid Age value '${age}' (${recordIdentifier}). Valid values: ${AGE_GROUPS.join(", ")}`,
         );
       }
 
@@ -1182,10 +1184,38 @@ export const AppProvider = ({ children }) => {
           "Failed to bulk import guests to Supabase:",
           encounteredError,
         );
+        
+        // Log detailed error info to help diagnose the issue
+        console.error("Supabase error details:", {
+          message: encounteredError.message,
+          code: encounteredError.code,
+          details: encounteredError.details,
+          hint: encounteredError.hint,
+          status: encounteredError.status,
+          failedCount,
+          totalGuests: newGuests.length,
+          insertedRecords: insertedRecords.length,
+        });
+        
+        // Log sample of payload that failed
+        if (payload.length > 0) {
+          console.error("Sample payload (first record):", payload[0]);
+        }
+        
+        // Provide more helpful error message based on error code
+        let errorDetail = "";
+        if (encounteredError.code === '23505') {
+          errorDetail = " (Likely duplicate external_id - check CSV for duplicate guest IDs)";
+        } else if (encounteredError.code === '23514') {
+          errorDetail = " (Constraint violation - verify enum values: age_group, gender, housing_status match allowed values)";
+        } else if (encounteredError.code === '42P01') {
+          errorDetail = " (Table not found - check Supabase connection and table permissions)";
+        }
+        
         errorMessage =
           failedCount === newGuests.length
-            ? "Unable to sync guest import with Supabase. No records were saved."
-            : `Unable to sync ${failedCount} guest${failedCount === 1 ? "" : "s"} with Supabase. ${insertedRecords.length} imported before the error.`;
+            ? `Unable to sync guest import with Supabase. No records were saved.${errorDetail}`
+            : `Unable to sync ${failedCount} guest${failedCount === 1 ? "" : "s"} with Supabase. ${insertedRecords.length} imported before the error.${errorDetail}`;
       }
 
       return {
