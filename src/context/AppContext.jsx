@@ -4360,6 +4360,9 @@ export const AppProvider = ({ children }) => {
         keepGuests = false,
       } = options || {};
 
+      // Get current supabase enabled status (not from closure)
+      const currentSupabaseEnabled = isSupabaseEnabled();
+
       if (local) {
         if (!keepGuests) setGuests([]);
         setMealRecords([]);
@@ -4381,7 +4384,9 @@ export const AppProvider = ({ children }) => {
         setActionHistory([]);
 
         // Clear localStorage keys
-        if (!keepGuests) localStorage.removeItem("hopes-corner-guests");
+        if (!keepGuests) {
+          localStorage.removeItem("hopes-corner-guests");
+        }
         localStorage.removeItem("hopes-corner-meal-records");
         localStorage.removeItem("hopes-corner-rv-meal-records");
         localStorage.removeItem("hopes-corner-united-effort-meal-records");
@@ -4395,10 +4400,24 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem("hopes-corner-item-records");
         localStorage.removeItem("hopes-corner-donation-records");
         localStorage.removeItem("hopes-corner-lunch-bag-records");
+        
+        // Clear sync timestamps to prevent stale data from being loaded
+        if (!keepGuests) {
+          localStorage.removeItem("hopes-corner-guests-lastSync");
+        }
+        localStorage.removeItem("hopes-corner-meal_attendance-lastSync");
+        localStorage.removeItem("hopes-corner-shower_reservations-lastSync");
+        localStorage.removeItem("hopes-corner-laundry_bookings-lastSync");
+        localStorage.removeItem("hopes-corner-bicycle_repairs-lastSync");
+        localStorage.removeItem("hopes-corner-holiday_visits-lastSync");
+        localStorage.removeItem("hopes-corner-haircut_visits-lastSync");
+        localStorage.removeItem("hopes-corner-items_distributed-lastSync");
+        localStorage.removeItem("hopes-corner-donations-lastSync");
         // keep settings by default
       }
 
-      if (supabaseReset && supabaseEnabled && supabase) {
+      if (supabaseReset && currentSupabaseEnabled && supabase) {
+        console.log("Starting Supabase reset...");
         const deletionErrors = [];
         try {
           const tables = [
@@ -4416,11 +4435,12 @@ export const AppProvider = ({ children }) => {
           for (const table of tables) {
             if (table.keep) continue;
 
-            // Delete all rows using a simple delete query
-            const { error: deleteError } = await supabase
+            console.log(`Deleting all rows from ${table.name}...`);
+            // Delete all rows using gte filter - all valid UUIDs are >= the nil UUID
+            const { error: deleteError, count } = await supabase
               .from(table.name)
-              .delete()
-              .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all rows (id will never be this value)
+              .delete({ count: "exact" })
+              .gte("id", "00000000-0000-0000-0000-000000000000");
 
             if (deleteError) {
               console.error(
@@ -4429,7 +4449,9 @@ export const AppProvider = ({ children }) => {
               );
               deletionErrors.push(`${table.name}: ${deleteError.message}`);
             } else {
-              console.log(`Successfully deleted all rows from ${table.name}`);
+              console.log(`Successfully deleted ${count ?? 0} rows from ${table.name}`);
+              // Clear sync timestamps to force fresh sync on next load
+              localStorage.removeItem(`hopes-corner-${table.name}-lastSync`);
             }
           }
 
@@ -4471,8 +4493,8 @@ export const AppProvider = ({ children }) => {
       return true;
     } catch (e) {
       console.error("Error resetting data:", e);
-      toast.error("Failed to reset data");
-      return false;
+      toast.error("Failed to reset data: " + (e?.message || "Unknown error"));
+      throw e; // Re-throw so callers can handle it
     }
   };
 

@@ -1620,11 +1620,12 @@ const Dashboard = () => {
     );
   };
 
-  const [resetOptions, setResetOptions] = useState({
+  // Default reset options - include supabase if it's configured and enabled
+  const [resetOptions, setResetOptions] = useState(() => ({
     local: true,
-    supabase: false,
+    supabase: supabaseConfigured && supabaseEnabled,
     keepGuests: false,
-  });
+  }));
   const [isResetting, setIsResetting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
