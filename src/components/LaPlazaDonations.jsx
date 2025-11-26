@@ -46,47 +46,92 @@ const LaPlazaDonations = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">La Plaza Market donations</h3>
-        <div className="flex items-center gap-2">
-            <button aria-label="prev-day" type="button" onClick={() => shiftDate(-1)} className="px-2 py-1 rounded border border-gray-200"><ChevronLeft /></button>
-            <div className="text-sm">{selectedDate}</div>
-            <input aria-label="select-date" type="date" value={selectedDate} onChange={(e)=> setSelectedDate(e.target.value)} className="ml-2 p-1 border rounded" />
-            <button aria-label="next-day" type="button" onClick={() => shiftDate(1)} className="px-2 py-1 rounded border border-gray-200"><ChevronRight /></button>
+    <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+        <h3 className="text-base sm:text-lg font-semibold">La Plaza Market donations</h3>
+        <div className="flex items-center gap-2 justify-between sm:justify-start">
+          <button aria-label="prev-day" type="button" onClick={() => shiftDate(-1)} className="px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition">
+            <ChevronLeft size={18} className="sm:hidden" />
+            <ChevronLeft size={20} className="hidden sm:block" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="text-xs sm:text-sm font-medium text-gray-700">{selectedDate}</div>
+            <input 
+              aria-label="select-date" 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e)=> setSelectedDate(e.target.value)} 
+              className="p-1.5 sm:p-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+            />
           </div>
+          <button aria-label="next-day" type="button" onClick={() => shiftDate(1)} className="px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition">
+            <ChevronRight size={18} className="sm:hidden" />
+            <ChevronRight size={20} className="hidden sm:block" />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">
-        <div className="text-xs text-gray-500">Add donation (date defaults to selected day)</div>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className="p-2 border rounded">
+        <div className="text-[10px] sm:text-xs text-gray-500">Add donation for selected day</div>
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-2 sm:gap-3">
+          <select 
+            value={form.category} 
+            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} 
+            className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
+          >
             {LA_PLAZA_CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <input type="number" min="0" step="0.01" placeholder="Weight (lbs)" value={form.weightLbs} onChange={(e)=> setForm((f)=> ({ ...f, weightLbs: e.target.value }))} className="p-2 border rounded" />
+          <input 
+            type="number" 
+            min="0" 
+            step="0.01" 
+            placeholder="Weight (lbs)" 
+            value={form.weightLbs} 
+            onChange={(e)=> setForm((f)=> ({ ...f, weightLbs: e.target.value }))} 
+            className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+          />
           <div className="flex gap-2">
-            <input placeholder="Notes" value={form.notes} onChange={(e)=> setForm((f)=> ({ ...f, notes: e.target.value }))} className="p-2 border rounded flex-1" />
-            <button className="px-4 py-2 bg-rose-600 text-white rounded" type="submit"><Save size={16} /> Save</button>
+            <input 
+              placeholder="Notes (optional)" 
+              value={form.notes} 
+              onChange={(e)=> setForm((f)=> ({ ...f, notes: e.target.value }))} 
+              className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 flex-1 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+            />
+            <button 
+              className="px-3 sm:px-4 py-2.5 sm:py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold flex items-center gap-1.5 sm:gap-2 shadow-md transition active:scale-95" 
+              type="submit"
+            >
+              <Save size={16} className="sm:hidden" /> 
+              <Save size={18} className="hidden sm:block" />
+              <span className="text-xs sm:text-sm">Save</span>
+            </button>
           </div>
         </form>
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-medium">Donations on {selectedDate}</div>
-        <ul className="space-y-1">
-          {selectedDayRecords.length === 0 && <li className="text-xs text-gray-500">No records for this day.</li>}
+        <div className="text-xs sm:text-sm font-medium text-gray-700">Donations on {selectedDate}</div>
+        <ul className="space-y-2">
+          {selectedDayRecords.length === 0 && (
+            <li className="text-xs text-gray-500 text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+              No records for this day.
+            </li>
+          )}
           {selectedDayRecords.map((r) => (
-            <li key={r.id} className="flex items-center justify-between p-2 border rounded bg-gray-50">
-              <div className="flex gap-3 items-center">
-                <Package />
-                <div>
-                  <div className="font-medium">{r.category}</div>
-                  <div className="text-xs text-gray-500">{r.notes}</div>
+            <li key={r.id} className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 rounded-lg sm:rounded-xl bg-gray-50 hover:bg-gray-100 transition">
+              <div className="flex gap-2 sm:gap-3 items-center flex-1 min-w-0">
+                <Package size={18} className="sm:hidden text-rose-600 flex-shrink-0" />
+                <Package size={20} className="hidden sm:block text-rose-600 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm sm:text-base text-gray-900 truncate">{r.category}</div>
+                  {r.notes && <div className="text-[10px] sm:text-xs text-gray-500 truncate">{r.notes}</div>}
                 </div>
               </div>
-              <div className="text-sm font-semibold">{Number(r.weightLbs || 0).toFixed(2)} lbs</div>
+              <div className="text-xs sm:text-sm font-bold text-rose-600 flex-shrink-0 ml-2">
+                {Number(r.weightLbs || 0).toFixed(2)} lbs
+              </div>
             </li>
           ))}
         </ul>

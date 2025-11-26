@@ -326,14 +326,16 @@ describe("Donations Component", () => {
   describe("Component Rendering", () => {
     it("renders the Donations component without crashing", () => {
       render(<Donations />);
-      expect(screen.getByText("Donations")).toBeInTheDocument();
+      // Text appears multiple times (in h1 and tab button), so use getAllByText
+      expect(screen.getAllByText("Donations").length).toBeGreaterThan(0);
     });
 
     it("displays the three main tabs", () => {
       render(<Donations />);
-      expect(screen.getByText("Log Donations")).toBeInTheDocument();
-      expect(screen.getByText("Analytics")).toBeInTheDocument();
-      expect(screen.getByText("Export")).toBeInTheDocument();
+      // Tab text is responsive and may be split, so check for button with role
+      expect(screen.getByRole("button", { name: /log.*donations/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /analytics/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /export/i })).toBeInTheDocument();
     });
 
     it("displays stat cards with correct labels", () => {
@@ -347,7 +349,8 @@ describe("Donations Component", () => {
     it("displays density selector", () => {
       render(<Donations />);
       expect(screen.getByText("Density")).toBeInTheDocument();
-      expect(screen.getByText("Medium density (20 servings)")).toBeInTheDocument();
+      // Text shortened for mobile responsiveness
+      expect(screen.getByText("Medium (20 servings)")).toBeInTheDocument();
     });
 
     it("requires item name for non-minimal types (not School lunch or Pastries)", async () => {
@@ -600,10 +603,10 @@ describe("Donations Component", () => {
       expect(writeText).toHaveBeenCalled();
       // Ensure toast success shown
       expect(toast.success).toHaveBeenCalledWith("Copied protein & carbs to clipboard");
-      // Ensure the transient copied badge appears
-      expect(screen.getByText(/Copied!/i)).toBeInTheDocument();
+      // Ensure the transient copied badge appears (now shows checkmark)
+      expect(screen.getByText("✓")).toBeInTheDocument();
       // It should disappear after the timeout
-      await waitFor(() => expect(screen.queryByText(/Copied!/i)).not.toBeInTheDocument(), { timeout: 3000 });
+      await waitFor(() => expect(screen.queryByText("✓")).not.toBeInTheDocument(), { timeout: 3000 });
     });
   });
 });

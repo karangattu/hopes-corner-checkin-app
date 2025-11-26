@@ -677,64 +677,69 @@ const Donations = () => {
   };
 
   return (
-    <div className="min-h-screen space-y-6 pb-8">
+    <div className="min-h-screen space-y-4 sm:space-y-6 pb-8 px-2 sm:px-0">
       {/* Hero Date Navigator */}
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-8 shadow-lg">
         <div className="absolute right-0 top-0 h-64 w-64 -translate-y-32 translate-x-32 rounded-full bg-gradient-to-br from-emerald-200/30 to-teal-200/30 blur-3xl" />
 
-        <div className="relative flex flex-col items-center gap-6 md:flex-row md:justify-between">
-          <div>
-            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
-              <div className="rounded-2xl bg-emerald-600 p-3 shadow-lg">
-                <PackagePlus size={28} className="text-white" />
+        <div className="relative flex flex-col items-center gap-4 sm:gap-6 md:flex-row md:justify-between">
+          <div className="text-center md:text-left">
+            <h1 className="flex items-center justify-center md:justify-start gap-2 sm:gap-3 text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+              <div className="rounded-xl sm:rounded-2xl bg-emerald-600 p-2 sm:p-3 shadow-lg">
+                <PackagePlus size={20} className="sm:hidden text-white" />
+                <PackagePlus size={28} className="hidden sm:block text-white" />
               </div>
               Donations
             </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Track, analyze, and export food donations with ease
+            <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+              Track, analyze, and export food donations
             </p>
           </div>
 
           {/* Date Navigator */}
-          <div className="flex items-center gap-4 rounded-2xl border border-emerald-300/50 bg-white/80 p-4 shadow-md backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => shiftSelectedDate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95"
-              title="Previous day"
-            >
-              <ChevronLeft size={24} strokeWidth={2.5} />
-            </button>
+          <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2 sm:gap-4 rounded-xl sm:rounded-2xl border border-emerald-300/50 bg-white/80 p-3 sm:p-4 shadow-md backdrop-blur-sm">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(-1)}
+                className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95"
+                title="Previous day"
+              >
+                <ChevronLeft size={20} className="sm:hidden" strokeWidth={2.5} />
+                <ChevronLeft size={24} className="hidden sm:block" strokeWidth={2.5} />
+              </button>
 
-            <div className="text-center">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
-                className="mb-1 rounded-lg border-2 border-emerald-300 bg-white px-4 py-2 text-center text-sm font-semibold text-emerald-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-              />
-              <p className="text-xs font-medium text-emerald-700">
-                {selectedDateDisplay}
-              </p>
+              <div className="flex-1 sm:flex-none text-center">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="mb-1 w-full sm:w-auto rounded-lg border-2 border-emerald-300 bg-white px-3 sm:px-4 py-2 text-center text-xs sm:text-sm font-semibold text-emerald-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                />
+                <p className="text-xs font-medium text-emerald-700 hidden sm:block">
+                  {selectedDateDisplay}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(1)}
+                disabled={isTodaySelected}
+                className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:scale-100"
+                title="Next day"
+              >
+                <ChevronRight size={20} className="sm:hidden" strokeWidth={2.5} />
+                <ChevronRight size={24} className="hidden sm:block" strokeWidth={2.5} />
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => shiftSelectedDate(1)}
-              disabled={isTodaySelected}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 transition hover:bg-emerald-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:scale-100"
-              title="Next day"
-            >
-              <ChevronRight size={24} strokeWidth={2.5} />
-            </button>
-
-            <div className="h-8 w-px bg-emerald-200" />
+            <div className="hidden sm:block h-8 w-px bg-emerald-200" />
 
             <button
               type="button"
               onClick={() => setSelectedDate(todayKey)}
               disabled={isTodaySelected}
-              className="rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full sm:w-auto rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
               Today
             </button>
@@ -743,140 +748,149 @@ const Donations = () => {
       </div>
 
       {/* Stats Overview Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="rounded-xl bg-blue-100 p-3">
-                <FileText size={24} className="text-blue-600" />
+              <div className="rounded-lg sm:rounded-xl bg-blue-100 p-2 sm:p-3">
+                <FileText size={18} className="sm:hidden text-blue-600" />
+                <FileText size={24} className="hidden sm:block text-blue-600" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Entries
               </span>
             </div>
-            <p className="mt-4 text-3xl font-bold text-gray-900">
+            <p className="mt-2 sm:mt-4 text-xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(selectedStats.entries)}
             </p>
-            <p className="mt-1 text-sm text-gray-600">Today's donations</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-sm text-gray-600">Today's donations</p>
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-100/50 blur-2xl" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="rounded-xl bg-emerald-100 p-3">
-                <Scale size={24} className="text-emerald-600" />
+              <div className="rounded-lg sm:rounded-xl bg-emerald-100 p-2 sm:p-3">
+                <Scale size={18} className="sm:hidden text-emerald-600" />
+                <Scale size={24} className="hidden sm:block text-emerald-600" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Weight
               </span>
             </div>
-            <p className="mt-4 text-3xl font-bold text-gray-900">
+            <p className="mt-2 sm:mt-4 text-xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(selectedStats.weight, {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
               })}
-              <span className="text-xl text-gray-500"> lbs</span>
+              <span className="text-sm sm:text-xl text-gray-500"> lbs</span>
             </p>
-            <p className="mt-1 text-sm text-gray-600">Total weight today</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-sm text-gray-600">Total weight today</p>
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-teal-100/50 blur-2xl" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="rounded-xl bg-teal-100 p-3">
-                <UtensilsCrossed size={24} className="text-teal-600" />
+              <div className="rounded-lg sm:rounded-xl bg-teal-100 p-2 sm:p-3">
+                <UtensilsCrossed size={18} className="sm:hidden text-teal-600" />
+                <UtensilsCrossed size={24} className="hidden sm:block text-teal-600" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Servings
               </span>
             </div>
-            <p className="mt-4 text-3xl font-bold text-gray-900">
+            <p className="mt-2 sm:mt-4 text-xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(selectedStats.servings, {
                 maximumFractionDigits: 0,
               })}
             </p>
-            <p className="mt-1 text-sm text-gray-600">Total servings today</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-sm text-gray-600">Total servings</p>
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/50 blur-2xl" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="rounded-xl bg-amber-100 p-3">
-                <Package size={24} className="text-amber-600" />
+              <div className="rounded-lg sm:rounded-xl bg-amber-100 p-2 sm:p-3">
+                <Package size={18} className="sm:hidden text-amber-600" />
+                <Package size={24} className="hidden sm:block text-amber-600" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Trays
               </span>
             </div>
-            <p className="mt-4 text-3xl font-bold text-gray-900">
+            <p className="mt-2 sm:mt-4 text-xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(selectedStats.trays, {
                 maximumFractionDigits: 0,
               })}
             </p>
-            <p className="mt-1 text-sm text-gray-600">Total trays today</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-sm text-gray-600">Total trays</p>
           </div>
         </div>
 
-        <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+        <div className="group relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-3 sm:p-6 shadow-sm transition hover:shadow-md">
           <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/50 blur-2xl" />
           <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="rounded-xl bg-purple-100 p-3">
-                <Users size={24} className="text-purple-600" />
+              <div className="rounded-lg sm:rounded-xl bg-purple-100 p-2 sm:p-3">
+                <Users size={18} className="sm:hidden text-purple-600" />
+                <Users size={24} className="hidden sm:block text-purple-600" />
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Donors
               </span>
             </div>
-            <p className="mt-4 text-3xl font-bold text-gray-900">
+            <p className="mt-2 sm:mt-4 text-xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(selectedStats.donors)}
             </p>
-            <p className="mt-1 text-sm text-gray-600">Unique donors today</p>
+            <p className="mt-0.5 sm:mt-1 text-[10px] sm:text-sm text-gray-600">Unique donors</p>
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="flex gap-1 sm:gap-2 rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-1 sm:p-2 shadow-sm">
         <button
           type="button"
           onClick={() => setActiveTab("log")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "log"
+          className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition ${activeTab === "log"
             ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
             : "text-gray-600 hover:bg-gray-100"
             }`}
         >
-          <PackagePlus size={18} />
-          Log Donations
+          <PackagePlus size={16} className="sm:hidden" />
+          <PackagePlus size={18} className="hidden sm:block" />
+          <span className="hidden xs:inline">Log</span>
+          <span className="hidden sm:inline"> Donations</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "analytics"
+          className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition ${activeTab === "analytics"
             ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
             : "text-gray-600 hover:bg-gray-100"
             }`}
         >
-          <BarChart3 size={18} />
-          Analytics
+          <BarChart3 size={16} className="sm:hidden" />
+          <BarChart3 size={18} className="hidden sm:block" />
+          <span>Analytics</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("export")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "export"
+          className={`flex flex-1 items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl px-2 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition ${activeTab === "export"
             ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md"
             : "text-gray-600 hover:bg-gray-100"
             }`}
         >
-          <Download size={18} />
-          Export
+          <Download size={16} className="sm:hidden" />
+          <Download size={18} className="hidden sm:block" />
+          <span>Export</span>
         </button>
       </div>
 
@@ -884,13 +898,14 @@ const Donations = () => {
       {activeTab === "log" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Quick Add Form */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                <PackagePlus size={22} className="text-emerald-600" />
+          <div className="rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
+                <PackagePlus size={20} className="sm:hidden text-emerald-600" />
+                <PackagePlus size={22} className="hidden sm:block text-emerald-600" />
                 Quick Add
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 Log a new donation entry
               </p>
             </div>
@@ -931,29 +946,48 @@ const Donations = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
                 {!isMinimalType && (
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                      Trays
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={form.trays}
-                      onChange={(event) =>
-                        setForm({ ...form, trays: event.target.value })
-                      }
-                      placeholder="0"
-                      className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                    />
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <label className="mb-2 block text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-700">
+                        Trays
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={form.trays}
+                        onChange={(event) =>
+                          setForm({ ...form, trays: event.target.value })
+                        }
+                        placeholder="0"
+                        className="w-full rounded-lg sm:rounded-xl border-2 border-gray-300 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-700">
+                        Weight (lbs)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={form.weightLbs}
+                        onChange={(event) =>
+                          setForm({ ...form, weightLbs: event.target.value })
+                        }
+                        placeholder="0.0"
+                        required={isMinimalType}
+                        className="w-full rounded-lg sm:rounded-xl border-2 border-gray-300 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                      />
+                    </div>
                   </div>
                 )}
 
                 {!isMinimalType && (
                   <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
+                    <label className="mb-2 block text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-700">
                       Density
                     </label>
                     <select
@@ -961,32 +995,34 @@ const Donations = () => {
                       onChange={(event) =>
                         setForm({ ...form, density: event.target.value })
                       }
-                      className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                      className="w-full rounded-lg sm:rounded-xl border-2 border-gray-300 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium text-gray-900 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     >
-                      <option value="light">Light density (10 servings)</option>
-                      <option value="medium">Medium density (20 servings)</option>
-                      <option value="high">High density (30 servings)</option>
+                      <option value="light">Light (10 servings)</option>
+                      <option value="medium">Medium (20 servings)</option>
+                      <option value="high">High (30 servings)</option>
                     </select>
                   </div>
                 )}
 
-                <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-700">
-                    Weight (lbs)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={form.weightLbs}
-                    onChange={(event) =>
-                      setForm({ ...form, weightLbs: event.target.value })
-                    }
-                    placeholder="0.0"
-                    required={isMinimalType}
-                    className="w-full rounded-xl border-2 border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                  />
-                </div>
+                {isMinimalType && (
+                  <div>
+                    <label className="mb-2 block text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-700">
+                      Weight (lbs)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={form.weightLbs}
+                      onChange={(event) =>
+                        setForm({ ...form, weightLbs: event.target.value })
+                      }
+                      placeholder="0.0"
+                      required={isMinimalType}
+                      className="w-full rounded-lg sm:rounded-xl border-2 border-gray-300 bg-gray-50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1070,40 +1106,43 @@ const Donations = () => {
           </div>
 
           {/* Today's Activity */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
               <div className="flex-1">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                  <Clock size={22} className="text-blue-600" />
+                <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
+                  <Clock size={20} className="sm:hidden text-blue-600" />
+                  <Clock size={22} className="hidden sm:block text-blue-600" />
                   Today's Activity
                 </h2>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-xs sm:text-sm text-gray-600">
                   {selectedStats.entries}{" "}
                   {selectedStats.entries === 1 ? "entry" : "entries"} logged
                   {consolidatedActivity.length !== selectedStats.entries && (
                     <span className="ml-1 text-emerald-600">
-                      • Consolidated into {consolidatedActivity.length}{" "}
+                      • {consolidatedActivity.length}{" "}
                       {consolidatedActivity.length === 1 ? "item" : "items"}
                     </span>
                   )}
                 </p>
               </div>
               {selectedStats.entries > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 flex-1 sm:flex-none">
                     <button
                       type="button"
                       onClick={copyProteinAndCarbsToClipboard}
                       disabled={!hasProteinOrCarbs}
-                      className="flex h-12 items-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 shadow-md transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 sm:h-12 items-center justify-center sm:justify-start gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border-2 border-emerald-300 bg-emerald-50 px-2 sm:px-3 py-2 text-[10px] sm:text-xs font-semibold text-emerald-700 shadow-md transition hover:border-emerald-500 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 flex-1 sm:flex-none"
                       title="Copy protein and carbs donations to clipboard"
                     >
-                      <Copy size={16} className="text-emerald-700" />
-                      Copy Protein & Carbs
+                      <Copy size={14} className="sm:hidden text-emerald-700" />
+                      <Copy size={16} className="hidden sm:block text-emerald-700" />
+                      <span className="hidden xs:inline">Copy</span>
+                      <span className="hidden sm:inline"> Protein & Carbs</span>
                     </button>
                     {copiedBadgeVisible && (
-                      <span className="rounded-full bg-emerald-600 text-white px-3 py-1 text-xs font-bold">
-                        Copied!
+                      <span className="rounded-full bg-emerald-600 text-white px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-bold">
+                        ✓
                       </span>
                     )}
                   </div>
@@ -1121,10 +1160,11 @@ const Donations = () => {
                       );
                       toast.success("All today's donations deleted");
                     }}
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
+                    className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
                     title="Delete all entries"
                   >
-                    <Trash2 size={20} />
+                    <Trash2 size={18} className="sm:hidden" />
+                    <Trash2 size={20} className="hidden sm:block" />
                   </button>
                 </div>
               )}
@@ -1151,41 +1191,43 @@ const Donations = () => {
                   return (
                     <div
                       key={key}
-                      className="group rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-4 transition hover:border-gray-300 hover:shadow-md"
+                      className="group rounded-xl sm:rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-3 sm:p-4 transition hover:border-gray-300 hover:shadow-md"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="mb-2 flex items-center gap-2">
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                      <div className="flex items-start justify-between gap-2 sm:gap-0">
+                        <div className="flex-1 min-w-0">
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                            <span className="rounded-full bg-emerald-100 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold text-emerald-700">
                               {consolidated.type}
                             </span>
                             {isMultipleEntries && (
-                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-700">
-                                {consolidated.entries.length} entries combined
+                              <span className="rounded-full bg-blue-100 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold text-blue-700">
+                                {consolidated.entries.length} entries
                               </span>
                             )}
-                            <span className="text-xs font-medium text-gray-500">
+                            <span className="text-[10px] sm:text-xs font-medium text-gray-500">
                               {formatRecordTime(firstEntry)}
                             </span>
                           </div>
-                          <h3 className="text-base font-bold text-gray-900">
+                          <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
                             {consolidated.itemName}
                           </h3>
-                          <p className="mt-1 text-sm text-gray-600">
+                          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-600 truncate">
                             From: {consolidated.donor || "Anonymous"}
                           </p>
-                          <div className="mt-3 flex flex-wrap gap-4 text-sm">
-                            <div className="flex items-center gap-1.5">
-                              <Package size={14} className="text-amber-600" />
+                          <div className="mt-2 sm:mt-3 flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
+                            <div className="flex items-center gap-1 sm:gap-1.5">
+                              <Package size={12} className="sm:hidden text-amber-600" />
+                              <Package size={14} className="hidden sm:block text-amber-600" />
                               <span className="font-semibold text-gray-900">
                                 {formatNumber(consolidated.trays, {
                                   maximumFractionDigits: 0,
                                 })}{" "}
-                                trays
+                                <span className="hidden xs:inline">trays</span>
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <Scale size={14} className="text-emerald-600" />
+                            <div className="flex items-center gap-1 sm:gap-1.5">
+                              <Scale size={12} className="sm:hidden text-emerald-600" />
+                              <Scale size={14} className="hidden sm:block text-emerald-600" />
                               <span className="font-semibold text-gray-900">
                                 {formatNumber(consolidated.weightLbs, {
                                   minimumFractionDigits: 1,
@@ -1194,13 +1236,14 @@ const Donations = () => {
                                 lbs
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <UtensilsCrossed size={14} className="text-blue-600" />
+                            <div className="flex items-center gap-1 sm:gap-1.5">
+                              <UtensilsCrossed size={12} className="sm:hidden text-blue-600" />
+                              <UtensilsCrossed size={14} className="hidden sm:block text-blue-600" />
                               <span className="font-semibold text-gray-900">
                                 {formatNumber(consolidated.servings, {
                                   maximumFractionDigits: 0,
                                 })}{" "}
-                                servings
+                                <span className="hidden xs:inline">servings</span>
                               </span>
                             </div>
                           </div>
@@ -1301,14 +1344,15 @@ const Donations = () => {
                                 : "Donation deleted",
                             );
                           }}
-                          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
+                          className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
                           title={
                             isMultipleEntries
                               ? "Delete all entries"
                               : "Delete"
                           }
                         >
-                          <Trash2 size={20} />
+                          <Trash2 size={18} className="sm:hidden" />
+                          <Trash2 size={20} className="hidden sm:block" />
                         </button>
                       </div>
                     </div>
@@ -1323,14 +1367,15 @@ const Donations = () => {
       {activeTab === "analytics" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Type Breakdown */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                <BarChart3 size={22} className="text-purple-600" />
+          <div className="rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
+                <BarChart3 size={20} className="sm:hidden text-purple-600" />
+                <BarChart3 size={22} className="hidden sm:block text-purple-600" />
                 Type Breakdown
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Weight distribution by donation type
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
+                Weight distribution by type
               </p>
             </div>
 
@@ -1377,13 +1422,14 @@ const Donations = () => {
           </div>
 
           {/* Top Donors */}
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                <TrendingUp size={22} className="text-orange-600" />
+          <div className="rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
+                <TrendingUp size={20} className="sm:hidden text-orange-600" />
+                <TrendingUp size={22} className="hidden sm:block text-orange-600" />
                 Top Donors
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 Highest contributors today
               </p>
             </div>
@@ -1442,23 +1488,24 @@ const Donations = () => {
 
           {/* Weekly Trends */}
           {weeklyComparison && (
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-              <div className="mb-6">
-                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                  <CalendarDays size={22} className="text-teal-600" />
+            <div className="rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-sm lg:col-span-2">
+              <div className="mb-4 sm:mb-6">
+                <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
+                  <CalendarDays size={20} className="sm:hidden text-teal-600" />
+                  <CalendarDays size={22} className="hidden sm:block text-teal-600" />
                   Weekly Trends
                 </h2>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-xs sm:text-sm text-gray-600">
                   Compare this week's performance
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-6">
-                  <p className="text-sm font-bold uppercase tracking-wide text-gray-700">
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3">
+                <div className="rounded-xl sm:rounded-2xl border border-gray-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 sm:p-6">
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-gray-700">
                     This Week
                   </p>
-                  <p className="mt-3 text-4xl font-bold text-gray-900">
+                  <p className="mt-2 sm:mt-3 text-2xl sm:text-4xl font-bold text-gray-900">
                     {formatNumber(weeklyComparison.weekWeight, {
                       minimumFractionDigits: 1,
                       maximumFractionDigits: 1,
