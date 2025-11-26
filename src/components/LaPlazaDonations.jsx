@@ -35,9 +35,10 @@ const LaPlazaDonations = () => {
       if (!LA_PLAZA_CATEGORIES.includes(category)) throw new Error("Invalid category");
       if (!isValidNumber(weightLbs, { min: 0.0001 })) throw new Error("Weight must be a positive number");
 
-      // Convert Pacific date to ISO timestamp that represents that date in Pacific time
+      // Convert Pacific date to ISO timestamp and pass the dateKey explicitly
       const receivedAt = isoFromPacificDateString(selectedDate);
-      await addLaPlazaDonation({ category, weightLbs, notes, receivedAt });
+      const dateKey = selectedDate; // This is already a Pacific date string (YYYY-MM-DD)
+      await addLaPlazaDonation({ category, weightLbs, notes, receivedAt, dateKey });
       setForm({ category: LA_PLAZA_CATEGORIES[0] || "Produce", weightLbs: "", notes: "" });
     } catch (err) {
       toast.error(err?.message || "Failed to add donation");

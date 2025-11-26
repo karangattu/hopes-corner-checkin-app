@@ -3702,10 +3702,12 @@ export const AppProvider = ({ children }) => {
     return fallback;
   };
 
-  const addLaPlazaDonation = async ({ category, weightLbs = 0, notes = "", receivedAt = null }) => {
+  const addLaPlazaDonation = async ({ category, weightLbs = 0, notes = "", receivedAt = null, dateKey = null }) => {
     const now = new Date();
     const recordedAt = receivedAt ? new Date(receivedAt).toISOString() : now.toISOString();
     const actionTimestamp = now.toISOString();
+    // Use provided dateKey or compute from receivedAt using Pacific timezone
+    const computedDateKey = dateKey || pacificDateStringFrom(new Date(recordedAt));
 
     const cleanCategory = (category || "").trim();
     const cleanWeight = Number(weightLbs) || 0;
@@ -3725,12 +3727,13 @@ export const AppProvider = ({ children }) => {
           weight_lbs: cleanWeight,
           notes: cleanNotes || null,
           received_at: recordedAt,
+          date_key: computedDateKey, // Send date_key explicitly from client
         };
 
         const result = await addLaPlazaDonationWithOffline(payload, navigator.onLine);
 
         if (result.queued) {
-          const localRecord = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt, pendingSync: true, queueId: result.queueId };
+          const localRecord = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt, dateKey: computedDateKey, pendingSync: true, queueId: result.queueId };
           setLaPlazaDonations((prev) => [localRecord, ...prev]);
           setActionHistory((prev) => [
             {
@@ -3767,7 +3770,7 @@ export const AppProvider = ({ children }) => {
       }
     }
 
-    const fallback = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt };
+    const fallback = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt, dateKey: computedDateKey };
     setLaPlazaDonations((prev) => [fallback, ...prev]);
     setActionHistory((prev) => [
       {

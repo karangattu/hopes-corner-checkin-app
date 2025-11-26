@@ -313,10 +313,14 @@ before update on public.donations
 for each row execute function public.touch_updated_at();
 
 -- Function to compute date_key from donated_at timestamp in Pacific timezone
+-- Only sets date_key if not already provided (client can send it explicitly)
 create or replace function public.set_donation_date_key()
 returns trigger as $$
 begin
-  new.date_key := (new.donated_at at time zone 'America/Los_Angeles')::date;
+  -- Only compute if date_key is not already set
+  if new.date_key is null then
+    new.date_key := (new.donated_at at time zone 'America/Los_Angeles')::date;
+  end if;
   return new;
 end;
 $$ language plpgsql;
@@ -376,10 +380,14 @@ before update on public.la_plaza_donations
 for each row execute function public.touch_updated_at();
 
 -- Function to compute date_key from received_at timestamp in Pacific timezone
+-- Only sets date_key if not already provided (client can send it explicitly)
 create or replace function public.set_la_plaza_donation_date_key()
 returns trigger as $$
 begin
-  new.date_key := (new.received_at at time zone 'America/Los_Angeles')::date;
+  -- Only compute if date_key is not already set
+  if new.date_key is null then
+    new.date_key := (new.received_at at time zone 'America/Los_Angeles')::date;
+  end if;
   return new;
 end;
 $$ language plpgsql;
