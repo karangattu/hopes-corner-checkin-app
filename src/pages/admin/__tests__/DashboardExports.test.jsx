@@ -77,10 +77,6 @@ vi.mock("../../../components/AttendanceBatchUpload", () => ({
   default: () => <div data-testid="attendance-batch-upload" />,
 }));
 
-vi.mock("../../../components/Donations", () => ({
-  default: () => <div data-testid="donations" />,
-}));
-
 vi.mock("../../../components/charts/TrendLine", () => ({
   default: () => <div data-testid="trend-line" />,
 }));

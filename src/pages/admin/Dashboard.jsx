@@ -25,7 +25,6 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
-import Donations from "../../components/Donations";
 import { useAppContext } from "../../context/useAppContext";
 import GuestBatchUpload from "../../components/GuestBatchUpload";
 import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
@@ -655,7 +654,6 @@ const Dashboard = () => {
     { id: "guests-by-city", label: "Guests by City", icon: MapPin },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "tables", label: "Tables", icon: Database },
-    { id: "donations", label: "Donations", icon: FileText },
     { id: "export", label: "Data Export", icon: Download },
     { id: "system", label: "System", icon: ShieldAlert },
   ];
@@ -666,7 +664,7 @@ const Dashboard = () => {
     // Board users get only the admin dashboard sections (read-only reports & exports)
     if (isBoard) return s.id !== "batch-upload" && s.id !== "system";
     // Default staff/checkin: no admin sections; fall back to showing overview & reports only
-    return ["overview", "analytics", "meal-report", "monthly-summary", "guests-by-city", "donations", "export", "tables"].includes(s.id);
+    return ["overview", "analytics", "meal-report", "monthly-summary", "guests-by-city", "export", "tables"].includes(s.id);
   });
 
   const renderSectionContent = () => {
@@ -690,8 +688,6 @@ const Dashboard = () => {
         return renderTablesSection();
       case "export":
         return renderExportSection();
-      case "donations":
-        return renderDonationsSection();
       case "system":
         return renderSystemSection();
       default:
@@ -1526,12 +1522,6 @@ const Dashboard = () => {
           Open Monthly Summary
         </button>
       </div>
-    </div>
-  );
-
-  const renderDonationsSection = () => (
-    <div className="space-y-6">
-      <Donations />
     </div>
   );
 

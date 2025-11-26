@@ -42,6 +42,7 @@ import {
   TrendingUp,
   Download,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
@@ -53,6 +54,8 @@ import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
 import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
 import { WaiverBadge } from "../../components/ui/WaiverBadge";
+import Donations from "../../components/Donations";
+import LaPlazaDonations from "../../components/LaPlazaDonations";
 import {
   useFadeInUp,
   useScaleIn,
@@ -1343,6 +1346,7 @@ const Services = () => {
     { id: "showers", label: "Showers", icon: ShowerHead },
     { id: "laundry", label: "Laundry", icon: WashingMachine },
     { id: "bicycles", label: "Bicycle Repairs", icon: Bike },
+    { id: "donations", label: "Donations", icon: FileText },
     { id: "reports", label: "Insights & data", icon: TrendingUp },
     { id: "export", label: "Data export", icon: Download },
   ];
@@ -3404,6 +3408,8 @@ const Services = () => {
         return renderLaundrySection();
       case "bicycles":
         return renderBicycleRepairsSection();
+      case "donations":
+        return renderDonationsSection();
       case "reports":
         return renderReportsSection();
       case "export":
@@ -3412,6 +3418,15 @@ const Services = () => {
         return renderOverviewSection();
     }
   };
+
+  const renderDonationsSection = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Donations />
+        <LaPlazaDonations />
+      </div>
+    </div>
+  );
 
   const renderShowersSection = () => {
     const slotDetails = allShowerSlots.map((slotTime) => {

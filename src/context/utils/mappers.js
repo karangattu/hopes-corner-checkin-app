@@ -7,7 +7,6 @@ import {
   fallbackIsoFromDateOnly,
   extractLaundrySlotStart,
   computeIsGuestBanned,
-  resolveDonationDateParts,
 } from "./normalizers";
 
 export const mapShowerStatusToApp = (status) => {
@@ -144,9 +143,6 @@ export const mapItemRow = (row) => ({
 });
 
 export const mapDonationRow = (row) => {
-  const { timestamp, dateKey } = resolveDonationDateParts(
-    row?.donated_at ?? row?.date ?? row?.created_at ?? null,
-  );
   return {
     id: row.id,
     type: row.donation_type,
@@ -156,8 +152,20 @@ export const mapDonationRow = (row) => {
     servings: Number(row.servings) || 0,
     temperature: row.temperature || null,
     donor: row.donor,
-    date: timestamp,
-    dateKey,
+    date: row.donated_at,
+    dateKey: row.date_key,
+    createdAt: row.created_at,
+  };
+};
+
+export const mapLaPlazaDonationRow = (row) => {
+  return {
+    id: row.id,
+    category: row.category,
+    weightLbs: Number(row.weight_lbs) || 0,
+    notes: row.notes || "",
+    receivedAt: row.received_at,
+    dateKey: row.date_key,
     createdAt: row.created_at,
   };
 };

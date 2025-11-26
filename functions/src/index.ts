@@ -86,6 +86,7 @@ export const supabaseProxy = onCall(
         "haircut_visits",
         "items_distributed",
         "donations",
+        "la_plaza_donations",
         "app_settings",
       ];
 

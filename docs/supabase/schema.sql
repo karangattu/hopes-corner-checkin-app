@@ -82,6 +82,14 @@ DO $$ BEGIN
 END$$;
 
 DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'la_plaza_category_enum') THEN
+    CREATE TYPE public.la_plaza_category_enum AS enum (
+      'Bakery', 'Beverages', 'Dairy', 'Meat', 'Mix', 'Nonfood', 'Prepared/Perishable', 'Produce'
+    );
+  END IF;
+END$$;
+
+DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'meal_type_enum') THEN
     CREATE TYPE public.meal_type_enum AS enum (
       'guest',
@@ -294,6 +302,7 @@ create table if not exists public.donations (
   temperature text,
   donor text not null,
   donated_at timestamptz not null default now(),
+  date_key date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -302,6 +311,23 @@ drop trigger if exists trg_donations_updated_at on public.donations;
 create trigger trg_donations_updated_at
 before update on public.donations
 for each row execute function public.touch_updated_at();
+
+-- Function to compute date_key from donated_at timestamp in Pacific timezone
+create or replace function public.set_donation_date_key()
+returns trigger as $$
+begin
+  new.date_key := (new.donated_at at time zone 'America/Los_Angeles')::date;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_donations_set_date_key on public.donations;
+create trigger trg_donations_set_date_key
+before insert or update on public.donations
+for each row execute function public.set_donation_date_key();
+
+create index if not exists donations_date_key_idx
+  on public.donations (date_key desc);
 
 -- 5. Settings store (single row replacing Firestore doc appSettings/global)
 create table if not exists public.app_settings (
@@ -331,6 +357,43 @@ create table if not exists public.app_settings (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- 6. La Plaza Market donation records (separate table for partner donations)
+create table if not exists public.la_plaza_donations (
+  id uuid primary key default gen_random_uuid(),
+  category public.la_plaza_category_enum not null,
+  weight_lbs numeric(8,3) not null,
+  notes text,
+  received_at timestamptz not null default now(),
+  date_key date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_la_plaza_donations_updated_at on public.la_plaza_donations;
+create trigger trg_la_plaza_donations_updated_at
+before update on public.la_plaza_donations
+for each row execute function public.touch_updated_at();
+
+-- Function to compute date_key from received_at timestamp in Pacific timezone
+create or replace function public.set_la_plaza_donation_date_key()
+returns trigger as $$
+begin
+  new.date_key := (new.received_at at time zone 'America/Los_Angeles')::date;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_la_plaza_donations_set_date_key on public.la_plaza_donations;
+create trigger trg_la_plaza_donations_set_date_key
+before insert or update on public.la_plaza_donations
+for each row execute function public.set_la_plaza_donation_date_key();
+
+create index if not exists la_plaza_donations_date_key_idx
+  on public.la_plaza_donations (date_key desc);
+
+create index if not exists la_plaza_donations_received_at_idx
+  on public.la_plaza_donations (received_at desc);
 
 drop trigger if exists trg_app_settings_updated_at on public.app_settings;
 create trigger trg_app_settings_updated_at

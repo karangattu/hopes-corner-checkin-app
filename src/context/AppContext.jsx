@@ -17,6 +17,7 @@ import {
   addHaircutWithOffline,
   addHolidayWithOffline,
   addDonationWithOffline,
+  addLaPlazaDonationWithOffline,
 } from "../utils/offlineOperations";
 import {
   HOUSING_STATUSES,
@@ -24,6 +25,7 @@ import {
   GENDERS,
   LAUNDRY_STATUS,
   DONATION_TYPES,
+  LA_PLAZA_CATEGORIES,
   BICYCLE_REPAIR_STATUS,
 } from "./constants";
 
@@ -59,6 +61,7 @@ import {
   mapHaircutRow as mapHaircutRowPure,
   mapItemRow as mapItemRowPure,
   mapDonationRow as mapDonationRowPure,
+  mapLaPlazaDonationRow as mapLaPlazaDonationRowPure,
   mapShowerStatusToDb,
 } from "./utils/mappers";
 import { persistentStore } from "../utils/persistentStore";
@@ -79,6 +82,7 @@ const STORAGE_KEYS = {
   haircutRecords: "hopes-corner-haircut-records",
   itemRecords: "hopes-corner-item-records",
   donationRecords: "hopes-corner-donation-records",
+  laPlazaDonations: "hopes-corner-la-plaza-donations",
   lunchBagRecords: "hopes-corner-lunch-bag-records",
   settings: "hopes-corner-settings",
 };
@@ -101,6 +105,7 @@ export const AppProvider = ({ children }) => {
   const [haircutRecords, setHaircutRecords] = useState([]);
   const [itemGivenRecords, setItemGivenRecords] = useState([]);
   const [donationRecords, setDonationRecords] = useState([]);
+  const [laPlazaDonations, setLaPlazaDonations] = useState([]);
 
   const persistencePauseCountRef = useRef(0);
   const pendingPersistenceSnapshotRef = useRef(null);
@@ -199,6 +204,7 @@ export const AppProvider = ({ children }) => {
   const mapItemRow = useCallback(mapItemRowPure, []);
 
   const mapDonationRow = useCallback(mapDonationRowPure, []);
+  const mapLaPlazaDonationRow = useCallback(mapLaPlazaDonationRowPure, []);
 
   const ensureGuestServiceEligible = useCallback(
     (guestId, serviceLabel = "this service") => {
@@ -536,6 +542,7 @@ export const AppProvider = ({ children }) => {
           haircutsRes,
           itemsRes,
           donationsRes,
+          laPlazaRes,
           settingsRes,
         ] = await Promise.all([
           fetchAllGuests(),
@@ -571,6 +578,10 @@ export const AppProvider = ({ children }) => {
             .from("donations")
             .select("*")
             .order("donated_at", { ascending: false }),
+          supabase
+            .from("la_plaza_donations")
+            .select("*")
+            .order("received_at", { ascending: false }),
           supabase
             .from("app_settings")
             .select("*")
@@ -609,6 +620,7 @@ export const AppProvider = ({ children }) => {
         setHaircutRecords(haircutsRes.data?.map(mapHaircutRow) || []);
         setItemGivenRecords(itemsRes.data?.map(mapItemRow) || []);
         setDonationRecords(donationsRes.data?.map(mapDonationRow) || []);
+        setLaPlazaDonations(laPlazaRes?.data?.map(mapLaPlazaDonationRow) || []);
 
         const settingsRow = settingsRes?.data;
         if (settingsRow) {
@@ -646,6 +658,7 @@ export const AppProvider = ({ children }) => {
     mapHaircutRow,
     mapItemRow,
     mapDonationRow,
+    mapLaPlazaDonationRow,
   ]);
 
   // Load cached data (IndexedDB/localStorage fallback) for offline or initial hydration
@@ -714,6 +727,9 @@ export const AppProvider = ({ children }) => {
           setDonationRecords(savedDonations.map(ensureDonationRecordShape));
         }
 
+        const savedLaPlaza = storedValues[STORAGE_KEYS.laPlazaDonations];
+        if (savedLaPlaza) setLaPlazaDonations(savedLaPlaza);
+
         const savedLunchBags = storedValues[STORAGE_KEYS.lunchBagRecords];
         if (savedLunchBags) setLunchBagRecords(savedLunchBags);
       } catch (error) {
@@ -748,6 +764,7 @@ export const AppProvider = ({ children }) => {
         [STORAGE_KEYS.haircutRecords, snapshot.haircutRecords],
         [STORAGE_KEYS.itemRecords, snapshot.itemGivenRecords],
         [STORAGE_KEYS.donationRecords, snapshot.donationRecords],
+        [STORAGE_KEYS.laPlazaDonations, snapshot.laPlazaDonations],
         [STORAGE_KEYS.lunchBagRecords, snapshot.lunchBagRecords],
         [STORAGE_KEYS.settings, snapshot.settings],
       ]);
@@ -809,6 +826,7 @@ export const AppProvider = ({ children }) => {
       haircutRecords,
       itemGivenRecords,
       donationRecords,
+      laPlazaDonations,
       lunchBagRecords,
       settings,
     };
@@ -830,6 +848,7 @@ export const AppProvider = ({ children }) => {
     haircutRecords,
     itemGivenRecords,
     donationRecords,
+    laPlazaDonations,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
@@ -3683,6 +3702,87 @@ export const AppProvider = ({ children }) => {
     return fallback;
   };
 
+  const addLaPlazaDonation = async ({ category, weightLbs = 0, notes = "", receivedAt = null }) => {
+    const now = new Date();
+    const recordedAt = receivedAt ? new Date(receivedAt).toISOString() : now.toISOString();
+    const actionTimestamp = now.toISOString();
+
+    const cleanCategory = (category || "").trim();
+    const cleanWeight = Number(weightLbs) || 0;
+    const cleanNotes = (notes || "").trim();
+
+    if (!LA_PLAZA_CATEGORIES.includes(cleanCategory)) {
+      throw new Error(`Invalid category. Allowed: ${LA_PLAZA_CATEGORIES.join(", ")}`);
+    }
+    if (!cleanWeight || cleanWeight <= 0) {
+      throw new Error("Weight (lbs) must be a positive number");
+    }
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const payload = {
+          category: cleanCategory,
+          weight_lbs: cleanWeight,
+          notes: cleanNotes || null,
+          received_at: recordedAt,
+        };
+
+        const result = await addLaPlazaDonationWithOffline(payload, navigator.onLine);
+
+        if (result.queued) {
+          const localRecord = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt, pendingSync: true, queueId: result.queueId };
+          setLaPlazaDonations((prev) => [localRecord, ...prev]);
+          setActionHistory((prev) => [
+            {
+              id: Date.now() + Math.random(),
+              type: "LA_PLAZA_DONATION_ADDED",
+              timestamp: actionTimestamp,
+              data: { recordId: localRecord.id },
+              description: `La Plaza donation: ${cleanCategory} (${cleanWeight} lbs) (pending sync)`,
+            },
+            ...prev.slice(0,49),
+          ]);
+          toast.success("La Plaza donation recorded (will sync when online)");
+          return localRecord;
+        }
+
+        const mapped = mapLaPlazaDonationRow(result.result);
+        setLaPlazaDonations((prev) => [mapped, ...prev]);
+        setActionHistory((prev) => [
+          {
+            id: Date.now() + Math.random(),
+            type: "LA_PLAZA_DONATION_ADDED",
+            timestamp: actionTimestamp,
+            data: { recordId: mapped.id },
+            description: `La Plaza donation: ${mapped.category} (${mapped.weightLbs} lbs)`,
+          },
+          ...prev.slice(0,49),
+        ]);
+        toast.success("La Plaza donation recorded");
+        return mapped;
+      } catch (error) {
+        console.error("Failed to log La Plaza donation in Supabase:", error);
+        toast.error("Unable to record La Plaza donation.");
+        throw error;
+      }
+    }
+
+    const fallback = { id: `local-${Date.now()}`, category: cleanCategory, weightLbs: cleanWeight, notes: cleanNotes, receivedAt: recordedAt };
+    setLaPlazaDonations((prev) => [fallback, ...prev]);
+    setActionHistory((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        type: "LA_PLAZA_DONATION_ADDED",
+        timestamp: actionTimestamp,
+        data: { recordId: fallback.id },
+        description: `La Plaza donation: ${cleanCategory} (${cleanWeight} lbs)`,
+      },
+      ...prev.slice(0,49),
+    ]);
+    toast.success("La Plaza donation recorded");
+    return fallback;
+  };
+
   const getRecentDonations = (limit = 10) => {
     const seen = new Set();
     const out = [];
@@ -4379,6 +4479,7 @@ export const AppProvider = ({ children }) => {
         setHaircutRecords([]);
         setItemGivenRecords([]);
         setDonationRecords([]);
+        setLaPlazaDonations([]);
         setShowerSlots([]);
         setLaundrySlots([]);
         setActionHistory([]);
@@ -4399,6 +4500,7 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem("hopes-corner-haircut-records");
         localStorage.removeItem("hopes-corner-item-records");
         localStorage.removeItem("hopes-corner-donation-records");
+        localStorage.removeItem("hopes-corner-la-plaza-donations");
         localStorage.removeItem("hopes-corner-lunch-bag-records");
         
         // Clear sync timestamps to prevent stale data from being loaded
@@ -4430,26 +4532,46 @@ export const AppProvider = ({ children }) => {
             { name: "haircut_visits" },
             { name: "items_distributed" },
             { name: "donations" },
+            { name: "la_plaza_donations" },
           ];
 
           for (const table of tables) {
             if (table.keep) continue;
 
             console.log(`Deleting all rows from ${table.name}...`);
-            // Delete all rows using gte filter - all valid UUIDs are >= the nil UUID
+
+            // First, count how many rows exist
+            const { count: totalCount, error: countError } = await supabase
+              .from(table.name)
+              .select("*", { count: "exact", head: true });
+
+            if (countError) {
+              console.error(
+                `❌ Failed to count rows for ${table.name}:`,
+                countError,
+              );
+              deletionErrors.push(`${table.name}: ${countError.message}`);
+            }
+
+            console.log(`Table ${table.name} has ${totalCount ?? 0} rows before deletion`);
+
+            // Delete all rows - match all records by filtering for non-null IDs
             const { error: deleteError, count } = await supabase
               .from(table.name)
               .delete({ count: "exact" })
-              .gte("id", "00000000-0000-0000-0000-000000000000");
+              .not("id", "is", null);
 
             if (deleteError) {
               console.error(
-                `Failed to delete rows from ${table.name}:`,
+                `❌ Failed to delete rows from ${table.name}:`,
                 deleteError,
+                `\nError code: ${deleteError.code}`,
+                `\nError hint: ${deleteError.hint}`,
+                `\nError details: ${deleteError.details}`
               );
               deletionErrors.push(`${table.name}: ${deleteError.message}`);
             } else {
-              console.log(`Successfully deleted ${count ?? 0} rows from ${table.name}`);
+              console.log(`✅ Successfully deleted ${count ?? 0} rows from ${table.name}`);
               // Clear sync timestamps to force fresh sync on next load
               localStorage.removeItem(`hopes-corner-${table.name}-lastSync`);
             }
@@ -4513,6 +4635,7 @@ export const AppProvider = ({ children }) => {
     haircutRecords,
     itemGivenRecords,
     donationRecords,
+    laPlazaDonations,
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
@@ -4528,6 +4651,7 @@ export const AppProvider = ({ children }) => {
     AGE_GROUPS,
     GENDERS,
     DONATION_TYPES,
+    LA_PLAZA_CATEGORIES,
     BICYCLE_REPAIR_STATUS,
 
     allShowerSlots,
@@ -4584,7 +4708,9 @@ export const AppProvider = ({ children }) => {
     getNextAvailabilityDate,
     getDaysUntilAvailable,
     addDonation,
+    addLaPlazaDonation,
     getRecentDonations,
+    getLaPlazaDonationsForDate: (dateKey) => (laPlazaDonations || []).filter((r) => r.dateKey === dateKey),
     getTodayDonationsConsolidated,
     cancelShowerRecord,
     rescheduleShower,

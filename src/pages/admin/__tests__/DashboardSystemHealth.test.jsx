@@ -79,10 +79,6 @@ vi.mock("../../../components/AttendanceBatchUpload", () => ({
   default: () => <div data-testid="attendance-batch-upload" />,
 }));
 
-vi.mock("../../../components/Donations", () => ({
-  default: () => <div data-testid="donations" />,
-}));
-
 vi.mock("../../../components/SupabaseSyncToggle", () => ({
   default: () => <div data-testid="supabase-sync-toggle" />,
 }));

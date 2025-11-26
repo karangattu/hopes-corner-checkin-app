@@ -37,3 +37,14 @@ export const BICYCLE_REPAIR_STATUS = {
   IN_PROGRESS: "in_progress",
   DONE: "done",
 };
+
+export const LA_PLAZA_CATEGORIES = [
+  'Bakery',
+  'Beverages',
+  'Dairy',
+  'Meat',
+  'Mix',
+  'Nonfood',
+  'Prepared/Perishable',
+  'Produce',
+];

@@ -82,6 +82,16 @@ vi.mock("../../../components/lanes/LaundryKanban", () => ({
   default: () => <div data-testid="laundry-kanban" />,
 }));
 
+vi.mock("../../../components/Donations", () => ({
+  __esModule: true,
+  default: () => <div data-testid="donations" />,
+}));
+
+vi.mock("../../../components/LaPlazaDonations", () => ({
+  __esModule: true,
+  default: () => <div data-testid="la-plaza-donations" />,
+}));
+
 vi.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {

@@ -80,6 +80,7 @@ const SupabaseSyncToggle = ({ supabaseConfigured }) => {
       "laundry_bookings",
       "bicycle_repairs",
       "donations",
+      "la_plaza_donations",
     ];
 
     SYNC_TABLES.forEach((table) => {

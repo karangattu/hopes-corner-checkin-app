@@ -255,6 +255,28 @@ export const executeDonationInsertion = async (payload) => {
 };
 
 /**
+ * Execute la plaza donation insertion with offline fallback
+ * Supports category, weight_lbs, notes, received_at
+ */
+export const executeLaPlazaDonationInsertion = async (payload) => {
+  if (!isSupabaseEnabled() || !supabase) {
+    throw new Error('Supabase not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('la_plaza_donations')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+};
+
+/**
  * Wrapper: Add meal with offline support
  */
 export const addMealWithOffline = async (payload, isOnline) => {
@@ -399,6 +421,18 @@ export const addDonationWithOffline = async (payload, isOnline) => {
 };
 
 /**
+ * Wrapper: Add la plaza donation with offline support
+ */
+export const addLaPlazaDonationWithOffline = async (payload, isOnline) => {
+  return executeWithOfflineFallback(
+    'ADD_LA_PLAZA_DONATION',
+    payload,
+    executeLaPlazaDonationInsertion,
+    isOnline,
+  );
+};
+
+/**
  * Map of operation types to execution functions (for sync)
  */
 export const EXECUTE_FUNCTIONS = {
@@ -410,6 +444,7 @@ export const EXECUTE_FUNCTIONS = {
   ADD_HOLIDAY: executeHolidayInsertion,
   ADD_ITEM: executeItemInsertion,
   ADD_DONATION: executeDonationInsertion,
+  ADD_LA_PLAZA_DONATION: executeLaPlazaDonationInsertion,
   UPDATE_SHOWER: executeShowerUpdate,
   UPDATE_LAUNDRY: executeLaundryUpdate,
   DELETE_SHOWER: executeShowerDeletion,
