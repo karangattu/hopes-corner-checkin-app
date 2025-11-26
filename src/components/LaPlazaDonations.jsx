@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { todayPacificDateString } from "../utils/date";
+import { todayPacificDateString, isoFromPacificDateString } from "../utils/date";
 import { ChevronLeft, ChevronRight, Save, Package } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { sanitizeString, isValidNumber } from "../utils/validation";
@@ -35,8 +35,8 @@ const LaPlazaDonations = () => {
       if (!LA_PLAZA_CATEGORIES.includes(category)) throw new Error("Invalid category");
       if (!isValidNumber(weightLbs, { min: 0.0001 })) throw new Error("Weight must be a positive number");
 
-      // Received at midday UTC for selected date
-      const receivedAt = new Date(`${selectedDate}T12:00:00Z`).toISOString();
+      // Convert Pacific date to ISO timestamp that represents that date in Pacific time
+      const receivedAt = isoFromPacificDateString(selectedDate);
       await addLaPlazaDonation({ category, weightLbs, notes, receivedAt });
       setForm({ category: LA_PLAZA_CATEGORIES[0] || "Produce", weightLbs: "", notes: "" });
     } catch (err) {
