@@ -1,5 +1,5 @@
 export const formatProteinAndCarbsClipboardText = (consolidatedActivity = []) => {
-  const types = ["Protein", "Carbs"];
+  const types = ["Protein", "Veggie Protein", "Carbs"];
   const grouped = {};
   for (const t of types) grouped[t] = [];
 

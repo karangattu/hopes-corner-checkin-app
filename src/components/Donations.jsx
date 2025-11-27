@@ -574,7 +574,7 @@ const Donations = () => {
 
   const hasProteinOrCarbs = useMemo(() => {
     return (consolidatedActivity || []).some(
-      (c) => c.type === "Protein" || c.type === "Carbs",
+      (c) => c.type === "Protein" || c.type === "Veggie Protein" || c.type === "Carbs",
     );
   }, [consolidatedActivity]);
 
