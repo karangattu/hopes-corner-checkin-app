@@ -1,9 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "fs";
+
+// Read version from package.json
+const packageJson = JSON.parse(readFileSync("./package.json", "utf-8"));
+const appVersion = packageJson.version;
 
 // Custom manual chunk strategy to keep initial bundle smaller.
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   build: {
     chunkSizeWarningLimit: 1000, // Increase limit to 1MB to reduce warnings
   },

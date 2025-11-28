@@ -1,14 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
 import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
 import LastRefreshedIndicator from "../components/LastRefreshedIndicator";
+import RefreshButton from "../components/RefreshButton";
+import AppVersion from "../components/AppVersion";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
   const { user, logout } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Callback when refresh completes
+  const handleRefreshComplete = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   const navItemsAll = [
     { id: "check-in", label: "Check In", icon: UserPlus },
@@ -140,6 +148,11 @@ const MainLayout = ({ children }) => {
         style={mobileContentPadding}
       >
         <div className="max-w-7xl mx-auto space-y-4">
+          {/* Top bar with refresh button and status */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <RefreshButton onRefreshComplete={handleRefreshComplete} />
+            <LastRefreshedIndicator key={refreshKey} />
+          </div>
           <SyncStatus />
           {children}
         </div>
@@ -183,7 +196,7 @@ const MainLayout = ({ children }) => {
         </div>
         <div className="px-2 pb-3 space-y-2">
           <div className="flex justify-center">
-            <LastRefreshedIndicator />
+            <AppVersion />
           </div>
           <button
             onClick={logout}
@@ -195,17 +208,15 @@ const MainLayout = ({ children }) => {
       </nav>
 
       <footer className="hidden md:block bg-white border-t border-emerald-200 py-6">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center mb-2">
-            <LastRefreshedIndicator />
-          </div>
+        <div className="container mx-auto px-4 text-center space-y-2">
           <p className="text-emerald-700 text-sm">
             Hope's Corner Guest Check-In System
           </p>
-          <p className="text-emerald-400 text-xs mt-1">
+          <p className="text-emerald-400 text-xs">
             &copy; {new Date().getFullYear()} - Building community one meal and
             shower at a time
           </p>
+          <AppVersion />
         </div>
       </footer>
     </div>
