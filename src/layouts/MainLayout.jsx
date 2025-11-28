@@ -4,6 +4,7 @@ import { useAuth } from "../context/useAuth";
 import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
+import LastRefreshedIndicator from "../components/LastRefreshedIndicator";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
@@ -180,7 +181,10 @@ const MainLayout = ({ children }) => {
             );
           })}
         </div>
-        <div className="px-2 pb-3">
+        <div className="px-2 pb-3 space-y-2">
+          <div className="flex justify-center">
+            <LastRefreshedIndicator />
+          </div>
           <button
             onClick={logout}
             className="w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
@@ -192,6 +196,9 @@ const MainLayout = ({ children }) => {
 
       <footer className="hidden md:block bg-white border-t border-emerald-200 py-6">
         <div className="container mx-auto px-4 text-center">
+          <div className="flex justify-center mb-2">
+            <LastRefreshedIndicator />
+          </div>
           <p className="text-emerald-700 text-sm">
             Hope's Corner Guest Check-In System
           </p>
