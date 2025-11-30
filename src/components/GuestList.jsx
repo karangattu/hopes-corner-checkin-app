@@ -2755,6 +2755,39 @@ const GuestList = () => {
                                 Use their preferred name when greeting
                               </p>
                             )}
+                            {/* Waiver badges for shower and laundry */}
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {(() => {
+                                const servicesThatNeedWaivers = [];
+                                
+                                // Check if guest has shower records
+                                const guestShowerRecords = showerRecords.filter(
+                                  (r) => r.guestId === guest.id
+                                );
+                                if (guestShowerRecords.length > 0) {
+                                  servicesThatNeedWaivers.push('shower');
+                                }
+                                
+                                // Check if guest has laundry records
+                                const guestLaundryRecords = laundryRecords.filter(
+                                  (r) => r.guestId === guest.id
+                                );
+                                if (guestLaundryRecords.length > 0) {
+                                  servicesThatNeedWaivers.push('laundry');
+                                }
+                                
+                                return servicesThatNeedWaivers.map((service) => (
+                                  <WaiverBadge
+                                    key={`waiver-${guest.id}-${service}`}
+                                    guestId={guest.id}
+                                    serviceType={service}
+                                    onDismissed={() => {
+                                      toast.success(`${service} waiver acknowledged`);
+                                    }}
+                                  />
+                                ));
+                              })()}
+                            </div>
                             <div className="flex items-center gap-2 mt-1.5">
                               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded-lg">
                                 <Home size={12} className="text-gray-400" />

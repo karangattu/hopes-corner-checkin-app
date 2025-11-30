@@ -18,6 +18,7 @@ export const createShowerMutations = ({
   toast,
   enhancedToast,
   normalizeDateInputToISO,
+  onServiceCompleted, // Callback when a service is marked complete
 }) => {
   const addShowerRecord = async (guestId, time, dateOverride = null) => {
     const countAtTime = showerSlots.filter((slot) => slot.time === time).length;
@@ -395,6 +396,11 @@ export const createShowerMutations = ({
         },
         description: "Marked waitlisted shower complete",
       });
+    }
+
+    // Notify when shower is marked complete (for waiver check)
+    if (newStatus === "done" && onServiceCompleted) {
+      onServiceCompleted(previousRecord.guestId, "shower");
     }
 
     return true;

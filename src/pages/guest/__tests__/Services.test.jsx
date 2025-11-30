@@ -257,6 +257,8 @@ const buildContext = (overrides = {}) => {
   const context = {
     getTodayMetrics: vi.fn(() => metrics),
     getTodayLaundryWithGuests: vi.fn(() => []),
+    getPreviousServiceDay: vi.fn(() => "2025-11-26"),
+    getLaundryForDateWithGuests: vi.fn(() => []),
     mealRecords: defaultMealRecords,
     rvMealRecords: [],
     addRvMealRecord: vi.fn(),

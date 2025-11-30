@@ -20,6 +20,7 @@ export const createLaundryMutations = ({
   toast,
   enhancedToast,
   normalizeDateInputToISO,
+  onServiceCompleted, // Callback when a service is marked complete
 }) => {
   const addLaundryRecord = async (
     guestId,
@@ -437,6 +438,13 @@ export const createLaundryMutations = ({
         );
         return false;
       }
+    }
+
+    // Notify when laundry is marked complete (for waiver check)
+    // "done" means ready for pickup, "picked_up" means guest collected it
+    const completedStatuses = [LAUNDRY_STATUS.DONE, LAUNDRY_STATUS.PICKED_UP, LAUNDRY_STATUS.OFFSITE_PICKED_UP];
+    if (completedStatuses.includes(newStatus) && onServiceCompleted) {
+      onServiceCompleted(originalRecord.guestId, "laundry");
     }
 
     return true;

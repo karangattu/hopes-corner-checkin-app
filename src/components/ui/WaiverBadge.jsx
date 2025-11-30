@@ -26,10 +26,8 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
   useEffect(() => {
     const checkWaiver = async () => {
       setLoading(true);
-      console.log('[WaiverBadge] Checking waiver for guest:', guestId, 'service:', serviceType);
       try {
         const result = await guestNeedsWaiverReminder(guestId, serviceType);
-        console.log('[WaiverBadge] Result:', result, 'for guest:', guestId, 'service:', serviceType);
         setNeedsWaiver(result);
       } catch (error) {
         console.error("[WaiverBadge] Error checking waiver status:", error);
@@ -41,8 +39,6 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
 
     if (guestId && serviceType) {
       checkWaiver();
-    } else {
-      console.warn('[WaiverBadge] Missing guestId or serviceType:', { guestId, serviceType });
     }
   }, [guestId, serviceType, guestNeedsWaiverReminder]);
 
@@ -66,15 +62,9 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
   };
 
   if (loading || !needsWaiver) {
-    if (loading) {
-      console.log('[WaiverBadge] Still loading for guest:', guestId);
-    } else if (!needsWaiver) {
-      console.log('[WaiverBadge] No waiver needed for guest:', guestId, 'service:', serviceType);
-    }
     return null;
   }
 
-  console.log('[WaiverBadge] RENDERING BADGE for guest:', guestId, 'service:', serviceType);
   const serviceName = serviceType === "shower" ? "Shower" : "Laundry";
   return (
     <>

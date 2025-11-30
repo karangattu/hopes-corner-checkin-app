@@ -29,6 +29,46 @@ class SupabaseProxyClient {
   from(table) {
     return new TableQueryBuilder(this.proxyFunction, table);
   }
+
+  /**
+   * Call a Postgres function (RPC)
+   * @param {string} functionName - The name of the Postgres function to call
+   * @param {object} params - Parameters to pass to the function
+   * @returns {Promise<{data: any, error: any}>}
+   */
+  async rpc(functionName, params = {}) {
+    try {
+      const response = await this.proxyFunction({
+        operation: "rpc",
+        functionName,
+        params,
+      });
+      return {
+        data: response.data.data,
+        error: response.data.error,
+      };
+    } catch (error) {
+      console.error("Supabase proxy RPC error:", error);
+
+      if (error.code === "functions/unauthenticated") {
+        return {
+          data: null,
+          error: {
+            message: "Authentication required. Please log in to access the database.",
+            code: "UNAUTHENTICATED",
+          },
+        };
+      }
+
+      return {
+        data: null,
+        error: {
+          message: error.message || "Unknown error occurred",
+          code: error.code,
+        },
+      };
+    }
+  }
 }
 
 class TableQueryBuilder {

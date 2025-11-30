@@ -56,7 +56,6 @@ export const createWaiverMutations = ({
     }
 
     try {
-      // Call the stored function
       const { data, error } = await supabaseClient.rpc(
         "guest_needs_waiver_reminder",
         {

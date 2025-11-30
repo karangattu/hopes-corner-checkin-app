@@ -107,6 +107,8 @@ const Services = () => {
   const {
     getTodayMetrics,
     getTodayLaundryWithGuests,
+    getPreviousServiceDay,
+    getLaundryForDateWithGuests,
     mealRecords,
     rvMealRecords,
     addRvMealRecord,
@@ -290,6 +292,26 @@ const Services = () => {
   const [laundryViewMode, setLaundryViewMode] = useState(
     () => savedFilters?.laundryViewMode ?? "list",
   );
+  const [showPreviousServiceDay, setShowPreviousServiceDay] = useState(false);
+
+  // Calculate previous service day laundry data
+  const previousServiceDay = getPreviousServiceDay();
+  const previousServiceDayLaundry = useMemo(() => {
+    if (!showPreviousServiceDay) return [];
+    return getLaundryForDateWithGuests(previousServiceDay).filter(
+      (r) => r.laundryType === "offsite"
+    );
+  }, [showPreviousServiceDay, previousServiceDay, getLaundryForDateWithGuests]);
+
+  // Format date for display
+  const formatServiceDayLabel = (dateString) => {
+    const date = new Date(dateString + "T12:00:00");
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3620,6 +3642,9 @@ const Services = () => {
                         Laundry today
                       </span>
                     )}
+                    {!isDone && (
+                      <WaiverBadge guestId={record.guestId} serviceType="shower" />
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                     <span className="inline-flex items-center gap-1">
@@ -4424,6 +4449,15 @@ const Services = () => {
         record.guestName ||
         "Unknown Guest";
 
+      // Consider these laundry statuses as completed for waiver visibility
+      const laundryCompletedStatuses = new Set([
+        LAUNDRY_STATUS.DONE,
+        LAUNDRY_STATUS.PICKED_UP,
+        LAUNDRY_STATUS.RETURNED,
+        LAUNDRY_STATUS.OFFSITE_PICKED_UP,
+      ]);
+      const isLaundryCompleted = laundryCompletedStatuses.has(record.status);
+
       return (
         <Animated.div
           key={record.id}
@@ -4447,6 +4481,9 @@ const Services = () => {
                   >
                     {isOnsite ? "On-site" : "Off-site"}
                   </span>
+                  {!isLaundryCompleted && (
+                    <WaiverBadge guestId={record.guestId} serviceType="laundry" />
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1">
@@ -4758,6 +4795,102 @@ const Services = () => {
                     <option value="status">Sort: Status</option>
                     <option value="name">Sort: Name</option>
                   </select>
+                </div>
+
+                {/* Previous Service Day Section for Offsite Laundry Pickup */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreviousServiceDay((prev) => !prev)}
+                    className="w-full flex items-center justify-between text-sm font-medium text-amber-800"
+                  >
+                    <div className="flex items-center gap-2">
+                      <History size={16} className="text-amber-600" />
+                      <span>
+                        Previous Service Day Offsite Laundry
+                        <span className="ml-2 text-xs font-normal text-amber-600">
+                          ({formatServiceDayLabel(previousServiceDay)})
+                        </span>
+                      </span>
+                      {previousServiceDayLaundry.length > 0 && (
+                        <span className="bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full text-xs font-medium">
+                          {previousServiceDayLaundry.length} bags
+                        </span>
+                      )}
+                    </div>
+                    {showPreviousServiceDay ? (
+                      <ChevronUp size={16} />
+                    ) : (
+                      <ChevronDown size={16} />
+                    )}
+                  </button>
+                  <p className="text-xs text-amber-700 mt-2">
+                    View offsite laundry bags from the previous service day that may be ready for pickup today.
+                    Service days: Mon → Wed, Wed → Sat.
+                  </p>
+                  
+                  {showPreviousServiceDay && (
+                    <div className="mt-4 space-y-3">
+                      {previousServiceDayLaundry.length === 0 ? (
+                        <div className="text-center py-6 text-sm text-amber-700 bg-amber-100/50 rounded-lg border border-dashed border-amber-300">
+                          No offsite laundry from {formatServiceDayLabel(previousServiceDay)}.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {previousServiceDayLaundry.map((record) => {
+                            const statusInfo = getLaundryStatusInfo(record.status);
+                            const StatusIcon = statusInfo.icon;
+                            return (
+                              <div
+                                key={record.id}
+                                className="bg-white rounded-lg border border-amber-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-shrink-0 p-2 bg-amber-100 rounded-lg">
+                                    <Truck size={16} className="text-amber-600" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-gray-900 truncate">
+                                      {record.guestName}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <span className="inline-flex items-center gap-1">
+                                        <ShoppingBag size={12} />
+                                        Bag #{record.bagNumber || "—"}
+                                      </span>
+                                      <span className="text-amber-600">
+                                        From {formatServiceDayLabel(previousServiceDay)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1`}
+                                  >
+                                    <StatusIcon size={12} />
+                                    {statusInfo.label}
+                                  </span>
+                                  {record.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateLaundryStatus(record.id, LAUNDRY_STATUS.OFFSITE_PICKED_UP);
+                                        toast.success(`${record.guestName}'s laundry marked as picked up`);
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full hover:bg-emerald-200 transition-colors"
+                                    >
+                                      Mark Picked Up
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {filteredLaundry.length === 0 ? (

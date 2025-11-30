@@ -30,8 +30,8 @@ const getSupabaseClient = () => {
 
 // Type definitions for requests
 interface SupabaseQueryRequest {
-  table: string;
-  operation: "select" | "insert" | "update" | "delete" | "upsert";
+  table?: string;
+  operation: "select" | "insert" | "update" | "delete" | "upsert" | "rpc";
   data?: any;
   filters?: Array<{
     field: string;
@@ -50,6 +50,9 @@ interface SupabaseQueryRequest {
   single?: boolean;
   select?: string;
   match?: Record<string, any>;
+  // RPC-specific fields
+  functionName?: string;
+  params?: Record<string, any>;
 }
 
 /**
@@ -75,7 +78,36 @@ export const supabaseProxy = onCall(
 
     try {
       const supabase = getSupabaseClient();
-      const { table, operation, data: payload, filters, order, limit, range, single, select, match } = data;      // Validate table name (whitelist approach for security)
+      const { table, operation, data: payload, filters, order, limit, range, single, select, match, functionName, params } = data;
+
+      // Handle RPC calls separately (don't require table validation)
+      if (operation === "rpc") {
+        if (!functionName) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Function name is required for RPC calls"
+          );
+        }
+
+        // Whitelist allowed RPC functions for security
+        const allowedFunctions = [
+          "guest_needs_waiver_reminder",
+          "dismiss_waiver",
+          "reset_waivers_for_new_year",
+        ];
+
+        if (!allowedFunctions.includes(functionName)) {
+          throw new HttpsError(
+            "invalid-argument",
+            `Function '${functionName}' is not allowed`
+          );
+        }
+
+        const result = await supabase.rpc(functionName, params || {});
+        return { data: result.data, error: result.error };
+      }
+
+      // Validate table name (whitelist approach for security)
       const allowedTables = [
         "guests",
         "meal_attendance",
@@ -88,7 +120,16 @@ export const supabaseProxy = onCall(
         "donations",
         "la_plaza_donations",
         "app_settings",
+        "service_waivers",
       ];
+
+      // For non-RPC operations, table is required
+      if (!table) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Table name is required for this operation"
+        );
+      }
 
       if (!allowedTables.includes(table)) {
         throw new HttpsError(

@@ -2820,6 +2820,75 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
+  // Create waiver mutations first so we can use guestNeedsWaiverReminder in service callbacks
+  const {
+    fetchGuestWaivers,
+    guestNeedsWaiverReminder,
+    dismissWaiver,
+    hasActiveWaiver,
+    fetchGuestsNeedingWaivers,
+    getWaiverStatusSummary,
+  } = useMemo(
+    () =>
+      createWaiverMutations({
+        supabaseEnabled,
+        supabaseClient: supabase,
+        pushAction,
+        toast,
+      }),
+    [supabaseEnabled, pushAction],
+  );
+
+  // Callback for when a service is marked complete - checks if waiver is needed
+  const handleServiceCompleted = useCallback(
+    async (guestId, serviceType) => {
+      if (!supabaseEnabled) return;
+      
+      try {
+        const needsWaiver = await guestNeedsWaiverReminder(guestId, serviceType);
+        if (needsWaiver) {
+          const guest = guests.find((g) => g.id === guestId);
+          const guestName = guest?.preferredName || guest?.name || "Guest";
+          const serviceName = serviceType === "shower" ? "Shower" : "Laundry";
+          
+          // Show a persistent toast prompting staff to verify waiver
+          toast(
+            (t) => (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500">⚠️</span>
+                  <span className="font-medium">{serviceName} Waiver Needed</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Please verify <strong>{guestName}</strong> has signed their {serviceType} waiver for this year.
+                </p>
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="mt-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ),
+            {
+              duration: 10000,
+              position: "top-center",
+              style: {
+                background: "#FFFBEB",
+                border: "1px solid #F59E0B",
+                padding: "16px",
+                maxWidth: "400px",
+              },
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Error checking waiver status after service completion:", error);
+      }
+    },
+    [supabaseEnabled, guestNeedsWaiverReminder, guests]
+  );
+
   const {
     addShowerRecord,
     addShowerWaitlist,
@@ -2846,6 +2915,7 @@ export const AppProvider = ({ children }) => {
         toast,
         enhancedToast,
         normalizeDateInputToISO,
+        onServiceCompleted: handleServiceCompleted,
       }),
     [
       supabaseEnabled,
@@ -2854,6 +2924,7 @@ export const AppProvider = ({ children }) => {
       showerRecords,
       showerSlots,
       pushAction,
+      handleServiceCompleted,
     ],
   );
 
@@ -2886,6 +2957,7 @@ export const AppProvider = ({ children }) => {
         toast,
         enhancedToast,
         normalizeDateInputToISO,
+        onServiceCompleted: handleServiceCompleted,
       }),
     [
       supabaseEnabled,
@@ -2895,25 +2967,8 @@ export const AppProvider = ({ children }) => {
       settings,
       ensureGuestServiceEligible,
       pushAction,
+      handleServiceCompleted,
     ],
-  );
-
-  const {
-    fetchGuestWaivers,
-    guestNeedsWaiverReminder,
-    dismissWaiver,
-    hasActiveWaiver,
-    fetchGuestsNeedingWaivers,
-    getWaiverStatusSummary,
-  } = useMemo(
-    () =>
-      createWaiverMutations({
-        supabaseEnabled,
-        supabaseClient: supabase,
-        pushAction,
-        toast,
-      }),
-    [supabaseEnabled, pushAction],
   );
 
   const getTodayMetrics = () => {
@@ -3505,6 +3560,90 @@ export const AppProvider = ({ children }) => {
 
     return result;
   };
+
+  /**
+   * Get the previous service day for offsite laundry pickup
+   * Service days: Monday, Wednesday, Saturday
+   * - If today is Wednesday, previous service day is Monday
+   * - If today is Saturday, previous service day is Wednesday
+   * - If today is Monday, previous service day is Saturday (of previous week)
+   * - For non-service days, returns the most recent service day
+   */
+  const getPreviousServiceDay = useCallback(() => {
+    const today = new Date();
+    // Get Pacific time date
+    const pacificTime = new Date(today.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+    const dayOfWeek = pacificTime.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    
+    let daysToSubtract;
+    switch (dayOfWeek) {
+      case 0: // Sunday - previous service day is Saturday (1 day ago)
+        daysToSubtract = 1;
+        break;
+      case 1: // Monday - previous service day is Saturday (2 days ago)
+        daysToSubtract = 2;
+        break;
+      case 2: // Tuesday - previous service day is Monday (1 day ago)
+        daysToSubtract = 1;
+        break;
+      case 3: // Wednesday - previous service day is Monday (2 days ago)
+        daysToSubtract = 2;
+        break;
+      case 4: // Thursday - previous service day is Wednesday (1 day ago)
+        daysToSubtract = 1;
+        break;
+      case 5: // Friday - previous service day is Wednesday (2 days ago)
+        daysToSubtract = 2;
+        break;
+      case 6: // Saturday - previous service day is Wednesday (3 days ago)
+        daysToSubtract = 3;
+        break;
+      default:
+        daysToSubtract = 1;
+    }
+    
+    const previousDate = new Date(pacificTime);
+    previousDate.setDate(previousDate.getDate() - daysToSubtract);
+    
+    // Format as YYYY-MM-DD
+    const year = previousDate.getFullYear();
+    const month = String(previousDate.getMonth() + 1).padStart(2, "0");
+    const day = String(previousDate.getDate()).padStart(2, "0");
+    
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  /**
+   * Get laundry records for a specific date with guest information
+   */
+  const getLaundryForDateWithGuests = useCallback((targetDate) => {
+    const dateLaundry = laundryRecords.filter(
+      (r) => pacificDateStringFrom(r.date) === targetDate,
+    );
+
+    return dateLaundry.map((record) => {
+      const guest = guests.find((g) => g.id === record.guestId) || null;
+      const legalName =
+        guest?.name ||
+        `${toTitleCase(guest?.firstName || "")} ${toTitleCase(guest?.lastName || "")}`.trim() ||
+        "Unknown Guest";
+      const preferredName = normalizePreferredName(guest?.preferredName);
+      const hasPreferred =
+        Boolean(preferredName) &&
+        preferredName.toLowerCase() !== legalName.toLowerCase();
+      const displayName = hasPreferred
+        ? `${preferredName} (${legalName})`
+        : legalName;
+      return {
+        ...record,
+        guestName: displayName,
+        guestLegalName: legalName,
+        guestPreferredName: preferredName,
+        guestHasPreferred: hasPreferred,
+        guestSortKey: legalName.toLowerCase(),
+      };
+    });
+  }, [laundryRecords, guests]);
 
   const getTodayLaundryWithGuests = () => {
     const today = todayPacificDateString();
@@ -4724,6 +4863,8 @@ export const AppProvider = ({ children }) => {
     getDateRangeMetrics,
     getUniversalTimeRangeMetrics,
     getTodayLaundryWithGuests,
+    getPreviousServiceDay,
+    getLaundryForDateWithGuests,
     exportDataAsCSV,
     getTodayDonationsByItem,
     actionHistory,
