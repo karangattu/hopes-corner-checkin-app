@@ -112,3 +112,157 @@ This app can be installed on smartphones and tablets as a Progressive Web App (P
 - **Android/Chrome**: Visit the app URL → tap the "Install" banner or menu (⋮) → "Add to Home screen"
 - **iOS/Safari**: Visit the app URL → tap Share (□↑) → "Add to Home Screen"
 - **Desktop**: Visit the app URL → click the install icon in the address bar
+
+## Migrating to a New Supabase Account
+
+If you need to migrate your data from an existing Supabase project to a new one, follow these steps:
+
+### Prerequisites
+
+- Access to your **old** Supabase project (Project URL and service role key)
+- Access to your **new** Supabase project (Project URL and anon/service role key)
+- [Supabase CLI](https://supabase.com/docs/guides/cli) installed (optional but recommended)
+- PostgreSQL client tools (`psql`, `pg_dump`) installed
+
+### Step 1: Export Data from Old Supabase Project
+
+#### Option A: Using Supabase Dashboard (Small datasets)
+
+1. Go to your **old** Supabase project → **Table Editor**
+2. For each table, click the table name → **Export** → **Download as CSV**
+3. Repeat for all tables:
+   - `guests`
+   - `meal_attendance`
+   - `shower_reservations`
+   - `laundry_bookings`
+   - `bicycle_repairs`
+   - `holiday_visits`
+   - `haircut_visits`
+   - `items_distributed`
+   - `donations`
+   - `la_plaza_donations`
+   - `guest_waivers`
+   - `app_settings`
+
+#### Option B: Using pg_dump (Recommended for larger datasets)
+
+1. Get your old database connection string from Supabase Dashboard → **Settings** → **Database** → **Connection string** (URI format)
+
+2. Export the schema and data:
+
+   ```bash
+   # Export schema only (optional, you'll use the new schema.sql)
+   pg_dump "postgres://postgres:[PASSWORD]@db.[OLD-PROJECT-REF].supabase.co:5432/postgres" \
+     --schema=public --schema-only > old_schema.sql
+   
+   # Export data only (recommended)
+   pg_dump "postgres://postgres:[PASSWORD]@db.[OLD-PROJECT-REF].supabase.co:5432/postgres" \
+     --schema=public --data-only --disable-triggers > old_data.sql
+   ```
+
+### Step 2: Set Up the New Supabase Project
+
+1. **Create a new Supabase project** at [app.supabase.com](https://app.supabase.com/)
+
+2. **Run the schema setup** in the new project's SQL Editor:
+   - Go to **SQL Editor** → **New query**
+   - Copy and paste the contents of [`docs/supabase/schema.sql`](./docs/supabase/schema.sql)
+   - Click **Run** to create all tables, functions, triggers, and views
+
+3. **Apply any pending migrations** from `docs/supabase/migrations/` in order (check filenames for sequence)
+
+### Step 3: Import Data to New Supabase Project
+
+#### Option A: Using CSV Import (Small datasets)
+
+1. Go to your **new** Supabase project → **Table Editor**
+2. For each table, click the table name → **Import data** → Select your CSV file
+3. **Important**: Import tables in this order to respect foreign key constraints:
+   1. `guests` (first, as other tables reference it)
+   2. `meal_attendance`
+   3. `shower_reservations`
+   4. `laundry_bookings`
+   5. `bicycle_repairs`
+   6. `holiday_visits`
+   7. `haircut_visits`
+   8. `items_distributed`
+   9. `donations`
+   10. `la_plaza_donations`
+   11. `guest_waivers`
+   12. `app_settings`
+
+#### Option B: Using psql (Recommended for larger datasets)
+
+1. Get your new database connection string from the new Supabase Dashboard
+
+2. Import the data:
+
+   ```bash
+   psql "postgres://postgres:[PASSWORD]@db.[NEW-PROJECT-REF].supabase.co:5432/postgres" \
+     -f old_data.sql
+   ```
+
+3. If you encounter foreign key errors, temporarily disable triggers:
+
+   ```bash
+   psql "postgres://postgres:[PASSWORD]@db.[NEW-PROJECT-REF].supabase.co:5432/postgres" \
+     -c "SET session_replication_role = 'replica';" \
+     -f old_data.sql \
+     -c "SET session_replication_role = 'origin';"
+   ```
+
+### Step 4: Update Firebase Secrets
+
+Update the Supabase credentials stored in Firebase Functions:
+
+```bash
+# Set the new Supabase URL
+firebase functions:secrets:set SUPABASE_URL
+# Enter your new project URL: https://[NEW-PROJECT-REF].supabase.co
+
+# Set the new Supabase anon key
+firebase functions:secrets:set SUPABASE_ANON_KEY
+# Enter your new anon key from Project Settings → API
+```
+
+### Step 5: Redeploy Firebase Functions
+
+```bash
+cd functions && npm install && cd ..
+firebase deploy --only functions
+```
+
+### Step 6: Verify the Migration
+
+1. **Test the app**: Open your deployed app and verify:
+   - Guests appear in search
+   - Historical meal/shower/laundry records are visible
+   - Donations and reports show correct data
+
+2. **Check row counts** in the new Supabase Dashboard:
+
+   ```sql
+   SELECT 'guests' as table_name, count(*) FROM guests
+   UNION ALL SELECT 'meal_attendance', count(*) FROM meal_attendance
+   UNION ALL SELECT 'shower_reservations', count(*) FROM shower_reservations
+   UNION ALL SELECT 'laundry_bookings', count(*) FROM laundry_bookings
+   UNION ALL SELECT 'donations', count(*) FROM donations;
+   ```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Foreign key constraint errors | Import `guests` table first, or disable triggers during import |
+| Enum type mismatches | Ensure you ran the full `schema.sql` before importing data |
+| Missing columns | Check if migrations in `docs/supabase/migrations/` need to be applied |
+| UUID conflicts | If IDs conflict, you may need to clear the new tables first |
+| Connection refused | Check that your IP is allowed in Supabase Dashboard → Settings → Database → Network |
+
+### Rollback
+
+If something goes wrong and you need to revert:
+
+1. Update Firebase secrets back to the old Supabase credentials
+2. Redeploy Firebase Functions
+3. The app will resume using the old database
