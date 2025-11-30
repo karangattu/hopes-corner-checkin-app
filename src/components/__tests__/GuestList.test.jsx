@@ -41,14 +41,12 @@ describe("GuestList", () => {
     mockContextValue = createDefaultContext();
   });
 
-  it("shows the tip describing how to enable the create guest shortcut", () => {
+  it("shows the keyboard shortcuts help text", () => {
     render(<GuestList />);
 
-    expect(
-      screen.getByText(
-        /first name and at least the first letter of the last name/i,
-      ),
-    ).toBeInTheDocument();
+    // Check for the new compact keyboard shortcuts hint
+    expect(screen.getByText(/Focus/i)).toBeInTheDocument();
+    expect(screen.getByText(/Navigate/i)).toBeInTheDocument();
   });
 
   it("displays create-guest prompt when search has first and last initial with no results", async () => {
@@ -59,7 +57,7 @@ describe("GuestList", () => {
     fireEvent.change(search, { target: { value: "Alex R" } });
 
     expect(
-      await screen.findByText(/no guest found for "Alex R"/i),
+      await screen.findByText(/no matches for "Alex R"/i),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /create new guest/i }),
@@ -88,7 +86,7 @@ describe("GuestList", () => {
     const search = screen.getByPlaceholderText(/search by name/i);
     fireEvent.change(search, { target: { value: "Jane R" } });
 
-    expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
     expect(screen.queryByText(/no guest found/i)).not.toBeInTheDocument();
   });
 
@@ -106,7 +104,7 @@ describe("GuestList", () => {
     const search = screen.getByPlaceholderText(/search by name/i);
     fireEvent.change(search, { target: { value: "Doe" } });
 
-    expect(await screen.findByText(/found 2 guests/i)).toBeInTheDocument();
+    expect(await screen.findByText(/2 guests.*found/i)).toBeInTheDocument();
     expect(screen.getByText("John Doe")).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.queryByText("Bob Smith")).not.toBeInTheDocument();
@@ -139,11 +137,11 @@ describe("GuestList", () => {
     render(<GuestList />);
     const search = screen.getByPlaceholderText(/search by name/i);
     fireEvent.change(search, { target: { value: "John" } });
-    expect(await screen.findByText(/found 1 guest/i)).toBeInTheDocument();
+    expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "" } });
     expect(
-      await screen.findByText(/for privacy, start typing to search/i),
+      await screen.findByText(/ready to search/i),
     ).toBeInTheDocument();
   });
 
@@ -515,8 +513,8 @@ describe("GuestList", () => {
       const firstNameButton = await screen.findByRole("button", { name: /first name/i });
       const lastNameButton = screen.getByRole("button", { name: /last name/i });
 
-      // First name button should be gray initially
-      expect(firstNameButton).toHaveClass("bg-gray-100");
+      // First name button should be white initially (inactive state)
+      expect(firstNameButton).toHaveClass("bg-white");
 
       // Click first name button
       await user.click(firstNameButton);
@@ -524,7 +522,7 @@ describe("GuestList", () => {
       // First name button should be blue (active)
       await waitFor(() => {
         expect(firstNameButton).toHaveClass("bg-blue-600");
-        expect(lastNameButton).toHaveClass("bg-gray-100");
+        expect(lastNameButton).toHaveClass("bg-white");
       });
 
       // Click last name button
@@ -533,7 +531,7 @@ describe("GuestList", () => {
       // Last name button should now be blue
       await waitFor(() => {
         expect(lastNameButton).toHaveClass("bg-blue-600");
-        expect(firstNameButton).toHaveClass("bg-gray-100");
+        expect(firstNameButton).toHaveClass("bg-white");
       });
     });
 

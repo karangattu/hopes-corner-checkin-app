@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 import haptics from "../utils/haptics";
 import {
   User,
+  Users,
   Home,
   MapPin,
   Phone,
@@ -2133,103 +2134,128 @@ const GuestList = () => {
         laundryCount={deleteConfirmation.laundryCount}
       />
       <div className="flex flex-col gap-4">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search size={20} className="text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Search by name, initials (e.g., 'John', 'Smith', 'JS')... (Ctrl+K)"
-            aria-label="Search guests by name"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setSelectedGuestIndex(-1); // Reset selection when search changes
-            }}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                shouldShowCreateOption &&
-                !showCreateForm
-              ) {
-                e.preventDefault();
-                handleShowCreateForm();
-              } else if (e.key === "ArrowDown" && filteredGuests.length > 0) {
-                e.preventDefault();
-                setSelectedGuestIndex((prev) =>
-                  prev < filteredGuests.length - 1 ? prev + 1 : 0,
-                );
-              } else if (e.key === "ArrowUp" && filteredGuests.length > 0) {
-                e.preventDefault();
-                setSelectedGuestIndex((prev) =>
-                  prev > 0 ? prev - 1 : filteredGuests.length - 1,
-                );
-              } else if (
-                e.key === "Enter" &&
-                selectedGuestIndex >= 0 &&
-                filteredGuests[selectedGuestIndex]
-              ) {
-                e.preventDefault();
-                toggleExpanded(filteredGuests[selectedGuestIndex].id);
-              } else if (e.key === "Escape") {
+        {/* Enhanced Search Bar */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500" />
+          <div className="relative bg-white rounded-xl border-2 border-gray-200 group-focus-within:border-blue-400 transition-all duration-300 shadow-sm group-focus-within:shadow-lg group-focus-within:shadow-blue-100">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search size={22} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by name or initials (e.g., 'John Smith' or 'JS')..."
+              aria-label="Search guests by name"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
                 setSelectedGuestIndex(-1);
-                setSearchTerm("");
-              }
-            }}
-            ref={searchInputRef}
-            className="w-full pl-12 pr-14 py-4 text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-          />
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  shouldShowCreateOption &&
+                  !showCreateForm
+                ) {
+                  e.preventDefault();
+                  handleShowCreateForm();
+                } else if (e.key === "ArrowDown" && filteredGuests.length > 0) {
+                  e.preventDefault();
+                  setSelectedGuestIndex((prev) =>
+                    prev < filteredGuests.length - 1 ? prev + 1 : 0,
+                  );
+                } else if (e.key === "ArrowUp" && filteredGuests.length > 0) {
+                  e.preventDefault();
+                  setSelectedGuestIndex((prev) =>
+                    prev > 0 ? prev - 1 : filteredGuests.length - 1,
+                  );
+                } else if (
+                  e.key === "Enter" &&
+                  selectedGuestIndex >= 0 &&
+                  filteredGuests[selectedGuestIndex]
+                ) {
+                  e.preventDefault();
+                  toggleExpanded(filteredGuests[selectedGuestIndex].id);
+                } else if (e.key === "Escape") {
+                  setSelectedGuestIndex(-1);
+                  setSearchTerm("");
+                }
+              }}
+              ref={searchInputRef}
+              className="w-full pl-12 pr-14 py-4 text-lg bg-transparent rounded-xl focus:outline-none transition-all duration-200 placeholder:text-gray-400"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  searchInputRef.current && searchInputRef.current.focus();
+                }}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Clear search"
+                title="Clear (Esc)"
+              >
+                <SpringIcon>
+                  <X size={18} />
+                </SpringIcon>
+              </button>
+            )}
+          </div>
+          {/* Search results count badge */}
           {searchTerm && filteredGuests.length > 0 && (
-            <div className="absolute left-12 bottom-[-24px] text-xs text-gray-500 font-medium">
-              {filteredGuests.length}{" "}
-              {filteredGuests.length === 1 ? "guest" : "guests"} found
+            <div className="absolute -bottom-2 left-4 transform translate-y-full">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-full shadow-sm">
+                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
+                {filteredGuests.length} {filteredGuests.length === 1 ? "match" : "matches"}
+              </span>
             </div>
           )}
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm("");
-                searchInputRef.current && searchInputRef.current.focus();
-              }}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
-              aria-label="Clear search"
-              title="Clear"
-            >
-              <SpringIcon>
-                <Eraser size={18} />
-              </SpringIcon>
-            </button>
-          )}
         </div>
-        <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2">
-          <strong>Tips:</strong> Use Ctrl+K to focus search • Press Ctrl+Alt+G
-          (⌘⌥G on Mac) to open the create guest form • Enter first name and at
-          least the first letter of the last name to create new guest • Use ↑↓
-          arrows to navigate results
+        
+        {/* Keyboard shortcuts hint - more compact */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-2">
+          <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Ctrl+K</kbd>
+          <span>Focus</span>
+          <span className="text-gray-300">•</span>
+          <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">↑↓</kbd>
+          <span>Navigate</span>
+          <span className="text-gray-300">•</span>
+          <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Enter</kbd>
+          <span>Select/Create</span>
+          <span className="text-gray-300">•</span>
+          <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Esc</kbd>
+          <span>Clear</span>
         </div>
       </div>
 
       {shouldShowCreateOption && !showCreateForm && (
-        <div className="bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl p-6 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <UserPlus size={24} className="text-blue-600" />
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-dashed border-blue-200 rounded-2xl p-8 text-center">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-200/30 rounded-full blur-2xl" />
+          <div className="absolute -left-6 -bottom-6 w-20 h-20 bg-indigo-200/30 rounded-full blur-xl" />
+          <div className="relative flex flex-col items-center gap-5">
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-lg animate-pulse" />
+              <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 p-4 rounded-2xl shadow-lg">
+                <UserPlus size={28} className="text-white" />
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                No guest found for "{searchTerm}"
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-gray-900">
+                No matches for "{searchTerm}"
               </h3>
-              <p className="text-blue-700 mb-4">
-                Would you like to create a new guest with this name?
+              <p className="text-gray-600 max-w-sm mx-auto">
+                This guest isn't in the system yet. Create a new profile to get them checked in.
               </p>
-              <button
-                onClick={handleShowCreateForm}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-              >
-                <Plus size={18} /> Create New Guest
-              </button>
             </div>
+            <button
+              onClick={handleShowCreateForm}
+              className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-3.5 rounded-xl inline-flex items-center gap-2.5 transition-all duration-300 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
+            >
+              <Plus size={20} className="transition-transform group-hover:rotate-90 duration-300" />
+              <span>Create New Guest</span>
+            </button>
+            <p className="text-xs text-gray-500">
+              Press <kbd className="px-1.5 py-0.5 bg-white/80 border border-gray-200 rounded text-gray-600 font-mono">Enter</kbd> to quick create
+            </p>
           </div>
         </div>
       )}
@@ -2485,46 +2511,49 @@ const GuestList = () => {
             <div className="space-y-4">
               {isInitialLoad ? (
                 <div className="space-y-3">
-                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
-                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
-                    <div className="flex-1 space-y-2 py-1">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse flex space-x-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+                      <div className="rounded-xl bg-gradient-to-br from-gray-200 to-gray-100 h-12 w-12"></div>
+                      <div className="flex-1 space-y-2.5 py-1">
+                        <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-100 rounded-full w-3/4"></div>
+                        <div className="h-3 bg-gradient-to-r from-gray-200 to-gray-100 rounded-full w-1/2"></div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
-                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
-                    <div className="flex-1 space-y-2 py-1">
-                      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                    </div>
-                  </div>
-                  <div className="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border">
-                    <div className="rounded-full bg-gray-200 h-12 w-12"></div>
-                    <div className="flex-1 space-y-2 py-1">
-                      <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/5"></div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               ) : (
-                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
-                  For privacy, start typing to search for a guest. No names are
-                  shown until you search.
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-100 p-8">
+                  <div className="absolute -right-8 -top-8 w-32 h-32 bg-blue-100/30 rounded-full blur-2xl" />
+                  <div className="relative flex flex-col items-center text-center">
+                    <div className="mb-4 p-4 rounded-2xl bg-white shadow-sm border border-gray-100">
+                      <Search size={32} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Ready to search</h3>
+                    <p className="text-gray-500 text-sm max-w-xs">
+                      Start typing a name to find guests. For privacy, no names are shown until you search.
+                    </p>
+                    <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                      <span>Privacy-first design</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           ) : filteredGuests.length === 0 && !shouldShowCreateOption ? (
-            <div className="text-center py-12">
-              <div className="bg-gray-100 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Search size={24} className="text-gray-400" />
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-10 text-center">
+              <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-amber-200/30 rounded-full blur-2xl" />
+              <div className="relative flex flex-col items-center">
+                <div className="mb-4 p-4 rounded-2xl bg-white shadow-sm border border-amber-100">
+                  <Search size={28} className="text-amber-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No guests found
+                </h3>
+                <p className="text-gray-600 max-w-sm">
+                  Try adjusting your search terms or add more letters to narrow down results
+                </p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No guests found
-              </h3>
-              <p className="text-gray-500">
-                Try adjusting your search terms or create a new guest
-              </p>
             </div>
           ) : (
             <div
@@ -2532,24 +2561,40 @@ const GuestList = () => {
               key={`search-results-${searchTerm}-${filteredGuests.length}`}
             >
               {searchTerm && filteredGuests.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg flex items-center justify-between">
-                    <span>
-                      Found {filteredGuests.length} guest
-                      {filteredGuests.length !== 1 ? "s" : ""} matching "
-                      {searchTerm}"
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Use ↑↓ arrows to navigate, Enter to expand
-                    </span>
+                <div className="space-y-3">
+                  {/* Enhanced results header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-10 h-10 bg-emerald-100 rounded-lg">
+                        <Users size={18} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {filteredGuests.length} {filteredGuests.length === 1 ? "guest" : "guests"} found
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Searching for "{searchTerm}"
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-full">
+                      <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">↑↓</kbd>
+                      <span>Navigate</span>
+                      <span className="text-emerald-400">•</span>
+                      <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">Enter</kbd>
+                      <span>Expand</span>
+                    </div>
                   </div>
-                  <div className="flex gap-2 px-4">
+                  
+                  {/* Sort buttons - enhanced */}
+                  <div className="flex gap-2 px-1">
+                    <span className="text-xs text-gray-500 self-center mr-1">Sort:</span>
                     <button
                       onClick={() => handleSort("firstName")}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
                         sortConfig.key === "firstName"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                          : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
                       }`}
                       title="Sort by first name"
                     >
@@ -2557,10 +2602,10 @@ const GuestList = () => {
                     </button>
                     <button
                       onClick={() => handleSort("lastName")}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
                         sortConfig.key === "lastName"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                          : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
                       }`}
                       title="Sort by last name"
                     >
@@ -2631,37 +2676,43 @@ const GuestList = () => {
                     <Animated.div
                       style={trail[i]}
                       key={`guest-${guest.id}-${searchTerm}`}
-                      className={`border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
+                      className={`group relative border rounded-xl hover:shadow-lg transition-all duration-300 bg-white overflow-hidden ${
                         selectedGuestIndex === i
-                          ? "ring-2 ring-blue-500 border-blue-300 shadow-md"
-                          : ""
+                          ? "ring-2 ring-blue-500 border-blue-300 shadow-lg scale-[1.01]"
+                          : "border-gray-100 hover:border-gray-200"
                       }`}
                     >
+                      {/* Subtle gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/0 to-indigo-50/0 group-hover:from-blue-50/50 group-hover:via-transparent group-hover:to-indigo-50/50 transition-all duration-500 pointer-events-none" />
+                      
                       <div
-                        className="p-4 cursor-pointer flex justify-between items-center"
+                        className="relative p-4 cursor-pointer flex justify-between items-center"
                         onClick={() => toggleExpanded(guest.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="bg-blue-100 p-2 rounded-full">
-                            <User size={24} className="text-blue-600" />
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-blue-400/20 rounded-xl blur group-hover:bg-blue-400/30 transition-colors" />
+                            <div className="relative bg-gradient-to-br from-blue-100 to-blue-50 p-2.5 rounded-xl border border-blue-100">
+                              <User size={22} className="text-blue-600" />
+                            </div>
                           </div>
                           <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <h3 className="font-semibold text-gray-900 flex-1">
                                 {guest.preferredName ? (
                                   <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                    <span className="text-lg font-semibold text-gray-900">
+                                    <span className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">
                                       {guest.preferredName}
                                     </span>
                                     <span className="text-sm text-gray-500">
                                       ({guest.name})
                                     </span>
-                                    <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                                    <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase tracking-wide">
                                       Preferred
                                     </span>
                                   </span>
                                 ) : (
-                                  guest.name
+                                  <span className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{guest.name}</span>
                                 )}
                               </h3>
                               <div className="flex gap-1 ml-2 items-center">
@@ -2673,52 +2724,52 @@ const GuestList = () => {
                                     ) === todayPacificDateString();
 
                                   return isNewGuest ? (
-                                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
-                                      NEW
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-gradient-to-r from-emerald-50 to-green-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-sm animate-pulse uppercase tracking-wider">
+                                      ✨ New
                                     </span>
                                   ) : null;
                                 })()}
                                 {todayServices.length > 0 && (
-                                  <>
+                                  <div className="flex items-center gap-1">
                                     {todayServices.map((service, idx) => {
                                       const Icon = service.icon;
                                       return (
                                         <div
                                           key={idx}
-                                          className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
+                                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 transition-all duration-200 hover:scale-110 hover:shadow-md hover:-translate-y-0.5"
                                           title={`${service.serviceType} today`}
                                         >
                                           <Icon
-                                            size={12}
+                                            size={14}
                                             className={service.iconClass}
                                           />
                                         </div>
                                       );
                                     })}
-                                  </>
+                                  </div>
                                 )}
                               </div>
                             </div>
                             {guest.preferredName && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Use their preferred name when greeting; legal
-                                name is shown in parentheses.
+                              <p className="text-xs text-gray-400 mt-1 italic">
+                                Use their preferred name when greeting
                               </p>
                             )}
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                              <Home size={14} />
-                              <span>{guest.housingStatus}</span>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded-lg">
+                                <Home size={12} className="text-gray-400" />
+                                {guest.housingStatus}
+                              </span>
                               {guest.location && (
-                                <>
-                                  <span className="text-gray-300">•</span>
-                                  <MapPin size={14} />
-                                  <span>{guest.location}</span>
-                                </>
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-2 py-1 rounded-lg">
+                                  <MapPin size={12} className="text-gray-400" />
+                                  {guest.location}
+                                </span>
                               )}
                             </div>
                             {lastService && ServiceIcon && (
-                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                                <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                                <span className="inline-flex items-center gap-1.5 text-gray-700 font-medium bg-white px-2 py-1 rounded-lg border border-gray-100">
                                   <ServiceIcon
                                     size={14}
                                     className={`${lastService.iconClass || "text-blue-500"}`}
@@ -2745,29 +2796,31 @@ const GuestList = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          {expandedGuest === guest.id ? (
-                            <SpringIcon>
-                              <ChevronUp size={18} className="text-gray-400" />
-                            </SpringIcon>
-                          ) : (
-                            <SpringIcon>
-                              <ChevronDown
-                                size={18}
-                                className="text-gray-400"
-                              />
-                            </SpringIcon>
-                          )}
+                        <div className="flex items-center gap-2">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${
+                            expandedGuest === guest.id 
+                              ? "bg-blue-100 rotate-180" 
+                              : "bg-gray-100 group-hover:bg-blue-50"
+                          }`}>
+                            <ChevronDown 
+                              size={18} 
+                              className={`transition-colors ${
+                                expandedGuest === guest.id 
+                                  ? "text-blue-600" 
+                                  : "text-gray-400 group-hover:text-blue-500"
+                              }`} 
+                            />
+                          </div>
                         </div>
                       </div>
                       {expandedGuest === guest.id && (
-                        <div className="border-t p-4 bg-gray-50">
+                        <div className="border-t border-gray-100 p-4 bg-gradient-to-b from-gray-50 to-white">
                           <div className="flex justify-end gap-2 mb-3">
                             {editingGuestId === guest.id ? (
                               <>
                                 <button
                                   onClick={saveEditedGuest}
-                                  className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
+                                  className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors touch-manipulation shadow-sm"
                                 >
                                   Save
                                 </button>
