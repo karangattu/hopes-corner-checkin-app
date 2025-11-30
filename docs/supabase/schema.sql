@@ -466,7 +466,7 @@ where
   exists (
     select 1 from public.shower_reservations sr
     where sr.guest_id = g.id 
-      and sr.created_at >= date_trunc('year', now())::date
+      and sr.scheduled_for >= date_trunc('year', now())::date
   ) 
   and (
     not exists (
@@ -493,7 +493,7 @@ where
   exists (
     select 1 from public.laundry_bookings lb
     where lb.guest_id = g.id
-      and lb.created_at >= date_trunc('year', now())::date
+      and lb.scheduled_for >= date_trunc('year', now())::date
   )
   and (
     not exists (
@@ -530,59 +530,69 @@ begin
 end;
 $$ language plpgsql stable;
 
+-- Drop existing function first (may have different return type from migrations)
+drop function if exists public.dismiss_waiver(uuid, text, text);
 create or replace function public.dismiss_waiver(
   p_guest_id uuid,
   p_service_type text,
-  p_dismissed_reason text default null
-) returns uuid as $$
-declare
-  v_waiver_id uuid;
+  p_dismissed_reason text default 'signed_by_staff'
+) returns void as $$
 begin
-  update public.service_waivers
-  set 
+  insert into public.service_waivers (
+    guest_id,
+    service_type,
+    signed_at,
+    dismissed_at,
+    dismissed_reason
+  ) values (
+    p_guest_id,
+    p_service_type,
+    now(),
+    now(),
+    p_dismissed_reason
+  )
+  on conflict (guest_id, service_type) where dismissed_at is null
+  do update set
     dismissed_at = now(),
-    dismissed_reason = p_dismissed_reason
-  where 
-    guest_id = p_guest_id
-    and service_type = p_service_type
-    and dismissed_at is null
-  returning id into v_waiver_id;
-  if v_waiver_id is null then
-    raise exception 'No active waiver found for guest % and service %', p_guest_id, p_service_type;
-  end if;
-  return v_waiver_id;
+    dismissed_reason = p_dismissed_reason;
 end;
 $$ language plpgsql;
 
+-- Check if a guest needs a waiver reminder for a service
+-- Uses scheduled_for date (when service is scheduled) rather than created_at
 create or replace function public.guest_needs_waiver_reminder(
   p_guest_id uuid,
   p_service_type text
 ) returns boolean as $$
 declare
-  v_year_start timestamptz;
+  v_year_start date;
 begin
   v_year_start := date_trunc('year', now())::date;
   case 
     when p_service_type = 'shower' then
+      -- Check if guest has any shower scheduled this year
       if not exists (
         select 1 from public.shower_reservations sr
         where sr.guest_id = p_guest_id
-          and sr.created_at >= v_year_start
+          and sr.scheduled_for >= v_year_start
       ) then
         return false;
       end if;
     when p_service_type = 'laundry' then
+      -- Check if guest has any laundry booked this year
       if not exists (
         select 1 from public.laundry_bookings lb
         where lb.guest_id = p_guest_id
-          and lb.created_at >= v_year_start
+          and lb.scheduled_for >= v_year_start
       ) then
         return false;
       end if;
     else
       return false;
   end case;
+  -- Guest has a service this year, check if they need a waiver
   return (
+    -- No waiver record exists at all
     not exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
@@ -591,6 +601,7 @@ begin
   )
   or
   (
+    -- Waiver was dismissed before this year (needs renewal)
     exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
@@ -614,3 +625,21 @@ begin
   return query select v_reset_count;
 end;
 $$ language plpgsql;
+
+-- RLS policies for service_waivers
+alter table public.service_waivers enable row level security;
+
+-- Allow authenticated and anon users to read waivers (anon needed for Firebase proxy)
+drop policy if exists "Authenticated users can view waivers" on public.service_waivers;
+create policy "Authenticated users can view waivers"
+  on public.service_waivers for select
+  to authenticated, anon
+  using (true);
+
+-- Allow authenticated and anon users to manage waivers
+drop policy if exists "Authenticated users can manage waivers" on public.service_waivers;
+create policy "Authenticated users can manage waivers"
+  on public.service_waivers for all
+  to authenticated, anon
+  using (true)
+  with check (true);
