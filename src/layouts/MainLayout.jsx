@@ -7,6 +7,7 @@ import SyncStatus from "../components/SyncStatus";
 import LastRefreshedIndicator from "../components/LastRefreshedIndicator";
 import RefreshButton from "../components/RefreshButton";
 import AppVersion from "../components/AppVersion";
+import SeasonalDecorations, { HolidayBanner } from "../components/SeasonalDecorations";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
@@ -88,6 +89,9 @@ const MainLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-emerald-50 flex flex-col">
+      {/* Seasonal decorations for holidays */}
+      <SeasonalDecorations enabled={true} count={10} />
+      
       <header className="bg-green-950 text-white shadow-lg">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center h-12 md:h-16">
@@ -148,6 +152,9 @@ const MainLayout = ({ children }) => {
         style={mobileContentPadding}
       >
         <div className="max-w-7xl mx-auto space-y-4">
+          {/* Holiday banner - only shows during special occasions */}
+          <HolidayBanner className="mb-2" />
+          
           {/* Top bar with refresh button and status */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <RefreshButton onRefreshComplete={handleRefreshComplete} />
