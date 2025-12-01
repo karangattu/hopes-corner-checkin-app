@@ -200,14 +200,28 @@ const OverviewDashboard = ({
   );
 
   // Date range filters for demographic visualizations
+  // Start with "All Time" by default (2000-01-01 as a reasonable minimum date)
   const [demographicsStartDate, setDemographicsStartDate] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-01-01`;
+    return "2000-01-01";
   });
   const [demographicsEndDate, setDemographicsEndDate] = useState(() => {
     const now = new Date();
     return now.toISOString().split("T")[0];
   });
+
+  // Helper to set year-to-date range
+  const setYearToDateRange = useCallback(() => {
+    const now = new Date();
+    setDemographicsStartDate(`${now.getFullYear()}-01-01`);
+    setDemographicsEndDate(now.toISOString().split("T")[0]);
+  }, []);
+
+  // Helper to set all-time range
+  const setAllTimeRange = useCallback(() => {
+    setDemographicsStartDate("2000-01-01");
+    const now = new Date();
+    setDemographicsEndDate(now.toISOString().split("T")[0]);
+  }, []);
 
   // Keep temp targets in sync when not actively editing
   React.useEffect(() => {
@@ -305,6 +319,32 @@ const OverviewDashboard = ({
       return acc;
     }, {});
   }, [filteredGuestsForDemographics]);
+
+  // Calculate year-to-date guests separately for comparison
+  const ytdGuests = useMemo(() => {
+    const now = new Date();
+    const ytdStart = `${now.getFullYear()}-01-01`;
+    const ytdEnd = now.toISOString().split("T")[0];
+    return guests.filter((guest) => isGuestInDateRange(guest, ytdStart, ytdEnd));
+  }, [guests, isGuestInDateRange]);
+
+  // YTD age breakdown
+  const ytdAgeGroupCounts = useMemo(() => {
+    return ytdGuests.reduce((acc, guest) => {
+      const age = guest.age || "Unknown";
+      acc[age] = (acc[age] || 0) + 1;
+      return acc;
+    }, {});
+  }, [ytdGuests]);
+
+  // YTD location breakdown
+  const ytdLocationCounts = useMemo(() => {
+    return ytdGuests.reduce((acc, guest) => {
+      const location = guest.location || "Unknown";
+      acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {});
+  }, [ytdGuests]);
 
   // Calculate Age Group by City (cross-tabulation)
   const ageGroupByCity = useMemo(() => {
@@ -704,9 +744,27 @@ const OverviewDashboard = ({
 
       {/* Demographics Date Range Filter */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Filter Demographics by Date Range
-        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2 sm:mb-0">
+            Filter Demographics by Date Range
+          </h3>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={setAllTimeRange}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors"
+            >
+              All Time
+            </button>
+            <button
+              type="button"
+              onClick={setYearToDateRange}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors"
+            >
+              Year-to-Date
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label
@@ -739,17 +797,104 @@ const OverviewDashboard = ({
             />
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Showing {filteredGuestsForDemographics.length} guest(s) in selected
-          date range
-        </p>
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-xs text-gray-500">
+            Showing {filteredGuestsForDemographics.length} guest(s) in selected date range
+          </p>
+          <p className="text-xs font-semibold text-blue-600">
+            YTD: {ytdGuests.length} guest(s) registered this year
+          </p>
+        </div>
+      </div>
+
+      {/* Year-to-Date Demographics Summary */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+          <Calendar size={18} />
+          Year-to-Date Demographics Summary
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* YTD Age Groups */}
+          <div className="bg-white rounded-lg p-4 border border-blue-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Age Groups (YTD)</h3>
+            <div className="space-y-2">
+              {Object.entries(ytdAgeGroupCounts)
+                .sort(([, a], [, b]) => b - a)
+                .map(([age, count]) => {
+                  const percentage = ytdGuests.length > 0
+                    ? ((count / ytdGuests.length) * 100).toFixed(1)
+                    : '0.0';
+                  return (
+                    <div key={age} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{age}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900">{count}</span>
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* YTD Cities */}
+          <div className="bg-white rounded-lg p-4 border border-blue-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Cities (YTD)</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {Object.entries(ytdLocationCounts)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10)
+                .map(([city, count]) => {
+                  const percentage = ytdGuests.length > 0
+                    ? ((count / ytdGuests.length) * 100).toFixed(1)
+                    : '0.0';
+                  return (
+                    <div key={city} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 truncate">{city}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900">{count}</span>
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* YTD Summary Stats */}
+          <div className="bg-white rounded-lg p-4 border border-blue-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">YTD Summary</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-500">Total Guests Registered</p>
+                <p className="text-2xl font-bold text-blue-600">{ytdGuests.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Unique Cities</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {Object.keys(ytdLocationCounts).length}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Age Groups Tracked</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {Object.keys(ytdAgeGroupCounts).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Cross-Tabulated Demographics */}
       <div>
         <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <Users size={18} />
-          Demographics by City
+          Demographics by City (Filtered Range)
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <StackedBarCardRecharts
