@@ -311,15 +311,6 @@ const OverviewDashboard = ({
     }, {});
   }, [filteredGuestsForDemographics]);
 
-  // Calculate location breakdown
-  const locationCounts = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const location = guest.location || "Unknown";
-      acc[location] = (acc[location] || 0) + 1;
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
-
   // Calculate year-to-date guests separately for comparison
   const ytdGuests = useMemo(() => {
     const now = new Date();
@@ -712,17 +703,6 @@ const OverviewDashboard = ({
               title="Demographics"
               subtitle="Gender"
               dataMap={genderCounts}
-            />
-          </div>
-
-          <div className="hidden sm:flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Guests by City
-            </h3>
-            <PieCardRecharts
-              title="Demographics"
-              subtitle="Location"
-              dataMap={locationCounts}
             />
           </div>
 

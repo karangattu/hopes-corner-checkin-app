@@ -23,7 +23,6 @@ import {
   Wifi,
   AlertTriangle,
   Clock,
-  MapPin,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import GuestBatchUpload from "../../components/GuestBatchUpload";
@@ -31,7 +30,6 @@ import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
 import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
-import GuestsByCityReport from "../../components/admin/GuestsByCityReport";
 import TableBrowser from "../../components/admin/TableBrowser";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
@@ -651,7 +649,6 @@ const Dashboard = () => {
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "meal-report", label: "Meal Report", icon: Utensils },
     { id: "monthly-summary", label: "Monthly Summary", icon: ClipboardList },
-    { id: "guests-by-city", label: "Guests by City", icon: MapPin },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "tables", label: "Tables", icon: Database },
     { id: "export", label: "Data Export", icon: Download },
@@ -664,7 +661,7 @@ const Dashboard = () => {
     // Board users get only the admin dashboard sections (read-only reports & exports)
     if (isBoard) return s.id !== "batch-upload" && s.id !== "system";
     // Default staff/checkin: no admin sections; fall back to showing overview & reports only
-    return ["overview", "analytics", "meal-report", "monthly-summary", "guests-by-city", "export", "tables"].includes(s.id);
+    return ["overview", "analytics", "meal-report", "monthly-summary", "export", "tables"].includes(s.id);
   });
 
   const renderSectionContent = () => {
@@ -680,8 +677,6 @@ const Dashboard = () => {
         return renderMealReportSection();
       case "monthly-summary":
         return renderMonthlySummarySection();
-      case "guests-by-city":
-        return renderGuestsByCitySection();
       case "batch-upload":
         return renderBatchUploadSection();
       case "tables":
@@ -718,12 +713,6 @@ const Dashboard = () => {
   const renderMonthlySummarySection = () => (
     <div className="space-y-6">
       <MonthlySummaryReport />
-    </div>
-  );
-
-  const renderGuestsByCitySection = () => (
-    <div className="space-y-6">
-      <GuestsByCityReport />
     </div>
   );
 

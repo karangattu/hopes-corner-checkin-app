@@ -27,6 +27,6 @@ describe("MainLayout with role 'board'", () => {
     expect(servicesButtons.length).toBe(0);
     expect(adminButtons.length).toBeGreaterThan(0);
     // Header should show the Board label
-    expect(screen.getByText(/Board \(read-only\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(Board - read-only\)/i)).toBeInTheDocument();
   });
 });

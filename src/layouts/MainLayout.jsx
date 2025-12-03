@@ -26,7 +26,7 @@ const MainLayout = ({ children }) => {
   ];
   const role = user?.role || "checkin";
   const roleLabel = (() => {
-    if (role === "board") return "Board (read-only)";
+    if (role === "board") return "Board - read-only";
     if (role === "admin") return "Admin";
     if (role === "staff") return "Staff";
     if (role === "checkin") return "Check-in";

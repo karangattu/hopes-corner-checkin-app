@@ -22,5 +22,13 @@ export default defineConfig({
     css: true,
     testTimeout: 10000, // 10 second timeout
     hookTimeout: 10000, // 10 second timeout for hooks
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cypress/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
+      '**/checkin-app-nextjs/**' // Exclude Next.js version tests
+    ],
   },
 });
