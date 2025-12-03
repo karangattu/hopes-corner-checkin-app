@@ -1761,13 +1761,6 @@ const Services = () => {
       bicycles: 0,
     };
 
-    const today = new Date();
-    const monthDaysElapsed = Math.max(1, today.getDate());
-    const oneDayMs = 1000 * 60 * 60 * 24;
-    const dayOfYear = Math.max(
-      1,
-      Math.floor((today - new Date(today.getFullYear(), 0, 0)) / oneDayMs),
-    );
     const lastSevenWindow = dailyServiceTotals.slice(-7);
     const lastSevenTotals = lastSevenWindow.reduce(
       (acc, day) => ({
@@ -1788,6 +1781,32 @@ const Services = () => {
       },
     );
 
+    // Count days with actual service for proper averages (only count days we provided service)
+    const serviceDayCounts = dailyServiceTotals.reduce(
+      (acc, day) => ({
+        meals: acc.meals + (day?.meals > 0 ? 1 : 0),
+        showers: acc.showers + (day?.showers > 0 ? 1 : 0),
+        laundry: acc.laundry + (day?.laundry > 0 ? 1 : 0),
+        haircuts: acc.haircuts + (day?.haircuts > 0 ? 1 : 0),
+        holidays: acc.holidays + (day?.holidays > 0 ? 1 : 0),
+        bicycles: acc.bicycles + (day?.bicycles > 0 ? 1 : 0),
+      }),
+      { meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0, bicycles: 0 },
+    );
+    
+    // Count service days in last 7 days for weekly averages
+    const last7ServiceDays = lastSevenWindow.reduce(
+      (acc, day) => ({
+        meals: acc.meals + (day?.meals > 0 ? 1 : 0),
+        showers: acc.showers + (day?.showers > 0 ? 1 : 0),
+        laundry: acc.laundry + (day?.laundry > 0 ? 1 : 0),
+        haircuts: acc.haircuts + (day?.haircuts > 0 ? 1 : 0),
+        holidays: acc.holidays + (day?.holidays > 0 ? 1 : 0),
+        bicycles: acc.bicycles + (day?.bicycles > 0 ? 1 : 0),
+      }),
+      { meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0, bicycles: 0 },
+    );
+
     const metricCards = [
       {
         id: "meals",
@@ -1796,9 +1815,9 @@ const Services = () => {
         iconBg: "bg-emerald-100",
         iconColor: "text-emerald-600",
         monthTotal: monthMetrics.mealsServed,
-        monthAvg: Math.round(monthMetrics.mealsServed / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.mealsServed / Math.max(1, serviceDayCounts.meals)) || 0,
         yearTotal: yearMetrics.mealsServed,
-        yearAvg: Math.round(yearMetrics.mealsServed / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.mealsServed / Math.max(1, serviceDayCounts.meals)) || 0,
         todayTotal: tm.mealsServed,
         weekTotal: lastSevenTotals.meals,
       },
@@ -1809,10 +1828,9 @@ const Services = () => {
         iconBg: "bg-sky-100",
         iconColor: "text-sky-600",
         monthTotal: monthMetrics.showersBooked,
-        monthAvg:
-          Math.round(monthMetrics.showersBooked / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.showersBooked / Math.max(1, serviceDayCounts.showers)) || 0,
         yearTotal: yearMetrics.showersBooked,
-        yearAvg: Math.round(yearMetrics.showersBooked / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.showersBooked / Math.max(1, serviceDayCounts.showers)) || 0,
         todayTotal: tm.showersBooked,
         weekTotal: lastSevenTotals.showers,
       },
@@ -1823,9 +1841,9 @@ const Services = () => {
         iconBg: "bg-purple-100",
         iconColor: "text-purple-600",
         monthTotal: monthMetrics.laundryLoads,
-        monthAvg: Math.round(monthMetrics.laundryLoads / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.laundryLoads / Math.max(1, serviceDayCounts.laundry)) || 0,
         yearTotal: yearMetrics.laundryLoads,
-        yearAvg: Math.round(yearMetrics.laundryLoads / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.laundryLoads / Math.max(1, serviceDayCounts.laundry)) || 0,
         todayTotal: tm.laundryLoads,
         weekTotal: lastSevenTotals.laundry,
       },
@@ -1836,9 +1854,9 @@ const Services = () => {
         iconBg: "bg-pink-100",
         iconColor: "text-pink-600",
         monthTotal: monthMetrics.haircuts,
-        monthAvg: Math.round(monthMetrics.haircuts / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.haircuts / Math.max(1, serviceDayCounts.haircuts)) || 0,
         yearTotal: yearMetrics.haircuts,
-        yearAvg: Math.round(yearMetrics.haircuts / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.haircuts / Math.max(1, serviceDayCounts.haircuts)) || 0,
         todayTotal: tm.haircuts,
         weekTotal: lastSevenTotals.haircuts,
       },
@@ -1849,9 +1867,9 @@ const Services = () => {
         iconBg: "bg-amber-100",
         iconColor: "text-amber-600",
         monthTotal: monthMetrics.holidays,
-        monthAvg: Math.round(monthMetrics.holidays / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.holidays / Math.max(1, serviceDayCounts.holidays)) || 0,
         yearTotal: yearMetrics.holidays,
-        yearAvg: Math.round(yearMetrics.holidays / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.holidays / Math.max(1, serviceDayCounts.holidays)) || 0,
         todayTotal: tm.holidays,
         weekTotal: lastSevenTotals.holidays,
       },
@@ -1862,9 +1880,9 @@ const Services = () => {
         iconBg: "bg-sky-100",
         iconColor: "text-sky-600",
         monthTotal: monthMetrics.bicycles,
-        monthAvg: Math.round(monthMetrics.bicycles / monthDaysElapsed) || 0,
+        monthAvg: Math.round(monthMetrics.bicycles / Math.max(1, serviceDayCounts.bicycles)) || 0,
         yearTotal: yearMetrics.bicycles,
-        yearAvg: Math.round(yearMetrics.bicycles / dayOfYear) || 0,
+        yearAvg: Math.round(yearMetrics.bicycles / Math.max(1, serviceDayCounts.bicycles)) || 0,
         todayTotal: tm.bicycles,
         weekTotal: lastSevenTotals.bicycles,
       },
@@ -1885,13 +1903,14 @@ const Services = () => {
             100,
         )
       : 0;
+    // Calculate weekly averages based on actual service days, not all 7 days
     const weeklyLaundryAvg =
       Math.round(
-        lastSevenTotals.laundry / Math.max(1, lastSevenWindow.length),
+        lastSevenTotals.laundry / Math.max(1, last7ServiceDays.laundry),
       ) || 0;
     const weeklyShowersAvg =
       Math.round(
-        lastSevenTotals.showers / Math.max(1, lastSevenWindow.length),
+        lastSevenTotals.showers / Math.max(1, last7ServiceDays.showers),
       ) || 0;
 
     const insightCards = [
@@ -1899,19 +1918,19 @@ const Services = () => {
         id: "meals-insight",
         title: "Meals momentum",
         stat: `${monthMetrics.mealsServed.toLocaleString()} meals MTD`,
-        description: `Averaging ${Math.round(monthMetrics.mealsServed / monthDaysElapsed).toLocaleString()} per day with ${lastSevenTotals.meals.toLocaleString()} served over the last seven days.`,
+        description: `Averaging ${Math.round(monthMetrics.mealsServed / Math.max(1, serviceDayCounts.meals)).toLocaleString()} per service day with ${lastSevenTotals.meals.toLocaleString()} served over ${last7ServiceDays.meals} service days this week.`,
       },
       {
         id: "laundry-insight",
         title: "Laundry throughput",
         stat: `${monthMetrics.laundryLoads.toLocaleString()} loads`,
-        description: `${laundryMealRatio}% of meal visits included laundry this month. Roughly ${weeklyLaundryAvg.toLocaleString()} loads per day over the last week.`,
+        description: `${laundryMealRatio}% of meal visits included laundry this month. Roughly ${weeklyLaundryAvg.toLocaleString()} loads per service day this week.`,
       },
       {
         id: "showers-insight",
         title: "Shower coverage",
         stat: `${monthMetrics.showersBooked.toLocaleString()} showers`,
-        description: `Completing about ${weeklyShowersAvg.toLocaleString()} showers per day this week. Year to date you have supported ${yearMetrics.showersBooked.toLocaleString()} showers.`,
+        description: `Completing about ${weeklyShowersAvg.toLocaleString()} showers per service day this week. Year to date you have supported ${yearMetrics.showersBooked.toLocaleString()} showers.`,
       },
       {
         id: "bicycle-insight",

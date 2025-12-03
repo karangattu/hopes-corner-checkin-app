@@ -1,23 +1,15 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
 import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
-import LastRefreshedIndicator from "../components/LastRefreshedIndicator";
-import RefreshButton from "../components/RefreshButton";
 import AppVersion from "../components/AppVersion";
 import SeasonalDecorations, { HolidayBanner } from "../components/SeasonalDecorations";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
   const { user, logout } = useAuth();
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Callback when refresh completes
-  const handleRefreshComplete = useCallback(() => {
-    setRefreshKey((k) => k + 1);
-  }, []);
 
   const navItemsAll = [
     { id: "check-in", label: "Check In", icon: UserPlus },
@@ -40,6 +32,13 @@ const MainLayout = ({ children }) => {
     if (role === "checkin") return item.id === "check-in";
     return false;
   });
+
+  // Set initial tab based on user role (board users only see admin dashboard)
+  useEffect(() => {
+    if (role === "board" && activeTab !== "admin") {
+      setActiveTab("admin");
+    }
+  }, [role, activeTab, setActiveTab]);
 
   const [isTouch, setIsTouch] = useState(false);
   const [bottomFixedHeight, setBottomFixedHeight] = useState(120);
@@ -155,13 +154,14 @@ const MainLayout = ({ children }) => {
           {/* Holiday banner - only shows during special occasions */}
           <HolidayBanner className="mb-2" />
           
-          {/* Top bar with refresh button and status */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <RefreshButton onRefreshComplete={handleRefreshComplete} />
-            <LastRefreshedIndicator key={refreshKey} />
-          </div>
           <SyncStatus />
           {children}
+          
+          {/* Data sync notice */}
+          <p className="text-xs text-gray-400 text-center mt-4">
+            Data syncs automatically with Supabase. If multiple users are using the app,
+            reload the page to see the latest changes from other sessions.
+          </p>
         </div>
       </main>
 

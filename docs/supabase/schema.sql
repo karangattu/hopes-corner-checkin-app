@@ -144,6 +144,16 @@ create index if not exists guests_banned_until_idx
   on public.guests (banned_until)
   where banned_until is not null;
 
+-- Performance indexes for large guest tables (100k+ records)
+create index if not exists guests_created_at_idx
+  on public.guests (created_at desc);
+
+create index if not exists guests_full_name_idx
+  on public.guests (full_name);
+
+create index if not exists guests_external_id_idx
+  on public.guests (external_id);
+
 -- 4. Program attendance & services
 create table if not exists public.meal_attendance (
   id uuid primary key default gen_random_uuid(),
@@ -171,6 +181,16 @@ for each row execute function public.ensure_guest_not_banned();
 create unique index if not exists meal_attendance_guest_unique
   on public.meal_attendance (guest_id, served_on)
   where meal_type = 'guest';
+
+-- Performance indexes for meal attendance queries
+create index if not exists meal_attendance_served_on_idx
+  on public.meal_attendance (served_on desc);
+
+create index if not exists meal_attendance_guest_id_idx
+  on public.meal_attendance (guest_id);
+
+create index if not exists meal_attendance_created_at_idx
+  on public.meal_attendance (created_at desc);
 
 create table if not exists public.shower_reservations (
   id uuid primary key default gen_random_uuid(),
