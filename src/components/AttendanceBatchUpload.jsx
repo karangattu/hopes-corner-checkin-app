@@ -598,12 +598,26 @@ const AttendanceBatchUpload = () => {
           allNewMealRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.meals) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            await addMealRecord(record.internalGuestId, record.count, dateIso);
-            successCount++;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              const result = await addMealRecord(record.internalGuestId, record.count, dateIso);
+              // addMealRecord returns null for duplicates, which is okay
+              if (result !== null) {
+                successCount++;
+              }
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local meal import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -613,7 +627,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase meal import failed: ${errorMessage}`,
+            message: `Meal import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -635,17 +649,29 @@ const AttendanceBatchUpload = () => {
           allNewShowerRecords.push(...inserted);
           successCount += inserted.length;
         } else {
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.showers) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            const imported = importShowerAttendanceRecord(
-              record.internalGuestId,
-              {
-                dateSubmitted: dateIso,
-                count: record.count,
-              },
-            );
-            successCount += imported.length;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              const imported = importShowerAttendanceRecord(
+                record.internalGuestId,
+                {
+                  dateSubmitted: dateIso,
+                  count: record.count,
+                },
+              );
+              successCount += imported.length;
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local shower import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -655,7 +681,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase shower import failed: ${errorMessage}`,
+            message: `Shower import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -677,17 +703,29 @@ const AttendanceBatchUpload = () => {
           allNewLaundryRecords.push(...inserted);
           successCount += inserted.length;
         } else {
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.laundry) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            const imported = importLaundryAttendanceRecord(
-              record.internalGuestId,
-              {
-                dateSubmitted: dateIso,
-                count: record.count,
-              },
-            );
-            successCount += imported.length;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              const imported = importLaundryAttendanceRecord(
+                record.internalGuestId,
+                {
+                  dateSubmitted: dateIso,
+                  count: record.count,
+                },
+              );
+              successCount += imported.length;
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local laundry import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -697,7 +735,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase laundry import failed: ${errorMessage}`,
+            message: `Laundry import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -719,17 +757,29 @@ const AttendanceBatchUpload = () => {
           allNewBicycleRecords.push(...inserted);
           successCount += inserted.length;
         } else {
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.bicycles) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            await addBicycleRecord(record.internalGuestId, {
-              repairType: "Legacy Import",
-              notes: "Imported from legacy system",
-              dateOverride: dateIso,
-              statusOverride: BICYCLE_REPAIR_STATUS.DONE,
-              completedAtOverride: dateIso,
-            });
-            successCount++;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              await addBicycleRecord(record.internalGuestId, {
+                repairType: "Legacy Import",
+                notes: "Imported from legacy system",
+                dateOverride: dateIso,
+                statusOverride: BICYCLE_REPAIR_STATUS.DONE,
+                completedAtOverride: dateIso,
+              });
+              successCount++;
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local bicycle import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -739,7 +789,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase bicycle import failed: ${errorMessage}`,
+            message: `Bicycle import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -761,11 +811,23 @@ const AttendanceBatchUpload = () => {
           allNewHaircutRecords.push(...inserted);
           successCount += inserted.length;
         } else {
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.haircuts) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            await addHaircutRecord(record.internalGuestId, dateIso);
-            successCount++;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              await addHaircutRecord(record.internalGuestId, dateIso);
+              successCount++;
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local haircut import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -775,7 +837,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase haircut import failed: ${errorMessage}`,
+            message: `Haircut import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -802,11 +864,23 @@ const AttendanceBatchUpload = () => {
           allNewHolidayRecords.push(...inserted);
           successCount += inserted.length;
         } else {
+          // Fallback to individual inserts if batch not available (local mode)
           for (const record of recordsByType.holidays) {
-            const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
-            const dateIso = isoFromPacificDateString(pacificDateStr);
-            await addHolidayRecord(record.internalGuestId, dateIso);
-            successCount++;
+            try {
+              const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
+              const dateIso = isoFromPacificDateString(pacificDateStr);
+              await addHolidayRecord(record.internalGuestId, dateIso);
+              successCount++;
+            } catch (recordError) {
+              const errorMessage = recordError?.message || String(recordError);
+              errors.push({
+                rowNumber: record.rowIndex + 2,
+                guestId: record.guestId || null,
+                program: record.program,
+                message: `Local holiday import failed: ${errorMessage}`,
+              });
+              errorCount++;
+            }
           }
         }
       } catch (error) {
@@ -816,7 +890,7 @@ const AttendanceBatchUpload = () => {
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase holiday import failed: ${errorMessage}`,
+            message: `Holiday import failed: ${errorMessage}`,
           });
           errorCount++;
         });

@@ -568,4 +568,148 @@ describe("AttendanceBatchUpload - Integration Tests for Large Uploads", () => {
       expect(batches[1].records[0].value).toBe(1000);
     });
   });
+
+  describe("Local mode (supabaseEnabled=false) robustness", () => {
+    it("should handle per-record errors gracefully in local mode", async () => {
+      // Simulate the local mode fallback path
+      const processRecordsLocally = async (records, addRecord) => {
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+
+        for (const record of records) {
+          try {
+            const result = await addRecord(record);
+            if (result !== null) {
+              successCount++;
+            }
+          } catch (recordError) {
+            const errorMessage = recordError?.message || String(recordError);
+            errors.push({
+              rowNumber: record.rowIndex + 2,
+              guestId: record.guestId || null,
+              program: record.program,
+              message: `Local import failed: ${errorMessage}`,
+            });
+            errorCount++;
+          }
+        }
+
+        return { successCount, errorCount, errors };
+      };
+
+      // Simulate addRecord that fails on every 10th call
+      let callCount = 0;
+      const mockAddRecord = vi.fn().mockImplementation(async (record) => {
+        callCount++;
+        if (callCount % 10 === 0) {
+          throw new Error("Simulated failure");
+        }
+        return { id: `local-${callCount}`, ...record };
+      });
+
+      const records = Array.from({ length: 100 }, (_, i) => ({
+        guestId: `G${i + 1}`,
+        program: "Meal",
+        count: 1,
+        rowIndex: i,
+      }));
+
+      const result = await processRecordsLocally(records, mockAddRecord);
+
+      // 10 records should fail (every 10th)
+      expect(result.errorCount).toBe(10);
+      expect(result.successCount).toBe(90);
+      expect(result.errors).toHaveLength(10);
+
+      // Verify all errors have proper structure
+      result.errors.forEach((error) => {
+        expect(error).toHaveProperty("rowNumber");
+        expect(error).toHaveProperty("guestId");
+        expect(error).toHaveProperty("program");
+        expect(error).toHaveProperty("message");
+        expect(error.message).toContain("Local import failed");
+      });
+    });
+
+    it("should continue processing remaining records after individual failures", async () => {
+      const processedIds = [];
+
+      const processRecordsLocally = async (records, addRecord) => {
+        let successCount = 0;
+
+        for (const record of records) {
+          try {
+            await addRecord(record);
+            processedIds.push(record.id);
+            successCount++;
+          } catch {
+            // Error should not stop processing
+          }
+        }
+
+        return { successCount, processedCount: processedIds.length };
+      };
+
+      // First 5 succeed, 6th fails, then rest succeed
+      const mockAddRecord = vi.fn().mockImplementation(async (record) => {
+        if (record.id === 6) {
+          throw new Error("Record 6 failed");
+        }
+        return record;
+      });
+
+      const records = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
+      const result = await processRecordsLocally(records, mockAddRecord);
+
+      // Should have processed 9 records successfully (all except #6)
+      expect(result.successCount).toBe(9);
+      expect(processedIds).toContain(1);
+      expect(processedIds).toContain(5);
+      expect(processedIds).not.toContain(6); // Failed one
+      expect(processedIds).toContain(7); // Continued after failure
+      expect(processedIds).toContain(10);
+    });
+
+    it("should handle null returns from addRecord (duplicate detection)", async () => {
+      const processRecordsLocally = async (records, addRecord) => {
+        let successCount = 0;
+
+        for (const record of records) {
+          try {
+            const result = await addRecord(record);
+            // addMealRecord returns null for duplicates, which is okay
+            if (result !== null) {
+              successCount++;
+            }
+          } catch {
+            // Error handling
+          }
+        }
+
+        return { successCount };
+      };
+
+      // Return null for duplicate records
+      const mockAddRecord = vi.fn().mockImplementation(async (record) => {
+        if (record.isDuplicate) {
+          return null;
+        }
+        return { id: `new-${record.id}`, ...record };
+      });
+
+      const records = [
+        { id: 1, isDuplicate: false },
+        { id: 2, isDuplicate: true }, // Duplicate - should return null
+        { id: 3, isDuplicate: false },
+        { id: 4, isDuplicate: true }, // Duplicate - should return null
+        { id: 5, isDuplicate: false },
+      ];
+
+      const result = await processRecordsLocally(records, mockAddRecord);
+
+      // Only non-duplicates should count as success
+      expect(result.successCount).toBe(3);
+    });
+  });
 });

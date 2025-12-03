@@ -1379,7 +1379,7 @@ const MonthlySummaryReport = () => {
                 </th>
                 <th
                   className="border border-gray-300 px-3 py-3 text-center font-semibold text-amber-800 bg-yellow-50"
-                  colSpan={6}
+                  colSpan={5}
                 >
                   Shower Program
                 </th>
@@ -1395,7 +1395,6 @@ const MonthlySummaryReport = () => {
                 <th className="border border-gray-200 px-2 py-2 text-center">Showers</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">New Guests</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">YTD Unique Guests</th>
                 <th className="border border-gray-200 px-2 py-2 text-center bg-emerald-50">Participants</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Loads</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
@@ -1436,12 +1435,6 @@ const MonthlySummaryReport = () => {
                     className="border border-gray-300 px-3 py-2 text-right"
                   >
                     {row.newGuests.toLocaleString()}
-                  </td>
-                  <td
-                    data-column="ytd-unique-guests"
-                    className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-900"
-                  >
-                    {row.ytdTotalUnduplicatedGuests.toLocaleString()}
                   </td>
                   <td
                     data-column="participants"
@@ -1525,12 +1518,6 @@ const MonthlySummaryReport = () => {
                   className="border border-gray-300 px-3 py-2 text-right"
                 >
                   {showerLaundrySummary.totals.newGuests.toLocaleString()}
-                </td>
-                <td
-                  data-column="ytd-unique-guests"
-                  className="border border-gray-300 px-3 py-2 text-right"
-                >
-                  {showerLaundrySummary.totals.ytdTotalUnduplicatedGuests.toLocaleString()}
                 </td>
                 <td
                   data-column="participants"

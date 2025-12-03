@@ -142,13 +142,6 @@ const Dashboard = () => {
   const exportDatasetOptions = useMemo(
     () => [
       {
-        id: "guests",
-        label: "Guest roster",
-        icon: Users,
-        category: "Operations & audits",
-        description: "Full directory of registered guests with contact details, housing status, and IDs.",
-      },
-      {
         id: "services",
         label: "Service history",
         icon: ClipboardList,
@@ -632,7 +625,6 @@ const Dashboard = () => {
   };
 
   const headerAnim = useFadeInUp();
-  const overviewGridAnim = useFadeInUp();
   const monthGridAnim = useFadeInUp();
   const yearGridAnim = useFadeInUp();
   const auth = useAuth();
@@ -692,7 +684,6 @@ const Dashboard = () => {
 
   const renderOverviewSection = () => (
     <OverviewDashboard
-      overviewGridAnim={overviewGridAnim}
       monthGridAnim={monthGridAnim}
       yearGridAnim={yearGridAnim}
     />

@@ -2294,34 +2294,6 @@ const Services = () => {
         activeMealTypeCount > 0,
     );
 
-    const exportCards = [
-      {
-        id: "guest-roster",
-        title: "Guest roster (.csv)",
-        description:
-          "Download the latest roster with preferred names for offline check-in or reporting.",
-        icon: Users,
-        href: "/guest_list.csv",
-        meta: `${guests.length.toLocaleString()} guests currently in the system`,
-      },
-      {
-        id: "guest-template",
-        title: "Guest import template",
-        description:
-          "Start new batch uploads with the official column headers and sample formatting.",
-        icon: SquarePlus,
-        href: "/guest_template.csv",
-        meta: "CSV includes notes for email/phone columns",
-      },
-    ];
-
-    const sampleExportDate = new Date().toISOString().split("T")[0];
-    const bestPractices = [
-      `Add the date to exported filenames, e.g., "services-${sampleExportDate}.csv" for easier retrieval later.`,
-      "Store downloads in a secure shared drive (Google Drive, SharePoint, etc.) so the whole team can access the history.",
-      "Capture exports before clearing queues or using the System Utilities reset to keep an audit trail.",
-    ];
-
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col gap-2">
@@ -2450,58 +2422,6 @@ const Services = () => {
                 <Download size={12} /> Download CSV
               </button>
             </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {exportCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <a
-                key={card.id}
-                href={card.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-                className="group bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all p-5 flex flex-col gap-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <Icon size={20} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 group-hover:text-blue-700">
-                      {card.title}
-                    </h3>
-                    <p className="text-xs text-blue-600 font-semibold">
-                      Opens in a new tab
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {card.description}
-                </p>
-                <span className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-full px-3 py-1 self-start">
-                  {card.meta}
-                </span>
-              </a>
-            );
-          })}
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 flex items-center gap-2">
-            <ClipboardList size={14} /> Record keeping best practices
-          </h3>
-          <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
-            {bestPractices.map((tip, index) => (
-              <li key={index}>{tip}</li>
-            ))}
-          </ul>
-          <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-600">
-            Looking for richer analytics? Visit the Admin Dashboard &rarr;
-            Reports tab to export combined meal, laundry, and shower summaries
-            by date range.
           </div>
         </div>
       </div>

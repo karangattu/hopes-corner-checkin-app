@@ -210,24 +210,6 @@ describe("Dashboard data exports", () => {
     toastMock.error.mockClear();
   });
 
-  it("exports the guest roster", () => {
-    renderDashboard();
-
-    completeExportFlow("Guest roster");
-
-    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
-    const [rows, filename] = exportDataAsCSVMock.mock.calls[0];
-    expect(rows).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          Guest_ID: baseGuest.guestId,
-          Name: baseGuest.name,
-        }),
-      ]),
-    );
-    expect(filename).toMatch(/guests/);
-  });
-
   it("exports combined service history", () => {
     const dateString = new Date("2025-03-15").toISOString();
     setupMockContext({
@@ -503,20 +485,6 @@ describe("Dashboard data exports", () => {
     );
   });
 
-  it("handles guest export when no guests exist", () => {
-    setupMockContext({
-      guests: [],
-    });
-
-    renderDashboard();
-
-  completeExportFlow("Guest roster");
-
-    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
-    const [rows] = exportDataAsCSVMock.mock.calls[0];
-    expect(rows).toEqual([]);
-  });
-
   it("shows error when exporting metrics with no data", () => {
     setupMockContext({
       getDateRangeMetrics: vi.fn(() => ({
@@ -566,48 +534,5 @@ describe("Dashboard data exports", () => {
 
     fireEvent.click(continueButton);
     expect(exportDataAsCSVMock).not.toHaveBeenCalled();
-  });
-
-  it("exports guest details with all fields", () => {
-    const guestWithAllFields = {
-      id: "guest-2",
-      guestId: "G-002",
-      name: "Bob Smith",
-      firstName: "Bob",
-      lastName: "Smith",
-      preferredName: "Bobby",
-      housingStatus: "Unsheltered",
-      location: "Downtown",
-      age: "36-45",
-      gender: "Male",
-      phone: "555-1234",
-      birthdate: "1980-01-15",
-      createdAt: new Date("2025-01-15").toISOString(),
-    };
-
-    setupMockContext({
-      guests: [guestWithAllFields],
-    });
-
-    renderDashboard();
-
-  completeExportFlow("Guest roster");
-
-    expect(exportDataAsCSVMock).toHaveBeenCalledTimes(1);
-    const [rows] = exportDataAsCSVMock.mock.calls[0];
-    expect(rows[0]).toEqual({
-      Guest_ID: "G-002",
-      "First Name": "Bob",
-      "Last Name": "Smith",
-      "Preferred Name": "Bobby",
-      Name: "Bob Smith",
-      "Housing Status": "Unsheltered",
-      Location: "Downtown",
-      Age: "36-45",
-      Gender: "Male",
-      Phone: "555-1234",
-      "Birth Date": "1980-01-15",
-      "Registration Date": expect.any(String),
-    });
   });
 });

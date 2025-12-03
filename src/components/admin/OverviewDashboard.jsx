@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { LAUNDRY_STATUS } from "../../context/constants";
 import {
-  Users,
   Utensils,
   ShowerHead,
   WashingMachine,
@@ -13,9 +12,6 @@ import {
 } from "lucide-react";
 import { Scissors, Gift, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
-import PieCardRecharts from "../charts/PieCardRecharts";
-import StackedBarCardRecharts from "../charts/StackedBarCardRecharts";
-import OnsiteMealDemographics from "./OnsiteMealDemographics";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
 import {
@@ -172,13 +168,10 @@ const MetricCard = ({ title, icon, value, target, colorClass = "blue" }) => {
 };
 
 const OverviewDashboard = ({
-  overviewGridAnim,
   monthGridAnim,
   yearGridAnim,
 }) => {
   const {
-    getTodayMetrics,
-    guests,
     settings,
     updateSettings,
     mealRecords,
@@ -198,30 +191,6 @@ const OverviewDashboard = ({
   const [tempTargets, setTempTargets] = useState(() =>
     formatTargetsForEditing(settings.targets ?? DEFAULT_TARGETS),
   );
-
-  // Date range filters for demographic visualizations
-  // Start with "All Time" by default (2000-01-01 as a reasonable minimum date)
-  const [demographicsStartDate, setDemographicsStartDate] = useState(() => {
-    return "2000-01-01";
-  });
-  const [demographicsEndDate, setDemographicsEndDate] = useState(() => {
-    const now = new Date();
-    return now.toISOString().split("T")[0];
-  });
-
-  // Helper to set year-to-date range
-  const setYearToDateRange = useCallback(() => {
-    const now = new Date();
-    setDemographicsStartDate(`${now.getFullYear()}-01-01`);
-    setDemographicsEndDate(now.toISOString().split("T")[0]);
-  }, []);
-
-  // Helper to set all-time range
-  const setAllTimeRange = useCallback(() => {
-    setDemographicsStartDate("2000-01-01");
-    const now = new Date();
-    setDemographicsEndDate(now.toISOString().split("T")[0]);
-  }, []);
 
   // Keep temp targets in sync when not actively editing
   React.useEffect(() => {
@@ -264,108 +233,6 @@ const OverviewDashboard = ({
       setIsEditingTargets(false);
     }
   }, [isEditingTargets, settings.targets]);
-
-  // Helper function to check if guest's creation date falls within the filter range
-  const isGuestInDateRange = useCallback((guest, startDate, endDate) => {
-    // If guest has no createdAt, default to January 1 of the current year
-    const guestDate = guest.createdAt
-      ? new Date(guest.createdAt).toISOString().split("T")[0]
-      : `${new Date().getFullYear()}-01-01`;
-
-    return guestDate >= startDate && guestDate <= endDate;
-  }, []);
-
-  const todayMetrics = getTodayMetrics();
-
-  // Filter guests by date range
-  const filteredGuestsForDemographics = useMemo(() => {
-    return guests.filter((guest) =>
-      isGuestInDateRange(guest, demographicsStartDate, demographicsEndDate),
-    );
-  }, [guests, demographicsStartDate, demographicsEndDate, isGuestInDateRange]);
-
-  // Calculate housing status breakdown
-  const housingStatusCounts = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const status = guest.housingStatus || "Unknown";
-      acc[status] = (acc[status] || 0) + 1;
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
-
-  // Calculate age group breakdown
-  const ageGroupCounts = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const age = guest.age || "Unknown";
-      acc[age] = (acc[age] || 0) + 1;
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
-
-  // Calculate gender breakdown
-  const genderCounts = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const gender = guest.gender || "Unknown";
-      acc[gender] = (acc[gender] || 0) + 1;
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
-
-  // Calculate year-to-date guests separately for comparison
-  const ytdGuests = useMemo(() => {
-    const now = new Date();
-    const ytdStart = `${now.getFullYear()}-01-01`;
-    const ytdEnd = now.toISOString().split("T")[0];
-    return guests.filter((guest) => isGuestInDateRange(guest, ytdStart, ytdEnd));
-  }, [guests, isGuestInDateRange]);
-
-  // YTD age breakdown
-  const ytdAgeGroupCounts = useMemo(() => {
-    return ytdGuests.reduce((acc, guest) => {
-      const age = guest.age || "Unknown";
-      acc[age] = (acc[age] || 0) + 1;
-      return acc;
-    }, {});
-  }, [ytdGuests]);
-
-  // YTD location breakdown
-  const ytdLocationCounts = useMemo(() => {
-    return ytdGuests.reduce((acc, guest) => {
-      const location = guest.location || "Unknown";
-      acc[location] = (acc[location] || 0) + 1;
-      return acc;
-    }, {});
-  }, [ytdGuests]);
-
-  // Calculate Age Group by City (cross-tabulation)
-  const ageGroupByCity = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const city = guest.location || "Unknown";
-      const ageGroup = guest.age || "Unknown";
-
-      if (!acc[city]) {
-        acc[city] = {};
-      }
-      acc[city][ageGroup] = (acc[city][ageGroup] || 0) + 1;
-
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
-
-  // Calculate Housing Status by City (cross-tabulation)
-  const housingStatusByCity = useMemo(() => {
-    return filteredGuestsForDemographics.reduce((acc, guest) => {
-      const city = guest.location || "Unknown";
-      const status = guest.housingStatus || "Unknown";
-
-      if (!acc[city]) {
-        acc[city] = {};
-      }
-      acc[city][status] = (acc[city][status] || 0) + 1;
-
-      return acc;
-    }, {});
-  }, [filteredGuestsForDemographics]);
 
   const completedLaundryStatuses = useMemo(
     () =>
@@ -638,259 +505,6 @@ const OverviewDashboard = ({
           </div>
         </div>
       )}
-
-      {/* Today's Activity */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Calendar size={18} />
-          Today's Activity
-        </h2>
-        <Animated.div
-          style={overviewGridAnim}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-        >
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="text-blue-800 font-medium text-sm">
-                  Guests Registered
-                </h3>
-                <p className="text-2xl font-bold text-blue-900 mt-1">
-                  {guests.length}
-                </p>
-              </div>
-              <SpringIcon>
-                <Users className="text-blue-500" size={20} />
-              </SpringIcon>
-            </div>
-            <div className="text-sm text-blue-700 max-h-24 overflow-y-auto pr-1">
-              {Object.entries(housingStatusCounts).map(([status, count]) => (
-                <div key={status} className="flex items-center justify-between">
-                  <span>{status}</span>
-                  <span className="font-medium">{count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="hidden sm:flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Guests by Housing Status
-            </h3>
-            <PieCardRecharts
-              title="Guests"
-              subtitle="Housing Status"
-              dataMap={housingStatusCounts}
-            />
-          </div>
-
-          <div className="hidden sm:flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Guests by Age Group
-            </h3>
-            <PieCardRecharts
-              title="Demographics"
-              subtitle="Age Groups"
-              dataMap={ageGroupCounts}
-            />
-          </div>
-
-          <div className="hidden sm:flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Guests by Gender
-            </h3>
-            <PieCardRecharts
-              title="Demographics"
-              subtitle="Gender"
-              dataMap={genderCounts}
-            />
-          </div>
-
-          <MetricCard
-            title="Today's Meals"
-            icon={Utensils}
-            value={todayMetrics.mealsServed}
-            colorClass="green"
-          />
-
-          <MetricCard
-            title="Today's Showers"
-            icon={ShowerHead}
-            value={todayMetrics.showersBooked}
-            colorClass="blue"
-          />
-        </Animated.div>
-      </div>
-
-      {/* Demographics Date Range Filter */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2 sm:mb-0">
-            Filter Demographics by Date Range
-          </h3>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={setAllTimeRange}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors"
-            >
-              All Time
-            </button>
-            <button
-              type="button"
-              onClick={setYearToDateRange}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 bg-white hover:bg-blue-50 transition-colors"
-            >
-              Year-to-Date
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="demo-start-date"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Start Date
-            </label>
-            <input
-              id="demo-start-date"
-              type="date"
-              value={demographicsStartDate}
-              onChange={(e) => setDemographicsStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="demo-end-date"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              End Date
-            </label>
-            <input
-              id="demo-end-date"
-              type="date"
-              value={demographicsEndDate}
-              onChange={(e) => setDemographicsEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <p className="text-xs text-gray-500">
-            Showing {filteredGuestsForDemographics.length} guest(s) in selected date range
-          </p>
-          <p className="text-xs font-semibold text-blue-600">
-            YTD: {ytdGuests.length} guest(s) registered this year
-          </p>
-        </div>
-      </div>
-
-      {/* Year-to-Date Demographics Summary */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
-          <Calendar size={18} />
-          Year-to-Date Demographics Summary
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* YTD Age Groups */}
-          <div className="bg-white rounded-lg p-4 border border-blue-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Age Groups (YTD)</h3>
-            <div className="space-y-2">
-              {Object.entries(ytdAgeGroupCounts)
-                .sort(([, a], [, b]) => b - a)
-                .map(([age, count]) => {
-                  const percentage = ytdGuests.length > 0
-                    ? ((count / ytdGuests.length) * 100).toFixed(1)
-                    : '0.0';
-                  return (
-                    <div key={age} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700">{age}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">{count}</span>
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          {/* YTD Cities */}
-          <div className="bg-white rounded-lg p-4 border border-blue-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Cities (YTD)</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {Object.entries(ytdLocationCounts)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 10)
-                .map(([city, count]) => {
-                  const percentage = ytdGuests.length > 0
-                    ? ((count / ytdGuests.length) * 100).toFixed(1)
-                    : '0.0';
-                  return (
-                    <div key={city} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 truncate">{city}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">{count}</span>
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          {/* YTD Summary Stats */}
-          <div className="bg-white rounded-lg p-4 border border-blue-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">YTD Summary</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500">Total Guests Registered</p>
-                <p className="text-2xl font-bold text-blue-600">{ytdGuests.length}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Unique Cities</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {Object.keys(ytdLocationCounts).length}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Age Groups Tracked</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {Object.keys(ytdAgeGroupCounts).length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cross-Tabulated Demographics */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Users size={18} />
-          Demographics by City (Filtered Range)
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <StackedBarCardRecharts
-            title="Age Group by City"
-            subtitle="Distribution of age groups across cities"
-            crossTabData={ageGroupByCity}
-          />
-          <StackedBarCardRecharts
-            title="Housing Status by City"
-            subtitle="Distribution of housing status across cities"
-            crossTabData={housingStatusByCity}
-          />
-        </div>
-      </div>
-
-      <OnsiteMealDemographics />
 
       {/* Monthly Progress */}
       <div>
