@@ -10,6 +10,7 @@ import {
   DropletIcon,
   FanIcon,
   CheckCircle2Icon,
+  CheckCircle,
   LogOutIcon,
   Clock,
   CalendarClock,
@@ -43,6 +44,8 @@ import {
   Download,
   Trash2,
   FileText,
+  ArrowRight,
+  Package,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
@@ -4139,176 +4142,244 @@ const Services = () => {
         </div>
 
         {todayWaitlisted.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 lg:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-md font-semibold text-gray-900 flex items-center gap-2">
-                <Clock size={18} className="text-amber-600" />
-                <span>Waitlisted Guests</span>
-              </h3>
-              <span className="bg-amber-100 text-amber-800 text-xs font-medium px-3 py-1 rounded-full">
-                {todayWaitlisted.length} waitlisted
-              </span>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Enhanced Waitlist Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 lg:px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-white/20 backdrop-blur rounded-lg">
+                    <Clock size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">
+                      Shower Waitlist
+                    </h3>
+                    <p className="text-amber-100 text-xs">
+                      {todayWaitlisted.length} {todayWaitlisted.length === 1 ? 'guest' : 'guests'} waiting for available slots
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-white/20 backdrop-blur text-white text-sm font-medium px-4 py-2 rounded-lg">
+                    Queue: {todayWaitlisted.length}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-3">
-              {waitlistTrail.map((style, idx) => {
-                const record = todayWaitlisted[idx];
-                if (!record) return null;
-                const guest = guests.find((g) => g.id === record.guestId);
-                const nameDetails = getGuestNameDetails(record.guestId);
-                const guestName = nameDetails.primaryName;
-                const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
-                const canSB = guest
-                  ? canGiveItem(guest.id, "sleeping_bag")
-                  : false;
-                const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
+            
+            {/* Waitlist Queue */}
+            <div className="p-4 lg:p-6">
+              <div className="space-y-3">
+                {waitlistTrail.map((style, idx) => {
+                  const record = todayWaitlisted[idx];
+                  if (!record) return null;
+                  const guest = guests.find((g) => g.id === record.guestId);
+                  const nameDetails = getGuestNameDetails(record.guestId);
+                  const guestName = nameDetails.primaryName;
+                  const queuePosition = idx + 1;
+                  const isNextUp = queuePosition <= 2;
+                  const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
+                  const canSB = guest
+                    ? canGiveItem(guest.id, "sleeping_bag")
+                    : false;
+                  const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
 
-                const waitlistActions = guest
-                  ? [
-                      {
-                        key: "tshirt",
-                        label: "Give T-Shirt",
-                        canGive: canT,
-                        successMessage: "T-Shirt given",
-                        days: getDaysUntilAvailable(guest.id, "tshirt"),
-                        nextDate: getNextAvailabilityDate(
-                          "tshirt",
-                          getLastGivenItem(guest.id, "tshirt")?.date,
-                        ),
-                      },
-                      {
-                        key: "sleeping_bag",
-                        label: "Give Sleeping Bag",
-                        canGive: canSB,
-                        successMessage: "Sleeping bag given",
-                        days: getDaysUntilAvailable(guest.id, "sleeping_bag"),
-                        nextDate: getNextAvailabilityDate(
-                          "sleeping_bag",
-                          getLastGivenItem(guest.id, "sleeping_bag")?.date,
-                        ),
-                      },
-                      {
-                        key: "backpack",
-                        label: "Give Backpack",
-                        canGive: canBP,
-                        successMessage: "Backpack given",
-                        days: getDaysUntilAvailable(guest.id, "backpack"),
-                        nextDate: getNextAvailabilityDate(
-                          "backpack",
-                          getLastGivenItem(guest.id, "backpack")?.date,
-                        ),
-                      },
-                    ]
-                  : [];
+                  const waitlistActions = guest
+                    ? [
+                        {
+                          key: "tshirt",
+                          label: "Give T-Shirt",
+                          canGive: canT,
+                          successMessage: "T-Shirt given",
+                          days: getDaysUntilAvailable(guest.id, "tshirt"),
+                          nextDate: getNextAvailabilityDate(
+                            "tshirt",
+                            getLastGivenItem(guest.id, "tshirt")?.date,
+                          ),
+                        },
+                        {
+                          key: "sleeping_bag",
+                          label: "Give Sleeping Bag",
+                          canGive: canSB,
+                          successMessage: "Sleeping bag given",
+                          days: getDaysUntilAvailable(guest.id, "sleeping_bag"),
+                          nextDate: getNextAvailabilityDate(
+                            "sleeping_bag",
+                            getLastGivenItem(guest.id, "sleeping_bag")?.date,
+                          ),
+                        },
+                        {
+                          key: "backpack",
+                          label: "Give Backpack",
+                          canGive: canBP,
+                          successMessage: "Backpack given",
+                          days: getDaysUntilAvailable(guest.id, "backpack"),
+                          nextDate: getNextAvailabilityDate(
+                            "backpack",
+                            getLastGivenItem(guest.id, "backpack")?.date,
+                          ),
+                        },
+                      ]
+                    : [];
 
-                return (
-                  <Animated.div
-                    key={record.id}
-                    style={style}
-                    className="will-change-transform bg-amber-50 border border-amber-100 rounded-lg p-4"
-                  >
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-gray-900">
-                              {guestName}
+                  return (
+                    <Animated.div
+                      key={record.id}
+                      style={style}
+                      className={`will-change-transform rounded-xl border-2 transition-all duration-200 ${
+                        isNextUp 
+                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-md' 
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-4">
+                          {/* Queue Position Badge */}
+                          <div className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl ${
+                            isNextUp 
+                              ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200' 
+                              : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            <span className="text-[10px] uppercase font-semibold tracking-wide opacity-80">
+                              {isNextUp ? 'Next' : 'Queue'}
                             </span>
-                            {nameDetails.hasPreferred && (
-                              <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                Legal: {nameDetails.legalName}
+                            <span className="text-xl font-bold">#{queuePosition}</span>
+                          </div>
+                          
+                          {/* Guest Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`font-semibold ${isNextUp ? 'text-amber-900' : 'text-gray-900'}`}>
+                                {guestName}
                               </span>
-                            )}
-                            <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
-                              Waitlisted
-                            </span>
-                          </div>
-                          <div className="text-xs text-amber-700 mt-1">
-                            Added at{" "}
-                            {new Date(record.date).toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const success = await updateShowerStatus(
-                                  record.id,
-                                  "done",
-                                );
-                                if (success) {
-                                  toast.success(
-                                    "Waitlisted shower marked complete",
-                                  );
-                                }
-                              } catch (err) {
-                                toast.error(err.message);
-                              }
-                            }}
-                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                          >
-                            Mark complete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              try {
-                                cancelShowerRecord(record.id);
-                                toast.success("Waitlist entry cancelled");
-                              } catch (err) {
-                                toast.error(err.message);
-                              }
-                            }}
-                            className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {waitlistActions.map((action) => {
-                          const nextDateLabel = action.nextDate
-                            ? action.nextDate.toLocaleDateString("en-CA")
-                            : null;
-                          return (
-                            <button
-                              key={action.key}
-                              disabled={!action.canGive}
-                              onClick={() => {
-                                if (!guest) return;
-                                try {
-                                  giveItem(guest.id, action.key);
-                                  toast.success(action.successMessage);
-                                } catch (e) {
-                                  toast.error(e.message);
-                                }
-                              }}
-                              className="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-amber-200 text-amber-800 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={
-                                action.canGive
-                                  ? action.label
-                                  : nextDateLabel
-                                    ? `Available ${nextDateLabel}`
-                                    : "Not yet available"
-                              }
-                            >
-                              {action.label}
-                              {!action.canGive && action.days > 0 && (
-                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700 border border-orange-200">
-                                  {action.days}d
+                              {nameDetails.hasPreferred && (
+                                <span className="text-[11px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                                  Legal: {nameDetails.legalName}
                                 </span>
                               )}
-                            </button>
-                          );
-                        })}
+                              {isNextUp && (
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wide animate-pulse">
+                                  Priority
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Clock size={12} />
+                                Joined at {new Date(record.date).toLocaleTimeString([], {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                              <span className="text-gray-300">•</span>
+                              <span>
+                                Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)} min
+                              </span>
+                            </div>
+                            
+                            {/* Quick Actions */}
+                            <div className="flex items-center gap-2 mt-3 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const success = await updateShowerStatus(
+                                      record.id,
+                                      "done",
+                                    );
+                                    if (success) {
+                                      toast.success(
+                                        "Waitlisted shower marked complete",
+                                      );
+                                    }
+                                  } catch (err) {
+                                    toast.error(err.message);
+                                  }
+                                }}
+                                className={`text-xs font-medium px-4 py-2 rounded-lg transition-all ${
+                                  isNextUp
+                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
+                                    : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                }`}
+                              >
+                                ✓ Mark Complete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  try {
+                                    cancelShowerRecord(record.id);
+                                    toast.success("Waitlist entry cancelled");
+                                  } catch (err) {
+                                    toast.error(err.message);
+                                  }
+                                }}
+                                className="text-xs font-medium px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
+                              >
+                                ✗ Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Essentials Quick Actions */}
+                        {waitlistActions.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-200/50">
+                            <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mb-2">
+                              Offer Essentials
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {waitlistActions.map((action) => {
+                                const nextDateLabel = action.nextDate
+                                  ? action.nextDate.toLocaleDateString("en-CA")
+                                  : null;
+                                return (
+                                  <button
+                                    key={action.key}
+                                    disabled={!action.canGive}
+                                    onClick={() => {
+                                      if (!guest) return;
+                                      try {
+                                        giveItem(guest.id, action.key);
+                                        toast.success(action.successMessage);
+                                      } catch (e) {
+                                        toast.error(e.message);
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    title={
+                                      action.canGive
+                                        ? action.label
+                                        : nextDateLabel
+                                          ? `Available ${nextDateLabel}`
+                                          : "Not yet available"
+                                    }
+                                  >
+                                    {action.label}
+                                    {!action.canGive && action.days > 0 && (
+                                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">
+                                        {action.days}d
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </Animated.div>
-                );
-              })}
+                    </Animated.div>
+                  );
+                })}
+              </div>
+              
+              {/* Waitlist Tips */}
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  <strong>Tip:</strong> Guests marked as "Priority" are next in line. 
+                  Mark them complete as soon as a shower slot opens up.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -4340,6 +4411,12 @@ const Services = () => {
     ).length;
     const transportedOffsite = offsiteLoads.filter(
       (record) => record.status === LAUNDRY_STATUS.TRANSPORTED,
+    ).length;
+    const returnedOffsite = offsiteLoads.filter(
+      (record) => record.status === LAUNDRY_STATUS.RETURNED,
+    ).length;
+    const pickedUpOffsite = offsiteLoads.filter(
+      (record) => record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP,
     ).length;
     const readyForPickupCount = todayLaundryWithGuests.filter(
       (record) =>
@@ -4706,6 +4783,173 @@ const Services = () => {
             </p>
           </div>
         </div>
+
+        {/* Offsite Laundry Pipeline - Visual Status Flow */}
+        {offsiteLoads.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Truck className="text-white" size={18} />
+                <h3 className="font-semibold text-white">Offsite Laundry Pipeline</h3>
+              </div>
+              <span className="bg-white/20 text-white text-xs font-medium px-2.5 py-1 rounded-full">
+                {offsiteLoads.length} bag{offsiteLoads.length === 1 ? '' : 's'} total
+              </span>
+            </div>
+            
+            {/* Status Pipeline Visualization */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4 relative">
+                {/* Pipeline connector line */}
+                <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200 rounded-full" />
+                <div 
+                  className="absolute top-5 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-full transition-all duration-500"
+                  style={{ 
+                    width: `${Math.max(0, ((pendingOffsite > 0 ? 25 : 0) + (transportedOffsite > 0 ? 50 : 0) + (returnedOffsite > 0 ? 75 : 0) + (pickedUpOffsite > 0 ? 100 : 0)) / 4)}%` 
+                  }}
+                />
+                
+                {/* Stage 1: Pending */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    pendingOffsite > 0 
+                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <Clock size={18} />
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-gray-600">Waiting</span>
+                  <span className={`text-lg font-bold ${pendingOffsite > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
+                    {pendingOffsite}
+                  </span>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="text-gray-300 relative z-10" size={20} />
+
+                {/* Stage 2: Transported */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    transportedOffsite > 0 
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-200' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <Truck size={18} />
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-gray-600">In Transit</span>
+                  <span className={`text-lg font-bold ${transportedOffsite > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
+                    {transportedOffsite}
+                  </span>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="text-gray-300 relative z-10" size={20} />
+
+                {/* Stage 3: Returned */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    returnedOffsite > 0 
+                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <Package size={18} />
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-gray-600">Returned</span>
+                  <span className={`text-lg font-bold ${returnedOffsite > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {returnedOffsite}
+                  </span>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="text-gray-300 relative z-10" size={20} />
+
+                {/* Stage 4: Picked Up */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                    pickedUpOffsite > 0 
+                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    <CheckCircle size={18} />
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-gray-600">Picked Up</span>
+                  <span className={`text-lg font-bold ${pickedUpOffsite > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                    {pickedUpOffsite}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions for Offsite Bags */}
+              {(pendingOffsite > 0 || transportedOffsite > 0 || returnedOffsite > 0) && (
+                <div className="mt-4 pt-4 border-t border-blue-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-gray-600">Quick Actions</span>
+                    <span className="text-xs text-gray-500">Click a bag to update status</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {offsiteLoads
+                      .filter(record => record.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP)
+                      .slice(0, 6)
+                      .map((record) => {
+                        const statusInfo = getLaundryStatusInfo(record.status);
+                        const StatusIcon = statusInfo.icon;
+                        const nextStatus = record.status === LAUNDRY_STATUS.PENDING 
+                          ? LAUNDRY_STATUS.TRANSPORTED 
+                          : record.status === LAUNDRY_STATUS.TRANSPORTED 
+                            ? LAUNDRY_STATUS.RETURNED 
+                            : LAUNDRY_STATUS.OFFSITE_PICKED_UP;
+                        const nextLabel = record.status === LAUNDRY_STATUS.PENDING 
+                          ? 'Mark Transported' 
+                          : record.status === LAUNDRY_STATUS.TRANSPORTED 
+                            ? 'Mark Returned' 
+                            : 'Mark Picked Up';
+                        
+                        return (
+                          <div 
+                            key={record.id}
+                            className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <ShoppingBag size={14} className="text-blue-500 flex-shrink-0" />
+                                <span className="text-sm font-medium text-gray-900 truncate">
+                                  {record.guestName}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500 flex-shrink-0">
+                                #{record.bagNumber || '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-0.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}>
+                                <StatusIcon size={10} />
+                                {statusInfo.label}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateLaundryStatus(record.id, nextStatus);
+                                  toast.success(`${record.guestName}'s laundry updated`);
+                                }}
+                                className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {nextLabel} →
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length > 6 && (
+                    <p className="text-xs text-gray-500 text-center mt-3">
+                      +{offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length - 6} more bags in the list below
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="p-4 lg:p-6 space-y-5">

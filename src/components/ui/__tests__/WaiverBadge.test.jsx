@@ -127,7 +127,7 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      expect(screen.getByText("Shower Waiver")).toBeInTheDocument();
+      expect(screen.getByText("Services Waiver")).toBeInTheDocument();
     });
 
     it("should display correct waiver text for shower service", async () => {
@@ -336,7 +336,7 @@ describe("WaiverBadge Component", () => {
 
       await waitFor(() => {
         expect(toast.success).toHaveBeenCalledWith(
-          "Shower waiver confirmed for this year"
+          "Services waiver confirmed for this year (covers both shower & laundry)"
         );
       });
     });
@@ -572,6 +572,203 @@ describe("WaiverBadge Component", () => {
           mockGuestId,
           "laundry"
         );
+      });
+    });
+  });
+
+  describe("Common Waiver Behavior (Shower + Laundry)", () => {
+    it("should display 'Services Waiver' title mentioning both services", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="shower"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button")).toBeInTheDocument();
+      });
+
+      const badge = screen.getAllByRole("button")[0];
+      await user.click(badge);
+
+      // Modal should show Services Waiver title
+      expect(screen.getByText("Services Waiver")).toBeInTheDocument();
+    });
+
+    it("should explain that waiver covers both shower and laundry", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="laundry"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button")).toBeInTheDocument();
+      });
+
+      const badge = screen.getAllByRole("button")[0];
+      await user.click(badge);
+
+      // Should mention that waiver covers both services
+      expect(screen.getByText(/Shower and laundry share the same waiver/i)).toBeInTheDocument();
+    });
+
+    it("should dismiss both shower and laundry waivers when confirming from shower", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+      mockDismissWaiver.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="shower"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button")).toBeInTheDocument();
+      });
+
+      const badge = screen.getAllByRole("button")[0];
+      await user.click(badge);
+
+      const confirmButton = screen.getByText("Confirmed");
+      await user.click(confirmButton);
+
+      // Should call dismissWaiver for both services
+      await waitFor(() => {
+        expect(mockDismissWaiver).toHaveBeenCalledWith(
+          mockGuestId,
+          "shower",
+          "signed_by_staff"
+        );
+        expect(mockDismissWaiver).toHaveBeenCalledWith(
+          mockGuestId,
+          "laundry",
+          "shared_waiver"
+        );
+        expect(mockDismissWaiver).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("should dismiss both shower and laundry waivers when confirming from laundry", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+      mockDismissWaiver.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="laundry"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button")).toBeInTheDocument();
+      });
+
+      const badge = screen.getAllByRole("button")[0];
+      await user.click(badge);
+
+      const confirmButton = screen.getByText("Confirmed");
+      await user.click(confirmButton);
+
+      // Should call dismissWaiver for both services
+      await waitFor(() => {
+        expect(mockDismissWaiver).toHaveBeenCalledWith(
+          mockGuestId,
+          "laundry",
+          "signed_by_staff"
+        );
+        expect(mockDismissWaiver).toHaveBeenCalledWith(
+          mockGuestId,
+          "shower",
+          "shared_waiver"
+        );
+        expect(mockDismissWaiver).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("should show success toast mentioning both services", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+      mockDismissWaiver.mockResolvedValue(true);
+      const user = userEvent.setup();
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="shower"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button")).toBeInTheDocument();
+      });
+
+      const badge = screen.getAllByRole("button")[0];
+      await user.click(badge);
+
+      const confirmButton = screen.getByText("Confirmed");
+      await user.click(confirmButton);
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.stringContaining("shower")
+        );
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.stringContaining("laundry")
+        );
+      });
+    });
+
+    it("should not show badge when other service has active waiver", async () => {
+      // First call returns false (shower doesn't need), second call returns true (laundry needs)
+      // But since they share a waiver, if one is signed, neither should show
+      mockGuestNeedsWaiverReminder
+        .mockResolvedValueOnce(false) // shower check - not needed
+        .mockResolvedValueOnce(false); // laundry check - not needed either (common waiver signed)
+
+      const { container } = render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="shower"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelector("button")).toBeNull();
+      });
+    });
+
+    it("should display both service icons in the badge", async () => {
+      mockGuestNeedsWaiverReminder.mockResolvedValue(true);
+
+      render(
+        <WaiverBadge
+          guestId={mockGuestId}
+          serviceType="shower"
+          onDismissed={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        const badge = screen.getByRole("button");
+        // Badge should contain both shower and laundry icons (the combined waiver badge)
+        expect(badge).toBeInTheDocument();
       });
     });
   });

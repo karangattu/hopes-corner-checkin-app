@@ -35,12 +35,14 @@ import {
   Bike,
   RotateCcw,
   Ban,
+  Lightbulb,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 import { WaiverBadge } from "./ui/WaiverBadge";
+import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -336,6 +338,19 @@ const GuestList = () => {
 
     return scored.map((s) => s.guest);
   }, [guestsList, debouncedSearchTerm]);
+
+  // Fuzzy name suggestions when no exact matches are found
+  const fuzzySuggestions = useMemo(() => {
+    // Only show suggestions when search has some input but no matches
+    if (!debouncedSearchTerm.trim() || filteredGuests.length > 0) {
+      return [];
+    }
+    // Need at least 2 characters to suggest
+    if (debouncedSearchTerm.trim().length < 2) {
+      return [];
+    }
+    return findFuzzySuggestions(debouncedSearchTerm, guestsList, 5);
+  }, [debouncedSearchTerm, filteredGuests.length, guestsList]);
 
   // Apply sorting to filtered guests
   const sortedGuests = useMemo(() => {
@@ -2541,19 +2556,68 @@ const GuestList = () => {
               )}
             </div>
           ) : filteredGuests.length === 0 && !shouldShowCreateOption ? (
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-10 text-center">
-              <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-amber-200/30 rounded-full blur-2xl" />
-              <div className="relative flex flex-col items-center">
-                <div className="mb-4 p-4 rounded-2xl bg-white shadow-sm border border-amber-100">
-                  <Search size={28} className="text-amber-500" />
+            <div className="space-y-4">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-8 text-center">
+                <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-amber-200/30 rounded-full blur-2xl" />
+                <div className="relative flex flex-col items-center">
+                  <div className="mb-4 p-4 rounded-2xl bg-white shadow-sm border border-amber-100">
+                    <Search size={28} className="text-amber-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    No guests found
+                  </h3>
+                  <p className="text-gray-600 max-w-sm">
+                    Try adjusting your search terms or add more letters to narrow down results
+                  </p>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No guests found
-                </h3>
-                <p className="text-gray-600 max-w-sm">
-                  Try adjusting your search terms or add more letters to narrow down results
-                </p>
               </div>
+              
+              {/* "Did you mean?" suggestions */}
+              {fuzzySuggestions.length > 0 && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Lightbulb size={18} className="text-blue-500" />
+                    <h4 className="font-medium text-gray-900">Did you mean?</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {fuzzySuggestions.map((suggestion) => {
+                      const display = formatSuggestionDisplay(suggestion);
+                      return (
+                        <button
+                          key={suggestion.id}
+                          onClick={() => {
+                            haptics.buttonPress();
+                            // Set search to the suggested name and expand the guest
+                            const searchName = display.preferredName || display.fullName;
+                            setSearchTerm(searchName);
+                            setExpandedGuest(suggestion.id);
+                          }}
+                          className="w-full flex items-center gap-3 p-3 bg-white hover:bg-blue-50 rounded-lg border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
+                        >
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-blue-50 rounded-lg flex items-center justify-center">
+                            <User size={18} className="text-blue-600" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
+                              {display.displayName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {Math.round(display.score * 100)}% match
+                              {suggestion.location && ` • ${suggestion.location}`}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-blue-400 group-hover:text-blue-600 transition-colors">
+                            <ChevronDown size={16} className="rotate-[-90deg]" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3 text-center">
+                    Click a suggestion to view that guest
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div

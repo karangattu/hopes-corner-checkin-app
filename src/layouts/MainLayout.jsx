@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
-import { ClipboardList, BarChart3, UserPlus } from "lucide-react";
+import { ClipboardList, BarChart3, UserPlus, HelpCircle } from "lucide-react";
 import { SpringIcon } from "../utils/animations";
 import SyncStatus from "../components/SyncStatus";
 import AppVersion from "../components/AppVersion";
+import TutorialModal from "../components/TutorialModal";
 
 const MainLayout = ({ children }) => {
   const { activeTab, setActiveTab, settings } = useAppContext();
   const { user, logout } = useAuth();
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const navItemsAll = [
     { id: "check-in", label: "Check In", icon: UserPlus },
@@ -107,6 +109,14 @@ const MainLayout = ({ children }) => {
             <div className="md:hidden" />
 
             <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={() => setShowTutorial(true)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded text-emerald-100 hover:text-white hover:bg-emerald-700 text-sm transition-colors"
+                aria-label="Open help tutorial"
+              >
+                <HelpCircle size={16} />
+                <span>Need help?</span>
+              </button>
               <span className="text-emerald-100 text-sm">
                 {user?.name} {headerRoleDisplay}
               </span>
@@ -195,8 +205,16 @@ const MainLayout = ({ children }) => {
           })}
         </div>
         <div className="px-2 pb-3 space-y-2">
-          <div className="flex justify-center">
+          <div className="flex justify-center items-center gap-3">
             <AppVersion />
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+              aria-label="Open help tutorial"
+            >
+              <HelpCircle size={14} />
+              <span>Need help?</span>
+            </button>
           </div>
           <button
             onClick={logout}
@@ -219,6 +237,11 @@ const MainLayout = ({ children }) => {
           <AppVersion />
         </div>
       </footer>
+
+      <TutorialModal 
+        isOpen={showTutorial} 
+        onClose={() => setShowTutorial(false)} 
+      />
     </div>
   );
 };
