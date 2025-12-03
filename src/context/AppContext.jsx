@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+// Legacy Context API file - being migrated to Zustand stores
+// See docs/ZUSTAND_MIGRATION_STATUS.md for migration details
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   supabase,
@@ -11,6 +14,7 @@ import {
 } from "../utils/bicycles";
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
+import performanceMonitor from "../utils/performanceMonitor";
 import {
   addMealWithOffline,
   addBicycleWithOffline,
@@ -250,41 +254,78 @@ export const AppProvider = ({ children }) => {
    * @returns {Promise<Array>} - Array of inserted records
    */
   const insertMealAttendanceBatch = async (payloads) => {
-    if (!supabaseEnabled || !supabase) return [];
-    if (!payloads || payloads.length === 0) return [];
+    const endPerf = performanceMonitor.startMeasurement(`insertMealAttendanceBatch (${payloads?.length || 0} records)`);
+    try {
+      if (!supabaseEnabled || !supabase) return [];
+      if (!payloads || payloads.length === 0) return [];
 
-    const BATCH_SIZE = 500; // Conservative batch size to avoid Supabase limits
-    const results = [];
+      const BATCH_SIZE = 500; // Conservative batch size to avoid Supabase limits
+      const results = [];
 
-    // Process in chunks
-    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
-      const chunk = payloads.slice(i, i + BATCH_SIZE);
+      // Process in chunks
+      for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+        const chunkEndPerf = performanceMonitor.startMeasurement(`Batch chunk ${i / BATCH_SIZE + 1}`);
+        const chunk = payloads.slice(i, i + BATCH_SIZE);
 
-      chunk.forEach((row) => {
-        if (row?.guest_id) {
-          ensureGuestServiceEligible(row.guest_id, "meal service");
+        // Deduplicate within chunk based on guest_id + served_on
+        const deduped = [];
+        const seen = new Set();
+        for (const row of chunk) {
+          if (row?.guest_id) {
+            ensureGuestServiceEligible(row.guest_id, "meal service");
+          }
+          const key = `${row.guest_id}_${row.served_on}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push(row);
+          }
         }
-      });
 
-      const { data, error } = await supabase
-        .from("meal_attendance")
-        .insert(chunk)
-        .select();
+        if (deduped.length === 0) {
+          chunkEndPerf();
+          continue;
+        }
 
-      if (error) {
-        console.error(
-          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
-          error,
-        );
-        throw error;
+        const { data, error } = await supabase
+          .from("meal_attendance")
+          .insert(deduped)
+          .select();
+
+        if (error) {
+          // If it's a duplicate key error, try individual inserts to skip duplicates
+          if (error.code === '23505') {
+            console.warn(`Duplicate keys in chunk ${i / BATCH_SIZE + 1}, retrying individually`);
+            for (const row of deduped) {
+              try {
+                const { data: singleData } = await supabase
+                  .from("meal_attendance")
+                  .insert([row])
+                  .select();
+                if (singleData && singleData.length > 0) {
+                  results.push(...singleData.map(mapMealRow));
+                }
+              } catch {
+                // Skip individual duplicates silently
+              }
+            }
+          } else {
+            console.error(
+              `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+              error,
+            );
+            chunkEndPerf();
+            throw error;
+          }
+        } else if (data) {
+          results.push(...data.map(mapMealRow));
+        }
+        chunkEndPerf();
       }
 
-      if (data) {
-        results.push(...data.map(mapMealRow));
-      }
+      return results;
+    } finally {
+      endPerf();
     }
-
-    return results;
   };
 
   /**
@@ -302,26 +343,52 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
 
-      chunk.forEach((row) => {
+      // Deduplicate within chunk based on guest_id + scheduled_for
+      const deduped = [];
+      const seen = new Set();
+      for (const row of chunk) {
         if (row?.guest_id) {
           ensureGuestServiceEligible(row.guest_id, "shower bookings");
         }
-      });
+        const key = `${row.guest_id}_${row.scheduled_for}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(row);
+        }
+      }
+
+      if (deduped.length === 0) continue;
 
       const { data, error } = await supabase
         .from("shower_reservations")
-        .insert(chunk)
+        .insert(deduped)
         .select();
 
       if (error) {
-        console.error(
-          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
-          error,
-        );
-        throw error;
-      }
-
-      if (data) {
+        // If it's a duplicate key error, try individual inserts to skip duplicates
+        if (error.code === '23505') {
+          console.warn(`Duplicate keys in chunk ${i / BATCH_SIZE + 1}, retrying individually`);
+          for (const row of deduped) {
+            try {
+              const { data: singleData } = await supabase
+                .from("shower_reservations")
+                .insert([row])
+                .select();
+              if (singleData && singleData.length > 0) {
+                results.push(...singleData.map(mapShowerRow));
+              }
+            } catch {
+              // Skip individual duplicates silently
+            }
+          }
+        } else {
+          console.error(
+            `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+            error,
+          );
+          throw error;
+        }
+      } else if (data) {
         results.push(...data.map(mapShowerRow));
       }
     }
@@ -344,26 +411,52 @@ export const AppProvider = ({ children }) => {
     for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
       const chunk = payloads.slice(i, i + BATCH_SIZE);
 
-      chunk.forEach((row) => {
+      // Deduplicate within chunk based on guest_id + scheduled_for
+      const deduped = [];
+      const seen = new Set();
+      for (const row of chunk) {
         if (row?.guest_id) {
           ensureGuestServiceEligible(row.guest_id, "laundry bookings");
         }
-      });
+        const key = `${row.guest_id}_${row.scheduled_for}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(row);
+        }
+      }
+
+      if (deduped.length === 0) continue;
 
       const { data, error } = await supabase
         .from("laundry_bookings")
-        .insert(chunk)
+        .insert(deduped)
         .select();
 
       if (error) {
-        console.error(
-          `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
-          error,
-        );
-        throw error;
-      }
-
-      if (data) {
+        // If it's a duplicate key error, try individual inserts to skip duplicates
+        if (error.code === '23505') {
+          console.warn(`Duplicate keys in chunk ${i / BATCH_SIZE + 1}, retrying individually`);
+          for (const row of deduped) {
+            try {
+              const { data: singleData } = await supabase
+                .from("laundry_bookings")
+                .insert([row])
+                .select();
+              if (singleData && singleData.length > 0) {
+                results.push(...singleData.map(mapLaundryRow));
+              }
+            } catch {
+              // Skip individual duplicates silently
+            }
+          }
+        } else {
+          console.error(
+            `Batch insert error (chunk ${i / BATCH_SIZE + 1}):`,
+            error,
+          );
+          throw error;
+        }
+      } else if (data) {
         results.push(...data.map(mapLaundryRow));
       }
     }
@@ -504,24 +597,25 @@ export const AppProvider = ({ children }) => {
 
     const fetchCloudData = async () => {
       try {
-        // Fetch guests with pagination to handle more than 1000 records
-        const fetchAllGuests = async () => {
+        // Generic paginated fetch helper to handle more than 1000 records
+        // Supabase has a default limit of 1000 rows per request
+        const fetchAllPaginated = async (tableName, orderByField = "created_at") => {
           const pageSize = 1000;
-          let allGuests = [];
+          let allData = [];
           let offset = 0;
           let hasMore = true;
 
           while (hasMore) {
             const { data, error } = await supabase
-              .from("guests")
+              .from(tableName)
               .select("*")
-              .order("created_at", { ascending: false })
+              .order(orderByField, { ascending: false })
               .range(offset, offset + pageSize - 1);
 
             if (error) throw error;
             
             if (data && data.length > 0) {
-              allGuests = allGuests.concat(data);
+              allData = allData.concat(data);
               offset += data.length;
               hasMore = data.length === pageSize;
             } else {
@@ -529,59 +623,32 @@ export const AppProvider = ({ children }) => {
             }
           }
 
-          return allGuests;
+          return allData;
         };
 
         const [
           guestsData,
-          mealsRes,
-          showersRes,
-          laundryRes,
-          bicyclesRes,
-          holidaysRes,
-          haircutsRes,
-          itemsRes,
-          donationsRes,
-          laPlazaRes,
+          mealsData,
+          showersData,
+          laundryData,
+          bicyclesData,
+          holidaysData,
+          haircutsData,
+          itemsData,
+          donationsData,
+          laPlazaData,
           settingsRes,
         ] = await Promise.all([
-          fetchAllGuests(),
-          supabase
-            .from("meal_attendance")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("shower_reservations")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("laundry_bookings")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("bicycle_repairs")
-            .select("*")
-            .order("requested_at", { ascending: false }),
-          supabase
-            .from("holiday_visits")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("haircut_visits")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("items_distributed")
-            .select("*")
-            .order("distributed_at", { ascending: false }),
-          supabase
-            .from("donations")
-            .select("*")
-            .order("donated_at", { ascending: false }),
-          supabase
-            .from("la_plaza_donations")
-            .select("*")
-            .order("received_at", { ascending: false }),
+          fetchAllPaginated("guests", "created_at"),
+          fetchAllPaginated("meal_attendance", "created_at"),
+          fetchAllPaginated("shower_reservations", "created_at"),
+          fetchAllPaginated("laundry_bookings", "created_at"),
+          fetchAllPaginated("bicycle_repairs", "requested_at"),
+          fetchAllPaginated("holiday_visits", "created_at"),
+          fetchAllPaginated("haircut_visits", "created_at"),
+          fetchAllPaginated("items_distributed", "distributed_at"),
+          fetchAllPaginated("donations", "donated_at"),
+          fetchAllPaginated("la_plaza_donations", "received_at"),
           supabase
             .from("app_settings")
             .select("*")
@@ -600,7 +667,7 @@ export const AppProvider = ({ children }) => {
           })),
         );
 
-        const allMealRows = mealsRes.data?.map(mapMealRow) || [];
+        const allMealRows = mealsData?.map(mapMealRow) || [];
         setMealRecords(allMealRows.filter((r) => r.type === "guest"));
         setRvMealRecords(allMealRows.filter((r) => r.type === "rv"));
         setShelterMealRecords(allMealRows.filter((r) => r.type === "shelter"));
@@ -613,14 +680,14 @@ export const AppProvider = ({ children }) => {
         );
         setLunchBagRecords(allMealRows.filter((r) => r.type === "lunch_bag"));
 
-        setShowerRecords(showersRes.data?.map(mapShowerRow) || []);
-        setLaundryRecords(laundryRes.data?.map(mapLaundryRow) || []);
-        setBicycleRecords(bicyclesRes.data?.map(mapBicycleRow) || []);
-        setHolidayRecords(holidaysRes.data?.map(mapHolidayRow) || []);
-        setHaircutRecords(haircutsRes.data?.map(mapHaircutRow) || []);
-        setItemGivenRecords(itemsRes.data?.map(mapItemRow) || []);
-        setDonationRecords(donationsRes.data?.map(mapDonationRow) || []);
-        setLaPlazaDonations(laPlazaRes?.data?.map(mapLaPlazaDonationRow) || []);
+        setShowerRecords(showersData?.map(mapShowerRow) || []);
+        setLaundryRecords(laundryData?.map(mapLaundryRow) || []);
+        setBicycleRecords(bicyclesData?.map(mapBicycleRow) || []);
+        setHolidayRecords(holidaysData?.map(mapHolidayRow) || []);
+        setHaircutRecords(haircutsData?.map(mapHaircutRow) || []);
+        setItemGivenRecords(itemsData?.map(mapItemRow) || []);
+        setDonationRecords(donationsData?.map(mapDonationRow) || []);
+        setLaPlazaDonations(laPlazaData?.map(mapLaPlazaDonationRow) || []);
 
         const settingsRow = settingsRes?.data;
         if (settingsRow) {
@@ -1712,7 +1779,7 @@ export const AppProvider = ({ children }) => {
       (r) => r.guestId === guestId && isSameDay(r.date, now),
     );
     if (already) {
-      toast.error("Haircut already logged today");
+      enhancedToast.error("Haircut already logged today");
       return null;
     }
     ensureGuestServiceEligible(guestId, "haircut services");
@@ -1745,7 +1812,7 @@ export const AppProvider = ({ children }) => {
             },
             ...prev.slice(0, 49),
           ]);
-          toast.success("Haircut logged (will sync when online)");
+          enhancedToast.success("Haircut logged (will sync when online)");
           return localRecord;
         }
 
@@ -1762,11 +1829,11 @@ export const AppProvider = ({ children }) => {
           },
           ...prev.slice(0, 49),
         ]);
-        toast.success("Haircut logged");
+        enhancedToast.success("Haircut logged");
         return mapped;
       } catch (error) {
         console.error("Failed to log haircut in Supabase:", error);
-        toast.error("Unable to log haircut.");
+        enhancedToast.error("Unable to log haircut.");
         throw error;
       }
     }
@@ -1788,7 +1855,7 @@ export const AppProvider = ({ children }) => {
       },
       ...prev.slice(0, 49),
     ]);
-    toast.success("Haircut logged");
+    enhancedToast.success("Haircut logged");
     return record;
   };
 
@@ -2117,12 +2184,17 @@ export const AppProvider = ({ children }) => {
   };
 
   const addMealRecord = async (guestId, count, dateOverride = null) => {
-    const timestamp = dateOverride || new Date().toISOString();
-    const today = pacificDateStringFrom(timestamp);
-    const already = mealRecords.some(
-      (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
-    );
-    if (already) return null;
+    const endPerf = performanceMonitor.startMeasurement('addMealRecord');
+    try {
+      const timestamp = dateOverride || new Date().toISOString();
+      const today = pacificDateStringFrom(timestamp);
+      const already = mealRecords.some(
+        (r) => r.guestId === guestId && pacificDateStringFrom(r.date) === today,
+      );
+      if (already) {
+        endPerf();
+        return null;
+      }
 
     if (guestId) {
       ensureGuestServiceEligible(guestId, "meal service");
@@ -2219,6 +2291,9 @@ export const AppProvider = ({ children }) => {
     setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
 
     return record;
+    } finally {
+      endPerf();
+    }
   };
 
   const addRvMealRecord = async (count, dateOverride = null) => {
@@ -3327,6 +3402,9 @@ export const AppProvider = ({ children }) => {
     });
 
     const dailyMetrics = {};
+    
+    // Track unique guest IDs that participated in services during the date range
+    const activeGuestIds = new Set();
 
     // Process meals if included
     if (programs.includes("meals")) {
@@ -3349,6 +3427,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count;
         dailyMetrics[date].mealsByType.guest += record.count;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodRvMeals.forEach((record) => {
@@ -3356,6 +3435,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.rv += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodShelterMeals.forEach((record) => {
@@ -3363,6 +3443,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.shelter += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodUeMeals.forEach((record) => {
@@ -3370,6 +3451,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.unitedEffort += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodExtraMeals.forEach((record) => {
@@ -3377,6 +3459,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.extras += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodDayWorkerMeals.forEach((record) => {
@@ -3384,6 +3467,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.dayWorker += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
 
       periodLunchBags.forEach((record) => {
@@ -3391,6 +3475,7 @@ export const AppProvider = ({ children }) => {
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].meals += record.count || 0;
         dailyMetrics[date].mealsByType.lunchBags += record.count || 0;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
     }
 
@@ -3401,6 +3486,7 @@ export const AppProvider = ({ children }) => {
         const date = pacificDateStringFrom(record.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].showers += 1;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
     }
 
@@ -3411,6 +3497,7 @@ export const AppProvider = ({ children }) => {
         const date = pacificDateStringFrom(record.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         if (countsAsLaundryLoad(record)) dailyMetrics[date].laundry += 1;
+        if (record.guestId) activeGuestIds.add(record.guestId);
       });
     }
 
@@ -3421,6 +3508,7 @@ export const AppProvider = ({ children }) => {
         const date = pacificDateStringFrom(r.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].haircuts += 1;
+        if (r.guestId) activeGuestIds.add(r.guestId);
       });
     }
 
@@ -3431,6 +3519,7 @@ export const AppProvider = ({ children }) => {
         const date = pacificDateStringFrom(r.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].holidays += 1;
+        if (r.guestId) activeGuestIds.add(r.guestId);
       });
     }
 
@@ -3445,6 +3534,7 @@ export const AppProvider = ({ children }) => {
         const date = pacificDateStringFrom(r.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
         dailyMetrics[date].bicycles += getBicycleServiceCount(r);
+        if (r.guestId) activeGuestIds.add(r.guestId);
       });
     }
 
@@ -3517,6 +3607,8 @@ export const AppProvider = ({ children }) => {
         donationWeightLbs: totals.donationWeightLbs,
       },
       daysInRange: dailyBreakdown.length,
+      // Array of unique guest IDs that participated in selected programs during the date range
+      activeGuestIds: Array.from(activeGuestIds),
     };
 
     // Add comparison period if requested
@@ -4762,7 +4854,7 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  const value = useMemo(() => ({
     // State
     guests,
     mealRecords,
@@ -4813,8 +4905,8 @@ export const AppProvider = ({ children }) => {
     importGuestsFromCSV,
     updateGuest,
     removeGuest,
-  banGuest,
-  clearGuestBan,
+    banGuest,
+    clearGuestBan,
     addMealRecord,
     addRvMealRecord,
     addShelterMealRecord,
@@ -4882,7 +4974,107 @@ export const AppProvider = ({ children }) => {
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
     getWaiverStatusSummary,
-  };
+  }), [
+    // State dependencies
+    guests,
+    mealRecords,
+    rvMealRecords,
+    shelterMealRecords,
+    showerRecords,
+    laundryRecords,
+    showerSlots,
+    laundrySlots,
+    bicycleRecords,
+    holidayRecords,
+    haircutRecords,
+    itemGivenRecords,
+    donationRecords,
+    laPlazaDonations,
+    unitedEffortMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+    activeTab,
+    showerPickerGuest,
+    laundryPickerGuest,
+    bicyclePickerGuest,
+    settings,
+    actionHistory,
+    supabaseEnabled,
+    supabaseConfigured,
+    isPersistencePaused,
+    // Computed values
+    allShowerSlots,
+    allLaundrySlots,
+    // Function dependencies (stable references from useCallback/useMemo)
+    updateSettings,
+    addGuest,
+    importGuestsFromCSV,
+    updateGuest,
+    removeGuest,
+    banGuest,
+    clearGuestBan,
+    addMealRecord,
+    addRvMealRecord,
+    addShelterMealRecord,
+    addUnitedEffortMealRecord,
+    addExtraMealRecord,
+    addDayWorkerMealRecord,
+    addLunchBagRecord,
+    removeMealAttendanceRecord,
+    addShowerRecord,
+    importShowerAttendanceRecord,
+    addShowerWaitlist,
+    addLaundryRecord,
+    importLaundryAttendanceRecord,
+    updateLaundryStatus,
+    updateLaundryBagNumber,
+    addBicycleRecord,
+    updateBicycleRecord,
+    deleteBicycleRecord,
+    setBicycleStatus,
+    moveBicycleRecord,
+    addHolidayRecord,
+    addHaircutRecord,
+    insertMealAttendanceBatch,
+    insertShowerReservationsBatch,
+    insertLaundryBookingsBatch,
+    insertBicycleRepairsBatch,
+    insertHaircutVisitsBatch,
+    insertHolidayVisitsBatch,
+    giveItem,
+    canGiveItem,
+    getLastGivenItem,
+    getNextAvailabilityDate,
+    getDaysUntilAvailable,
+    addDonation,
+    addLaPlazaDonation,
+    getRecentDonations,
+    getTodayDonationsConsolidated,
+    cancelShowerRecord,
+    rescheduleShower,
+    updateShowerStatus,
+    cancelLaundryRecord,
+    rescheduleLaundry,
+    getTodayMetrics,
+    getDateRangeMetrics,
+    getUniversalTimeRangeMetrics,
+    getTodayLaundryWithGuests,
+    getPreviousServiceDay,
+    getLaundryForDateWithGuests,
+    exportDataAsCSV,
+    getTodayDonationsByItem,
+    undoAction,
+    clearActionHistory,
+    resetAllData,
+    withPersistencePaused,
+    fetchGuestWaivers,
+    guestNeedsWaiverReminder,
+    dismissWaiver,
+    hasActiveWaiver,
+    fetchGuestsNeedingWaivers,
+    getWaiverStatusSummary,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

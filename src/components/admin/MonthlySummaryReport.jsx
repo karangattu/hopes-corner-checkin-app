@@ -1379,15 +1379,9 @@ const MonthlySummaryReport = () => {
                 </th>
                 <th
                   className="border border-gray-300 px-3 py-3 text-center font-semibold text-amber-800 bg-yellow-50"
-                  colSpan={5}
+                  colSpan={6}
                 >
-                  Program & Shower Reach
-                </th>
-                <th
-                  className="border border-gray-300 px-3 py-3 text-center font-semibold text-emerald-800 bg-emerald-50"
-                  colSpan={4}
-                >
-                  Participant Mix
+                  Shower Program
                 </th>
                 <th
                   className="border border-gray-300 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50"
@@ -1402,10 +1396,7 @@ const MonthlySummaryReport = () => {
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">New Guests</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">YTD Unique Guests</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">Adult</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">Senior</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">Child</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">Total</th>
+                <th className="border border-gray-200 px-2 py-2 text-center bg-emerald-50">Participants</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Loads</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Unique Users</th>
@@ -1453,28 +1444,17 @@ const MonthlySummaryReport = () => {
                     {row.ytdTotalUnduplicatedGuests.toLocaleString()}
                   </td>
                   <td
-                    data-column="participants-adult"
+                    data-column="participants"
                     className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
                   >
-                    {row.participantsAdult.toLocaleString()}
-                  </td>
-                  <td
-                    data-column="participants-senior"
-                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
-                  >
-                    {row.participantsSenior.toLocaleString()}
-                  </td>
-                  <td
-                    data-column="participants-child"
-                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
-                  >
-                    {row.participantsChild.toLocaleString()}
-                  </td>
-                  <td
-                    data-column="participants-total"
-                    className="border border-gray-300 px-3 py-2 text-right bg-emerald-50 font-semibold text-gray-900"
-                  >
-                    {row.totalParticipants.toLocaleString()}
+                    <div className="font-semibold text-gray-900">
+                      {row.totalParticipants.toLocaleString()}
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-600">
+                      <div>Adult · {row.participantsAdult.toLocaleString()}</div>
+                      <div>Senior · {row.participantsSenior.toLocaleString()}</div>
+                      <div>Child · {row.participantsChild.toLocaleString()}</div>
+                    </div>
                   </td>
                   <td
                     data-column="laundry-loads"
@@ -1553,28 +1533,17 @@ const MonthlySummaryReport = () => {
                   {showerLaundrySummary.totals.ytdTotalUnduplicatedGuests.toLocaleString()}
                 </td>
                 <td
-                  data-column="participants-adult"
+                  data-column="participants"
                   className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
                 >
-                  {showerLaundrySummary.totals.participantsAdult.toLocaleString()}
-                </td>
-                <td
-                  data-column="participants-senior"
-                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
-                >
-                  {showerLaundrySummary.totals.participantsSenior.toLocaleString()}
-                </td>
-                <td
-                  data-column="participants-child"
-                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
-                >
-                  {showerLaundrySummary.totals.participantsChild.toLocaleString()}
-                </td>
-                <td
-                  data-column="participants-total"
-                  className="border border-gray-300 px-3 py-2 text-right bg-emerald-50"
-                >
-                  {showerLaundrySummary.totals.totalParticipants.toLocaleString()}
+                  <div className="font-semibold text-gray-900">
+                    {showerLaundrySummary.totals.totalParticipants.toLocaleString()}
+                  </div>
+                  <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-700">
+                    <div>Adult · {showerLaundrySummary.totals.participantsAdult.toLocaleString()}</div>
+                    <div>Senior · {showerLaundrySummary.totals.participantsSenior.toLocaleString()}</div>
+                    <div>Child · {showerLaundrySummary.totals.participantsChild.toLocaleString()}</div>
+                  </div>
                 </td>
                 <td
                   data-column="laundry-loads"

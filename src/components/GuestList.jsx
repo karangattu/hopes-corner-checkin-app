@@ -3757,4 +3757,6 @@ const GuestList = () => {
   );
 };
 
-export default GuestList;
+// Wrap in React.memo to prevent unnecessary re-renders when AppContext changes
+// but the guest-related data hasn't changed
+export default React.memo(GuestList);

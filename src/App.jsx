@@ -16,6 +16,8 @@ import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import SyncStatusIndicator from "./components/SyncStatusIndicator";
 import { EXECUTE_FUNCTIONS } from "./utils/offlineOperations";
 import { useState, useEffect } from "react";
+import { useStoreInitialization } from "./hooks/useStoreInitialization";
+import "./utils/performanceDiagnostics"; // Load performance diagnostics in dev mode
 
 const AppContent = () => {
   const {
@@ -25,6 +27,7 @@ const AppContent = () => {
     bicyclePickerGuest,
   } = useAppContext();
   const { user, authLoading } = useAuth();
+  const { isInitialized: storesInitialized } = useStoreInitialization();
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
 
   useEffect(() => {
@@ -46,13 +49,15 @@ const AppContent = () => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showKeyboardHelp]);
 
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading state while checking authentication and initializing stores
+  if (authLoading || !storesInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4" />
-          <p className="text-emerald-700 font-medium">Loading...</p>
+          <p className="text-emerald-700 font-medium">
+            {authLoading ? 'Loading...' : 'Initializing data stores...'}
+          </p>
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useMemo, useState, useCallback, useEffect, startTransition } from "react";
 import toast from "react-hot-toast";
 import enhancedToast from "../../utils/toast";
 import {
@@ -162,6 +162,10 @@ const Services = () => {
   const quickActionRole = user?.role ?? "staff";
 
   const [activeSection, setActiveSection] = useState("overview");
+
+  // Report generation state - only compute expensive metrics when explicitly requested
+  const [reportsGenerated, setReportsGenerated] = useState(false);
+  const [isGeneratingReports, setIsGeneratingReports] = useState(false);
 
   // Sticky Quick Actions state
   const [showQuickActions] = useState(true);
@@ -690,7 +694,20 @@ const Services = () => {
     [],
   );
 
+  // Only compute when viewing the reports section AND user has explicitly requested reports
   const monthAggregates = useMemo(() => {
+    // Skip expensive computation unless explicitly requested
+    if (!reportsGenerated || (activeSection !== "reports" && activeSection !== "overview")) {
+      return {
+        mealsServed: 0,
+        showersBooked: 0,
+        laundryLoads: 0,
+        haircuts: 0,
+        holidays: 0,
+        bicycles: 0,
+      };
+    }
+
     const now = new Date();
     const monthStartPT = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Los_Angeles",
@@ -731,6 +748,8 @@ const Services = () => {
         .reduce((sum, record) => sum + getBicycleServiceCount(record), 0),
     };
   }, [
+    reportsGenerated,
+    activeSection,
     mealRecords,
     rvMealRecords,
     shelterMealRecords,
@@ -747,7 +766,20 @@ const Services = () => {
     toCountValue,
   ]);
 
+  // Only compute when viewing the reports section AND user has explicitly requested reports
   const yearAggregates = useMemo(() => {
+    // Skip expensive computation unless explicitly requested
+    if (!reportsGenerated || (activeSection !== "reports" && activeSection !== "overview")) {
+      return {
+        mealsServed: 0,
+        showersBooked: 0,
+        laundryLoads: 0,
+        haircuts: 0,
+        holidays: 0,
+        bicycles: 0,
+      };
+    }
+
     const now = new Date();
     const yearStartPT = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Los_Angeles",
@@ -788,6 +820,8 @@ const Services = () => {
         .reduce((sum, record) => sum + getBicycleServiceCount(record), 0),
     };
   }, [
+    reportsGenerated,
+    activeSection,
     mealRecords,
     rvMealRecords,
     shelterMealRecords,
@@ -804,7 +838,13 @@ const Services = () => {
     toCountValue,
   ]);
 
+  // Only compute when viewing the reports section AND user has explicitly requested reports
   const dailyServiceTotals = useMemo(() => {
+    // Skip expensive computation unless explicitly requested - return empty timeline
+    if (!reportsGenerated || activeSection !== "reports") {
+      return [];
+    }
+
     const entries = new Map();
     const ensureEntry = (day) => {
       if (!day) return null;
@@ -904,6 +944,8 @@ const Services = () => {
 
     return timeline;
   }, [
+    reportsGenerated,
+    activeSection,
     mealRecords,
     rvMealRecords,
     unitedEffortMealRecords,
@@ -1244,6 +1286,39 @@ const Services = () => {
     // Scroll to top to show overview
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // Report generation handler - runs expensive computations on-demand
+  const handleGenerateReports = useCallback(() => {
+    setIsGeneratingReports(true);
+
+    // Use startTransition to make the computation non-blocking
+    startTransition(() => {
+      // Set flag to trigger expensive computations
+      setReportsGenerated(true);
+
+      // Give a small delay to show loading state
+      setTimeout(() => {
+        setIsGeneratingReports(false);
+        enhancedToast.success("Reports generated successfully");
+      }, 100);
+    });
+  }, []);
+
+  const handleRefreshReports = useCallback(() => {
+    setIsGeneratingReports(true);
+
+    // Force re-computation by toggling the flag
+    startTransition(() => {
+      setReportsGenerated(false);
+      setTimeout(() => {
+        setReportsGenerated(true);
+        setTimeout(() => {
+          setIsGeneratingReports(false);
+          enhancedToast.success("Reports refreshed");
+        }, 100);
+      }, 50);
+    });
+  }, []);
 
   const attemptLaundryStatusChange = (record, newStatus) => {
     const hasBag = !!(record.bagNumber && String(record.bagNumber).trim());
@@ -1652,6 +1727,10 @@ const Services = () => {
       timelineEvents={timelineEvents}
       selectedGuestMealRecords={selectedGuestMealRecords}
       setActiveSection={setActiveSection}
+      reportsGenerated={reportsGenerated}
+      isGeneratingReports={isGeneratingReports}
+      onGenerateReports={handleGenerateReports}
+      onRefreshReports={handleRefreshReports}
     />
   );
 
@@ -5125,4 +5204,6 @@ const Services = () => {
   );
 };
 
-export default Services;
+// Wrap in React.memo to prevent unnecessary re-renders
+// Only re-renders when service records actually change
+export default React.memo(Services);

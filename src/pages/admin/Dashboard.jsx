@@ -18,7 +18,6 @@ import {
   Printer,
   RefreshCcw,
   ShieldAlert,
-  Sparkles,
   Utensils,
   Users,
   Wifi,
@@ -37,7 +36,6 @@ import TableBrowser from "../../components/admin/TableBrowser";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import FailedOperationsPanel from "../../components/FailedOperationsPanel";
-import EasterEggTester from "../../components/admin/EasterEggTester";
 import Selectize from "../../components/Selectize";
 import { animated as Animated } from "@react-spring/web";
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
@@ -658,14 +656,13 @@ const Dashboard = () => {
     { id: "tables", label: "Tables", icon: Database },
     { id: "export", label: "Data Export", icon: Download },
     { id: "system", label: "System", icon: ShieldAlert },
-    { id: "easter-eggs", label: "Easter Eggs", icon: Sparkles },
   ];
 
   const sections = baseSections.filter((s) => {
     // Admin sees everything
     if (isAdmin) return true;
     // Board users get only the admin dashboard sections (read-only reports & exports)
-    if (isBoard) return s.id !== "batch-upload" && s.id !== "system" && s.id !== "easter-eggs";
+    if (isBoard) return s.id !== "batch-upload" && s.id !== "system";
     // Default staff/checkin: no admin sections; fall back to showing overview & reports only
     return ["overview", "analytics", "meal-report", "monthly-summary", "guests-by-city", "export", "tables"].includes(s.id);
   });
@@ -693,8 +690,6 @@ const Dashboard = () => {
         return renderExportSection();
       case "system":
         return renderSystemSection();
-      case "easter-eggs":
-        return renderEasterEggsSection();
       default:
         return renderOverviewSection();
     }
@@ -2114,12 +2109,6 @@ const Dashboard = () => {
       </div>
     );
   };
-
-  const renderEasterEggsSection = () => (
-    <div className="space-y-6">
-      <EasterEggTester />
-    </div>
-  );
 
   return (
     <div className="space-y-6">

@@ -52,3 +52,5 @@ Thumbs.db
 
 # CSV data files (like guest_list.csv)
 guest_list.csv
+/checkin-app-nextjs
+/python_scripts

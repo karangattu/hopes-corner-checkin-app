@@ -6,9 +6,14 @@ import {
   Info,
   AlertCircle,
 } from "lucide-react";
+import { bulkOperationManager } from "./bulkOperationContext";
 
 // Enhanced toast with context-specific icons and colors
 const createToast = (type, message, options = {}) => {
+  // Suppress toasts during bulk operations unless explicitly forced
+  if (bulkOperationManager.shouldSuppressToast() && !options.force) {
+    return null;
+  }
   const config = {
     success: {
       icon: <CheckCircle size={16} className="text-green-500" />,

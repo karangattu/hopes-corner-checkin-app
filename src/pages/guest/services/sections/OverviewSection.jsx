@@ -30,6 +30,10 @@ const OverviewSection = ({
   timelineEvents,
   selectedGuestMealRecords,
   setActiveSection,
+  reportsGenerated = false,
+  isGeneratingReports = false,
+  onGenerateReports,
+  onRefreshReports,
 }) => {
   const headerSpring = useFadeInUp();
   const overviewSummarySpring = useFadeInUp();
@@ -378,66 +382,129 @@ const OverviewSection = ({
           className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-6 xl:col-span-2"
         >
           <div>
-            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-              <Calendar size={14} /> Month to date
-            </h3>
-            <p className="text-sm text-gray-500 mt-2">
-              Snapshot of the activity recorded since the start of the month.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-              {monthHighlights.map(({ id, label, value, Icon, badgeClass }) => {
-                const StatIcon = Icon;
-                return (
-                  <div
-                    key={id}
-                    className="border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-3 bg-gray-50/40"
-                  >
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        {label}
-                      </p>
-                      <p className="text-xl font-semibold text-gray-900">
-                        {value.toLocaleString()}
-                      </p>
-                    </div>
-                    <div
-                      className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
-                    >
-                      <StatIcon size={16} className="mr-1" /> MTD
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                  <Calendar size={14} /> Month to date
+                </h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  Snapshot of the activity recorded since the start of the month.
+                </p>
+              </div>
+              {!reportsGenerated && (
+                <button
+                  onClick={onGenerateReports}
+                  disabled={isGeneratingReports}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  {isGeneratingReports ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 size={16} />
+                      Generate Reports
+                    </>
+                  )}
+                </button>
+              )}
+              {reportsGenerated && (
+                <button
+                  onClick={onRefreshReports}
+                  disabled={isGeneratingReports}
+                  className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  {isGeneratingReports ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <History size={16} />
+                      Refresh Reports
+                    </>
+                  )}
+                </button>
+              )}
             </div>
+            {!reportsGenerated ? (
+              <div className="mt-4 p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-center">
+                <BarChart3 size={48} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-600 font-medium mb-1">Reports Not Generated</p>
+                <p className="text-sm text-gray-500">
+                  Click "Generate Reports" above to compute monthly and yearly statistics.<br />
+                  This helps prevent slowdowns with large datasets (33k+ records).
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                {monthHighlights.map(({ id, label, value, Icon, badgeClass }) => {
+                  const StatIcon = Icon;
+                  return (
+                    <div
+                      key={id}
+                      className="border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-3 bg-gray-50/40"
+                    >
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-500">
+                          {label}
+                        </p>
+                        <p className="text-xl font-semibold text-gray-900">
+                          {value.toLocaleString()}
+                        </p>
+                      </div>
+                      <div
+                        className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
+                      >
+                        <StatIcon size={16} className="mr-1" /> MTD
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
               <History size={14} /> Calendar year to date
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-              {yearHighlights.map(({ id, label, value, Icon }) => {
-                const StatIcon = Icon;
-                return (
-                  <div
-                    key={id}
-                    className="border border-gray-100 rounded-xl p-4 bg-white flex items-center gap-3 shadow-sm"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                      <StatIcon size={18} className="text-gray-600" />
+            {!reportsGenerated ? (
+              <div className="mt-4 p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl text-center">
+                <History size={48} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-600 font-medium mb-1">Reports Not Generated</p>
+                <p className="text-sm text-gray-500">
+                  Click "Generate Reports" above to view year-to-date statistics.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                {yearHighlights.map(({ id, label, value, Icon }) => {
+                  const StatIcon = Icon;
+                  return (
+                    <div
+                      key={id}
+                      className="border border-gray-100 rounded-xl p-4 bg-white flex items-center gap-3 shadow-sm"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        <StatIcon size={18} className="text-gray-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-500">
+                          {label}
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {value.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        {label}
-                      </p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {value.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </Animated.div>
 

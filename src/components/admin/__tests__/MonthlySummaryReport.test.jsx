@@ -361,7 +361,7 @@ describe("MonthlySummaryReport", () => {
     expect(
       screen.getByText("Shower & Laundry Services Summary"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Program & Shower Reach")).toBeInTheDocument();
+    expect(screen.getByText("Shower Program")).toBeInTheDocument();
     expect(screen.getByText("New Laundry Guests")).toBeInTheDocument();
   });
 

@@ -8,7 +8,6 @@ import BicyclesChart from "../../components/charts/BicyclesChart";
 import HaircutsChart from "../../components/charts/HaircutsChart";
 import HolidaysChart from "../../components/charts/HolidaysChart";
 import DonationsChart from "../../components/charts/DonationsChart";
-import PieCardRecharts from "../../components/charts/PieCardRecharts";
 import StackedBarCardRecharts from "../../components/charts/StackedBarCardRecharts";
 import {
   BarChart3,
@@ -135,14 +134,22 @@ const Analytics = () => {
     return result;
   }, [timeFilter, selectedPrograms, getUniversalTimeRangeMetrics]);
 
-  // Calculate demographics
+  // Calculate demographics based on guests who used selected services in the date range
   const demographics = useMemo(() => {
     const housingCounts = {};
     const ageCounts = {};
     const genderCounts = {};
     const locationCounts = {};
 
-    guests.forEach((guest) => {
+    // Create a Set of active guest IDs for fast lookup
+    const activeGuestIdSet = new Set(metrics.activeGuestIds || []);
+    
+    // Filter guests to only those who participated in selected programs during the date range
+    const filteredGuests = activeGuestIdSet.size > 0
+      ? guests.filter((guest) => activeGuestIdSet.has(guest.id))
+      : [];
+
+    filteredGuests.forEach((guest) => {
       const housing = guest.housingStatus || "Unknown";
       const age = guest.age || "Unknown";
       const gender = guest.gender || "Unknown";
@@ -159,8 +166,9 @@ const Analytics = () => {
       ageCounts,
       genderCounts,
       locationCounts,
+      totalActiveGuests: filteredGuests.length,
     };
-  }, [guests]);
+  }, [guests, metrics.activeGuestIds]);
 
   // Program list configuration
   const programs = [
@@ -178,7 +186,6 @@ const Analytics = () => {
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "trends", label: "Trends", icon: TrendingUp },
     { id: "demographics", label: "Demographics", icon: Users },
-    { id: "specialized", label: "Specialized Reports", icon: Settings },
   ];
 
   // Render program selector
@@ -405,41 +412,81 @@ const Analytics = () => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Users size={20} />
           Guest Demographics
+          <span className="ml-2 px-2 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">
+            {demographics.totalActiveGuests} active guests
+          </span>
         </h3>
+        
+        <p className="text-sm text-gray-600 mb-4">
+          Demographics of guests who used{" "}
+          <span className="font-medium">
+            {selectedPrograms.length === 7
+              ? "any service"
+              : selectedPrograms.join(", ")}
+          </span>{" "}
+          from{" "}
+          <span className="font-medium">
+            {new Date(timeFilter.startDate).toLocaleDateString()}
+          </span>{" "}
+          to{" "}
+          <span className="font-medium">
+            {new Date(timeFilter.endDate).toLocaleDateString()}
+          </span>
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <PieCardRecharts
-            title="Housing Status"
-            subtitle="Current distribution"
-            dataMap={demographics.housingCounts}
-          />
-          <PieCardRecharts
-            title="Age Groups"
-            subtitle="Age distribution"
-            dataMap={demographics.ageCounts}
-          />
-          <PieCardRecharts
-            title="Gender"
-            subtitle="Gender distribution"
-            dataMap={demographics.genderCounts}
-          />
-          <PieCardRecharts
-            title="Location"
-            subtitle="City distribution"
-            dataMap={demographics.locationCounts}
-          />
-        </div>
+        {demographics.totalActiveGuests === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <Users size={48} className="mx-auto mb-4 text-gray-300" />
+            <p>No guests found for the selected filters.</p>
+            <p className="text-sm mt-2">Try expanding the date range or selecting more programs.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Simple tables for easy copying */}
+            {[
+              { title: "Housing Status", data: demographics.housingCounts },
+              { title: "Age Groups", data: demographics.ageCounts },
+              { title: "Gender", data: demographics.genderCounts },
+              { title: "Location", data: demographics.locationCounts },
+            ].map(({ title, data }) => {
+              const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
+              const total = entries.reduce((sum, [, count]) => sum + count, 0);
+              return (
+                <div key={title} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">{title}</h4>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-300">
+                        <th className="text-left py-1 font-medium text-gray-700">Category</th>
+                        <th className="text-right py-1 font-medium text-gray-700">Count</th>
+                        <th className="text-right py-1 font-medium text-gray-700">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map(([label, count]) => (
+                        <tr key={label} className="border-b border-gray-100">
+                          <td className="py-1 text-gray-800">{label || "Unknown"}</td>
+                          <td className="py-1 text-right text-gray-800">{count}</td>
+                          <td className="py-1 text-right text-gray-600">
+                            {total > 0 ? ((count / total) * 100).toFixed(1) : 0}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="font-medium border-t border-gray-300">
+                        <td className="py-1 text-gray-900">Total</td>
+                        <td className="py-1 text-right text-gray-900">{total}</td>
+                        <td className="py-1 text-right text-gray-600">100%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
-  );
-
-  // Render specialized reports view
-  const renderSpecialized = () => (
-    <div className="space-y-6">
-      <DonationsChart
-        startDate={timeFilter.startDate}
-        endDate={timeFilter.endDate}
-      />
     </div>
   );
 
@@ -511,7 +558,6 @@ const Analytics = () => {
         {activeView === "overview" && renderOverview()}
         {activeView === "trends" && renderTrends()}
         {activeView === "demographics" && renderDemographics()}
-        {activeView === "specialized" && renderSpecialized()}
       </div>
     </div>
   );

@@ -50,9 +50,9 @@ const LaPlazaDonations = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
         <h3 className="text-base sm:text-lg font-semibold">La Plaza Market donations</h3>
         <div className="flex items-center gap-2 justify-between sm:justify-start">
-          <button aria-label="prev-day" type="button" onClick={() => shiftDate(-1)} className="px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition">
-            <ChevronLeft size={18} className="sm:hidden" />
-            <ChevronLeft size={20} className="hidden sm:block" />
+          <button aria-label="prev-day" type="button" onClick={() => shiftDate(-1)} className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-rose-100 text-rose-700 transition hover:bg-rose-200 hover:scale-110 active:scale-95">
+            <ChevronLeft size={20} className="sm:hidden" strokeWidth={2.5} />
+            <ChevronLeft size={24} className="hidden sm:block" strokeWidth={2.5} />
           </button>
           <div className="flex items-center gap-2">
             <div className="text-xs sm:text-sm font-medium text-gray-700">{selectedDate}</div>
@@ -64,9 +64,9 @@ const LaPlazaDonations = () => {
               className="p-1.5 sm:p-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
             />
           </div>
-          <button aria-label="next-day" type="button" onClick={() => shiftDate(1)} className="px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 active:scale-95 transition">
-            <ChevronRight size={18} className="sm:hidden" />
-            <ChevronRight size={20} className="hidden sm:block" />
+          <button aria-label="next-day" type="button" onClick={() => shiftDate(1)} className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-rose-100 text-rose-700 transition hover:bg-rose-200 hover:scale-110 active:scale-95">
+            <ChevronRight size={20} className="sm:hidden" strokeWidth={2.5} />
+            <ChevronRight size={24} className="hidden sm:block" strokeWidth={2.5} />
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, startTransition } from "react";
 import {
   Upload,
   CheckCircle,
@@ -15,6 +15,7 @@ import {
   buildSupabaseBicyclePayload,
   buildSupabaseHaircutPayload,
 } from "./attendanceBatchSupabasePayloads";
+import { withBulkOperation } from "../utils/bulkOperationContext";
 
 const padTwo = (value) => String(value).padStart(2, "0");
 
@@ -221,6 +222,11 @@ const AttendanceBatchUpload = () => {
   const [errorReportName, setErrorReportName] = useState("");
   const fileInputRef = useRef(null);
   const currentYear = new Date().getFullYear();
+
+  // Date range filter state
+  const [useDateFilter, setUseDateFilter] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const dateFormatExamples = getDateFormatExamples(currentYear);
   const displayedErrors = recentErrors.slice(0, MAX_INLINE_ERRORS);
   const hasMoreErrors = recentErrors.length > MAX_INLINE_ERRORS;
@@ -288,6 +294,22 @@ const AttendanceBatchUpload = () => {
       return parsed.toISOString();
     }
     return null;
+  };
+
+  // Date filtering helper - needs to be accessible by parseCSVRow
+  const isDateInRange = (dateStr) => {
+    if (!useDateFilter || !startDate || !endDate) return true;
+
+    try {
+      const recordDate = new Date(dateStr);
+      const filterStart = new Date(startDate);
+      const filterEnd = new Date(endDate);
+      filterEnd.setHours(23, 59, 59, 999); // Include end of day
+
+      return recordDate >= filterStart && recordDate <= filterEnd;
+    } catch {
+      return true; // If date parsing fails, include the record
+    }
   };
 
   const splitCSVLine = (line) => {
@@ -375,6 +397,12 @@ const AttendanceBatchUpload = () => {
 
     const normalizedDateIso =
       normalizeDateInputToISO(parsedDate) ?? parsedDate.toISOString();
+
+    // Return marker object for date-filtered records (don't count as error)
+    // The caller will skip these silently
+    if (!isDateInRange(normalizedDateIso)) {
+      return { _dateFiltered: true };
+    }
 
     // Check if guest ID is provided
     const guestIdProvided = !!guestId;
@@ -486,11 +514,12 @@ const AttendanceBatchUpload = () => {
           rowIndex: index,
         });
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         errors.push({
           rowNumber: index + 2,
           guestId: record.guestId || "unknown",
           program: record.program,
-          message: error.message,
+          message: errorMessage,
         });
         errorCount++;
       }
@@ -534,11 +563,12 @@ const AttendanceBatchUpload = () => {
         specialMealCounts[specialMapping.label] += count;
         successCount++;
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         errors.push({
           rowNumber: record.rowIndex + 2,
           guestId: record.guestId || null,
           program: record.program,
-          message: error.message,
+          message: errorMessage,
         });
         errorCount++;
       }
@@ -577,12 +607,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.meals.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase meal import failed: ${error.message}`,
+            message: `Supabase meal import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -618,12 +649,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.showers.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase shower import failed: ${error.message}`,
+            message: `Supabase shower import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -659,12 +691,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.laundry.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase laundry import failed: ${error.message}`,
+            message: `Supabase laundry import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -700,12 +733,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.bicycles.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase bicycle import failed: ${error.message}`,
+            message: `Supabase bicycle import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -735,12 +769,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.haircuts.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase haircut import failed: ${error.message}`,
+            message: `Supabase haircut import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -775,12 +810,13 @@ const AttendanceBatchUpload = () => {
           }
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         recordsByType.holidays.forEach((record) => {
           errors.push({
             rowNumber: record.rowIndex + 2,
             guestId: record.guestId || null,
             program: record.program,
-            message: `Supabase holiday import failed: ${error.message}`,
+            message: `Supabase holiday import failed: ${errorMessage}`,
           });
           errorCount++;
         });
@@ -887,8 +923,9 @@ const AttendanceBatchUpload = () => {
           const startIndex = i - 1; // 0-based index relative to data rows
           const progress = ((i / totalLines) * 100).toFixed(1);
 
+          const filterInfo = useDateFilter ? ` (filtering ${startDate} to ${endDate})` : '';
           setUploadProgress(
-            `Processing records ${i} to ${Math.min(i + CHUNK_SIZE - 1, totalLines)} of ${totalLines} (${progress}%)...`,
+            `Processing records ${i} to ${Math.min(i + CHUNK_SIZE - 1, totalLines)} of ${totalLines} (${progress}%)${filterInfo}...`,
           );
 
           // Yield to UI to prevent freezing
@@ -900,7 +937,12 @@ const AttendanceBatchUpload = () => {
               const rowIndex = startIndex + idx;
               return parseCSVRow(line, rowIndex, headerIndex);
             })
-            .filter(Boolean);
+            .filter((record) => {
+              // Filter out null/undefined and date-filtered records
+              if (!record) return false;
+              if (record._dateFiltered) return false;
+              return true;
+            });
 
           // Validate chunk
           const { validRecords, skippedRecords } =
@@ -954,25 +996,28 @@ const AttendanceBatchUpload = () => {
         const skippedCount = totalSkippedCount;
 
         // Batch update all state records at once (avoid per-chunk re-renders)
-        // Use functional updates to ensure consistency
-        if (recordCollections.meals.length > 0) {
-          setMealRecords((prev) => [...recordCollections.meals, ...prev]);
-        }
-        if (recordCollections.showers.length > 0) {
-          setShowerRecords((prev) => [...recordCollections.showers, ...prev]);
-        }
-        if (recordCollections.laundry.length > 0) {
-          setLaundryRecords((prev) => [...recordCollections.laundry, ...prev]);
-        }
-        if (recordCollections.bicycles.length > 0) {
-          setBicycleRecords((prev) => [...recordCollections.bicycles, ...prev]);
-        }
-        if (recordCollections.haircuts.length > 0) {
-          setHaircutRecords((prev) => [...recordCollections.haircuts, ...prev]);
-        }
-        if (recordCollections.holidays.length > 0) {
-          setHolidayRecords((prev) => [...recordCollections.holidays, ...prev]);
-        }
+        // Use startTransition to make these updates non-blocking for better UX
+        startTransition(() => {
+          // Use functional updates to ensure consistency
+          if (recordCollections.meals.length > 0) {
+            setMealRecords((prev) => [...recordCollections.meals, ...prev]);
+          }
+          if (recordCollections.showers.length > 0) {
+            setShowerRecords((prev) => [...recordCollections.showers, ...prev]);
+          }
+          if (recordCollections.laundry.length > 0) {
+            setLaundryRecords((prev) => [...recordCollections.laundry, ...prev]);
+          }
+          if (recordCollections.bicycles.length > 0) {
+            setBicycleRecords((prev) => [...recordCollections.bicycles, ...prev]);
+          }
+          if (recordCollections.haircuts.length > 0) {
+            setHaircutRecords((prev) => [...recordCollections.haircuts, ...prev]);
+          }
+          if (recordCollections.holidays.length > 0) {
+            setHolidayRecords((prev) => [...recordCollections.holidays, ...prev]);
+          }
+        });
 
         if (skippedCount > 0) {
           const skippedSummary = sampledSkipped
@@ -1053,9 +1098,10 @@ const AttendanceBatchUpload = () => {
           console.error("All batch upload errors (sampled):", sampledErrors);
         }
       } catch (error) {
+        const errorMessage = error?.message || error?.details || error?.hint || String(error);
         setUploadResult({
           success: false,
-          message: error.message,
+          message: errorMessage,
         });
         setRecentErrors([]);
         setErrorReportName("");
@@ -1068,7 +1114,10 @@ const AttendanceBatchUpload = () => {
       }
     };
 
-    await withPersistencePaused(processUpload);
+    // Wrap in both persistence pause AND bulk operation context to suppress toasts
+    await withBulkOperation(async () => {
+      await withPersistencePaused(processUpload);
+    });
   };
 
   const downloadTemplateCSV = () => {
@@ -1185,6 +1234,61 @@ const AttendanceBatchUpload = () => {
           )}
         </div>
       )}
+
+      {/* Date Range Filter */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            type="checkbox"
+            id="use-date-filter"
+            checked={useDateFilter}
+            onChange={(e) => setUseDateFilter(e.target.checked)}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="use-date-filter" className="font-semibold text-gray-700">
+            Filter by Date Range (Recommended for Large Files)
+          </label>
+        </div>
+
+        {useDateFilter && (
+          <div className="ml-6 flex flex-wrap gap-4 items-end">
+            <div>
+              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                id="start-date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                id="end-date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            {startDate && endDate && (
+              <div className="text-sm text-blue-700 bg-blue-100 px-3 py-2 rounded">
+                Will import records from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-600 mt-2 ml-6">
+          Enable date filtering to import only records within a specific date range.
+          This prevents browser crashes when working with very large CSV files (33k+ records).
+        </p>
+      </div>
 
       <div className="flex flex-wrap gap-4 mb-4">
         <div>

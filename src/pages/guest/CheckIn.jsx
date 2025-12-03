@@ -51,4 +51,5 @@ const CheckIn = () => {
   );
 };
 
-export default CheckIn;
+// Wrap in React.memo to prevent unnecessary re-renders
+export default React.memo(CheckIn);
