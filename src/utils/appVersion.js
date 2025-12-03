@@ -15,18 +15,8 @@ export const CHANGELOG = [
     highlights: [
       {
         type: "feature",
-        title: "Refresh Button",
-        description: "Added a refresh button at the top of every page to manually pull the latest data from Supabase with animated feedback.",
-      },
-      {
-        type: "feature",
         title: "What's New Modal",
         description: "Users can now see recent app updates and new features via a \"What's New\" button in the footer.",
-      },
-      {
-        type: "fix",
-        title: "Last Refreshed Status",
-        description: "Fixed the \"Last Refreshed\" indicator to correctly show when data was last synced from Supabase.",
       },
     ],
   },
