@@ -3574,13 +3574,13 @@ const Services = () => {
             },
             {
               key: "backpack",
-              label: "Backpack (Monthly)",
-              buttonLabel: "Give Backpack",
+              label: "Backpack/Duffel Bag (Monthly)",
+              buttonLabel: "Give Backpack/Duffel Bag",
               icon: Backpack,
               canGive: canBP,
               lastRecord: lastBPGuest,
               daysRemaining: daysBP,
-              successMessage: "Backpack given",
+              successMessage: "Backpack/Duffel Bag given",
             },
             {
               key: "tent",
@@ -4183,6 +4183,8 @@ const Services = () => {
                     ? canGiveItem(guest.id, "sleeping_bag")
                     : false;
                   const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
+                  const canTent = guest ? canGiveItem(guest.id, "tent") : false;
+                  const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
 
                   const waitlistActions = guest
                     ? [
@@ -4210,13 +4212,35 @@ const Services = () => {
                         },
                         {
                           key: "backpack",
-                          label: "Give Backpack",
+                          label: "Give Backpack/Duffel Bag",
                           canGive: canBP,
-                          successMessage: "Backpack given",
+                          successMessage: "Backpack/Duffel Bag given",
                           days: getDaysUntilAvailable(guest.id, "backpack"),
                           nextDate: getNextAvailabilityDate(
                             "backpack",
                             getLastGivenItem(guest.id, "backpack")?.date,
+                          ),
+                        },
+                        {
+                          key: "tent",
+                          label: "Give Tent",
+                          canGive: canTent,
+                          successMessage: "Tent given",
+                          days: getDaysUntilAvailable(guest.id, "tent"),
+                          nextDate: getNextAvailabilityDate(
+                            "tent",
+                            getLastGivenItem(guest.id, "tent")?.date,
+                          ),
+                        },
+                        {
+                          key: "flip_flops",
+                          label: "Give Flip Flops",
+                          canGive: canFF,
+                          successMessage: "Flip Flops given",
+                          days: getDaysUntilAvailable(guest.id, "flip_flops"),
+                          nextDate: getNextAvailabilityDate(
+                            "flip_flops",
+                            getLastGivenItem(guest.id, "flip_flops")?.date,
                           ),
                         },
                       ]

@@ -13,6 +13,7 @@ const hapticsMock = vi.hoisted(() => ({
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
   warning: vi.fn(),
+  error: vi.fn(),
 }));
 
 vi.mock("../../utils/haptics", () => ({
@@ -168,5 +169,156 @@ describe("LaundryList", () => {
       expect.any(Object),
     );
     expect(hapticsMock.complete).toHaveBeenCalled();
+  });
+
+  describe("duplicate slot prevention", () => {
+    it("prevents assigning the same slot to two guests", () => {
+      const listWithSlot = [
+        { id: "1", name: "Alice", slot: "" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ];
+      
+      // Create a mock that captures the updater function
+      let capturedUpdater;
+      const mockSetListCapture = vi.fn((updater) => {
+        capturedUpdater = updater;
+      });
+
+      render(<LaundryList list={listWithSlot} setList={mockSetListCapture} />);
+
+      // Try to assign Alice to Bob's slot
+      const select = screen.getAllByRole("combobox")[0];
+      fireEvent.change(select, { target: { value: "9:30 - 10:30" } });
+
+      // Execute the captured updater with the current list
+      const result = capturedUpdater(listWithSlot);
+
+      // The list should remain unchanged since slot is already taken
+      expect(result).toEqual(listWithSlot);
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Slot 9:30 - 10:30 is already assigned to another guest",
+        expect.any(Object),
+      );
+    });
+
+    it("allows assigning an available slot", () => {
+      const listWithSlot = [
+        { id: "1", name: "Alice", slot: "" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ];
+      
+      let capturedUpdater;
+      const mockSetListCapture = vi.fn((updater) => {
+        capturedUpdater = updater;
+      });
+
+      render(<LaundryList list={listWithSlot} setList={mockSetListCapture} />);
+
+      // Assign Alice to an available slot
+      const select = screen.getAllByRole("combobox")[0];
+      fireEvent.change(select, { target: { value: "10:30 - 11:30" } });
+
+      // Execute the captured updater with the current list
+      const result = capturedUpdater(listWithSlot);
+
+      // Alice should now have the slot
+      expect(result).toEqual([
+        { id: "1", name: "Alice", slot: "10:30 - 11:30" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ]);
+      expect(toastMock.error).not.toHaveBeenCalled();
+    });
+
+    it("allows clearing a slot (selecting empty value)", () => {
+      const listWithSlots = [
+        { id: "1", name: "Alice", slot: "8:30 - 9:30" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ];
+      
+      let capturedUpdater;
+      const mockSetListCapture = vi.fn((updater) => {
+        capturedUpdater = updater;
+      });
+
+      render(<LaundryList list={listWithSlots} setList={mockSetListCapture} />);
+
+      // Clear Alice's slot (Select Slot option has empty value)
+      const select = screen.getAllByRole("combobox")[0];
+      fireEvent.change(select, { target: { value: "" } });
+
+      // Execute the captured updater with the current list
+      const result = capturedUpdater(listWithSlots);
+
+      // Alice's slot should be cleared
+      expect(result).toEqual([
+        { id: "1", name: "Alice", slot: "" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ]);
+      expect(toastMock.error).not.toHaveBeenCalled();
+    });
+
+    it("allows reassigning a guest to their own current slot", () => {
+      const listWithSlots = [
+        { id: "1", name: "Alice", slot: "8:30 - 9:30" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ];
+      
+      let capturedUpdater;
+      const mockSetListCapture = vi.fn((updater) => {
+        capturedUpdater = updater;
+      });
+
+      render(<LaundryList list={listWithSlots} setList={mockSetListCapture} />);
+
+      // Alice selects her current slot again (should be allowed)
+      const select = screen.getAllByRole("combobox")[0];
+      fireEvent.change(select, { target: { value: "8:30 - 9:30" } });
+
+      // Execute the captured updater with the current list
+      const result = capturedUpdater(listWithSlots);
+
+      // List should remain the same (same slot assigned)
+      expect(result).toEqual([
+        { id: "1", name: "Alice", slot: "8:30 - 9:30" },
+        { id: "2", name: "Bob", slot: "9:30 - 10:30" },
+      ]);
+      expect(toastMock.error).not.toHaveBeenCalled();
+    });
+
+    it("prevents race condition when multiple guests try to claim same slot", () => {
+      const listWithoutSlots = [
+        { id: "1", name: "Alice", slot: "" },
+        { id: "2", name: "Bob", slot: "" },
+        { id: "3", name: "Charlie", slot: "" },
+      ];
+      
+      let capturedUpdaters = [];
+      const mockSetListCapture = vi.fn((updater) => {
+        capturedUpdaters.push(updater);
+      });
+
+      render(<LaundryList list={listWithoutSlots} setList={mockSetListCapture} />);
+
+      // Simulate both Alice and Bob trying to select the same slot
+      const selects = screen.getAllByRole("combobox");
+      fireEvent.change(selects[0], { target: { value: "10:30 - 11:30" } }); // Alice
+      fireEvent.change(selects[1], { target: { value: "10:30 - 11:30" } }); // Bob
+
+      // First call should succeed
+      const afterAlice = capturedUpdaters[0](listWithoutSlots);
+      expect(afterAlice).toEqual([
+        { id: "1", name: "Alice", slot: "10:30 - 11:30" },
+        { id: "2", name: "Bob", slot: "" },
+        { id: "3", name: "Charlie", slot: "" },
+      ]);
+
+      // Second call should fail because Alice now has the slot
+      const afterBob = capturedUpdaters[1](afterAlice);
+      expect(afterBob).toEqual(afterAlice); // List unchanged
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Slot 10:30 - 11:30 is already assigned to another guest",
+        expect.any(Object),
+      );
+    });
   });
 });

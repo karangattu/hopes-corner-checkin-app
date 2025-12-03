@@ -260,8 +260,18 @@ const ShowerBooking = () => {
                 {nextAvailableSlot ? nextAvailableSlot.label : "No slots left"}
               </p>
               <p className="mt-2 text-xs text-gray-500">
-                We’ll highlight remaining openings so you can book confidently.
+                We'll highlight remaining openings so you can book confidently.
               </p>
+              {nextAvailableSlot && (
+                <button
+                  type="button"
+                  onClick={() => handleBookShower(nextAvailableSlot.slotTime)}
+                  className="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  data-testid="book-next-available-btn"
+                >
+                  Book {nextAvailableSlot.label}
+                </button>
+              )}
             </div>
             <div className="border border-gray-100 rounded-lg p-4 bg-gray-50">
               <p className="text-xs uppercase text-gray-500 tracking-wide">

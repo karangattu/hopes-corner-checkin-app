@@ -153,6 +153,30 @@ const GuestList = () => {
   const guestsList = useMemo(() => guests || [], [guests]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  // Track guests who already have a shower booked today (limit: 1 per day)
+  const guestsWithShowerToday = useMemo(() => {
+    const today = todayPacificDateString();
+    const guestIds = new Set();
+    (showerRecords || []).forEach((record) => {
+      if (pacificDateStringFrom(record.date) === today && record.guestId) {
+        guestIds.add(String(record.guestId));
+      }
+    });
+    return guestIds;
+  }, [showerRecords]);
+
+  // Track guests who already have laundry booked today (limit: 1 per day)
+  const guestsWithLaundryToday = useMemo(() => {
+    const today = todayPacificDateString();
+    const guestIds = new Set();
+    (laundryRecords || []).forEach((record) => {
+      if (pacificDateStringFrom(record.date) === today && record.guestId) {
+        guestIds.add(String(record.guestId));
+      }
+    });
+    return guestIds;
+  }, [laundryRecords]);
+
   // Detect when initial load is complete
   useEffect(() => {
     if (guests && guests.length >= 0) {
@@ -2014,30 +2038,45 @@ const GuestList = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={() => {
-                    if (isBanned) {
-                      haptics.error();
-                      if (banTooltip) toast.error(banTooltip);
-                      return;
-                    }
-                    haptics.buttonPress();
-                    setShowerPickerGuest(guest);
-                  }}
-                  disabled={isBanned}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    isBanned
-                      ? "bg-red-100 text-red-500 cursor-not-allowed"
-                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                  }`}
-                  title={isBanned ? banTooltip : "Book a shower"}
-                >
-                  <SpringIcon>
-                    <ShowerHead size={16} />
-                  </SpringIcon>
-                  <span className="hidden sm:inline">Book </span>
-                  Shower
-                </button>
+                {(() => {
+                  const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
+                  const isDisabled = isBanned || hasShowerToday;
+                  const tooltipText = isBanned 
+                    ? banTooltip 
+                    : hasShowerToday 
+                      ? "Already has a shower booked today" 
+                      : "Book a shower";
+                  
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isDisabled) {
+                          haptics.error();
+                          if (tooltipText) toast.error(tooltipText);
+                          return;
+                        }
+                        haptics.buttonPress();
+                        setShowerPickerGuest(guest);
+                      }}
+                      disabled={isDisabled}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                        isBanned
+                          ? "bg-red-100 text-red-500 cursor-not-allowed"
+                          : hasShowerToday
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                      }`}
+                      title={tooltipText}
+                    >
+                      <SpringIcon>
+                        <ShowerHead size={16} />
+                      </SpringIcon>
+                      <span className="hidden sm:inline">Book </span>
+                      Shower
+                      {hasShowerToday && <span className="ml-1">✓</span>}
+                    </button>
+                  );
+                })()}
 
                 {(() => {
                   const today = todayPacificDateString();
@@ -2073,30 +2112,45 @@ const GuestList = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={() => {
-                    if (isBanned) {
-                      haptics.error();
-                      if (banTooltip) toast.error(banTooltip);
-                      return;
-                    }
-                    haptics.buttonPress();
-                    setLaundryPickerGuest(guest);
-                  }}
-                  disabled={isBanned}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    isBanned
-                      ? "bg-red-100 text-red-500 cursor-not-allowed"
-                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                  }`}
-                  title={isBanned ? banTooltip : "Book laundry"}
-                >
-                  <SpringIcon>
-                    <WashingMachine size={16} />
-                  </SpringIcon>
-                  <span className="hidden sm:inline">Book </span>
-                  Laundry
-                </button>
+                {(() => {
+                  const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
+                  const isDisabled = isBanned || hasLaundryToday;
+                  const tooltipText = isBanned 
+                    ? banTooltip 
+                    : hasLaundryToday 
+                      ? "Already has laundry booked today" 
+                      : "Book laundry";
+                  
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isDisabled) {
+                          haptics.error();
+                          if (tooltipText) toast.error(tooltipText);
+                          return;
+                        }
+                        haptics.buttonPress();
+                        setLaundryPickerGuest(guest);
+                      }}
+                      disabled={isDisabled}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                        isBanned
+                          ? "bg-red-100 text-red-500 cursor-not-allowed"
+                          : hasLaundryToday
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                      }`}
+                      title={tooltipText}
+                    >
+                      <SpringIcon>
+                        <WashingMachine size={16} />
+                      </SpringIcon>
+                      <span className="hidden sm:inline">Book </span>
+                      Laundry
+                      {hasLaundryToday && <span className="ml-1">✓</span>}
+                    </button>
+                  );
+                })()}
 
                 {(() => {
                   const today = todayPacificDateString();
@@ -3684,30 +3738,45 @@ const GuestList = () => {
                             </div>
 
                             <div className="flex flex-wrap gap-2 items-center">
-                              <button
-                                onClick={() => {
-                                  if (isBanned) {
-                                    haptics.error();
-                                    if (banTooltip) toast.error(banTooltip);
-                                    return;
-                                  }
-                                  haptics.buttonPress();
-                                  setShowerPickerGuest(guest);
-                                }}
-                                disabled={isBanned}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  isBanned
-                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                    : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                                }`}
-                                title={isBanned ? banTooltip : "Book a shower"}
-                              >
-                                <SpringIcon>
-                                  <ShowerHead size={16} />
-                                </SpringIcon>
-                                <span className="hidden sm:inline">Book </span>
-                                Shower
-                              </button>
+                              {(() => {
+                                const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
+                                const isDisabled = isBanned || hasShowerToday;
+                                const tooltipText = isBanned 
+                                  ? banTooltip 
+                                  : hasShowerToday 
+                                    ? "Already has a shower booked today" 
+                                    : "Book a shower";
+                                
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      if (isDisabled) {
+                                        haptics.error();
+                                        if (tooltipText) toast.error(tooltipText);
+                                        return;
+                                      }
+                                      haptics.buttonPress();
+                                      setShowerPickerGuest(guest);
+                                    }}
+                                    disabled={isDisabled}
+                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                      isBanned
+                                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                        : hasShowerToday
+                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                    }`}
+                                    title={tooltipText}
+                                  >
+                                    <SpringIcon>
+                                      <ShowerHead size={16} />
+                                    </SpringIcon>
+                                    <span className="hidden sm:inline">Book </span>
+                                    Shower
+                                    {hasShowerToday && <span className="ml-1">✓</span>}
+                                  </button>
+                                );
+                              })()}
 
                               {(() => {
                                 const today = todayPacificDateString();
@@ -3746,30 +3815,45 @@ const GuestList = () => {
                             </div>
 
                             <div className="flex flex-wrap gap-2 items-center">
-                              <button
-                                onClick={() => {
-                                  if (isBanned) {
-                                    haptics.error();
-                                    if (banTooltip) toast.error(banTooltip);
-                                    return;
-                                  }
-                                  haptics.buttonPress();
-                                  setLaundryPickerGuest(guest);
-                                }}
-                                disabled={isBanned}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  isBanned
-                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                    : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                                }`}
-                                title={isBanned ? banTooltip : "Book laundry"}
-                              >
-                                <SpringIcon>
-                                  <WashingMachine size={16} />
-                                </SpringIcon>
-                                <span className="hidden sm:inline">Book </span>
-                                Laundry
-                              </button>
+                              {(() => {
+                                const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
+                                const isDisabled = isBanned || hasLaundryToday;
+                                const tooltipText = isBanned 
+                                  ? banTooltip 
+                                  : hasLaundryToday 
+                                    ? "Already has laundry booked today" 
+                                    : "Book laundry";
+                                
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      if (isDisabled) {
+                                        haptics.error();
+                                        if (tooltipText) toast.error(tooltipText);
+                                        return;
+                                      }
+                                      haptics.buttonPress();
+                                      setLaundryPickerGuest(guest);
+                                    }}
+                                    disabled={isDisabled}
+                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
+                                      isBanned
+                                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                        : hasLaundryToday
+                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                    }`}
+                                    title={tooltipText}
+                                  >
+                                    <SpringIcon>
+                                      <WashingMachine size={16} />
+                                    </SpringIcon>
+                                    <span className="hidden sm:inline">Book </span>
+                                    Laundry
+                                    {hasLaundryToday && <span className="ml-1">✓</span>}
+                                  </button>
+                                );
+                              })()}
 
                               {(() => {
                                 const today = todayPacificDateString();

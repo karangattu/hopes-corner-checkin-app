@@ -139,11 +139,19 @@ export default function LaundryList({ list, setList, onRefresh = noopAsync }) {
 
   const handleSlotChange = useCallback(
     (guestId, slot) => {
-      setList((prev) =>
-        prev.map((guest) =>
+      setList((prev) => {
+        // Check if slot is already taken by another guest (prevent race conditions)
+        if (slot && prev.some((g) => g.slot === slot && g.id !== guestId)) {
+          enhancedToast.error(
+            `Slot ${slot} is already assigned to another guest`,
+            { duration: 3000 },
+          );
+          return prev; // Return unchanged list
+        }
+        return prev.map((guest) =>
           guest.id === guestId ? { ...guest, slot } : guest,
-        ),
-      );
+        );
+      });
       haptics.selection();
     },
     [setList],

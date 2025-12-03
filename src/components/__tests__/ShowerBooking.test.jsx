@@ -333,4 +333,70 @@ describe("ShowerBooking", () => {
 
     expect(screen.getByText("Waitlist full")).toBeInTheDocument();
   });
+
+  describe("Book Next Available", () => {
+    it("shows Book Next Available button when slots are available", () => {
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+      
+      const bookNextBtn = screen.getByTestId("book-next-available-btn");
+      expect(bookNextBtn).toBeInTheDocument();
+      expect(bookNextBtn).toHaveTextContent(/Book 8:00 AM/);
+    });
+
+    it("books the next available slot when clicking Book Next Available button", () => {
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+      
+      const bookNextBtn = screen.getByTestId("book-next-available-btn");
+      fireEvent.click(bookNextBtn);
+      
+      expect(mockAddShowerRecord).toHaveBeenCalledWith("1", "08:00");
+    });
+
+    it("skips full slots and books the first available slot", () => {
+      // Fill up the 8:00 slot (2 guests)
+      mockContext.showerRecords = [
+        { id: "rec1", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+        { id: "rec2", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
+      ];
+      render(<ShowerBooking />);
+      
+      const bookNextBtn = screen.getByTestId("book-next-available-btn");
+      // Should show 8:30 AM as next available (08:00 is full)
+      expect(bookNextBtn).toHaveTextContent(/Book 8:30 AM/);
+      
+      fireEvent.click(bookNextBtn);
+      expect(mockAddShowerRecord).toHaveBeenCalledWith("1", "08:30");
+    });
+
+    it("does not show Book Next Available button when all slots are full", () => {
+      mockContext.showerRecords = [
+        { id: "rec1", guestId: "2", time: "08:00", date: "2025-10-09", status: "booked" },
+        { id: "rec2", guestId: "3", time: "08:00", date: "2025-10-09", status: "booked" },
+        { id: "rec3", guestId: "4", time: "08:30", date: "2025-10-09", status: "booked" },
+        { id: "rec4", guestId: "5", time: "08:30", date: "2025-10-09", status: "booked" },
+        { id: "rec5", guestId: "6", time: "09:00", date: "2025-10-09", status: "booked" },
+        { id: "rec6", guestId: "7", time: "09:00", date: "2025-10-09", status: "booked" },
+        { id: "rec7", guestId: "8", time: "09:30", date: "2025-10-09", status: "booked" },
+        { id: "rec8", guestId: "9", time: "09:30", date: "2025-10-09", status: "booked" },
+      ];
+      render(<ShowerBooking />);
+      
+      expect(screen.queryByTestId("book-next-available-btn")).not.toBeInTheDocument();
+    });
+
+    it("shows error message if booking next available slot fails", () => {
+      mockAddShowerRecord.mockImplementation(() => {
+        throw new Error("Booking failed");
+      });
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+      
+      const bookNextBtn = screen.getByTestId("book-next-available-btn");
+      fireEvent.click(bookNextBtn);
+      
+      expect(screen.getByText("Booking failed")).toBeInTheDocument();
+    });
+  });
 });
