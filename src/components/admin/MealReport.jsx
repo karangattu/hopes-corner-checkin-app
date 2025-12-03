@@ -72,6 +72,11 @@ const MEAL_TYPE_OPTIONS = [
     label: "United Effort",
     description: "Meals shared with United Effort org volunteers.",
   },
+  {
+    key: "lunchBags",
+    label: "Lunch Bags",
+    description: "Bagged lunches distributed.",
+  },
 ];
 
 const MEAL_TYPE_DEFAULTS = MEAL_TYPE_OPTIONS.reduce((acc, option) => {
@@ -87,6 +92,7 @@ const MealReport = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
+    lunchBagRecords,
     exportDataAsCSV,
     guests,
   } = useAppContext();
@@ -236,6 +242,9 @@ const MealReport = () => {
       const monthUnitedEffortMeals = mealTypeFilters.unitedEffort
         ? filterRecordsByDayAndMonth(unitedEffortMealRecords)
         : [];
+      const monthLunchBags = mealTypeFilters.lunchBags
+        ? filterRecordsByDayAndMonth(lunchBagRecords)
+        : [];
 
       const guestMealsCount = sumCounts(monthMeals);
       const extraMealsCount = sumCounts(monthExtraMeals);
@@ -243,6 +252,7 @@ const MealReport = () => {
       const dayWorkerMealsCount = sumCounts(monthDayWorkerMeals);
       const shelterMealsCount = sumCounts(monthShelterMeals);
       const unitedEffortMealsCount = sumCounts(monthUnitedEffortMeals);
+      const lunchBagsCount = sumCounts(monthLunchBags);
 
       const uniqueGuestIds = new Set(
         [
@@ -252,6 +262,7 @@ const MealReport = () => {
           ...monthUnitedEffortMeals,
           ...monthExtraMeals,
           ...monthDayWorkerMeals,
+          ...monthLunchBags,
         ]
           .map((r) => r.guestId)
           .filter(Boolean),
@@ -287,7 +298,8 @@ const MealReport = () => {
         rvMealsCount +
         dayWorkerMealsCount +
         shelterMealsCount +
-        unitedEffortMealsCount;
+        unitedEffortMealsCount +
+        lunchBagsCount;
 
       const avgMealsPerServiceDay = validDaysCount
         ? totalMealsServed / validDaysCount
@@ -303,6 +315,7 @@ const MealReport = () => {
         dayWorkerMeals: dayWorkerMealsCount,
         shelterMeals: shelterMealsCount,
         unitedEffortMeals: unitedEffortMealsCount,
+        lunchBags: lunchBagsCount,
         totalMeals: totalMealsServed,
         avgMealsPerServiceDay,
         uniqueGuests: uniqueGuestIds.size,
@@ -324,6 +337,7 @@ const MealReport = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     dayWorkerMealRecords,
+    lunchBagRecords,
     mealTypeFilters,
     months,
     guests,
@@ -363,6 +377,11 @@ const MealReport = () => {
         name: "United Effort",
         value: currentMonthData.unitedEffortMeals,
         color: "#6366f1",
+      },
+      {
+        name: "Lunch Bags",
+        value: currentMonthData.lunchBags,
+        color: "#14b8a6",
       },
     ].filter((item) => item.value > 0);
   }, [currentMonthData]);
@@ -584,35 +603,36 @@ const MealReport = () => {
       const dayUnitedEffortMeals = mealTypeFilters.unitedEffort
         ? filterRecordsByDate(unitedEffortMealRecords)
         : [];
+      const dayLunchBags = mealTypeFilters.lunchBags
+        ? filterRecordsByDate(lunchBagRecords)
+        : [];
+
+      const guestMealsTotal = dayMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const extraMealsTotal = dayExtraMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const rvMealsTotal = dayRvMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const dayWorkerMealsTotal = dayDayWorkerMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const shelterMealsTotal = dayShelterMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const unitedEffortMealsTotal = dayUnitedEffortMeals.reduce((sum, r) => sum + (r.count || 0), 0);
+      const lunchBagsTotal = dayLunchBags.reduce((sum, r) => sum + (r.count || 0), 0);
 
       exportData.push({
         Date: date.toLocaleDateString(),
         "Day of Week": dayName,
-        "Guest Meals": dayMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Extra Meals": dayExtraMeals.reduce(
-          (sum, r) => sum + (r.count || 0),
-          0,
-        ),
-        "RV Meals": dayRvMeals.reduce((sum, r) => sum + (r.count || 0), 0),
-        "Day Worker Meals": dayDayWorkerMeals.reduce(
-          (sum, r) => sum + (r.count || 0),
-          0,
-        ),
-        "Shelter Meals": dayShelterMeals.reduce(
-          (sum, r) => sum + (r.count || 0),
-          0,
-        ),
-        "United Effort Meals": dayUnitedEffortMeals.reduce(
-          (sum, r) => sum + (r.count || 0),
-          0,
-        ),
+        "Guest Meals": guestMealsTotal,
+        "Extra Meals": extraMealsTotal,
+        "RV Meals": rvMealsTotal,
+        "Day Worker Meals": dayWorkerMealsTotal,
+        "Shelter Meals": shelterMealsTotal,
+        "United Effort Meals": unitedEffortMealsTotal,
+        "Lunch Bags": lunchBagsTotal,
         "Total Meals":
-          dayMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
-          dayExtraMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
-          dayRvMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
-          dayDayWorkerMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
-          dayShelterMeals.reduce((sum, r) => sum + (r.count || 0), 0) +
-          dayUnitedEffortMeals.reduce((sum, r) => sum + (r.count || 0), 0),
+          guestMealsTotal +
+          extraMealsTotal +
+          rvMealsTotal +
+          dayWorkerMealsTotal +
+          shelterMealsTotal +
+          unitedEffortMealsTotal +
+          lunchBagsTotal,
       });
     }
 

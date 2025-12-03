@@ -1955,7 +1955,7 @@ const Services = () => {
               </p>
             </div>
             <span className="text-xs font-semibold bg-blue-50 text-blue-600 px-3 py-1 rounded-full border border-blue-100">
-              Updated {today.toLocaleDateString()}
+              Updated {new Date(today + "T12:00:00").toLocaleDateString()}
             </span>
           </div>
         </div>

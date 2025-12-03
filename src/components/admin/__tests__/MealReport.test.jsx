@@ -36,6 +36,7 @@ const buildContext = (overrides = {}) => ({
   dayWorkerMealRecords: [],
   shelterMealRecords: [],
   unitedEffortMealRecords: [],
+  lunchBagRecords: [],
   exportDataAsCSV: vi.fn(),
   guests: [{ id: "g1", age: "Adult 18-59" }],
   ...overrides,
