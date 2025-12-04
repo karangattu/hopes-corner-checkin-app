@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, X, Check, ShowerHead, WashingMachine } from "lucide-react";
+import { AlertTriangle, X, Check, ShowerHead, WashingMachine, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import toast from "react-hot-toast";
 
 /**
  * WaiverBadge - Displays a badge for guests needing waiver acknowledgment
- * Shows for guests who have used shower/laundry services but haven't signed waivers
+ * Shows for guests who have used shower/laundry/bicycle services but haven't signed waivers
  * Staff dismisses the badge after confirming external waiver is signed (paper/separate app)
  * Waiver is required once per year (Jan 1 - Dec 31)
  * 
  * IMPORTANT: Shower and laundry share a common waiver. If one is signed, both are covered.
+ * Bicycle has a separate waiver.
  *
  * @param {string} guestId - The guest ID
- * @param {string} serviceType - 'shower' or 'laundry' (for display purposes)
+ * @param {string} serviceType - 'shower', 'laundry', or 'bicycle' (for display purposes)
  * @param {Function} onDismissed - Callback when waiver is dismissed
  * @returns {JSX.Element|null}
  */
@@ -24,8 +25,13 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
 
   const { guestNeedsWaiverReminder, dismissWaiver, hasActiveWaiver } = useAppContext();
 
+  // Determine if this is a bicycle waiver (separate from shower/laundry)
+  const isBicycleWaiver = serviceType === "bicycle";
+  
+  // Shower and laundry share a common waiver, bicycle is separate
+  const isShowerLaundryWaiver = serviceType === "shower" || serviceType === "laundry";
+
   // Check if guest needs waiver on mount and when guestId/serviceType changes
-  // Since shower and laundry share a common waiver, check if EITHER service has been dismissed
   useEffect(() => {
     const checkWaiver = async () => {
       setLoading(true);
@@ -35,6 +41,13 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
         
         if (!needsForThisService) {
           setNeedsWaiver(false);
+          setLoading(false);
+          return;
+        }
+        
+        // For bicycle, just check this service (separate waiver)
+        if (isBicycleWaiver) {
+          setNeedsWaiver(true);
           setLoading(false);
           return;
         }
@@ -63,27 +76,30 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
     if (guestId && serviceType) {
       checkWaiver();
     }
-  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver]);
+  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver, isBicycleWaiver]);
 
   const handleDismiss = async () => {
     setDismissing(true);
     try {
-      // Dismiss the waiver - since shower and laundry share a common waiver,
-      // we dismiss BOTH services when one is confirmed
       const success = await dismissWaiver(guestId, serviceType, "signed_by_staff");
       
       if (success) {
-        // Also dismiss the other service type since they share a waiver
-        const otherService = serviceType === "shower" ? "laundry" : "shower";
-        try {
-          await dismissWaiver(guestId, otherService, "shared_waiver");
-        } catch {
-          // Silent fail for the other service - the main one is already confirmed
+        // For shower/laundry, also dismiss the other service type since they share a waiver
+        if (isShowerLaundryWaiver) {
+          const otherService = serviceType === "shower" ? "laundry" : "shower";
+          try {
+            await dismissWaiver(guestId, otherService, "shared_waiver");
+          } catch {
+            // Silent fail for the other service - the main one is already confirmed
+          }
+          toast.success("Services waiver confirmed for this year (covers both shower & laundry)");
+        } else {
+          // Bicycle has its own waiver
+          toast.success("Bicycle program waiver confirmed for this year");
         }
         
         setNeedsWaiver(false);
         setShowModal(false);
-        toast.success("Services waiver confirmed for this year (covers both shower & laundry)");
         onDismissed?.();
       }
     } catch (error) {
@@ -98,14 +114,22 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
     return null;
   }
 
-  const serviceName = serviceType === "shower" ? "Shower" : "Laundry";
+  const serviceName = serviceType === "shower" ? "Shower" : serviceType === "laundry" ? "Laundry" : "Bicycle";
+  const waiverTitle = isBicycleWaiver ? "Bicycle Program Waiver" : "Services Waiver";
+  const waiverDescription = isBicycleWaiver 
+    ? "Confirm bicycle waiver is signed for this year"
+    : "Confirm waiver is signed for this year";
+  const badgeTitle = isBicycleWaiver 
+    ? "Bicycle program waiver required"
+    : "Services waiver required (covers shower & laundry)";
+
   return (
     <>
       {/* Badge */}
       <button
         onClick={() => setShowModal(true)}
         className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-full hover:bg-amber-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
-        title="Services waiver required (covers shower & laundry)"
+        title={badgeTitle}
       >
         <AlertTriangle size={14} className="flex-shrink-0" />
         <span className="hidden sm:inline">Waiver needed</span>
@@ -138,10 +162,10 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Services Waiver
+                    {waiverTitle}
                   </h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    Confirm waiver is signed for this year
+                    {waiverDescription}
                   </p>
                 </div>
               </div>
@@ -153,23 +177,41 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
                 </p>
               </div>
               
-              {/* Common waiver notice */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="flex gap-1.5 flex-shrink-0">
-                    <ShowerHead size={16} className="text-blue-600" />
-                    <WashingMachine size={16} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">
-                      Common Waiver
-                    </p>
-                    <p className="text-xs text-blue-700 mt-1">
-                      Shower and laundry share the same waiver. Confirming this will cover both services for the year.
-                    </p>
+              {/* Service-specific notice */}
+              {isBicycleWaiver ? (
+                <div className="bg-sky-50 border border-sky-200 rounded-md p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <Bike size={16} className="text-sky-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-sky-800">
+                        Bicycle Program Waiver
+                      </p>
+                      <p className="text-xs text-sky-700 mt-1">
+                        This waiver is specific to the bicycle repair program. Shower and laundry services require a separate waiver.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <ShowerHead size={16} className="text-blue-600" />
+                      <WashingMachine size={16} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Common Waiver
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Shower and laundry share the same waiver. Confirming this will cover both services for the year.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <p className="text-xs text-gray-500 mb-4 text-center">
                 This waiver requirement will reset on January 1st of next year.

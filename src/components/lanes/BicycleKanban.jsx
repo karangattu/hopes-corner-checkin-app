@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { BICYCLE_REPAIR_STATUS } from "../../context/constants";
+import { WaiverBadge } from "../ui/WaiverBadge";
 
 const BicycleKanban = ({
   bicycleRecords,
@@ -158,13 +159,19 @@ const BicycleKanban = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => toggleCard(record.id)}
-            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-          >
-            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Waiver badge for pending bicycle repairs */}
+            {!isDone && (
+              <WaiverBadge guestId={record.guestId} serviceType="bicycle" />
+            )}
+            <button
+              type="button"
+              onClick={() => toggleCard(record.id)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2">
