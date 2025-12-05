@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
+import { fetchAllPaginated } from '../utils/supabasePagination';
 import { createPersistConfig } from './middleware/persistentStorage';
 import {
   mapShowerRow,
@@ -302,22 +303,40 @@ export const useServicesStore = create(
             if (!isSupabaseEnabled() || !supabase) return;
 
             try {
-              const [showerRes, laundryRes, bicycleRes] = await Promise.all([
-                supabase.from('shower_reservations').select('*'),
-                supabase.from('laundry_bookings').select('*'),
-                supabase.from('bicycle_repairs').select('*'),
+              const [showerRows, laundryRows, bicycleRows] = await Promise.all([
+                fetchAllPaginated(supabase, {
+                  table: 'shower_reservations',
+                  select:
+                    'id,guest_id,scheduled_for,scheduled_time,status,created_at,updated_at',
+                  orderBy: 'created_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapShowerRow,
+                }),
+                fetchAllPaginated(supabase, {
+                  table: 'laundry_bookings',
+                  select:
+                    'id,guest_id,slot_label,laundry_type,bag_number,scheduled_for,status,created_at,updated_at',
+                  orderBy: 'created_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapLaundryRow,
+                }),
+                fetchAllPaginated(supabase, {
+                  table: 'bicycle_repairs',
+                  select:
+                    'id,guest_id,requested_at,repair_type,repair_types,notes,status,priority,completed_repairs,completed_at,updated_at',
+                  orderBy: 'updated_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapBicycleRow,
+                }),
               ]);
 
               set((state) => {
-                if (showerRes.data) {
-                  state.showerRecords = showerRes.data.map(mapShowerRow);
-                }
-                if (laundryRes.data) {
-                  state.laundryRecords = laundryRes.data.map(mapLaundryRow);
-                }
-                if (bicycleRes.data) {
-                  state.bicycleRecords = bicycleRes.data.map(mapBicycleRow);
-                }
+                state.showerRecords = showerRows || [];
+                state.laundryRecords = laundryRows || [];
+                state.bicycleRecords = bicycleRows || [];
               });
             } catch (error) {
               console.error(

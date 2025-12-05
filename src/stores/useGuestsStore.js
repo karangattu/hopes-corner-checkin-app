@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
+import { fetchAllPaginated } from '../utils/supabasePagination';
 import { createPersistConfig } from './middleware/persistentStorage';
 import enhancedToast from '../utils/toast';
 import {
@@ -766,36 +767,36 @@ export const useGuestsStore = create(
           if (!isSupabaseEnabled() || !supabase) return;
 
           try {
-            const fetchAllGuests = async () => {
-              const pageSize = 1000;
-              let allGuests = [];
-              let offset = 0;
-              let hasMore = true;
+            const guestColumns = [
+              'id',
+              'external_id',
+              'first_name',
+              'last_name',
+              'full_name',
+              'preferred_name',
+              'housing_status',
+              'age_group',
+              'gender',
+              'location',
+              'notes',
+              'bicycle_description',
+              'banned_until',
+              'banned_at',
+              'ban_reason',
+              'created_at',
+              'updated_at',
+            ].join(',');
 
-              while (hasMore) {
-                const { data, error } = await supabase
-                  .from('guests')
-                  .select('*')
-                  .order('created_at', { ascending: false })
-                  .range(offset, offset + pageSize - 1);
+            const guestsData = await fetchAllPaginated(supabase, {
+              table: 'guests',
+              select: guestColumns,
+              orderBy: 'updated_at',
+              ascending: false,
+              pageSize: 1000,
+              mapper: mapGuestRow,
+            });
 
-                if (error) throw error;
-
-                if (data && data.length > 0) {
-                  allGuests = allGuests.concat(data);
-                  offset += data.length;
-                  hasMore = data.length === pageSize;
-                } else {
-                  hasMore = false;
-                }
-              }
-
-              return allGuests;
-            };
-
-            const guestsData = await fetchAllGuests();
-            const guestRows = guestsData?.map(mapGuestRow) || [];
-            const migratedGuests = migrateGuestData(guestRows);
+            const migratedGuests = migrateGuestData(guestsData || []);
 
             set((state) => {
               state.guests = migratedGuests.map((g) => ({

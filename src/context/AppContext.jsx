@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
 import performanceMonitor from "../utils/performanceMonitor";
+import { fetchAllPaginated } from "../utils/supabasePagination";
 import {
   addMealWithOffline,
   addBicycleWithOffline,
@@ -597,34 +598,25 @@ export const AppProvider = ({ children }) => {
 
     const fetchCloudData = async () => {
       try {
-        // Generic paginated fetch helper to handle more than 1000 records
-        // Supabase has a default limit of 1000 rows per request
-        const fetchAllPaginated = async (tableName, orderByField = "created_at") => {
-          const pageSize = 1000;
-          let allData = [];
-          let offset = 0;
-          let hasMore = true;
-
-          while (hasMore) {
-            const { data, error } = await supabase
-              .from(tableName)
-              .select("*")
-              .order(orderByField, { ascending: false })
-              .range(offset, offset + pageSize - 1);
-
-            if (error) throw error;
-            
-            if (data && data.length > 0) {
-              allData = allData.concat(data);
-              offset += data.length;
-              hasMore = data.length === pageSize;
-            } else {
-              hasMore = false;
-            }
-          }
-
-          return allData;
-        };
+        const guestColumns = [
+          "id",
+          "external_id",
+          "first_name",
+          "last_name",
+          "full_name",
+          "preferred_name",
+          "housing_status",
+          "age_group",
+          "gender",
+          "location",
+          "notes",
+          "bicycle_description",
+          "banned_until",
+          "banned_at",
+          "ban_reason",
+          "created_at",
+          "updated_at",
+        ].join(",");
 
         const [
           guestsData,
@@ -639,16 +631,92 @@ export const AppProvider = ({ children }) => {
           laPlazaData,
           settingsRes,
         ] = await Promise.all([
-          fetchAllPaginated("guests", "created_at"),
-          fetchAllPaginated("meal_attendance", "created_at"),
-          fetchAllPaginated("shower_reservations", "created_at"),
-          fetchAllPaginated("laundry_bookings", "created_at"),
-          fetchAllPaginated("bicycle_repairs", "requested_at"),
-          fetchAllPaginated("holiday_visits", "created_at"),
-          fetchAllPaginated("haircut_visits", "created_at"),
-          fetchAllPaginated("items_distributed", "distributed_at"),
-          fetchAllPaginated("donations", "donated_at"),
-          fetchAllPaginated("la_plaza_donations", "received_at"),
+          fetchAllPaginated(supabase, {
+            table: "guests",
+            select: guestColumns,
+            orderBy: "updated_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapGuestRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "meal_attendance",
+            select:
+              "id,guest_id,quantity,served_on,meal_type,recorded_at,created_at",
+            orderBy: "created_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapMealRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "shower_reservations",
+            select:
+              "id,guest_id,scheduled_for,scheduled_time,status,created_at,updated_at",
+            orderBy: "created_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapShowerRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "laundry_bookings",
+            select:
+              "id,guest_id,slot_label,laundry_type,bag_number,scheduled_for,status,created_at,updated_at",
+            orderBy: "created_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapLaundryRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "bicycle_repairs",
+            select:
+              "id,guest_id,requested_at,repair_type,repair_types,notes,status,priority,completed_repairs,completed_at,updated_at",
+            orderBy: "updated_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapBicycleRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "holiday_visits",
+            select: "id,guest_id,served_at,created_at",
+            orderBy: "created_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapHolidayRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "haircut_visits",
+            select: "id,guest_id,served_at,created_at",
+            orderBy: "created_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapHaircutRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "items_distributed",
+            select: "id,guest_id,item_key,distributed_at,created_at",
+            orderBy: "distributed_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapItemRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "donations",
+            select:
+              "id,donation_type,item_name,trays,weight_lbs,servings,temperature,donor,donated_at,date_key,created_at",
+            orderBy: "donated_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapDonationRow,
+          }),
+          fetchAllPaginated(supabase, {
+            table: "la_plaza_donations",
+            select:
+              "id,category,weight_lbs,notes,received_at,date_key,created_at",
+            orderBy: "received_at",
+            ascending: false,
+            pageSize: 1000,
+            mapper: mapLaPlazaDonationRow,
+          }),
           supabase
             .from("app_settings")
             .select("*")
@@ -658,8 +726,7 @@ export const AppProvider = ({ children }) => {
 
         if (cancelled) return;
 
-        const guestRows = guestsData?.map(mapGuestRow) || [];
-        const migratedGuests = migrateGuestData(guestRows);
+        const migratedGuests = migrateGuestData(guestsData || []);
         setGuests(
           migratedGuests.map((g) => ({
             ...g,

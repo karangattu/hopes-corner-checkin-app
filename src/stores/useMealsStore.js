@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
+import { fetchAllPaginated } from '../utils/supabasePagination';
 import { createPersistConfig } from './middleware/persistentStorage';
 import {
   mapMealRow,
@@ -280,22 +281,38 @@ export const useMealsStore = create(
             if (!isSupabaseEnabled() || !supabase) return;
 
             try {
-              const [mealRes, holidayRes, haircutRes] = await Promise.all([
-                supabase.from('meal_attendance').select('*'),
-                supabase.from('holiday_visits').select('*'),
-                supabase.from('haircut_visits').select('*'),
+              const [mealRows, holidayRows, haircutRows] = await Promise.all([
+                fetchAllPaginated(supabase, {
+                  table: 'meal_attendance',
+                  select:
+                    'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at',
+                  orderBy: 'created_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapMealRow,
+                }),
+                fetchAllPaginated(supabase, {
+                  table: 'holiday_visits',
+                  select: 'id,guest_id,served_at,created_at',
+                  orderBy: 'created_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapHolidayRow,
+                }),
+                fetchAllPaginated(supabase, {
+                  table: 'haircut_visits',
+                  select: 'id,guest_id,served_at,created_at',
+                  orderBy: 'created_at',
+                  ascending: false,
+                  pageSize: 1000,
+                  mapper: mapHaircutRow,
+                }),
               ]);
 
               set((state) => {
-                if (mealRes.data) {
-                  state.mealRecords = mealRes.data.map(mapMealRow);
-                }
-                if (holidayRes.data) {
-                  state.holidayRecords = holidayRes.data.map(mapHolidayRow);
-                }
-                if (haircutRes.data) {
-                  state.haircutRecords = haircutRes.data.map(mapHaircutRow);
-                }
+                state.mealRecords = mealRows || [];
+                state.holidayRecords = holidayRows || [];
+                state.haircutRecords = haircutRows || [];
               });
             } catch (error) {
               console.error('Failed to load meal records from Supabase:', error);
