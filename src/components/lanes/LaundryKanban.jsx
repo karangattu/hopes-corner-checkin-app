@@ -9,9 +9,11 @@ import {
   GripVertical,
   Wind,
   Package,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
+import { CompactWaiverIndicator } from "../ui/CompactWaiverIndicator";
 
 const LaundryKanban = ({
   laundryRecords,
@@ -330,16 +332,22 @@ const LaundryKanban = ({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => toggleCard(record.id)}
-            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-            aria-label={`${
-              isExpanded ? "Collapse" : "Expand"
-            } laundry details for ${nameDetails.primaryName}`}
-          >
-            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Show waiver indicator for non-completed records */}
+            {!isCompleted && (
+              <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
+            )}
+            <button
+              type="button"
+              onClick={() => toggleCard(record.id)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label={`${
+                isExpanded ? "Collapse" : "Expand"
+              } laundry details for ${nameDetails.primaryName}`}
+            >
+              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2">

@@ -745,272 +745,230 @@ const MealReport = () => {
     selectedMonth === currentDate.getMonth();
 
   return (
-    <div className="min-h-screen space-y-6 pb-8">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl border border-blue-200/50 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-8 shadow-lg">
-        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-32 translate-x-32 rounded-full bg-gradient-to-br from-blue-200/30 to-indigo-200/30 blur-3xl" />
+    <div className="min-h-screen space-y-4 pb-8">
+      {/* Compact Header with Month Navigator */}
+      <div className="relative overflow-hidden rounded-2xl border border-blue-200/50 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-4 shadow-sm">
+        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-16 translate-x-16 rounded-full bg-gradient-to-br from-blue-200/30 to-indigo-200/30 blur-2xl" />
 
-        <div className="relative flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="flex items-center gap-3 text-3xl font-bold text-gray-900">
-              <div className="rounded-2xl bg-blue-600 p-3 shadow-lg">
-                <Utensils size={28} className="text-white" />
-              </div>
-              Meal Services Report
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Track, analyze, and optimize meal service operations
-            </p>
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-600 p-2.5 shadow-md">
+              <Utensils size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                Meal Services Report
+              </h1>
+              <p className="text-xs text-gray-600">
+                Track and analyze meal operations
+              </p>
+            </div>
           </div>
 
-          {/* Month Navigator */}
-          <div className="flex items-center gap-4 rounded-2xl border border-blue-300/50 bg-white/80 p-4 shadow-md backdrop-blur-sm">
+          {/* Month Navigator - Inline */}
+          <div className="flex items-center gap-2 rounded-xl border border-blue-200/50 bg-white/80 px-3 py-2 shadow-sm backdrop-blur-sm">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 transition hover:bg-blue-200 hover:scale-110 active:scale-95"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition hover:bg-blue-200 active:scale-95"
               title="Previous month"
             >
-              <ChevronLeft size={24} strokeWidth={2.5} />
+              <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
 
-            <div className="text-center">
-              <div className="mb-1 text-lg font-bold text-blue-900">
+            <div className="text-center px-2">
+              <div className="text-sm font-bold text-blue-900">
                 {months[selectedMonth]} {selectedYear}
               </div>
-              <p className="text-xs font-medium text-blue-700">
-                Viewing {selectedDayLabels.join(", ")}
-              </p>
             </div>
 
             <button
               type="button"
               onClick={() => shiftMonth(1)}
               disabled={isCurrentMonth}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 transition hover:bg-blue-200 hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:hover:scale-100"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition hover:bg-blue-200 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
               title="Next month"
             >
-              <ChevronRight size={24} strokeWidth={2.5} />
+              <ChevronRight size={18} strokeWidth={2.5} />
             </button>
 
-            <div className="h-8 w-px bg-blue-200" />
+            <div className="h-6 w-px bg-blue-200" />
 
             <button
               type="button"
               onClick={goToCurrentMonth}
               disabled={isCurrentMonth}
-              className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             >
-              This Month
+              Today
             </button>
           </div>
         </div>
       </div>
 
-      {/* Day Selection */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <label className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-gray-700">
-          <Calendar size={16} className="text-blue-600" />
-          Select Service Days
-        </label>
-        <div className="flex flex-wrap gap-3">
-          {DAYS_OF_WEEK.map((day) => (
-            <button
-              key={day.value}
-              onClick={() => toggleDay(day.value)}
-              className={`flex flex-col items-center rounded-xl border-2 px-6 py-3 transition-all ${selectedDays.includes(day.value)
-                ? "border-blue-600 bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg"
-                : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
-                }`}
-            >
-              <span className="text-xs font-medium opacity-80">
-                {day.short}
-              </span>
-              <span className="mt-1 text-sm font-bold">{day.label}</span>
-            </button>
-          ))}
-        </div>
-        {selectedDays.length === 0 && (
-          <p className="mt-3 text-sm font-medium text-red-600">
-            Please select at least one day
-          </p>
-        )}
-      </div>
-
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-gray-700">
-              <Utensils size={16} className="text-blue-600" /> Meal categories
-              included
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Toggle which meal programs contribute to totals, charts, and
-              exports.
-            </p>
-          </div>
+      {/* Day Selection - Compact */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-600">
+            <Calendar size={14} className="text-blue-600" />
+            Service Days:
+          </span>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={selectAllMealTypes}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
-            >
-              <Circle size={12} /> Select all
-            </button>
-            <button
-              type="button"
-              onClick={clearMealTypes}
-              disabled={enabledMealTypeCount === 0}
-              className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${enabledMealTypeCount === 0
-                ? "border-gray-200 text-gray-400"
-                : "border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600"
-                }`}
-            >
-              <RotateCcw size={12} /> Clear all
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {MEAL_TYPE_OPTIONS.map((option) => {
-            const isActive = Boolean(mealTypeFilters[option.key]);
-            return (
-              <label
-                key={option.key}
-                className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${isActive
-                  ? "border-blue-200 bg-blue-50/80 shadow-sm"
-                  : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
+            {DAYS_OF_WEEK.map((day) => (
+              <button
+                key={day.value}
+                onClick={() => toggleDay(day.value)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-all ${selectedDays.includes(day.value)
+                  ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                  : "border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50"
                   }`}
               >
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={() => toggleMealType(option.key)}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="flex flex-col text-sm text-gray-700">
-                  <span className="font-semibold text-gray-900">
-                    {option.label}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {option.description}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-          <span>
-            {enabledMealTypeCount} of {MEAL_TYPE_OPTIONS.length} meal categories
-            selected
-          </span>
-          {enabledMealTypeCount === 0 && (
-            <span className="inline-flex items-center gap-2 rounded-md bg-red-50 px-3 py-1 font-semibold text-red-600">
-              <Circle size={10} className="text-red-500" /> Select at least one
-              category to populate the report.
+                {day.short}
+              </button>
+            ))}
+          </div>
+          {selectedDays.length === 0 && (
+            <span className="text-xs font-medium text-red-600">
+              Select at least one day
             </span>
           )}
         </div>
       </div>
 
+      {/* Meal Categories - Compact Collapsible */}
+      <details className="rounded-xl border border-gray-200 bg-white shadow-sm group">
+        <summary className="flex cursor-pointer items-center justify-between p-4 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          <span className="flex items-center gap-2">
+            <Utensils size={16} className="text-blue-600" />
+            Meal Categories ({enabledMealTypeCount}/{MEAL_TYPE_OPTIONS.length} selected)
+          </span>
+          <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        <div className="border-t border-gray-100 p-4">
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              type="button"
+              onClick={selectAllMealTypes}
+              className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:border-blue-200 hover:text-blue-600"
+            >
+              <Circle size={10} /> All
+            </button>
+            <button
+              type="button"
+              onClick={clearMealTypes}
+              disabled={enabledMealTypeCount === 0}
+              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition ${enabledMealTypeCount === 0
+                ? "border-gray-200 text-gray-400"
+                : "border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600"
+                }`}
+            >
+              <RotateCcw size={10} /> Clear all
+            </button>
+          </div>
+
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+            {MEAL_TYPE_OPTIONS.map((option) => {
+              const isActive = Boolean(mealTypeFilters[option.key]);
+              return (
+                <label
+                  key={option.key}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all cursor-pointer ${isActive
+                    ? "border-blue-200 bg-blue-50"
+                    : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/50"
+                    }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={() => toggleMealType(option.key)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="font-medium text-gray-700 truncate">{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </details>
+
       {selectedDays.length > 0 && currentMonthData && (
         <>
-          {/* Stats Overview Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="rounded-xl bg-blue-100 p-3">
-                    <Utensils size={24} className="text-blue-600" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Total Meals
-                  </span>
-                </div>
+          {/* Compact Stats Overview Row */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="rounded-lg bg-blue-100 p-2 flex-shrink-0">
+                <Utensils size={18} className="text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Total Meals
+                </p>
                 <p
-                  className="mt-4 text-3xl font-bold text-gray-900"
+                  className="text-xl font-bold text-gray-900 truncate"
                   data-testid="meal-total-value"
                 >
                   {currentMonthData.totalMeals.toLocaleString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">
-                  This {months[selectedMonth]}
-                </p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-100/50 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="rounded-xl bg-emerald-100 p-3">
-                    <TrendingUp size={24} className="text-emerald-600" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Avg / Day
-                  </span>
-                </div>
-                <p className="mt-4 text-3xl font-bold text-gray-900">
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="rounded-lg bg-emerald-100 p-2 flex-shrink-0">
+                <TrendingUp size={18} className="text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Avg/Day
+                </p>
+                <p className="text-xl font-bold text-gray-900 truncate">
                   {Math.round(
                     currentMonthData.avgMealsPerServiceDay,
                   ).toLocaleString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">Per service day</p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/50 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="rounded-xl bg-purple-100 p-3">
-                    <Users size={24} className="text-purple-600" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Unique Guests
-                  </span>
-                </div>
-                <p className="mt-4 text-3xl font-bold text-gray-900">
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="rounded-lg bg-purple-100 p-2 flex-shrink-0">
+                <Users size={18} className="text-purple-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Guests
+                </p>
+                <p className="text-xl font-bold text-gray-900 truncate">
                   {currentMonthData.uniqueGuests.toLocaleString()}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">Served this month</p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/50 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="rounded-xl bg-amber-100 p-3">
-                    <Calendar size={24} className="text-amber-600" />
-                  </div>
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Service Days
-                  </span>
-                </div>
-                <p className="mt-4 text-3xl font-bold text-gray-900">
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="rounded-lg bg-amber-100 p-2 flex-shrink-0">
+                <Calendar size={18} className="text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Days
+                </p>
+                <p className="text-xl font-bold text-gray-900 truncate">
                   {currentMonthData.validDaysCount}
                 </p>
-                <p className="mt-1 text-sm text-gray-600">Days of operation</p>
               </div>
             </div>
           </div>
 
-          {/* Month Comparison Info Card */}
+          {/* Month Comparison Info - Compact */}
           {previousMonthData && (
-            <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
-              <div className="flex items-start gap-4">
-                <div className="rounded-xl bg-blue-600 p-3">
-                  <BarChart3 size={24} className="text-white" />
+            <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-blue-600 p-2">
+                  <BarChart3 size={16} className="text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900">
-                    Month-over-Month Comparison
-                  </h3>
-                  <p className="mt-2 text-gray-700">
+                  <span className="text-sm font-semibold text-gray-900">
+                    vs {previousMonthData.month}:{" "}
+                  </span>
+                  <span className="text-sm text-gray-700">
                     {(() => {
                       const delta =
                         currentMonthData.totalMeals -
@@ -1025,83 +983,79 @@ const MealReport = () => {
                         : "0.0";
 
                       if (delta === 0) {
-                        return `Meal count unchanged compared to ${previousMonthData.month}`;
+                        return "No change";
                       }
 
                       return (
                         <>
-                          Served{" "}
                           <span
                             className={`font-bold ${delta > 0 ? "text-emerald-700" : "text-red-700"}`}
                           >
-                            {magnitude.toLocaleString()} {noun}{" "}
-                            {delta > 0 ? "more" : "fewer"}
+                            {delta > 0 ? "+" : ""}{magnitude.toLocaleString()} {noun}
                           </span>{" "}
-                          than {previousMonthData.month} (
-                          <span
+                          (<span
                             className={`font-semibold ${delta > 0 ? "text-emerald-700" : "text-red-700"}`}
                           >
                             {delta > 0 ? "+" : ""}
                             {percentChange}%
-                          </span>
-                          )
+                          </span>)
                         </>
                       );
                     })()}
-                  </p>
+                  </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab Navigation */}
-          <div className="flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
+          {/* Tab Navigation - Compact */}
+          <div className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab("overview")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "overview"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === "overview"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm"
                 : "text-gray-600 hover:bg-gray-100"
                 }`}
             >
-              <PieChart size={18} />
+              <PieChart size={16} />
               Overview
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("trends")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "trends"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === "trends"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm"
                 : "text-gray-600 hover:bg-gray-100"
                 }`}
             >
-              <BarChart3 size={18} />
+              <BarChart3 size={16} />
               Trends
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("export")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition ${activeTab === "export"
-                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === "export"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm"
                 : "text-gray-600 hover:bg-gray-100"
                 }`}
             >
-              <Download size={18} />
+              <Download size={16} />
               Export
             </button>
           </div>
 
           {/* Tab Content */}
           {activeTab === "overview" && (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {/* Meal Type Breakdown Pie Chart */}
               {mealTypeBreakdown.length > 0 && (
-                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
-                    <Package size={22} className="text-orange-600" />
-                    Meal Type Distribution
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-gray-900">
+                    <Package size={18} className="text-orange-600" />
+                    Meal Distribution
                   </h2>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <RePieChart>
                       <Pie
                         data={mealTypeBreakdown}
@@ -1109,9 +1063,9 @@ const MealReport = () => {
                         cy="50%"
                         labelLine={false}
                         label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
+                          `${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`
                         }
-                        outerRadius={100}
+                        outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -1122,22 +1076,22 @@ const MealReport = () => {
                       <Tooltip />
                     </RePieChart>
                   </ResponsiveContainer>
-                  <div className="mt-6 space-y-2">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     {mealTypeBreakdown.map((item) => (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-2 py-1.5"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <div
-                            className="h-4 w-4 rounded-full"
+                            className="h-3 w-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs font-medium text-gray-700 truncate">
                             {item.name}
                           </span>
                         </div>
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className="text-xs font-bold text-gray-900 ml-1">
                           {item.value.toLocaleString()}
                         </span>
                       </div>
@@ -1148,12 +1102,12 @@ const MealReport = () => {
 
               {/* Age Group Breakdown Pie Chart */}
               {ageGroupBreakdown.length > 0 && (
-                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-6 flex items-center gap-2 text-xl font-bold text-gray-900">
-                    <Users size={22} className="text-blue-600" />
-                    Guest Age Demographics
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-gray-900">
+                    <Users size={18} className="text-blue-600" />
+                    Age Demographics
                   </h2>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <RePieChart>
                       <Pie
                         data={ageGroupBreakdown}
@@ -1161,9 +1115,9 @@ const MealReport = () => {
                         cy="50%"
                         labelLine={false}
                         label={({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
+                          `${name.split(' ')[0]}: ${(percent * 100).toFixed(0)}%`
                         }
-                        outerRadius={100}
+                        outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -1174,22 +1128,22 @@ const MealReport = () => {
                       <Tooltip />
                     </RePieChart>
                   </ResponsiveContainer>
-                  <div className="mt-6 space-y-2">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     {ageGroupBreakdown.map((item) => (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-2 py-1.5"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <div
-                            className="h-4 w-4 rounded-full"
+                            className="h-3 w-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-xs font-medium text-gray-700 truncate">
                             {item.name}
                           </span>
                         </div>
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className="text-xs font-bold text-gray-900 ml-1">
                           {item.value.toLocaleString()}
                         </span>
                       </div>
