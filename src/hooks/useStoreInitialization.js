@@ -17,16 +17,16 @@ export const useStoreInitialization = () => {
     const initStores = async () => {
       try {
         console.log('Initializing Zustand stores...');
-
-        // Load settings first
-        await useSettingsStore.getState().loadFromSupabase();
-
-        // Load all other data if Supabase is enabled
-        if (isSupabaseEnabled()) {
-          await initializeStoresFromSupabase();
-        }
-
+        // Allow the UI to render immediately with persisted cache while cloud sync runs
         setIsInitialized(true);
+
+        const settingsPromise = useSettingsStore.getState().loadFromSupabase();
+        const dataPromise = isSupabaseEnabled()
+          ? initializeStoresFromSupabase()
+          : Promise.resolve();
+
+        await Promise.all([settingsPromise, dataPromise]);
+
         console.log('Zustand stores initialized successfully');
       } catch (err) {
         console.error('Failed to initialize stores:', err);

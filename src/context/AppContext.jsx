@@ -734,7 +734,7 @@ export const AppProvider = ({ children }) => {
           })),
         );
 
-        const allMealRows = mealsData?.map(mapMealRow) || [];
+        const allMealRows = mealsData || [];
         setMealRecords(allMealRows.filter((r) => r.type === "guest"));
         setRvMealRecords(allMealRows.filter((r) => r.type === "rv"));
         setShelterMealRecords(allMealRows.filter((r) => r.type === "shelter"));
@@ -747,14 +747,14 @@ export const AppProvider = ({ children }) => {
         );
         setLunchBagRecords(allMealRows.filter((r) => r.type === "lunch_bag"));
 
-        setShowerRecords(showersData?.map(mapShowerRow) || []);
-        setLaundryRecords(laundryData?.map(mapLaundryRow) || []);
-        setBicycleRecords(bicyclesData?.map(mapBicycleRow) || []);
-        setHolidayRecords(holidaysData?.map(mapHolidayRow) || []);
-        setHaircutRecords(haircutsData?.map(mapHaircutRow) || []);
-        setItemGivenRecords(itemsData?.map(mapItemRow) || []);
-        setDonationRecords(donationsData?.map(mapDonationRow) || []);
-        setLaPlazaDonations(laPlazaData?.map(mapLaPlazaDonationRow) || []);
+        setShowerRecords(showersData || []);
+        setLaundryRecords(laundryData || []);
+        setBicycleRecords(bicyclesData || []);
+        setHolidayRecords(holidaysData || []);
+        setHaircutRecords(haircutsData || []);
+        setItemGivenRecords(itemsData || []);
+        setDonationRecords(donationsData || []);
+        setLaPlazaDonations(laPlazaData || []);
 
         const settingsRow = settingsRes?.data;
         if (settingsRow) {

@@ -654,7 +654,14 @@ textarea:focus {
   box-shadow: var(--shadow-sm);
   transition:
     transform 150ms ease-out,
-    box-shadow 150ms ease-out;
+    box-shadow 150ms ease-out,
+    background-color 150ms ease-out,
+    border-color 150ms ease-out;
+}
+
+.list-item:focus-within {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
 }
 
 .list-item:last-child {
@@ -680,8 +687,9 @@ textarea:focus {
 }
 
 .active-service {
-  background-color: var(--primary-light);
-  border-left: 4px solid var(--primary);
+  background-color: #ecfdf5;
+  border-left: 4px solid #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 .in-use-label {
@@ -835,6 +843,25 @@ ul {
   transition-property: box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Skeleton loading placeholder */
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Hover states */

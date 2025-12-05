@@ -69,12 +69,13 @@ export const mapShowerRow = (row) => {
   const fallbackTimestamp =
     row.updated_at ||
     row.created_at ||
-    fallbackIsoFromDateOnly(row.scheduled_for);
+    fallbackIsoFromDateOnly(row.scheduled_for) ||
+    new Date().toISOString();
   return {
     id: row.id,
     guestId: row.guest_id,
-    time: row.scheduled_time,
-    scheduledFor: row.scheduled_for,
+    time: row.scheduled_time || null,
+    scheduledFor: row.scheduled_for || row.created_at || null,
     date: scheduledTimestamp || fallbackTimestamp,
     status: mapShowerStatusToApp(row.status),
     createdAt: row.created_at,
@@ -91,14 +92,15 @@ export const mapLaundryRow = (row) => {
   const fallbackTimestamp =
     row.updated_at ||
     row.created_at ||
-    fallbackIsoFromDateOnly(row.scheduled_for);
+    fallbackIsoFromDateOnly(row.scheduled_for) ||
+    new Date().toISOString();
   return {
     id: row.id,
     guestId: row.guest_id,
-    time: row.slot_label,
+    time: row.slot_label || null,
     laundryType: row.laundry_type,
     bagNumber: row.bag_number || "",
-    scheduledFor: row.scheduled_for,
+    scheduledFor: row.scheduled_for || row.created_at || null,
     date: scheduledTimestamp || fallbackTimestamp,
     status: row.status,
     createdAt: row.created_at,

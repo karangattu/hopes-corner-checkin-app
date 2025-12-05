@@ -33,7 +33,7 @@ const LaundryListItem = ({
 
   return (
     <li
-      className="list-item overflow-hidden touch-none"
+      className="list-item overflow-hidden touch-none transition-colors"
       data-testid={`laundry-list-item-${guest.id}`}
       style={{
         transform: `translateX(${translateX}px)`,

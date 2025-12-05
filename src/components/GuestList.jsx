@@ -1140,8 +1140,8 @@ const GuestList = () => {
       : null;
 
     const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
-      isSelected ? "ring-2 ring-blue-500 border-blue-300 shadow-md" : ""
-    } ${isBanned ? "border-red-300" : ""}`;
+      isSelected ? "ring-2 ring-emerald-500 border-emerald-400 shadow-lg bg-emerald-50" : ""
+    } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-300 border-emerald-200 bg-emerald-50/50" : ""} ${isBanned ? "border-red-300" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
 
@@ -1335,7 +1335,7 @@ const GuestList = () => {
           </div>
         </div>
         {expandedGuest === guest.id && (
-          <div className="border-t p-4 bg-gray-50">
+          <div className="border-t border-emerald-200 p-4 bg-emerald-50/60">
             <div className="flex justify-end gap-2 mb-3">
               {editingGuestId === guest.id ? (
                 <>

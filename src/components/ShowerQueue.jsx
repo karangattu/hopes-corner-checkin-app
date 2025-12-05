@@ -26,7 +26,7 @@ const ShowerQueueItem = ({
 
   return (
     <li
-      className={`list-item overflow-hidden touch-none ${isActive ? "active-service" : ""}`}
+      className={`list-item overflow-hidden touch-none transition-colors ${isActive ? "active-service" : ""}`}
       data-testid={`shower-queue-item-${guest.id}`}
       style={{
         transform: `translateX(${translateX}px)`,
@@ -41,8 +41,8 @@ const ShowerQueueItem = ({
         className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none"
         style={{
           opacity: progress,
-          backgroundColor: "rgba(96, 165, 250, 0.16)",
-          color: "#1d4ed8",
+          backgroundColor: "rgba(16, 185, 129, 0.18)",
+          color: "#047857",
         }}
         aria-hidden="true"
       >
@@ -70,7 +70,7 @@ const ShowerQueueItem = ({
           <button
             type="button"
             onClick={() => onComplete(guest)}
-            className="hidden md:inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="hidden md:inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             aria-label={`Mark ${guest.name}'s shower as complete`}
             data-swipe-ignore
           >
