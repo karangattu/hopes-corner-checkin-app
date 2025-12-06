@@ -1139,9 +1139,9 @@ const GuestList = () => {
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
       : null;
 
-    const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white overflow-hidden ${
-      isSelected ? "ring-2 ring-emerald-500 border-emerald-400 shadow-lg bg-emerald-50" : ""
-    } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-300 border-emerald-200 bg-emerald-50/50" : ""} ${isBanned ? "border-red-300" : ""}`;
+    const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white hover:bg-white overflow-hidden ${
+      isSelected ? "ring-2 ring-emerald-500 border-emerald-400 shadow-lg bg-white" : ""
+    } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-300 border-emerald-200 bg-white" : ""} ${isBanned ? "border-red-300" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
 
@@ -1335,24 +1335,9 @@ const GuestList = () => {
           </div>
         </div>
         {expandedGuest === guest.id && (
-          <div className="border-t border-emerald-200 p-4 bg-emerald-50/60">
+          <div className="border-t border-emerald-200 p-4 bg-white">
             <div className="flex justify-end gap-2 mb-3">
-              {editingGuestId === guest.id ? (
-                <>
-                  <button
-                    onClick={saveEditedGuest}
-                    className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelEditing}
-                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
+              {editingGuestId !== guest.id && (
                 <>
                   <button
                     onClick={() => startEditingGuest(guest)}
@@ -1531,10 +1516,10 @@ const GuestList = () => {
               </div>
             )}
             {editingGuestId === guest.id && (
-              <div className="mb-4 bg-white p-4 rounded border space-y-4">
+              <div className="mb-4 bg-white p-4 rounded border border-blue-200 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       First Name*
                     </label>
                     <input
@@ -1543,25 +1528,24 @@ const GuestList = () => {
                       value={editFormData.firstName}
                       onChange={handleEditChange}
                       onBlur={handleEditNameBlur}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Last Name*
                     </label>
-                    \n+{" "}
                     <input
                       type="text"
                       name="lastName"
                       value={editFormData.lastName}
                       onChange={handleEditChange}
                       onBlur={handleEditNameBlur}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Preferred Name
                     </label>
                     <input
@@ -1569,19 +1553,19 @@ const GuestList = () => {
                       name="preferredName"
                       value={editFormData.preferredName}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                       placeholder="Optional"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Housing Status
                     </label>
                     <select
                       name="housingStatus"
                       value={editFormData.housingStatus}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                     >
                       {HOUSING_STATUSES.map((h) => (
                         <option key={h} value={h}>
@@ -1593,14 +1577,14 @@ const GuestList = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Age Group*
                     </label>
                     <select
                       name="age"
                       value={editFormData.age}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                     >
                       <option value="">Select age group</option>
                       {AGE_GROUPS.map((a) => (
@@ -1611,14 +1595,14 @@ const GuestList = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Gender*
                     </label>
                     <select
                       name="gender"
                       value={editFormData.gender}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                     >
                       <option value="">Select gender</option>
                       {GENDERS.map((g) => (
@@ -1629,7 +1613,7 @@ const GuestList = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Location*
                     </label>
                     <Selectize
@@ -1653,36 +1637,50 @@ const GuestList = () => {
                       placeholder="Select location"
                       size="sm"
                       className="w-full"
-                      buttonClassName="w-full px-3 py-2 border rounded text-left"
+                      buttonClassName="w-full px-3 py-2 border-2 border-gray-300 rounded text-left text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       searchable
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Notes
                     </label>
                     <textarea
                       name="notes"
                       value={editFormData.notes}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                       rows="3"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
+                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Bicycle Description
                     </label>
                     <textarea
                       name="bicycleDescription"
                       value={editFormData.bicycleDescription}
                       onChange={handleEditChange}
-                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                       rows="3"
                     />
                   </div>
+                </div>
+                <div className="sticky bottom-0 left-0 right-0 flex justify-end gap-2 pt-4 mt-4 border-t border-gray-200 bg-white -m-4 p-4">
+                  <button
+                    onClick={saveEditedGuest}
+                    className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
@@ -2801,7 +2799,7 @@ const GuestList = () => {
                       }`}
                     >
                       {/* Subtle gradient overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/0 to-indigo-50/0 group-hover:from-blue-50/50 group-hover:via-transparent group-hover:to-indigo-50/50 transition-all duration-500 pointer-events-none" />
+                      <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
                       
                       <div
                         className="relative p-4 cursor-pointer flex justify-between items-center"

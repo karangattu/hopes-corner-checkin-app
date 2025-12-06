@@ -1,10 +1,11 @@
-import { Bike, X } from "lucide-react";
+import { Bike, X, Star } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useAppContext } from "../context/useAppContext";
 import Modal from "./ui/Modal";
 
 const repairTypes = [
+  "New Bicycle",
   "Flat Tire",
   "Brake Adjustment",
   "Gear Adjustment",
@@ -21,7 +22,6 @@ const repairTypes = [
   "Lock",
   "New Tube",
   "New Tire",
-  "New Bicycle",
   "Other",
 ];
 
@@ -140,20 +140,43 @@ const BicycleRepairBooking = () => {
               </span>
             </label>
             <div className="space-y-0.5 max-h-48 overflow-y-auto border rounded-lg p-2 bg-gray-50">
-              {repairTypes.map((type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-2.5 cursor-pointer hover:bg-white px-3 py-2 rounded transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedRepairTypes.includes(type)}
-                    onChange={() => toggleRepairType(type)}
-                    className="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500 flex-shrink-0"
-                  />
-                  <span className="text-sm">{type}</span>
-                </label>
-              ))}
+              {repairTypes.map((type) => {
+                const isNewBicycle = type === "New Bicycle";
+                return (
+                  <label
+                    key={type}
+                    className={`flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded transition-colors ${
+                      isNewBicycle
+                        ? "bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                        : "hover:bg-white"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRepairTypes.includes(type)}
+                      onChange={() => toggleRepairType(type)}
+                      className={`w-4 h-4 ${
+                        isNewBicycle
+                          ? "text-amber-600 border-amber-300"
+                          : "text-sky-600 border-gray-300"
+                      } rounded focus:ring-sky-500 flex-shrink-0`}
+                    />
+                    <span className={`text-sm flex items-center gap-1.5 ${
+                      isNewBicycle ? "font-semibold text-amber-900" : ""
+                    }`}>
+                      {isNewBicycle && (
+                        <Star size={14} className="text-amber-600 fill-amber-600" aria-hidden="true" />
+                      )}
+                      {type}
+                      {isNewBicycle && (
+                        <span className="inline-flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-200 text-amber-900">
+                          NEW
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
             {selectedRepairTypes.length > 0 && (
               <div className="mt-2 text-xs text-sky-700 font-medium">
