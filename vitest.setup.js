@@ -9,13 +9,12 @@ afterEach(() => {
 
 // Mock URL.createObjectURL and URL.revokeObjectURL for tests that need them
 if (typeof window !== "undefined") {
-  Object.defineProperty(window, "URL", {
-    value: {
-      createObjectURL: vi.fn(() => "mock-url"),
-      revokeObjectURL: vi.fn(),
-    },
-    writable: true,
-  });
+  const OriginalURL = globalThis.URL;
+  class MockURL extends OriginalURL {
+    static createObjectURL = vi.fn(() => "mock-url");
+    static revokeObjectURL = vi.fn();
+  }
+  globalThis.URL = MockURL;
 }
 
 // Mock navigator.serviceWorker for tests

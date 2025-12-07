@@ -7,7 +7,6 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 describe('PWA Service Worker Registration', () => {
   let originalNavigator;
   let originalLocation;
-  let originalEnv;
   let mockServiceWorker;
   let mockRegistration;
 
@@ -15,7 +14,6 @@ describe('PWA Service Worker Registration', () => {
     // Save originals
     originalNavigator = window.navigator;
     originalLocation = window.location;
-    originalEnv = import.meta.env;
 
     // Mock service worker registration
     mockRegistration = {
@@ -49,7 +47,7 @@ describe('PWA Service Worker Registration', () => {
     window.location = { ...originalLocation, reload: vi.fn() };
 
     // Mock import.meta.env
-    import.meta.env = { ...originalEnv, PROD: true };
+    vi.stubEnv('PROD', true);
 
     // Clear all timers
     vi.clearAllTimers();
@@ -63,14 +61,14 @@ describe('PWA Service Worker Registration', () => {
       configurable: true,
     });
     window.location = originalLocation;
-    import.meta.env = originalEnv;
+    vi.unstubAllEnvs();
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.clearAllMocks();
   });
 
   it('should register service worker in production', async () => {
-    import.meta.env.PROD = true;
+    vi.stubEnv('PROD', true);
 
     // Simulate the service worker registration code from main.jsx
     if (import.meta.env.PROD && 'serviceWorker' in navigator) {
@@ -82,7 +80,7 @@ describe('PWA Service Worker Registration', () => {
   });
 
   it('should not register service worker in development', async () => {
-    import.meta.env.PROD = false;
+    vi.stubEnv('PROD', false);
 
     // Simulate the service worker registration code from main.jsx
     if (import.meta.env.PROD && 'serviceWorker' in navigator) {
@@ -93,7 +91,7 @@ describe('PWA Service Worker Registration', () => {
   });
 
   it('should not register service worker if not supported', () => {
-    import.meta.env.PROD = true;
+    vi.stubEnv('PROD', true);
 
     const mockNavigator = {};
     const hasServiceWorker = 'serviceWorker' in mockNavigator;

@@ -346,8 +346,7 @@ describe("ErrorBoundary", () => {
 
     describe("Production vs Development", () => {
         it("should show error details in development", () => {
-            const originalEnv = import.meta.env.MODE;
-            import.meta.env.MODE = "development";
+            vi.stubEnv('MODE', 'development');
 
             render(
                 <ErrorBoundary>
@@ -357,12 +356,11 @@ describe("ErrorBoundary", () => {
 
             expect(screen.getByText("Error Details (Development Only)")).toBeInTheDocument();
 
-            import.meta.env.MODE = originalEnv;
+            vi.unstubAllEnvs();
         });
 
         it("should not show error details in production", () => {
-            const originalEnv = import.meta.env.MODE;
-            import.meta.env.MODE = "production";
+            vi.stubEnv('MODE', 'production');
 
             render(
                 <ErrorBoundary>
@@ -372,7 +370,7 @@ describe("ErrorBoundary", () => {
 
             expect(screen.queryByText("Error Details (Development Only)")).not.toBeInTheDocument();
 
-            import.meta.env.MODE = originalEnv;
+            vi.unstubAllEnvs();
         });
     });
 
