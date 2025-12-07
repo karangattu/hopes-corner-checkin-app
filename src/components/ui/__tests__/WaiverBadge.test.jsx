@@ -180,7 +180,7 @@ describe("WaiverBadge Component", () => {
       ).toBeInTheDocument();
     });
 
-    it("should have confirmed button in modal", async () => {
+    it("should have sign waiver button in initial step", async () => {
       mockGuestNeedsWaiverReminder.mockResolvedValue(true);
       const user = userEvent.setup();
 
@@ -200,9 +200,9 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
-      expect(confirmButton).toBeInTheDocument();
-      expect(confirmButton).not.toBeDisabled();
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      expect(signWaiverButton).toBeInTheDocument();
+      expect(signWaiverButton).not.toBeDisabled();
     });
   });
 
@@ -228,7 +228,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -262,7 +266,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -291,7 +299,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       // Re-render with mock returning false to simulate badge no longer needed
@@ -331,7 +343,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -446,7 +462,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -496,7 +516,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       // Should not call error or success toast
@@ -643,7 +667,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       // Should call dismissWaiver for both services
@@ -682,7 +710,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       // Should call dismissWaiver for both services
@@ -721,7 +753,11 @@ describe("WaiverBadge Component", () => {
       const badge = screen.getAllByRole("button")[0];
       await user.click(badge);
 
-      const confirmButton = screen.getByText("Confirmed");
+      // Click "Sign Waiver Online" to move to submitted step
+      const signWaiverButton = screen.getByText("Sign Waiver Online");
+      await user.click(signWaiverButton);
+
+      const confirmButton = screen.getByText("Confirm Signed");
       await user.click(confirmButton);
 
       await waitFor(() => {

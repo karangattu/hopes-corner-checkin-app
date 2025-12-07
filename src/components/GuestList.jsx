@@ -1256,16 +1256,17 @@ const GuestList = () => {
                   const guestShowerRecords = showerRecords.filter(
                     (r) => r.guestId === guest.id
                   );
-                  if (guestShowerRecords.length > 0) {
-                    servicesThatNeedWaivers.push('shower');
-                  }
+                  const hasShower = guestShowerRecords.length > 0;
                   
                   // Check if guest has laundry records
                   const guestLaundryRecords = laundryRecords.filter(
                     (r) => r.guestId === guest.id
                   );
-                  if (guestLaundryRecords.length > 0) {
-                    servicesThatNeedWaivers.push('laundry');
+                  const hasLaundry = guestLaundryRecords.length > 0;
+                  
+                  // Shower and laundry share a common waiver - only show one badge if either is used
+                  if (hasShower || hasLaundry) {
+                    servicesThatNeedWaivers.push('shower');
                   }
                   
                   return servicesThatNeedWaivers.map((service) => (
@@ -2880,16 +2881,17 @@ const GuestList = () => {
                                 const guestShowerRecords = showerRecords.filter(
                                   (r) => r.guestId === guest.id
                                 );
-                                if (guestShowerRecords.length > 0) {
-                                  servicesThatNeedWaivers.push('shower');
-                                }
+                                const hasShower = guestShowerRecords.length > 0;
                                 
                                 // Check if guest has laundry records
                                 const guestLaundryRecords = laundryRecords.filter(
                                   (r) => r.guestId === guest.id
                                 );
-                                if (guestLaundryRecords.length > 0) {
-                                  servicesThatNeedWaivers.push('laundry');
+                                const hasLaundry = guestLaundryRecords.length > 0;
+                                
+                                // Shower and laundry share a common waiver - only show one badge if either is used
+                                if (hasShower || hasLaundry) {
+                                  servicesThatNeedWaivers.push('shower');
                                 }
                                 
                                 return servicesThatNeedWaivers.map((service) => (
