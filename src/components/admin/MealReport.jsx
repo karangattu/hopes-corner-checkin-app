@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import { useAppContext } from "../../context/useAppContext";
+import { pacificDateStringFrom } from "../../utils/date";
 import {
   Download,
   Calendar,
@@ -301,9 +302,9 @@ const MealReport = () => {
         unitedEffortMealsCount +
         lunchBagsCount;
 
-      const avgMealsPerServiceDay = validDaysCount
-        ? totalMealsServed / validDaysCount
-        : totalMealsServed;
+      const uniqueGuestsPerServiceDay = validDaysCount
+        ? uniqueGuestIds.size / validDaysCount
+        : uniqueGuestIds.size;
 
       results.push({
         month: monthLabel,
@@ -317,7 +318,7 @@ const MealReport = () => {
         unitedEffortMeals: unitedEffortMealsCount,
         lunchBags: lunchBagsCount,
         totalMeals: totalMealsServed,
-        avgMealsPerServiceDay,
+        uniqueGuestsPerServiceDay,
         uniqueGuests: uniqueGuestIds.size,
         validDaysCount,
         isCurrentMonth: monthOffset === 0,
@@ -572,7 +573,7 @@ const MealReport = () => {
 
       if (!selectedDays.includes(dayOfWeek)) continue;
 
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = pacificDateStringFrom(date);
       const dayName =
         DAYS_OF_WEEK.find((d) => d.value === dayOfWeek)?.label ||
         date.toLocaleDateString("en-US", { weekday: "long" });
@@ -581,7 +582,9 @@ const MealReport = () => {
         return records.filter((record) => {
           const recordDate = getDateFromRecord(record);
           if (!recordDate) return false;
-          return recordDate.toISOString().split("T")[0] === dateStr;
+          // Use Pacific date string to handle timezone correctly
+          const recordDateStr = pacificDateStringFrom(recordDate);
+          return recordDateStr === dateStr;
         });
       };
 
@@ -918,11 +921,11 @@ const MealReport = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                  Avg/Day
+                  Guests/Day
                 </p>
                 <p className="text-xl font-bold text-gray-900 truncate">
                   {Math.round(
-                    currentMonthData.avgMealsPerServiceDay,
+                    currentMonthData.uniqueGuestsPerServiceDay,
                   ).toLocaleString()}
                 </p>
               </div>
@@ -1214,6 +1217,8 @@ const MealReport = () => {
                         }}
                       />
                       <Tooltip
+                        cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
+                        position={{ y: -40 }}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length > 0) {
                             const data = payload[0].payload;
@@ -1368,10 +1373,10 @@ const MealReport = () => {
                 </div>
 
                 <div ref={chartRef} className="bg-white p-4">
-                  <ResponsiveContainer width="100%" height={400}>
+                  <ResponsiveContainer width="100%" height={450}>
                     <ComposedChart
                       data={calculateMealData}
-                      margin={{ top: 16, right: 40, bottom: 40, left: 0 }}
+                      margin={{ top: 16, right: 40, bottom: 80, left: 0 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis
@@ -1454,11 +1459,11 @@ const MealReport = () => {
                       <Line
                         yAxisId="right"
                         type="monotone"
-                        dataKey="avgMealsPerServiceDay"
+                        dataKey="uniqueGuestsPerServiceDay"
                         stroke="#0f172a"
                         strokeWidth={2}
                         dot={{ r: 3 }}
-                        name="Avg Meals / Service Day"
+                        name="Unique Guests / Service Day"
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -1496,7 +1501,7 @@ const MealReport = () => {
                           Total
                         </th>
                         <th className="px-4 py-3 text-right font-bold">
-                          Avg/Day
+                          Guests/Day
                         </th>
                         <th className="px-4 py-3 text-right font-bold">
                           Unique Guests
@@ -1533,7 +1538,7 @@ const MealReport = () => {
                             {data.totalMeals}
                           </td>
                           <td className="px-4 py-3 text-right text-slate-700">
-                            {Math.round(data.avgMealsPerServiceDay || 0)}
+                            {Math.round(data.uniqueGuestsPerServiceDay || 0)}
                           </td>
                           <td className="px-4 py-3 text-right text-green-700">
                             {data.uniqueGuests}
