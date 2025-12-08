@@ -199,8 +199,8 @@ const GuestCreateForm = ({
               options={[
                 ...BAY_AREA_CITIES.map((c) => ({ value: c, label: c })),
                 {
-                  value: "Outside SF Bay Area",
-                  label: "Outside SF Bay Area",
+                  value: "Outside Santa Clara County",
+                  label: "Outside Santa Clara County",
                 },
               ]}
               value={formData.location}

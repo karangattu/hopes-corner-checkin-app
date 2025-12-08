@@ -1624,8 +1624,8 @@ const GuestList = () => {
                           label: c,
                         })),
                         {
-                          value: "Outside SF Bay Area",
-                          label: "Outside SF Bay Area",
+                          value: "Outside Santa Clara County",
+                          label: "Outside Santa Clara County",
                         },
                       ]}
                       value={editFormData.location}
@@ -2505,8 +2505,8 @@ const GuestList = () => {
                   options={[
                     ...BAY_AREA_CITIES.map((c) => ({ value: c, label: c })),
                     {
-                      value: "Outside SF Bay Area",
-                      label: "Outside SF Bay Area",
+                      value: "Outside Santa Clara County",
+                      label: "Outside Santa Clara County",
                     },
                   ]}
                   value={createFormData.location}
@@ -3278,8 +3278,8 @@ const GuestList = () => {
                                         label: c,
                                       })),
                                       {
-                                        value: "Outside SF Bay Area",
-                                        label: "Outside SF Bay Area",
+                                        value: "Outside Santa Clara County",
+                                        label: "Outside Santa Clara County",
                                       },
                                     ]}
                                     value={editFormData.location}

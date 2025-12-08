@@ -26,27 +26,21 @@ const GuestForm = () => {
   const [error, setError] = useState("");
 
   const BAY_AREA_CITIES = [
-    "Antioch",
-    "Berkeley",
-    "Concord",
-    "Daly City",
-    "Fremont",
-    "Hayward",
-    "Livermore",
+    "Campbell",
+    "Cupertino",
+    "Gilroy",
+    "Los Altos Hills",
+    "Los Altos",
+    "Los Gatos",
+    "Milpitas",
+    "Monte Sereno",
+    "Morgan Hill",
     "Mountain View",
-    "Oakland",
     "Palo Alto",
-    "Redwood City",
-    "Richmond",
-    "San Francisco",
     "San Jose",
-    "San Leandro",
-    "San Mateo",
     "Santa Clara",
-    "Santa Rosa",
+    "Saratoga",
     "Sunnyvale",
-    "Vallejo",
-    "Walnut Creek",
   ];
 
   const handleChange = (e) => {
@@ -212,7 +206,7 @@ const GuestForm = () => {
             <Selectize
               options={[
                 ...BAY_AREA_CITIES.map((c) => ({ value: c, label: c })),
-                { value: "Outside SF Bay Area", label: "Outside SF Bay Area" },
+                { value: "Outside Santa Clara County", label: "Outside Santa Clara County" },
               ]}
               value={formData.location}
               onChange={(val) => setFormData({ ...formData, location: val })}
