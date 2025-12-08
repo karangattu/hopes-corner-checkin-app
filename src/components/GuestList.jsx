@@ -127,27 +127,21 @@ const GuestList = () => {
   });
 
   const BAY_AREA_CITIES = [
-    "Antioch",
-    "Berkeley",
-    "Concord",
-    "Daly City",
-    "Fremont",
-    "Hayward",
-    "Livermore",
+    "Campbell",
+    "Cupertino",
+    "Gilroy",
+    "Los Altos Hills",
+    "Los Altos",
+    "Los Gatos",
+    "Milpitas",
+    "Monte Sereno",
+    "Morgan Hill",
     "Mountain View",
     "Palo Alto",
-    "Oakland",
-    "Redwood City",
-    "Richmond",
-    "San Francisco",
     "San Jose",
-    "San Leandro",
-    "San Mateo",
     "Santa Clara",
-    "Santa Rosa",
+    "Saratoga",
     "Sunnyvale",
-    "Vallejo",
-    "Walnut Creek",
   ];
 
   const guestsList = useMemo(() => guests || [], [guests]);
