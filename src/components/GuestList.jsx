@@ -1703,7 +1703,7 @@ const GuestList = () => {
                   return (
                     <div className="flex flex-wrap gap-2">
                       <div className="space-x-1 relative">
-                        {[1, 2, 3].map((count) => {
+                        {[1, 2].map((count) => {
                           const isDisabled =
                             isBanned || alreadyHasMeal || isPendingMeal;
 
@@ -1743,7 +1743,7 @@ const GuestList = () => {
                       {alreadyHasMeal && !isBanned && (
                         <>
                           <div className="space-x-1 relative">
-                            {[1, 2, 3].map((count) => (
+                            {[1, 2].map((count) => (
                               <button
                                 key={`extra-${count}`}
                                 onClick={() =>
@@ -1799,19 +1799,36 @@ const GuestList = () => {
                                     haptics.error();
                                   }
                                 }}
-                                className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
+                                className="p-2 rounded-md inline-flex items-center justify-center transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
                                 title="Undo today's check-in"
+                                aria-label="Undo check-in"
                               >
                                 <SpringIcon>
-                                  <RotateCcw size={16} />
+                                  <RotateCcw size={18} />
                                 </SpringIcon>
-                                <span className="hidden sm:inline">
-                                  Undo Check-In
-                                </span>
-                                <span className="sm:hidden">Undo</span>
                               </button>
                             );
                           })()}
+
+                          <button
+                            onClick={() => {
+                              haptics.buttonPress();
+                              setSearchTerm("");
+                              setExpandedGuest(null);
+                              searchInputRef.current?.focus();
+                              toast.success("Ready for next guest");
+                            }}
+                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95"
+                            title="Complete check-in and search for next guest"
+                          >
+                            <SpringIcon>
+                              <UserPlus size={16} />
+                            </SpringIcon>
+                            <span className="hidden sm:inline">
+                              Complete Check-in
+                            </span>
+                            <span className="sm:hidden">Next</span>
+                          </button>
                         </>
                       )}
                     </div>
@@ -3355,7 +3372,7 @@ const GuestList = () => {
                                 return (
                                   <div className="flex flex-wrap gap-2">
                                     <div className="space-x-1 relative">
-                                      {[1, 2, 3].map((count) => {
+                                      {[1, 2].map((count) => {
                                         const isDisabled =
                                           isBanned ||
                                           alreadyHasMeal ||
@@ -3400,7 +3417,7 @@ const GuestList = () => {
                                     {alreadyHasMeal && !isBanned && (
                                       <>
                                         <div className="space-x-1 relative">
-                                          {[1, 2, 3].map((count) => (
+                                          {[1, 2].map((count) => (
                                             <button
                                               key={`extra-${count}`}
                                               onClick={() =>
@@ -3468,21 +3485,36 @@ const GuestList = () => {
                                                   haptics.error();
                                                 }
                                               }}
-                                              className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
+                                              className="p-2 rounded-md inline-flex items-center justify-center transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
                                               title="Undo today's check-in"
+                                              aria-label="Undo check-in"
                                             >
                                               <SpringIcon>
-                                                <RotateCcw size={16} />
+                                                <RotateCcw size={18} />
                                               </SpringIcon>
-                                              <span className="hidden sm:inline">
-                                                Undo Check-In
-                                              </span>
-                                              <span className="sm:hidden">
-                                                Undo
-                                              </span>
                                             </button>
                                           );
                                         })()}
+
+                                        <button
+                                          onClick={() => {
+                                            haptics.buttonPress();
+                                            setSearchTerm("");
+                                            setExpandedGuest(null);
+                                            searchInputRef.current?.focus();
+                                            toast.success("Ready for next guest");
+                                          }}
+                                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95"
+                                          title="Complete check-in and search for next guest"
+                                        >
+                                          <SpringIcon>
+                                            <UserPlus size={16} />
+                                          </SpringIcon>
+                                          <span className="hidden sm:inline">
+                                            Complete Check-in
+                                          </span>
+                                          <span className="sm:hidden">Next</span>
+                                        </button>
                                       </>
                                     )}
                                   </div>

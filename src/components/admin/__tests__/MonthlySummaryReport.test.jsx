@@ -417,7 +417,7 @@ describe("MonthlySummaryReport", () => {
     expect(filename).toContain(`shower-laundry-summary-${yearLabel}-`);
     expect(csvData[0]).toHaveProperty("Program Days in Month");
     expect(
-      csvData[csvData.length - 1]["YTD Total Unduplicated Laundry Users"],
+      csvData[csvData.length - 1]["YTD Total Unduplicated Guests"],
     ).toBeDefined();
     expect(csvData[0]).toHaveProperty("Average Showers per Program Day");
     expect(csvData[0]).toHaveProperty("Average Laundry Loads per Program Day");
@@ -468,13 +468,17 @@ describe("MonthlySummaryReport", () => {
     expect(januaryRow).toBeTruthy();
     expect(februaryRow).toBeTruthy();
 
+    expect(januaryRow).toBeTruthy();
     expect(getShowerLaundryCellText(januaryRow, "avg-showers")).toBe("1.0");
     expect(getShowerLaundryCellText(januaryRow, "avg-laundry")).toBe("2.0");
     expect(getShowerLaundryCellText(januaryRow, "new-laundry-guests")).toBe("1");
-    expect(getShowerLaundryCellText(januaryRow, "ytd-laundry-users")).toBe("1");
+    // laundry-unique-users cell contains both the count and the breakdown by age
+    const laundryUsersText = getShowerLaundryCellText(januaryRow, "laundry-unique-users");
+    expect(laundryUsersText).toContain("1");
 
     expect(getShowerLaundryCellText(februaryRow, "new-laundry-guests")).toBe("1");
-    expect(getShowerLaundryCellText(februaryRow, "ytd-laundry-users")).toBe("2");
+    const februaryLaundryUsersText = getShowerLaundryCellText(februaryRow, "laundry-unique-users");
+    expect(februaryLaundryUsersText).toContain("1");
   });
 
   it("shows totals row with correct calculations", () => {

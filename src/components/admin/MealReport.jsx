@@ -379,11 +379,6 @@ const MealReport = () => {
         value: currentMonthData.unitedEffortMeals,
         color: "#6366f1",
       },
-      {
-        name: "Lunch Bags",
-        value: currentMonthData.lunchBags,
-        color: "#14b8a6",
-      },
     ].filter((item) => item.value > 0);
   }, [currentMonthData]);
 
@@ -1165,9 +1160,10 @@ const MealReport = () => {
                     Compare meal volume trends across different service days throughout the month.
                   </p>
 
-                  {/* Legend for day colors */}
+                  {/* Legend for day colors - clickable to filter */}
                   <div className="mb-4 flex flex-wrap gap-3">
-                    {DAYS_OF_WEEK.filter(day => selectedDays.includes(day.value)).map((day) => {
+                    {DAYS_OF_WEEK.map((day) => {
+                      const isSelected = selectedDays.includes(day.value);
                       const dayColor =
                         day.value === 1 ? "#3b82f6" : // Monday - Blue
                           day.value === 3 ? "#10b981" : // Wednesday - Green
@@ -1175,16 +1171,32 @@ const MealReport = () => {
                               "#8b5cf6"; // Saturday - Purple
 
                       return (
-                        <span
+                        <button
                           key={day.value}
-                          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700"
+                          onClick={() => {
+                            setSelectedDays((prev) => {
+                              if (isSelected && prev.length === 1) {
+                                toast.error("At least one day must be selected");
+                                return prev;
+                              }
+                              return isSelected
+                                ? prev.filter((d) => d !== day.value)
+                                : [...prev, day.value].sort();
+                            });
+                          }}
+                          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 hover:scale-105 ${
+                            isSelected
+                              ? "border-gray-300 bg-white shadow-sm text-gray-900"
+                              : "border-gray-200 bg-gray-50 text-gray-400 opacity-50 hover:opacity-75"
+                          }`}
+                          title={isSelected ? `Click to hide ${day.label}` : `Click to show ${day.label}`}
                         >
                           <span
-                            className="inline-block h-3 w-3 rounded-full"
-                            style={{ backgroundColor: dayColor }}
+                            className="inline-block h-3 w-3 rounded-full transition-opacity"
+                            style={{ backgroundColor: dayColor, opacity: isSelected ? 1 : 0.4 }}
                           />
                           {day.label}
-                        </span>
+                        </button>
                       );
                     })}
                   </div>

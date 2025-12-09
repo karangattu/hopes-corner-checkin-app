@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useId } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useId } from "react";
 import {
   WashingMachine,
   Clock,
@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import Modal from "./ui/Modal";
 
@@ -44,6 +45,9 @@ const LaundryBooking = () => {
     settings,
     LAUNDRY_STATUS,
   } = useAppContext();
+
+  const { user } = useAuth();
+  const isCheckinUser = user?.role === "checkin";
 
   const [selectedLaundryType, setSelectedLaundryType] = useState("onsite");
   const [error, setError] = useState("");
@@ -80,8 +84,10 @@ const LaundryBooking = () => {
     setSuccess(false);
   }, [selectedLaundryType]);
 
-  const isSlotBooked = (slotTime) =>
-    laundrySlots.some((slot) => slot.time === slotTime);
+  const isSlotBooked = useCallback(
+    (slotTime) => laundrySlots.some((slot) => slot.time === slotTime),
+    [laundrySlots],
+  );
 
   const handleBookLaundry = (slotTime = null) => {
     if (!laundryPickerGuest) return;
@@ -164,6 +170,11 @@ const LaundryBooking = () => {
     );
   }, [laundryPickerGuest, laundryRecords]);
 
+  const nextAvailableSlot = useMemo(() => {
+    if (capacityReached) return null;
+    return allLaundrySlots.find((slotTime) => !isSlotBooked(slotTime));
+  }, [allLaundrySlots, capacityReached, isSlotBooked]);
+
   const statusChipStyles = {
     [LAUNDRY_STATUS?.WAITING]: "bg-amber-100 text-amber-800",
     [LAUNDRY_STATUS?.WASHER]: "bg-blue-100 text-blue-800",
@@ -184,6 +195,170 @@ const LaundryBooking = () => {
 
   if (!laundryPickerGuest) return null;
 
+  // Minimalistic UI for check-in users
+  if (isCheckinUser) {
+    return (
+      <Modal
+        isOpen={Boolean(laundryPickerGuest)}
+        onClose={handleClose}
+        labelledBy={titleId}
+        describedBy={descriptionId}
+        initialFocusRef={closeButtonRef}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto flex flex-col">
+          <div className="sticky top-0 flex items-center justify-between border-b border-purple-100 bg-gradient-to-br from-purple-50 to-indigo-50 px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="rounded-xl bg-purple-500 p-2.5 text-white shadow-md flex-shrink-0">
+                <WashingMachine size={20} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-gray-900 truncate" id={titleId}>
+                  Book Laundry
+                </h2>
+                <p className="text-xs text-gray-600 truncate">
+                  for <span className="font-semibold">{laundryPickerGuest?.name}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              ref={closeButtonRef}
+              onClick={handleClose}
+              className="rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 flex-shrink-0"
+              aria-label="Close laundry booking"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-3 space-y-2.5 flex-1" id={descriptionId}>
+            {error && (
+              <div className="p-2 bg-red-100 text-red-700 rounded flex items-center gap-2 text-xs">
+                <AlertCircle size={14} aria-hidden="true" className="flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="p-2 bg-green-100 text-green-700 rounded flex items-center gap-2 text-xs">
+                <CheckCircle size={14} aria-hidden="true" className="flex-shrink-0" />
+                <span>Laundry booking saved!</span>
+              </div>
+            )}
+
+            {/* Service Type Selection */}
+            <div>
+              <p className="text-xs font-medium text-gray-700 mb-1.5">Service Type:</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {laundryTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => setSelectedLaundryType(type.id)}
+                    className={`px-2 py-1.5 text-xs font-medium rounded-lg border-2 transition-all ${
+                      selectedLaundryType === type.id
+                        ? "bg-purple-100 border-purple-500 text-purple-900"
+                        : "bg-white border-gray-200 text-gray-700 hover:border-purple-300"
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bag Number Input */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Bag # <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                value={bagNumber}
+                onChange={(e) => setBagNumber(e.target.value)}
+                placeholder="Example: Bag 14"
+                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+
+            {/* On-site booking */}
+            {selectedLaundryType === "onsite" ? (
+              <>
+                {nextAvailableSlot ? (
+                  <div className="border-2 border-purple-500 rounded-lg p-3 bg-purple-50">
+                    <p className="text-xs uppercase text-purple-600 font-semibold tracking-wide mb-1.5">
+                      Next Available Slot
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 mb-0.5">
+                      {nextAvailableSlot}
+                    </p>
+                    <p className="text-xs text-gray-600 mb-2.5">
+                      {onsiteSlotsRemaining} slot{onsiteSlotsRemaining !== 1 ? "s" : ""} remaining today
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleBookLaundry(nextAvailableSlot)}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-2.5 text-sm rounded-lg transition-colors shadow-sm"
+                    >
+                      Book {nextAvailableSlot}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-red-300 rounded-lg p-3 bg-red-50">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={16} className="text-red-700 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-900">All On-site Slots Full</p>
+                        <p className="text-xs text-red-800 mt-0.5">
+                          Try off-site laundry or check back later.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Capacity bar */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 mb-0">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="text-gray-600">On-site Capacity</span>
+                    <span className="font-semibold text-gray-900">
+                      {onsiteSlotsTaken} / {onsiteCapacity}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${onsiteProgress >= 100 ? "bg-red-400" : onsiteProgress >= 80 ? "bg-amber-400" : "bg-purple-500"}`}
+                      style={{ width: `${onsiteProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Off-site info */}
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg mb-2 text-xs text-blue-800">
+                  Off-site laundry doesn't require time slots. Items will be processed over multiple days.
+                </div>
+
+                <button
+                  onClick={() => handleBookLaundry()}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm mb-2"
+                >
+                  Book Off-site Laundry
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={handleClose}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Full UI for staff/admin/board users
   return (
     <Modal
       isOpen={Boolean(laundryPickerGuest)}

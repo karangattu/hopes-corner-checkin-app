@@ -280,18 +280,6 @@ const OverviewSection = ({
       accent: "bg-emerald-50 border border-emerald-100 text-emerald-700",
       onClick: () => setActiveSection("meals"),
     },
-    {
-      id: "link-insights",
-      title: "Insights & data",
-      description: "View reports or export CSV snapshots for record keeping.",
-      Icon: BarChart3,
-      accent: "bg-slate-50 border border-slate-100 text-slate-700",
-      onClick: () => setActiveSection("reports"),
-      actions: [
-        { label: "Open reports", handler: () => setActiveSection("reports") },
-        { label: "Data export", handler: () => setActiveSection("export") },
-      ],
-    },
   ];
 
   return (

@@ -34,6 +34,11 @@ vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => mockContext,
 }));
 
+// Mock auth context to provide user with staff role (not checkin) to show full UI
+vi.mock("../../context/useAuth", () => ({
+  useAuth: () => ({ user: { role: "staff" } }),
+}));
+
 import ShowerBooking from "../ShowerBooking";
 
 describe("ShowerBooking", () => {

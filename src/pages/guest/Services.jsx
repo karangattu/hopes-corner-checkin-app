@@ -1447,7 +1447,6 @@ const Services = () => {
     { id: "laundry", label: "Laundry", icon: WashingMachine },
     { id: "bicycles", label: "Bicycle Repairs", icon: Bike },
     { id: "donations", label: "Donations", icon: FileText },
-    { id: "reports", label: "Insights & data", icon: TrendingUp },
     { id: "export", label: "Data export", icon: Download },
   ];
 
@@ -3453,8 +3452,6 @@ const Services = () => {
         return renderBicycleRepairsSection();
       case "donations":
         return renderDonationsSection();
-      case "reports":
-        return renderReportsSection();
       case "export":
         return renderExportSection();
       default:

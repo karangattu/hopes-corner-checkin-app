@@ -11,6 +11,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
 import Modal from "./ui/Modal";
@@ -57,6 +58,9 @@ const ShowerBooking = () => {
     showerRecords,
     guests,
   } = useAppContext();
+
+  const { user } = useAuth();
+  const isCheckinUser = user?.role === "checkin";
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -189,6 +193,128 @@ const ShowerBooking = () => {
 
   const handleClose = () => setShowerPickerGuest(null);
 
+  // Minimalistic UI for check-in users
+  if (isCheckinUser) {
+    return (
+      <Modal
+        isOpen={Boolean(showerPickerGuest)}
+        onClose={handleClose}
+        labelledBy={titleId}
+        describedBy={descriptionId}
+        initialFocusRef={closeButtonRef}
+      >
+        <div className="w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+          <div className="sticky top-0 bg-gradient-to-br from-sky-50 to-blue-50 border-b border-blue-100 py-3 px-3 flex items-center justify-between min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="bg-blue-500 text-white p-2 rounded-xl shadow-md flex-shrink-0">
+                <ShowerHead size={18} aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-gray-900 truncate" id={titleId}>
+                  Book a Shower
+                </h2>
+                <p className="text-xs text-gray-600 truncate">
+                  for <span className="font-semibold">{showerPickerGuest?.name}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              ref={closeButtonRef}
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 hover:bg-white/80 p-1.5 rounded-lg transition-all flex-shrink-0"
+              aria-label="Close shower booking"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="p-3 space-y-2.5 flex-1" id={descriptionId}>
+            {error && (
+              <div className="p-2 bg-red-100 text-red-700 rounded flex items-center gap-2 text-xs">
+                <AlertCircle size={14} className="flex-shrink-0" aria-hidden="true" />
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="p-2 bg-green-100 text-green-700 rounded flex items-center gap-2 text-xs">
+                <CheckCircle size={14} className="flex-shrink-0" aria-hidden="true" />
+                Shower booked successfully!
+              </div>
+            )}
+
+            {/* Next Available Slot */}
+            {nextAvailableSlot ? (
+              <div className="border-2 border-blue-500 rounded-lg p-3 bg-blue-50">
+                <p className="text-xs uppercase text-blue-600 font-semibold tracking-wide mb-1">
+                  Next Available
+                </p>
+                <p className="text-xl font-bold text-gray-900 mb-0.5">
+                  {nextAvailableSlot.label}
+                </p>
+                <p className="text-xs text-gray-600 mb-2">
+                  {nextAvailableSlot.count === 1
+                    ? "1 guest already booked"
+                    : "First to book this slot"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleBookShower(nextAvailableSlot.slotTime)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm"
+                  data-testid="book-next-available-btn"
+                >
+                  Book {nextAvailableSlot.label}
+                </button>
+              </div>
+            ) : (
+              <div className="border-2 border-yellow-300 rounded-lg p-3 bg-yellow-50">
+                <div className="flex items-start gap-2 mb-2">
+                  <Info size={16} className="text-yellow-700 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                  <div>
+                    <p className="text-xs font-semibold text-yellow-900">All Slots Full</p>
+                    <p className="text-xs text-yellow-800 mt-0.5">
+                      No shower slots available right now. Add to waitlist?
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleWaitlist}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm"
+                >
+                  Add to Waitlist
+                </button>
+              </div>
+            )}
+
+            {/* Capacity Overview */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 mb-0">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-gray-600">Capacity Today</span>
+                <span className="font-semibold text-gray-900">
+                  {occupied} / {totalCapacity}
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all ${capacityProgress >= 100 ? "bg-red-400" : capacityProgress >= 70 ? "bg-amber-400" : "bg-blue-500"}`}
+                  style={{ width: `${capacityProgress}%` }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleClose}
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // Full UI for staff/admin/board users
   return (
     <Modal
       isOpen={Boolean(showerPickerGuest)}

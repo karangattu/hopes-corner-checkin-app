@@ -80,6 +80,32 @@ const MEAL_COLUMN_DEFINITIONS = [
     isNumeric: true,
   },
   {
+    key: "uniqueGuests",
+    label: "Unique Guests",
+    description:
+      "Number of unique guests who received meals this month, counting each person once regardless of how many meals they received.",
+    align: "right",
+    headerBg: "bg-emerald-50",
+    cellBg: "bg-emerald-50",
+    totalCellBg: "bg-emerald-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "newGuests",
+    label: "New Guests",
+    description:
+      "Number of guests who received their first meal ever this month, helping track program growth and new guest intake.",
+    align: "right",
+    headerBg: "bg-sky-50",
+    cellBg: "bg-sky-50",
+    totalCellBg: "bg-sky-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
     key: "fridayMeals",
     label: "Friday",
     description:
@@ -214,6 +240,8 @@ const MEAL_TABLE_GROUPS = [
       "wednesdayMeals",
       "fridayMeals",
       "saturdayMeals",
+      "uniqueGuests",
+      "newGuests",
       "onsiteHotMeals",
     ],
   },
@@ -479,11 +507,41 @@ const MonthlySummaryReport = () => {
         onsiteSaturdayMeals +
         onsiteFridayMeals;
 
+      const monthMealRecords = filterRecords(mealRecords, reportYear, month);
+      const uniqueGuestIds = new Set(
+        monthMealRecords.map((record) => record.guestId).filter(Boolean)
+      );
+      const uniqueGuests = uniqueGuestIds.size;
+
+      const allMealRecordsSorted = [...mealRecords].sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+      const firstMealByGuest = new Map();
+      allMealRecordsSorted.forEach((record) => {
+        if (record.guestId && !firstMealByGuest.has(record.guestId)) {
+          firstMealByGuest.set(record.guestId, new Date(record.date));
+        }
+      });
+
+      let newGuests = 0;
+      uniqueGuestIds.forEach((guestId) => {
+        const firstMealDate = firstMealByGuest.get(guestId);
+        if (firstMealDate) {
+          const firstYear = firstMealDate.getFullYear();
+          const firstMonth = firstMealDate.getMonth();
+          if (firstYear === reportYear && firstMonth === month) {
+            newGuests++;
+          }
+        }
+      });
+
       months.push({
         month: monthName,
         mondayMeals,
         wednesdayMeals,
         saturdayMeals,
+        uniqueGuests,
+        newGuests,
         fridayMeals,
         dayWorkerMeals,
         extraMeals,
@@ -496,11 +554,23 @@ const MonthlySummaryReport = () => {
       });
     }
 
+    const allYearUniqueGuestIds = new Set();
+    mealRecords.forEach((record) => {
+      if (record.date && record.guestId) {
+        const date = new Date(record.date);
+        if (date.getFullYear() === reportYear && date.getMonth() <= effectiveLastMonth) {
+          allYearUniqueGuestIds.add(record.guestId);
+        }
+      }
+    });
+
     const totals = {
       month: "Year to Date",
       mondayMeals: months.reduce((sum, m) => sum + m.mondayMeals, 0),
       wednesdayMeals: months.reduce((sum, m) => sum + m.wednesdayMeals, 0),
       saturdayMeals: months.reduce((sum, m) => sum + m.saturdayMeals, 0),
+      uniqueGuests: allYearUniqueGuestIds.size,
+      newGuests: months.reduce((sum, m) => sum + m.newGuests, 0),
       fridayMeals: months.reduce((sum, m) => sum + m.fridayMeals, 0),
       dayWorkerMeals: months.reduce((sum, m) => sum + m.dayWorkerMeals, 0),
       extraMeals: months.reduce((sum, m) => sum + m.extraMeals, 0),
@@ -934,8 +1004,11 @@ const MonthlySummaryReport = () => {
         Month: row.month,
         Monday: row.mondayMeals,
         Wednesday: row.wednesdayMeals,
-        Saturday: row.saturdayMeals,
         Friday: row.fridayMeals,
+        Saturday: row.saturdayMeals,
+        "Unique Guests": row.uniqueGuests,
+        "New Guests": row.newGuests,
+        "Onsite Hot Meals": row.onsiteHotMeals,
         "Day Worker Center": row.dayWorkerMeals,
         "Extra Meals": row.extraMeals,
         "RV Wed+Sat": row.rvWedSat,
@@ -943,15 +1016,17 @@ const MonthlySummaryReport = () => {
         "Lunch Bags": row.lunchBags,
         "TOTAL HOT MEALS": row.totalHotMeals,
         "Total w/ Lunch Bags": row.totalWithLunchBags,
-        "Onsite Hot Meals": row.onsiteHotMeals,
       })),
       // Add totals row
       {
         Month: monthlyData.totals.month,
         Monday: monthlyData.totals.mondayMeals,
         Wednesday: monthlyData.totals.wednesdayMeals,
-        Saturday: monthlyData.totals.saturdayMeals,
         Friday: monthlyData.totals.fridayMeals,
+        Saturday: monthlyData.totals.saturdayMeals,
+        "Unique Guests": monthlyData.totals.uniqueGuests,
+        "New Guests": monthlyData.totals.newGuests,
+        "Onsite Hot Meals": monthlyData.totals.onsiteHotMeals,
         "Day Worker Center": monthlyData.totals.dayWorkerMeals,
         "Extra Meals": monthlyData.totals.extraMeals,
         "RV Wed+Sat": monthlyData.totals.rvWedSat,
@@ -959,7 +1034,6 @@ const MonthlySummaryReport = () => {
         "Lunch Bags": monthlyData.totals.lunchBags,
         "TOTAL HOT MEALS": monthlyData.totals.totalHotMeals,
         "Total w/ Lunch Bags": monthlyData.totals.totalWithLunchBags,
-        "Onsite Hot Meals": monthlyData.totals.onsiteHotMeals,
       },
     ];
 
@@ -1019,9 +1093,6 @@ const MonthlySummaryReport = () => {
         "Laundry Users: Senior": row.laundrySenior,
         "Laundry Users: Child": row.laundryChild,
         "New Laundry Guests This Month": row.newLaundryGuests,
-        "YTD New Guests (Laundry)": row.ytdNewGuestsLaundry,
-        "YTD Total Unduplicated Laundry Users":
-          row.ytdTotalUnduplicatedLaundryUsers,
       })),
       {
         Month: showerLaundrySummary.totals.month,
@@ -1051,10 +1122,6 @@ const MonthlySummaryReport = () => {
         "Laundry Users: Child": showerLaundrySummary.totals.laundryChild,
         "New Laundry Guests This Month":
           showerLaundrySummary.totals.newLaundryGuests,
-        "YTD New Guests (Laundry)":
-          showerLaundrySummary.totals.ytdNewGuestsLaundry,
-        "YTD Total Unduplicated Laundry Users":
-          showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers,
       },
     ];
 
@@ -1385,7 +1452,7 @@ const MonthlySummaryReport = () => {
                 </th>
                 <th
                   className="border border-gray-300 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50"
-                  colSpan={5}
+                  colSpan={4}
                 >
                   Laundry Services
                 </th>
@@ -1400,7 +1467,6 @@ const MonthlySummaryReport = () => {
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Unique Users</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">New Laundry Guests</th>
-                <th className="border border-gray-200 px-2 py-2 text-center">YTD Laundry Users</th>
               </tr>
             </thead>
             <tbody>
@@ -1480,12 +1546,6 @@ const MonthlySummaryReport = () => {
                   >
                     {row.newLaundryGuests.toLocaleString()}
                   </td>
-                  <td
-                    data-column="ytd-laundry-users"
-                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold text-gray-900"
-                  >
-                    {row.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
-                  </td>
                 </tr>
               ))}
               <tr className="bg-gray-200 font-semibold text-gray-900">
@@ -1562,12 +1622,6 @@ const MonthlySummaryReport = () => {
                   className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                 >
                   {showerLaundrySummary.totals.newLaundryGuests.toLocaleString()}
-                </td>
-                <td
-                  data-column="ytd-laundry-users"
-                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
-                >
-                  {showerLaundrySummary.totals.ytdTotalUnduplicatedLaundryUsers.toLocaleString()}
                 </td>
               </tr>
             </tbody>

@@ -15,7 +15,7 @@ const MainLayout = ({ children }) => {
   const navItemsAll = [
     { id: "check-in", label: "Check In", icon: UserPlus },
     { id: "services", label: "Services", icon: ClipboardList },
-    { id: "admin", label: "Admin Dashboard", icon: BarChart3 },
+    { id: "admin", label: "Dashboard", icon: BarChart3 },
   ];
   const role = user?.role || "checkin";
   const roleLabel = (() => {

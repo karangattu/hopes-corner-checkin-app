@@ -21,7 +21,7 @@ describe("MainLayout with role 'board'", () => {
 
     const checkInButtons = screen.queryAllByRole("button", { name: /Check In/i });
     const servicesButtons = screen.queryAllByRole("button", { name: /Services/i });
-    const adminButtons = screen.queryAllByRole("button", { name: /Admin Dashboard/i });
+    const adminButtons = screen.queryAllByRole("button", { name: /Dashboard/i });
 
     expect(checkInButtons.length).toBe(0);
     expect(servicesButtons.length).toBe(0);
