@@ -1556,6 +1556,12 @@ const GuestList = () => {
                     <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
                       Housing Status
                     </label>
+                    <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
+                      <span className="text-blue-500 font-medium">💙</span>
+                      <span>
+                        Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
+                      </span>
+                    </p>
                     <select
                       name="housingStatus"
                       value={editFormData.housingStatus}
@@ -2447,6 +2453,12 @@ const GuestList = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Housing Status
                 </label>
+                <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
+                  <span className="text-blue-500 font-medium">💙</span>
+                  <span>
+                    Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
+                  </span>
+                </p>
                 <select
                   name="housingStatus"
                   value={createFormData.housingStatus}
