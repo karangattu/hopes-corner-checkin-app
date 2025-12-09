@@ -165,6 +165,12 @@ const GuestForm = () => {
               (Optional)
             </span>
           </label>
+          <p className="text-xs text-gray-600 flex items-start gap-1.5">
+            <span className="text-blue-500 font-medium">💙</span>
+            <span>
+              Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
+            </span>
+          </p>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Home
