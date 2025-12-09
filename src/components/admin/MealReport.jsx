@@ -768,10 +768,10 @@ const MealReport = () => {
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition hover:bg-blue-200 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 active:scale-95 shadow-md hover:shadow-lg"
               title="Previous month"
             >
-              <ChevronLeft size={18} strokeWidth={2.5} />
+              <ChevronLeft size={24} strokeWidth={3} />
             </button>
 
             <div className="text-center px-2">
@@ -784,10 +784,10 @@ const MealReport = () => {
               type="button"
               onClick={() => shiftMonth(1)}
               disabled={isCurrentMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700 transition hover:bg-blue-200 active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white transition hover:bg-blue-700 active:scale-95 shadow-md hover:shadow-lg disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
               title="Next month"
             >
-              <ChevronRight size={18} strokeWidth={2.5} />
+              <ChevronRight size={24} strokeWidth={3} />
             </button>
 
             <div className="h-6 w-px bg-blue-200" />
