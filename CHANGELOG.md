@@ -13,7 +13,6 @@
 
 - Fixed "Last Refreshed" indicator always showing "Never" by correcting localStorage table name keys.
 
-
 ## 0.0.2 · 2025-11-19
 
 ### Bug Fixes
@@ -23,7 +22,6 @@
 ### Performance Improvements
 
 - Batch import attendance records now handles very large CSV files (45,000+ rows) without crashing or freezing the application.
-
 
 ## 0.0.1 · 2025-09-28
 

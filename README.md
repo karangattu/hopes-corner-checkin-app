@@ -154,7 +154,7 @@ If you need to migrate your data from an existing Supabase project to a new one,
    # Export schema only (optional, you'll use the new schema.sql)
    pg_dump "postgres://postgres:[PASSWORD]@db.[OLD-PROJECT-REF].supabase.co:5432/postgres" \
      --schema=public --schema-only > old_schema.sql
-   
+
    # Export data only (recommended)
    pg_dump "postgres://postgres:[PASSWORD]@db.[OLD-PROJECT-REF].supabase.co:5432/postgres" \
      --schema=public --data-only --disable-triggers > old_data.sql
@@ -251,13 +251,13 @@ firebase deploy --only functions
 
 ### Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Foreign key constraint errors | Import `guests` table first, or disable triggers during import |
-| Enum type mismatches | Ensure you ran the full `schema.sql` before importing data |
-| Missing columns | Check if migrations in `docs/supabase/migrations/` need to be applied |
-| UUID conflicts | If IDs conflict, you may need to clear the new tables first |
-| Connection refused | Check that your IP is allowed in Supabase Dashboard → Settings → Database → Network |
+| Issue                         | Solution                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| Foreign key constraint errors | Import `guests` table first, or disable triggers during import                      |
+| Enum type mismatches          | Ensure you ran the full `schema.sql` before importing data                          |
+| Missing columns               | Check if migrations in `docs/supabase/migrations/` need to be applied               |
+| UUID conflicts                | If IDs conflict, you may need to clear the new tables first                         |
+| Connection refused            | Check that your IP is allowed in Supabase Dashboard → Settings → Database → Network |
 
 ### Rollback
 
