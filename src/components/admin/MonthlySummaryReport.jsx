@@ -775,6 +775,7 @@ const MonthlySummaryReport = () => {
           guestId: record.guestId != null ? String(record.guestId) : null,
           date,
           monthIndex: date.getMonth(),
+          laundryType: record.laundryType,
         });
         return acc;
       },
@@ -825,6 +826,8 @@ const MonthlySummaryReport = () => {
       programDays: 0,
       showersProvided: 0,
       laundryLoadsProcessed: 0,
+      onsiteLaundryLoads: 0,
+      offsiteLaundryLoads: 0,
       showerServiceDays: 0,
       laundryServiceDays: 0,
     };
@@ -889,6 +892,14 @@ const MonthlySummaryReport = () => {
         laundryCounts[bucket] += 1;
       });
 
+      // Count onsite vs offsite laundry
+      const onsiteLaundryLoads = laundryForMonth.filter(
+        (record) => record.laundryType === "onsite",
+      ).length;
+      const offsiteLaundryLoads = laundryForMonth.filter(
+        (record) => record.laundryType === "offsite",
+      ).length;
+
       const isYearToDate = monthIndex <= currentMonth;
       const newGuestsThisMonth = [...monthGuestSet].filter(
         (guestId) => guestFirstMonth.get(guestId) === monthIndex,
@@ -914,6 +925,8 @@ const MonthlySummaryReport = () => {
         totalsAccumulator.programDays += programDaysSet.size;
         totalsAccumulator.showersProvided += showersForMonth.length;
         totalsAccumulator.laundryLoadsProcessed += laundryForMonth.length;
+        totalsAccumulator.onsiteLaundryLoads += onsiteLaundryLoads;
+        totalsAccumulator.offsiteLaundryLoads += offsiteLaundryLoads;
         totalsAccumulator.showerServiceDays += showerServiceDays;
         totalsAccumulator.laundryServiceDays += laundryServiceDays;
       }
@@ -943,6 +956,8 @@ const MonthlySummaryReport = () => {
         newGuests: newGuestsThisMonth,
         ytdTotalUnduplicatedGuests: ytdGuestSet.size,
         laundryLoadsProcessed: laundryForMonth.length,
+        onsiteLaundryLoads,
+        offsiteLaundryLoads,
         unduplicatedLaundryUsers: laundryGuestSet.size,
         laundryAdult: laundryCounts.adult,
         laundrySenior: laundryCounts.senior,
@@ -972,6 +987,8 @@ const MonthlySummaryReport = () => {
       newGuests: runningNewGuests,
       ytdTotalUnduplicatedGuests: ytdGuestSet.size,
       laundryLoadsProcessed: totalsAccumulator.laundryLoadsProcessed,
+      onsiteLaundryLoads: totalsAccumulator.onsiteLaundryLoads,
+      offsiteLaundryLoads: totalsAccumulator.offsiteLaundryLoads,
       unduplicatedLaundryUsers: ytdLaundrySet.size,
       laundryAdult: ytdLaundryAgeSets.adult.size,
       laundrySenior: ytdLaundryAgeSets.senior.size,
@@ -1085,6 +1102,8 @@ const MonthlySummaryReport = () => {
         "New Guests This Month": row.newGuests,
         "YTD Total Unduplicated Guests": row.ytdTotalUnduplicatedGuests,
         "Laundry Loads Processed": row.laundryLoadsProcessed,
+        "On-site Laundry Loads": row.onsiteLaundryLoads,
+        "Off-site Laundry Loads": row.offsiteLaundryLoads,
         "Average Laundry Loads per Program Day": Number(
           row.avgLaundryLoadsPerDay.toFixed(2),
         ),
@@ -1112,6 +1131,8 @@ const MonthlySummaryReport = () => {
           showerLaundrySummary.totals.ytdTotalUnduplicatedGuests,
         "Laundry Loads Processed":
           showerLaundrySummary.totals.laundryLoadsProcessed,
+        "On-site Laundry Loads": showerLaundrySummary.totals.onsiteLaundryLoads,
+        "Off-site Laundry Loads": showerLaundrySummary.totals.offsiteLaundryLoads,
         "Average Laundry Loads per Program Day": Number(
           showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(2),
         ),
@@ -1452,7 +1473,7 @@ const MonthlySummaryReport = () => {
                 </th>
                 <th
                   className="border border-gray-300 px-3 py-3 text-center font-semibold text-purple-800 bg-purple-50"
-                  colSpan={4}
+                  colSpan={6}
                 >
                   Laundry Services
                 </th>
@@ -1464,6 +1485,8 @@ const MonthlySummaryReport = () => {
                 <th className="border border-gray-200 px-2 py-2 text-center">New Guests</th>
                 <th className="border border-gray-200 px-2 py-2 text-center bg-emerald-50">Participants</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Loads</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">On-site</th>
+                <th className="border border-gray-200 px-2 py-2 text-center">Off-site</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Avg / Day</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">Unique Users</th>
                 <th className="border border-gray-200 px-2 py-2 text-center">New Laundry Guests</th>
@@ -1520,6 +1543,18 @@ const MonthlySummaryReport = () => {
                     className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
                     {row.laundryLoadsProcessed.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="onsite-laundry"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                  >
+                    {row.onsiteLaundryLoads.toLocaleString()}
+                  </td>
+                  <td
+                    data-column="offsite-laundry"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                  >
+                    {row.offsiteLaundryLoads.toLocaleString()}
                   </td>
                   <td
                     data-column="avg-laundry"
@@ -1597,6 +1632,18 @@ const MonthlySummaryReport = () => {
                   className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                 >
                   {showerLaundrySummary.totals.laundryLoadsProcessed.toLocaleString()}
+                </td>
+                <td
+                  data-column="onsite-laundry"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
+                  {showerLaundrySummary.totals.onsiteLaundryLoads.toLocaleString()}
+                </td>
+                <td
+                  data-column="offsite-laundry"
+                  className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
+                >
+                  {showerLaundrySummary.totals.offsiteLaundryLoads.toLocaleString()}
                 </td>
                 <td
                   data-column="avg-laundry"

@@ -657,11 +657,6 @@ const OverviewDashboard = ({
           />
         </Animated.div>
       </div>
-
-      {/* Sync status footer */}
-      <p className="text-center text-xs text-gray-400 pt-4">
-        Data syncs automatically with Supabase. If multiple users are using the app, reload the page to see the latest changes from other sessions.
-      </p>
     </div>
   );
 };
