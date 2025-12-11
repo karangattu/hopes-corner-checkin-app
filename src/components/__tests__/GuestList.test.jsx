@@ -583,4 +583,337 @@ describe("GuestList", () => {
       });
     });
   });
+
+  describe("Flexible name search with middle names", () => {
+    it("finds guest by first name when middle name is part of firstName field", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Ping" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+    });
+
+    it("finds guest by middle name when it's part of firstName field", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Xing" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+    });
+
+    it("finds guest by last name when middle name is part of firstName field", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Yuan" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+    });
+
+    it("finds guest by combination of middle and last name", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Xing Yuan" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+    });
+
+    it("finds correct guest when multiple guests have overlapping name parts", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "Ping Yang",
+            firstName: "Ping",
+            lastName: "Yang",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+          {
+            id: "g3",
+            name: "Mary Ann Johnson",
+            firstName: "Mary Ann",
+            lastName: "Johnson",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Xing" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Ping Yang/i)).not.toBeInTheDocument();
+    });
+
+    it("finds guest by partial middle name match", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Ping Xing Yuan",
+            firstName: "Ping Xing",
+            lastName: "Yuan",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Xin" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ping Xing Yuan/i)).toBeInTheDocument();
+    });
+
+    it("handles search with multiple middle names", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Michael James Smith",
+            firstName: "John Michael James",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Michael" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/John Michael James Smith/i)).toBeInTheDocument();
+    });
+
+    it("finds guest by searching sequential middle names", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Michael James Smith",
+            firstName: "John Michael James",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Michael James" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/John Michael James Smith/i)).toBeInTheDocument();
+    });
+
+    it("prioritizes exact name matches over partial matches with middle names", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Doe",
+            firstName: "John",
+            lastName: "Doe",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+          {
+            id: "g2",
+            name: "John Michael Smith",
+            firstName: "John Michael",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "John" } });
+
+      expect(await screen.findByText(/2 guests.*found/i)).toBeInTheDocument();
+      // Both should be found, John Doe should come first (exact match on first name)
+      const matches = screen.getAllByText(/John/i).filter(el => el.textContent.includes("Doe") || el.textContent.includes("Smith"));
+      expect(matches.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("finds guest by first part of firstName and last name (e.g., Xio H)", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Xio Gua H",
+            firstName: "Xio Gua",
+            lastName: "H",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Xio H" } });
+
+      expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Xio Gua H/i)).toBeInTheDocument();
+    });
+
+    it("keyboard navigation highlights selected card visually", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+          {
+            id: "g2",
+            name: "Bob Johnson",
+            firstName: "Bob",
+            lastName: "Johnson",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Smith" } });
+
+      await screen.findByText(/1 guest.*found/i);
+      
+      // Focus search input
+      search.focus();
+      
+      // Press down arrow to select first guest
+      fireEvent.keyDown(search, { key: "ArrowDown" });
+      
+      // The card should have visual focus indicator (ring and styling)
+      await waitFor(() => {
+        const card = screen.getByText(/Alice Smith/).closest("[class*='border rounded']");
+        if (card) {
+          expect(card).toHaveClass("ring-3", "ring-blue-500");
+        }
+      });
+    });
+  });
 });

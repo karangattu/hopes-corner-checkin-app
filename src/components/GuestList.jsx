@@ -43,6 +43,7 @@ import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
+import { flexibleNameSearch } from "../utils/flexibleNameSearch";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -248,113 +249,7 @@ const GuestList = () => {
   }, [handleShowCreateForm]);
 
   const filteredGuests = useMemo(() => {
-    const queryRaw = debouncedSearchTerm.trim();
-    if (!queryRaw) {
-      return [];
-    }
-
-    const normalize = (s) => s.toLowerCase().trim().replace(/\s+/g, " ");
-    const query = normalize(queryRaw);
-    const qTokens = query.split(" ").filter(Boolean);
-
-    const scored = guestsList
-      .map((g) => {
-        const firstName = normalize(g.firstName || "");
-        const lastName = normalize(g.lastName || "");
-        const fullName =
-          normalize(`${g.firstName || ""} ${g.lastName || ""}`.trim()) ||
-          normalize(g.name || "");
-        const preferredName = normalize(g.preferredName || "");
-
-        let rank = 99;
-        let label = g.preferredName || g.name || fullName || "Unknown";
-
-        const updateRank = (candidateRank, candidateLabel) => {
-          if (candidateRank < rank) {
-            rank = candidateRank;
-            if (candidateLabel) {
-              label = candidateLabel;
-            }
-          }
-        };
-
-        if (preferredName) {
-          if (preferredName === query) {
-            updateRank(-1, g.preferredName);
-          }
-          if (qTokens.length === 1) {
-            const token = qTokens[0];
-            if (token) {
-              if (preferredName === token) updateRank(0, g.preferredName);
-              else if (preferredName.startsWith(token))
-                updateRank(1, g.preferredName);
-              else if (token.length >= 3 && preferredName.includes(token))
-                updateRank(2, g.preferredName);
-            }
-          } else if (qTokens.length >= 2) {
-            const joined = qTokens.join(" ");
-            if (joined && preferredName.includes(joined)) {
-              updateRank(2, g.preferredName);
-            }
-          }
-        }
-
-        if (firstName && lastName && qTokens.length >= 2) {
-          const [firstQuery, lastQuery] = qTokens;
-          if (firstQuery && lastQuery) {
-            if (firstName === firstQuery && lastName === lastQuery) {
-              updateRank(0, g.name || fullName);
-            } else if (
-              firstName.startsWith(firstQuery) &&
-              lastName.startsWith(lastQuery)
-            ) {
-              updateRank(1, g.name || fullName);
-            } else if (
-              firstQuery.length >= 3 &&
-              lastQuery.length >= 3 &&
-              firstName.includes(firstQuery) &&
-              lastName.includes(lastQuery)
-            ) {
-              updateRank(2, g.name || fullName);
-            }
-          }
-        } else if (qTokens.length >= 1) {
-          const singleQuery = qTokens[0];
-          if (singleQuery) {
-            if (firstName === singleQuery || lastName === singleQuery) {
-              updateRank(0, g.name || fullName);
-            } else if (
-              firstName.startsWith(singleQuery) ||
-              lastName.startsWith(singleQuery)
-            ) {
-              updateRank(1, g.name || fullName);
-            } else if (
-              singleQuery.length >= 3 &&
-              (firstName.includes(singleQuery) ||
-                lastName.includes(singleQuery))
-            ) {
-              updateRank(2, g.name || fullName);
-            }
-          }
-        }
-
-        if ((!firstName || !lastName) && fullName) {
-          if (fullName === query) updateRank(1, g.name || fullName);
-          else if (fullName.startsWith(query))
-            updateRank(2, g.name || fullName);
-          else if (query.length >= 3 && fullName.includes(query))
-            updateRank(3, g.name || fullName);
-        }
-
-        return { guest: g, rank, name: label };
-      })
-      .filter((item) => item.rank < 99)
-      .sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        return a.name.localeCompare(b.name);
-      });
-
-    return scored.map((s) => s.guest);
+    return flexibleNameSearch(debouncedSearchTerm, guestsList);
   }, [guestsList, debouncedSearchTerm]);
 
   // Fuzzy name suggestions when no exact matches are found
@@ -1134,7 +1029,7 @@ const GuestList = () => {
       : null;
 
     const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white hover:bg-white overflow-hidden ${
-      isSelected ? "ring-2 ring-emerald-500 border-emerald-400 shadow-lg bg-white" : ""
+      isSelected ? "ring-4 ring-blue-500 border-blue-400 shadow-xl bg-blue-50 scale-[1.02]" : ""
     } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-300 border-emerald-200 bg-white" : ""} ${isBanned ? "border-red-300" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
@@ -2285,15 +2180,7 @@ const GuestList = () => {
               </button>
             )}
           </div>
-          {/* Search results count badge */}
-          {searchTerm && filteredGuests.length > 0 && (
-            <div className="absolute -bottom-2 left-4 transform translate-y-full">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-full shadow-sm">
-                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                {filteredGuests.length} {filteredGuests.length === 1 ? "match" : "matches"}
-              </span>
-            </div>
-          )}
+          {/* Search results count badge - removed to reduce clutter */}
         </div>
         
         {/* Keyboard shortcuts hint - more compact */}
@@ -2818,10 +2705,15 @@ const GuestList = () => {
                       key={`guest-${guest.id}-${searchTerm}`}
                       className={`group relative border rounded-xl hover:shadow-lg transition-all duration-300 bg-white overflow-hidden ${
                         selectedGuestIndex === i
-                          ? "ring-2 ring-blue-500 border-blue-300 shadow-lg scale-[1.01]"
+                          ? "ring-3 ring-blue-500 border-blue-400 shadow-xl scale-[1.02] bg-blue-50/50"
                           : "border-gray-100 hover:border-gray-200"
                       }`}
                     >
+                      {/* Keyboard navigation indicator - left accent bar */}
+                      {selectedGuestIndex === i && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-400 rounded-l-lg" />
+                      )}
+
                       {/* Subtle gradient overlay on hover */}
                       <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
                       
