@@ -92,6 +92,24 @@ export const scoreNameMatch = (query, nameParts) => {
       }
     }
 
+    // Check if all query tokens match name tokens in any order (exact matches)
+    // This allows "Qwin Qi" to match "Qi Qwin Chen"
+    const queryTokenSet = new Set(queryTokens);
+    const allTokenSet = new Set(allTokens);
+    const exactMatches = [...queryTokenSet].filter(qt => allTokenSet.has(qt));
+    if (exactMatches.length === queryTokens.length) {
+      return 0; // All query tokens exactly match name parts (any order)
+    }
+
+    // Check if all query tokens start with name tokens in any order
+    // This allows partial matches like "Qw Q" to match "Qi Qwin Chen"
+    const allQueryTokensMatch = queryTokens.every(qt =>
+      allTokens.some(nt => nt.startsWith(qt))
+    );
+    if (allQueryTokensMatch) {
+      return 1; // All query tokens prefix-match name parts (any order)
+    }
+
     // Check for partial prefix matches on individual tokens (non-sequential)
     // This allows "Xio H" to match firstName: "Xio Gua", lastName: "H"
     // even though they're not sequential

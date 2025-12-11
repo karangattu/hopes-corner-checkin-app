@@ -498,6 +498,34 @@ describe("flexibleNameSearch", () => {
       expect(result[0].id).toBe("1");
     });
 
+    it("scenario: reversed name order - search 'Qwin Qi' matches 'Qi Qwin Chen'", () => {
+      const guests = [
+        {
+          id: "1",
+          firstName: "Qi Qwin",
+          lastName: "Chen",
+          name: "Qi Qwin Chen",
+        },
+      ];
+      const result = flexibleNameSearch("Qwin Qi", guests);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("1");
+    });
+
+    it("scenario: reversed name order with last name - search 'Chen Qwin' matches 'Qi Qwin Chen'", () => {
+      const guests = [
+        {
+          id: "1",
+          firstName: "Qi Qwin",
+          lastName: "Chen",
+          name: "Qi Qwin Chen",
+        },
+      ];
+      const result = flexibleNameSearch("Chen Qwin", guests);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("1");
+    });
+
     it("scenario: guest tells staff their name is Xing Yuan (middle + last)", () => {
       const guests = [
         {

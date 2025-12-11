@@ -184,6 +184,7 @@ const GuestList = () => {
   const createFirstNameRef = useRef(null);
   const listRef = useRef(null);
   const listContainerRef = useRef(null);
+  const guestCardRefs = useRef({});
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -354,10 +355,26 @@ const GuestList = () => {
   }, [filteredGuests.length, shouldVirtualize]);
 
   useEffect(() => {
-    if (!shouldVirtualize) return;
     if (selectedGuestIndex < 0) return;
-    listRef.current?.scrollToItem(selectedGuestIndex, "smart");
-  }, [selectedGuestIndex, shouldVirtualize]);
+
+    if (shouldVirtualize) {
+      // For virtualized lists, use the list's scrollToItem method
+      listRef.current?.scrollToItem(selectedGuestIndex, "smart");
+    } else {
+      // For non-virtualized lists, scroll the selected card into view
+      const selectedGuest = sortedGuests[selectedGuestIndex];
+      if (selectedGuest) {
+        const cardElement = guestCardRefs.current[selectedGuest.id];
+        if (cardElement && typeof cardElement.scrollIntoView === "function") {
+          cardElement.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "nearest"
+          });
+        }
+      }
+    }
+  }, [selectedGuestIndex, shouldVirtualize, sortedGuests]);
 
   const createTokens = useMemo(
     () => searchTerm.trim().split(/\s+/).filter(Boolean),
@@ -2701,6 +2718,9 @@ const GuestList = () => {
 
                   return (
                     <Animated.div
+                      ref={(el) => {
+                        if (el) guestCardRefs.current[guest.id] = el;
+                      }}
                       style={trail[i]}
                       key={`guest-${guest.id}-${searchTerm}`}
                       className={`group relative border rounded-xl hover:shadow-lg transition-all duration-300 bg-white overflow-hidden ${
