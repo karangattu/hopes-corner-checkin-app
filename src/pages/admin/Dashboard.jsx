@@ -35,7 +35,6 @@ import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import FailedOperationsPanel from "../../components/FailedOperationsPanel";
 import Selectize from "../../components/Selectize";
-// Animated import removed; header animation is no longer used here
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
 import { todayPacificDateString } from "../../utils/date";
 import { isSupabaseProxyAvailable } from "../../supabaseProxyClient";
@@ -624,7 +623,6 @@ const Dashboard = () => {
     });
   };
 
-  // (header animation removed)
   const monthGridAnim = useFadeInUp();
   const yearGridAnim = useFadeInUp();
   const auth = useAuth();
