@@ -7,7 +7,7 @@ An app to manage guest check‑ins, services (meals, showers, laundry), donation
 - **Guests**: Search, add, CSV import, housing statuses, demographics
 - **Services**: Meals tracking, showers booking, laundry scheduling
 - **Donations**: Record, consolidate, export
-- **Admin Dashboard**: Charts, metrics, exports
+- **Admin**: Charts, metrics, exports
 - **Progressive Web App**: Install on smartphones and tablets for native app-like experience with offline support
 
 ## Getting Started

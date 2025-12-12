@@ -75,7 +75,7 @@ describe("GuestCreateForm", () => {
     render(<Wrapper />);
 
     expect(
-      screen.getByPlaceholderText("Bike make, color, or unique markers (optional)"),
+      screen.getByLabelText(/bicycle description/i),
     ).toBeInTheDocument();
   });
 
@@ -204,16 +204,13 @@ describe("GuestCreateForm", () => {
 
     render(<SuccessWrapper />);
 
-    await user.type(screen.getByPlaceholderText(/enter first name/i), "John");
-    await user.type(screen.getByPlaceholderText(/enter last name/i), "Doe");
-    await user.selectOptions(screen.getAllByRole('combobox')[0], "Housed");
-    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
-    await user.selectOptions(screen.getAllByRole('combobox')[2], "Male");
-    await user.type(screen.getByPlaceholderText(/Any additional information \(optional\)/i), "Test notes");
-    await user.type(
-      screen.getByPlaceholderText("Bike make, color, or unique markers (optional)"),
-      "Red bicycle",
-    );
+    await user.type(screen.getByLabelText(/first name/i), "John");
+    await user.type(screen.getByLabelText(/last name/i), "Doe");
+    await user.selectOptions(screen.getByLabelText(/housing status/i), "Housed");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Male");
+    await user.type(screen.getByLabelText(/notes/i), "Test notes");
+    await user.type(screen.getByLabelText(/bicycle description/i), "Red bicycle");
     const dialog = screen.getByRole('dialog');
     const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
     await user.click(submitButton);
@@ -288,12 +285,12 @@ describe("GuestCreateForm", () => {
 
     render(<ResetWrapper />);
 
-    const firstNameInput = screen.getByPlaceholderText(/enter first name/i);
-    const lastNameInput = screen.getByPlaceholderText(/enter last name/i);
+    const firstNameInput = screen.getByLabelText(/first name/i);
+    const lastNameInput = screen.getByLabelText(/last name/i);
     await user.type(firstNameInput, "Jane");
     await user.type(lastNameInput, "Smith");
-    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
-    await user.selectOptions(screen.getAllByRole('combobox')[2], "Female");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Female");
     const dialog = screen.getByRole('dialog');
     const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
     await user.click(submitButton);
@@ -354,12 +351,12 @@ describe("GuestCreateForm", () => {
     render(<SubmitWrapper />);
 
     // Fill out form
-    await user.type(screen.getByPlaceholderText(/enter first name/i), "Test");
-    await user.type(screen.getByPlaceholderText(/enter last name/i), "User");
-    await user.selectOptions(screen.getAllByRole('combobox')[0], "Housed");
-    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
-    await user.selectOptions(screen.getAllByRole('combobox')[2], "Male");
-    await user.type(screen.getByPlaceholderText(/Any additional information \(optional\)/i), "Test notes");
+    await user.type(screen.getByLabelText(/first name/i), "Test");
+    await user.type(screen.getByLabelText(/last name/i), "User");
+    await user.selectOptions(screen.getByLabelText(/housing status/i), "Housed");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Male");
+    await user.type(screen.getByLabelText(/notes/i), "Test notes");
 
     // Submit form
     const dialog = screen.getByRole('dialog');

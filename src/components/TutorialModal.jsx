@@ -147,7 +147,7 @@ const TutorialModal = ({ isOpen, onClose }) => {
       ),
     },
     {
-      title: "Admin Dashboard",
+      title: "Admin",
       icon: BarChart3,
       iconColor: "text-indigo-500",
       bgColor: "bg-indigo-50",

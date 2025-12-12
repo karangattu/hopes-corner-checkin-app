@@ -7,7 +7,8 @@ export const toTitleCase = (str) => {
   if (!str || typeof str !== "string") return "";
   return str
     .toLowerCase()
-    .split(" ")
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
     .trim();
@@ -15,7 +16,7 @@ export const toTitleCase = (str) => {
 
 export const normalizePreferredName = (value) => {
   if (!value || typeof value !== "string") return "";
-  return value.trim();
+  return toTitleCase(value.trim());
 };
 
 export const normalizeBicycleDescription = (value) => {

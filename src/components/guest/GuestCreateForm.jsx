@@ -121,6 +121,7 @@ const GuestCreateForm = ({
               name="preferredName"
               value={formData.preferredName}
               onChange={onChange}
+              onBlur={onNameBlur}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="What should we call them?"
               disabled={isCreating}

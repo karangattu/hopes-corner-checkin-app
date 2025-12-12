@@ -61,9 +61,9 @@
       ]
     },
     {
-      "name": "Admin Dashboard",
-      "short_name": "Dashboard",
-      "description": "View admin dashboard and reports",
+      "name": "Admin",
+      "short_name": "Admin",
+      "description": "View admin reports",
       "url": "/?section=admin",
       "icons": [
         {

@@ -54,11 +54,17 @@ export default function Selectize({
 
   const sizeClasses = size === "xs" ? "text-xs px-2 py-1" : "text-sm px-3 py-2";
 
+  const listboxId = `${id || "selectize"}-listbox`;
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
         id={id}
         type="button"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
         className={`border rounded bg-white flex items-center justify-between gap-2 ${sizeClasses} ${buttonClassName}`}
         onClick={() => setOpen((v) => !v)}
       >
@@ -75,12 +81,15 @@ export default function Selectize({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              role="searchbox"
+              aria-controls={listboxId}
+              aria-expanded={open}
               className="w-full border rounded px-2 py-1 text-xs mb-2"
               placeholder="Search…"
               autoFocus
             />
           )}
-          <div className="max-h-56 overflow-auto">
+          <div id={listboxId} role="listbox" className="max-h-56 overflow-auto">
             {filtered.map((opt) => (
               <button
                 key={opt.value}
@@ -89,6 +98,8 @@ export default function Selectize({
                   setOpen(false);
                   setQuery("");
                 }}
+                role="option"
+                aria-selected={opt.value === value}
                 className={`w-full text-left px-2 py-1 rounded text-xs md:text-sm hover:bg-blue-50 ${
                   opt.value === value ? "bg-blue-50 font-medium" : ""
                 }`}

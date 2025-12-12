@@ -800,7 +800,12 @@ const GuestList = () => {
 
   const handleCreateFormChange = (e) => {
     const { name, value } = e.target;
-    setCreateFormData((prev) => ({ ...prev, [name]: value }));
+    // Live title-casing for name fields
+    const transformed =
+      name === "firstName" || name === "lastName" || name === "preferredName"
+        ? toTitleCase(value)
+        : value;
+    setCreateFormData((prev) => ({ ...prev, [name]: transformed }));
 
     // Inline validation
     const error = validateField(name, value);
@@ -812,14 +817,14 @@ const GuestList = () => {
 
   const handleNameBlur = (e) => {
     const { name, value } = e.target;
-    if ((name === "firstName" || name === "lastName") && value.trim()) {
+    if ((name === "firstName" || name === "lastName" || name === "preferredName") && value.trim()) {
       setCreateFormData((prev) => ({
         ...prev,
         [name]: toTitleCase(value.trim()),
       }));
     }
 
-    // Check for potential duplicates when both names are available
+    // Check for potential duplicates when first and last names are available
     if (name === "firstName" || name === "lastName") {
       const firstName =
         name === "firstName" ? value.trim() : createFormData.firstName;
@@ -942,7 +947,11 @@ const GuestList = () => {
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
+    const transformed =
+      name === "firstName" || name === "lastName" || name === "preferredName"
+        ? toTitleCase(value)
+        : value;
+    setEditFormData((prev) => ({ ...prev, [name]: transformed }));
   };
 
   const handleEditNameBlur = (e) => {
