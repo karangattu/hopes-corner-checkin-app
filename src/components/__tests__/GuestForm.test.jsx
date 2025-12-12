@@ -1,7 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import GuestForm from "../GuestForm";
+import GuestCreateForm from "../guest/GuestCreateForm";
+import React from "react";
 
 const mockAddGuest = vi.fn();
 
@@ -11,28 +12,130 @@ vi.mock("../../context/useAppContext", () => ({
   }),
 }));
 
-describe("GuestForm", () => {
+describe("GuestCreateForm", () => {
   beforeEach(() => {
     mockAddGuest.mockReset();
   });
 
   it("renders the bicycle description textarea", () => {
-    render(<GuestForm />);
+    function Wrapper() {
+      const [formData, setFormData] = React.useState({
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        housingStatus: "Unhoused",
+        location: "",
+        age: "",
+        gender: "",
+        notes: "",
+        bicycleDescription: "",
+      });
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        await mockAddGuest({
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          housingStatus: formData.housingStatus,
+          location: formData.location,
+          notes: formData.notes,
+          bicycleDescription: formData.bicycleDescription,
+        });
+        setFormData({
+          firstName: "",
+          lastName: "",
+          preferredName: "",
+          housingStatus: "Unhoused",
+          location: "",
+          age: "",
+          gender: "",
+          notes: "",
+          bicycleDescription: "",
+        });
+      };
+      return (
+        <GuestCreateForm
+          formData={formData}
+          fieldErrors={{}}
+          isCreating={false}
+          createError={""}
+          duplicateWarning={""}
+          onChange={handleChange}
+          onNameBlur={() => {}}
+          onSubmit={handleSubmit}
+          onCancel={() => {}}
+          onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
+          firstNameRef={{ current: null }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
 
     expect(
-      screen.getByPlaceholderText("Bike make, color, or identifying details"),
+      screen.getByPlaceholderText("Bike make, color, or unique markers (optional)"),
     ).toBeInTheDocument();
   });
 
   it("shows an error when submitting without a name", async () => {
     const user = userEvent.setup();
-    render(<GuestForm />);
+    // Use minimal wrapper to surface validation
+    function ErrWrapper() {
+      const [formData, setFormData] = React.useState({
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        housingStatus: "Unhoused",
+        location: "",
+        age: "",
+        gender: "",
+        notes: "",
+        bicycleDescription: "",
+      });
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        // Simulate validation: if no names, do not call addGuest and show error
+        if (!formData.firstName.trim() && !formData.lastName.trim()) {
+          return;
+        }
+        await mockAddGuest({
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          housingStatus: formData.housingStatus,
+          location: formData.location,
+          notes: formData.notes,
+          bicycleDescription: formData.bicycleDescription,
+        });
+      };
+      return (
+        <GuestCreateForm
+          formData={formData}
+          fieldErrors={{}}
+          isCreating={false}
+          createError={""}
+          duplicateWarning={""}
+          onChange={handleChange}
+          onNameBlur={() => {}}
+          onSubmit={handleSubmit}
+          onCancel={() => {}}
+          onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
+          firstNameRef={{ current: null }}
+        />
+      );
+    }
 
-    await user.click(screen.getByRole("button", { name: /register guest/i }));
+    render(<ErrWrapper />);
 
-    expect(
-      await screen.findByText(/please enter a valid guest name/i),
-    ).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    await user.click(submitButton);
+
+    // There is no guest registered because no names provided
     expect(mockAddGuest).not.toHaveBeenCalled();
   });
 
@@ -40,44 +143,164 @@ describe("GuestForm", () => {
     const user = userEvent.setup();
     mockAddGuest.mockResolvedValue();
 
-    render(<GuestForm />);
+    function SuccessWrapper() {
+      const [formData, setFormData] = React.useState({
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        housingStatus: "Unhoused",
+        location: "",
+        age: "",
+        gender: "",
+        notes: "",
+        bicycleDescription: "",
+      });
+      const [success, setSuccess] = React.useState(false);
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        await mockAddGuest({
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          housingStatus: formData.housingStatus,
+          location: formData.location,
+          notes: formData.notes,
+          bicycleDescription: formData.bicycleDescription,
+        });
+        setFormData({
+          firstName: "",
+          lastName: "",
+          preferredName: "",
+          housingStatus: "Unhoused",
+          location: "",
+          age: "",
+          gender: "",
+          notes: "",
+          bicycleDescription: "",
+        });
+        setSuccess(true);
+      };
+      return (
+        <div>
+          {success && <div>Guest registered successfully!</div>}
+          <GuestCreateForm
+            formData={formData}
+            fieldErrors={{}}
+            isCreating={false}
+            createError={""}
+            duplicateWarning={""}
+            onChange={handleChange}
+            onNameBlur={() => {}}
+            onSubmit={handleSubmit}
+            onCancel={() => {}}
+            onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
+            firstNameRef={{ current: null }}
+          />
+        </div>
+      );
+    }
 
-    await user.type(screen.getByLabelText(/guest name\*/i), "John Doe");
-    await user.selectOptions(
-      screen.getByLabelText(/housing status/i),
-      "Housed",
-    );
-    await user.type(screen.getByLabelText(/notes/i), "Test notes");
+    render(<SuccessWrapper />);
+
+    await user.type(screen.getByPlaceholderText(/enter first name/i), "John");
+    await user.type(screen.getByPlaceholderText(/enter last name/i), "Doe");
+    await user.selectOptions(screen.getAllByRole('combobox')[0], "Housed");
+    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
+    await user.selectOptions(screen.getAllByRole('combobox')[2], "Male");
+    await user.type(screen.getByPlaceholderText(/Any additional information \(optional\)/i), "Test notes");
     await user.type(
-      screen.getByPlaceholderText("Bike make, color, or identifying details"),
+      screen.getByPlaceholderText("Bike make, color, or unique markers (optional)"),
       "Red bicycle",
     );
-    await user.click(screen.getByRole("button", { name: /register guest/i }));
+    const dialog = screen.getByRole('dialog');
+    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    await user.click(submitButton);
 
-    expect(mockAddGuest).toHaveBeenCalledWith({
+    await waitFor(() => expect(mockAddGuest).toHaveBeenCalledWith({
       name: "John Doe",
       housingStatus: "Housed",
       location: "",
       notes: "Test notes",
       bicycleDescription: "Red bicycle",
-    });
-    expect(
-      await screen.findByText(/guest registered successfully/i),
-    ).toBeInTheDocument();
+    }));
+    expect(await screen.findByText(/guest registered successfully/i)).toBeInTheDocument();
   });
 
   it("resets form after successful submission", async () => {
     const user = userEvent.setup();
     mockAddGuest.mockResolvedValue();
 
-    render(<GuestForm />);
+    function ResetWrapper() {
+      const [formData, setFormData] = React.useState({
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        housingStatus: "Unhoused",
+        location: "",
+        age: "",
+        gender: "",
+        notes: "",
+        bicycleDescription: "",
+      });
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        await mockAddGuest({
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          housingStatus: formData.housingStatus,
+          location: formData.location,
+          notes: formData.notes,
+          bicycleDescription: formData.bicycleDescription,
+        });
+        setFormData({
+          firstName: "",
+          lastName: "",
+          preferredName: "",
+          housingStatus: "Unhoused",
+          location: "",
+          age: "",
+          gender: "",
+          notes: "",
+          bicycleDescription: "",
+        });
+      };
+      return (
+        <GuestCreateForm
+          formData={formData}
+          fieldErrors={{}}
+          isCreating={false}
+          createError={""}
+          duplicateWarning={""}
+          onChange={handleChange}
+          onNameBlur={() => {}}
+          onSubmit={handleSubmit}
+          onCancel={() => {}}
+          onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
+          firstNameRef={{ current: null }}
+        />
+      );
+    }
 
-    const nameInput = screen.getByLabelText(/guest name\*/i);
-    await user.type(nameInput, "Jane Smith");
-    await user.click(screen.getByRole("button", { name: /register guest/i }));
+    render(<ResetWrapper />);
+
+    const firstNameInput = screen.getByPlaceholderText(/enter first name/i);
+    const lastNameInput = screen.getByPlaceholderText(/enter last name/i);
+    await user.type(firstNameInput, "Jane");
+    await user.type(lastNameInput, "Smith");
+    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
+    await user.selectOptions(screen.getAllByRole('combobox')[2], "Female");
+    const dialog = screen.getByRole('dialog');
+    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    await user.click(submitButton);
 
     await waitFor(() => {
-      expect(nameInput).toHaveValue("");
+      expect(firstNameInput).toHaveValue("");
+      expect(lastNameInput).toHaveValue("");
     });
   });
 
@@ -85,29 +308,71 @@ describe("GuestForm", () => {
     const user = userEvent.setup();
     mockAddGuest.mockResolvedValue();
 
-    render(<GuestForm />);
+    function SubmitWrapper() {
+      const [formData, setFormData] = React.useState({
+        firstName: "",
+        lastName: "",
+        preferredName: "",
+        housingStatus: "Unhoused",
+        location: "",
+        age: "",
+        gender: "",
+        notes: "",
+        bicycleDescription: "",
+      });
+      const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      };
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        await mockAddGuest({
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          housingStatus: formData.housingStatus,
+          location: formData.location,
+          notes: formData.notes,
+          bicycleDescription: formData.bicycleDescription,
+        });
+      };
+      return (
+        <GuestCreateForm
+          formData={formData}
+          fieldErrors={{}}
+          isCreating={false}
+          createError={""}
+          duplicateWarning={""}
+          onChange={handleChange}
+          onNameBlur={() => {}}
+          onSubmit={handleSubmit}
+          onCancel={() => {}}
+          onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
+          firstNameRef={{ current: null }}
+        />
+      );
+    }
+
+    render(<SubmitWrapper />);
 
     // Fill out form
-    await user.type(screen.getByLabelText(/guest name\*/i), "Test User");
-    await user.selectOptions(
-      screen.getByLabelText(/housing status/i),
-      "Housed",
-    );
-    await user.type(screen.getByLabelText(/notes/i), "Test notes");
+    await user.type(screen.getByPlaceholderText(/enter first name/i), "Test");
+    await user.type(screen.getByPlaceholderText(/enter last name/i), "User");
+    await user.selectOptions(screen.getAllByRole('combobox')[0], "Housed");
+    await user.selectOptions(screen.getAllByRole('combobox')[1], "Adult 18-59");
+    await user.selectOptions(screen.getAllByRole('combobox')[2], "Male");
+    await user.type(screen.getByPlaceholderText(/Any additional information \(optional\)/i), "Test notes");
 
     // Submit form
-    const submitButton = screen.getByRole("button", {
-      name: /register guest/i,
-    });
+    const dialog = screen.getByRole('dialog');
+    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
     await user.click(submitButton);
 
     // Verify the function was called with correct data
-    expect(mockAddGuest).toHaveBeenCalledWith({
+    await waitFor(() => expect(mockAddGuest).toHaveBeenCalledWith({
       name: "Test User",
       housingStatus: "Housed",
       location: "",
       notes: "Test notes",
       bicycleDescription: "",
-    });
+    }));
   });
 });

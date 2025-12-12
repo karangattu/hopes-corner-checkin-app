@@ -9,6 +9,7 @@ export default function Selectize({
   className = "",
   buttonClassName = "",
   searchable = true,
+  id,
   displayValue,
 }) {
   const [open, setOpen] = useState(false);
@@ -56,6 +57,7 @@ export default function Selectize({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
+        id={id}
         type="button"
         className={`border rounded bg-white flex items-center justify-between gap-2 ${sizeClasses} ${buttonClassName}`}
         onClick={() => setOpen((v) => !v)}

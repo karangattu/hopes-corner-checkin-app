@@ -59,10 +59,11 @@ const GuestCreateForm = ({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-first-name" className="block text-sm font-semibold text-gray-700 mb-2">
               First Name*
             </label>
             <input
+              id="guest-first-name"
               type="text"
               name="firstName"
               ref={firstNameRef}
@@ -85,10 +86,11 @@ const GuestCreateForm = ({
             )}
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-last-name" className="block text-sm font-semibold text-gray-700 mb-2">
               Last Name*
             </label>
             <input
+              id="guest-last-name"
               type="text"
               name="lastName"
               value={formData.lastName}
@@ -110,10 +112,11 @@ const GuestCreateForm = ({
             )}
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-preferred-name" className="block text-sm font-semibold text-gray-700 mb-2">
               Preferred Name
             </label>
             <input
+              id="guest-preferred-name"
               type="text"
               name="preferredName"
               value={formData.preferredName}
@@ -127,16 +130,23 @@ const GuestCreateForm = ({
             </p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-housing-status" className="block text-sm font-semibold text-gray-700 mb-2">
               Housing Status
             </label>
             <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
               <span className="text-blue-500 font-medium">💙</span>
               <span>
                 Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
+                <span className="block mt-1 text-[11px] text-gray-600">
+                  Spanish: “¿Tiene una vivienda estable en este momento?”
+                </span>
+                <span className="block mt-0.5 text-[11px] text-gray-600">
+                  Mandarin: “您现在有稳定的住处吗？” (neen shyen dzai yo wen ding duh joo choo ma?)
+                </span>
               </span>
             </p>
             <select
+              id="guest-housing-status"
               name="housingStatus"
               value={formData.housingStatus}
               onChange={onChange}
@@ -153,10 +163,11 @@ const GuestCreateForm = ({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-age-group" className="block text-sm font-semibold text-gray-700 mb-2">
               Age Group*
             </label>
             <select
+              id="guest-age-group"
               name="age"
               value={formData.age}
               onChange={onChange}
@@ -173,10 +184,11 @@ const GuestCreateForm = ({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="guest-gender" className="block text-sm font-semibold text-gray-700 mb-2">
               Gender*
             </label>
             <select
+              id="guest-gender"
               name="gender"
               value={formData.gender}
               onChange={onChange}
@@ -193,15 +205,16 @@ const GuestCreateForm = ({
             </select>
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Location*
-          </label>
+          <div>
+            <label htmlFor="guest-location" className="block text-sm font-semibold text-gray-700 mb-2">
+              Location*
+            </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MapPin size={18} className="text-gray-400" />
             </div>
             <Selectize
+              id="guest-location"
               options={[
                 ...BAY_AREA_CITIES.map((c) => ({ value: c, label: c })),
                 {
@@ -219,11 +232,12 @@ const GuestCreateForm = ({
             />
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <div>
+          <label htmlFor="guest-notes" className="block text-sm font-semibold text-gray-700 mb-2">
             Notes
           </label>
           <textarea
+            id="guest-notes"
             name="notes"
             value={formData.notes}
             onChange={onChange}
@@ -234,10 +248,11 @@ const GuestCreateForm = ({
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label htmlFor="guest-bicycle-description" className="block text-sm font-semibold text-gray-700 mb-2">
             Bicycle Description
           </label>
           <textarea
+            id="guest-bicycle-description"
             name="bicycleDescription"
             value={formData.bicycleDescription}
             onChange={onChange}
