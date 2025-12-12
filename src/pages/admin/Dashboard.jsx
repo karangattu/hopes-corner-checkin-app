@@ -35,7 +35,7 @@ import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import FailedOperationsPanel from "../../components/FailedOperationsPanel";
 import Selectize from "../../components/Selectize";
-import { animated as Animated } from "@react-spring/web";
+// Animated import removed; header animation is no longer used here
 import { useFadeInUp, SpringIcon } from "../../utils/animations";
 import { todayPacificDateString } from "../../utils/date";
 import { isSupabaseProxyAvailable } from "../../supabaseProxyClient";
@@ -624,7 +624,7 @@ const Dashboard = () => {
     });
   };
 
-  const headerAnim = useFadeInUp();
+  // (header animation removed)
   const monthGridAnim = useFadeInUp();
   const yearGridAnim = useFadeInUp();
   const auth = useAuth();
@@ -1501,14 +1501,6 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <Animated.div style={headerAnim} className="mb-6">
-        <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
-          <BarChart3 /> Admin Dashboard
-        </h1>
-        <p className="text-gray-500">
-          Overview of guest check-in metrics and system administration
-        </p>
-      </Animated.div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 mb-6">
         <nav className="flex flex-wrap gap-1">
