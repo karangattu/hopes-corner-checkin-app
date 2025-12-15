@@ -585,6 +585,34 @@ const GuestList = () => {
     return `${years} yr${years === 1 ? "" : "s"} ago`;
   };
 
+  const formatTimeLabel = (timeStr) => {
+    if (!timeStr) return "";
+    const [hoursStr, minutesStr] = String(timeStr).split(":");
+    const hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes, 0, 0);
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
+  const formatShowerSlotLabel = (slotTime) => formatTimeLabel(slotTime) || slotTime;
+
+  const formatLaundryRangeLabel = (range) => {
+    if (!range) return "Off-site (no slot)";
+    const [start, end] = String(range).split(" - ");
+    const formattedStart = formatTimeLabel(start);
+    const formattedEnd = end ? formatTimeLabel(end) : "";
+    if (!formattedEnd) return formattedStart;
+    const [startTime, startPeriod] = formattedStart.split(" ");
+    const [endTime, endPeriod] = formattedEnd.split(" ");
+    if (startPeriod && endPeriod && startPeriod === endPeriod) {
+      return `${startTime} - ${endTime} ${startPeriod}`;
+    }
+    return `${formattedStart} - ${formattedEnd}`;
+  };
+
   const todayServicesByGuest = useMemo(() => {
     const today = todayPacificDateString();
     const map = new Map();
@@ -2572,23 +2600,47 @@ const GuestList = () => {
                                   ) : null;
                                 })()}
                                 {todayServices.length > 0 && (
-                                  <div className="flex items-center gap-1">
-                                    {todayServices.map((service, idx) => {
-                                      const Icon = service.icon;
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 transition-all duration-200 hover:scale-110 hover:shadow-md hover:-translate-y-0.5"
-                                          title={`${service.serviceType} today`}
-                                        >
-                                          <Icon
-                                            size={14}
-                                            className={service.iconClass}
-                                          />
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                                  <>
+                                    <div className="flex items-center gap-1">
+                                      {todayServices.map((service, idx) => {
+                                        const Icon = service.icon;
+                                        const timeLabel =
+                                          service.serviceType === "Shower"
+                                            ? formatShowerSlotLabel(service.record?.time)
+                                            : service.serviceType === "Laundry"
+                                              ? formatLaundryRangeLabel(service.record?.time)
+                                              : null;
+
+                                        return (
+                                          <div
+                                            key={idx}
+                                            className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 transition-all duration-200 hover:scale-110 hover:shadow-md hover:-translate-y-0.5"
+                                            title={timeLabel ? `${service.serviceType}: ${timeLabel}` : `${service.serviceType} today`}
+                                          >
+                                            <Icon
+                                              size={14}
+                                              className={service.iconClass}
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    {/* Compact inline time labels (visible when guest card not expanded) */}
+                                    <div className="ml-2 hidden sm:flex items-center text-xs text-gray-500">
+                                      {(() => {
+                                        const labels = todayServices.slice(0, 2).map((service) => {
+                                          if (service.serviceType === "Shower") {
+                                            return `Shower: ${formatShowerSlotLabel(service.record?.time) || "No slot"}`;
+                                          }
+                                          if (service.serviceType === "Laundry") {
+                                            return `Laundry: ${formatLaundryRangeLabel(service.record?.time)}`;
+                                          }
+                                          return service.serviceType;
+                                        });
+                                        return labels.join(" • ");
+                                      })()}
+                                    </div>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -2597,6 +2649,32 @@ const GuestList = () => {
                                 Use their preferred name when greeting
                               </p>
                             )}
+                              {/* Show explicit times for booked services so check-in users can tell guests their slot */}
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                {(() => {
+                                  const services = todayServices || [];
+                                  const shower = services.find((s) => s.serviceType === "Shower");
+                                  const laundry = services.find((s) => s.serviceType === "Laundry");
+                                  return (
+                                    <>
+                                      {shower ? (
+                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                                          <ShowerHead size={14} className="text-emerald-600" />
+                                          <span>Shower:</span>
+                                          <span className="font-medium text-gray-900">{formatShowerSlotLabel(shower.record?.time) || "No slot"}</span>
+                                        </span>
+                                      ) : null}
+                                      {laundry ? (
+                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg">
+                                          <WashingMachine size={14} className="text-indigo-700" />
+                                          <span>Laundry:</span>
+                                          <span className="font-medium text-gray-900">{formatLaundryRangeLabel(laundry.record?.time)}</span>
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  );
+                                })()}
+                              </div>
                             {/* Waiver badges for shower and laundry */}
                             <div className="flex flex-wrap gap-2 mt-2">
                               {(() => {

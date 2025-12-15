@@ -90,6 +90,31 @@ describe("GuestList", () => {
     expect(screen.queryByText(/no guest found/i)).not.toBeInTheDocument();
   });
 
+  it("shows compact inline time label for today's services", async () => {
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        { id: "g1", name: "Tim Guest", firstName: "Tim", lastName: "Guest" },
+      ],
+      showerRecords: [
+        { id: "s1", guestId: "g1", date: new Date().toISOString(), time: "08:30", status: "awaiting" },
+      ],
+      laundryRecords: [
+        { id: "l1", guestId: "g1", date: new Date().toISOString(), time: "09:00 - 10:00", laundryType: "onsite", status: "waiting" },
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    fireEvent.change(search, { target: { value: "Tim" } });
+
+    // Compact label should show both services with times
+    const showerEls = await screen.findAllByText(/Shower:/i);
+    expect(showerEls.length).toBeGreaterThanOrEqual(1);
+    const laundryEls = await screen.findAllByText(/Laundry:/i);
+    expect(laundryEls.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("filters guests by partial name match", async () => {
     mockContextValue = {
       ...createDefaultContext(),

@@ -14,6 +14,7 @@ import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import Modal from "./ui/Modal";
+import toast from "react-hot-toast";
 
 const humanizeStatus = (status) => {
   if (!status) return "Pending";
@@ -101,6 +102,12 @@ const LaundryBooking = () => {
       );
       setSuccess(true);
       setError("");
+      if (slotTime) {
+        // slotTime is typically a time or range string
+        toast.success(`${laundryPickerGuest?.name} booked for ${slotTime}`);
+      } else {
+        toast.success(`${laundryPickerGuest?.name} booked (off-site)`);
+      }
 
       setTimeout(() => {
         setSuccess(false);

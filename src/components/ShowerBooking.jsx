@@ -158,6 +158,7 @@ const ShowerBooking = () => {
     try {
       addShowerRecord(showerPickerGuest.id, slotTime);
       setSuccess(true);
+      toast.success(`${showerPickerGuest?.name} booked for ${formatSlotLabel(slotTime)}`);
       setError("");
 
       setTimeout(() => {
