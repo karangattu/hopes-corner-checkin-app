@@ -82,7 +82,13 @@ const ShowerBooking = () => {
             record.status !== "waitlisted",
         );
         const count = todaysRecords.length;
-        const guestsInSlot = todaysRecords.map((record) => {
+        // Sort by createdAt to show guests in registration order (earlier first)
+        const sortedRecords = [...todaysRecords].sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return aTime - bTime;
+        });
+        const guestsInSlot = sortedRecords.map((record) => {
           const guest = guests?.find((g) => g.id === record.guestId);
           return {
             id: record.id,

@@ -86,6 +86,8 @@ import {
 import BicycleRepairsSection from "./services/sections/BicycleRepairsSection";
 import OverviewSection from "./services/sections/OverviewSection";
 import TimelineSection from "./services/sections/TimelineSection";
+import CompactShowerList from "../../components/CompactShowerList";
+import CompactLaundryList from "../../components/CompactLaundryList";
 
 const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
@@ -177,6 +179,9 @@ const Services = () => {
   // Timeline filter state
   const [timelineViewFilter, setTimelineViewFilter] = useState("all");
   const [showCompletedTimeline, setShowCompletedTimeline] = useState(false);
+
+  // View mode state for compact vs detailed views
+  const [showerViewMode, setShowerViewMode] = useState("detailed"); // "detailed" or "compact"
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -3494,8 +3499,61 @@ const Services = () => {
     const isCompletedShowersOpen =
       showCompletedShowers || activeShowers.length === 0;
 
+    // Compact view mode - return simplified list
+    if (showerViewMode === "compact") {
+      return (
+        <div className="space-y-6">
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <ShowerHead className="text-blue-600" size={20} />
+              <span>Today's Showers</span>
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">View:</span>
+              <button
+                type="button"
+                onClick={() => setShowerViewMode("detailed")}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                Detailed
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowerViewMode("compact")}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white"
+              >
+                Compact
+              </button>
+            </div>
+          </div>
+          <CompactShowerList />
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
+        {/* View Mode Toggle */}
+        <div className="flex items-center justify-end">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">View:</span>
+            <button
+              type="button"
+              onClick={() => setShowerViewMode("detailed")}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white"
+            >
+              Detailed
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowerViewMode("compact")}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              Compact
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
@@ -4280,8 +4338,8 @@ const Services = () => {
       showCompletedLaundry || activeLaundry.length === 0;
 
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-100 p-3 md:p-4 shadow-sm">
             <div className="flex items-center gap-2 text-purple-600 text-xs font-semibold uppercase tracking-wide">
               <WashingMachine size={16} className="text-purple-500" />
@@ -4550,6 +4608,17 @@ const Services = () => {
                   >
                     List
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setLaundryViewMode("compact")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                      laundryViewMode === "compact"
+                        ? "bg-white text-purple-600 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    Compact
+                  </button>
                 </div>
               </div>
             </div>
@@ -4563,6 +4632,8 @@ const Services = () => {
                 cancelLaundryRecord={cancelLaundryRecord}
                 attemptLaundryStatusChange={attemptLaundryStatusChange}
               />
+            ) : laundryViewMode === "compact" ? (
+              <CompactLaundryList />
             ) : (
               <>
                 <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
@@ -4763,7 +4834,7 @@ const Services = () => {
             )}
           </div>
         </div>
-      </div>
+      </>
     );
   };
 

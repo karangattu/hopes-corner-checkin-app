@@ -20,7 +20,45 @@ export const createShowerMutations = ({
   normalizeDateInputToISO,
   onServiceCompleted, // Callback when a service is marked complete
 }) => {
+  /**
+   * Validates slot availability by checking database directly (if online)
+   * This helps prevent race conditions when multiple users book simultaneously
+   */
+  const validateSlotAvailability = async (time, scheduledFor) => {
+    if (!supabaseEnabled || !supabaseClient || !navigator.onLine) {
+      // Fall back to local state check when offline or no supabase
+      const countAtTime = showerSlots.filter((slot) => slot.time === time).length;
+      return countAtTime < 2;
+    }
+
+    try {
+      // Query database directly to get current slot count
+      const { count, error } = await supabaseClient
+        .from("shower_reservations")
+        .select("*", { count: "exact", head: true })
+        .eq("scheduled_time", time)
+        .eq("scheduled_for", scheduledFor)
+        .neq("status", "waitlisted")
+        .neq("status", "cancelled");
+
+      if (error) {
+        console.error("Error validating slot availability:", error);
+        // Fall back to local check on error
+        const countAtTime = showerSlots.filter((slot) => slot.time === time).length;
+        return countAtTime < 2;
+      }
+
+      return (count || 0) < 2;
+    } catch (err) {
+      console.error("Failed to validate slot availability:", err);
+      // Fall back to local check on error
+      const countAtTime = showerSlots.filter((slot) => slot.time === time).length;
+      return countAtTime < 2;
+    }
+  };
+
   const addShowerRecord = async (guestId, time, dateOverride = null) => {
+    // Initial local check for fast feedback
     const countAtTime = showerSlots.filter((slot) => slot.time === time).length;
     if (countAtTime >= 2) {
       throw new Error("That time slot is already full.");
@@ -46,6 +84,15 @@ export const createShowerMutations = ({
 
     if (supabaseEnabled && supabaseClient) {
       try {
+        // Re-validate slot availability from database before booking
+        // This prevents race conditions when multiple users book simultaneously
+        const isAvailable = await validateSlotAvailability(time, scheduledFor);
+        if (!isAvailable) {
+          // Slot became full while user was selecting - show helpful message
+          toast.error("This slot just filled up. Please choose another time.");
+          throw new Error("That time slot is already full. Please refresh and try another slot.");
+        }
+
         const payload = {
           guest_id: guestId,
           scheduled_time: time,

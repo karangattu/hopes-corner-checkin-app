@@ -451,7 +451,8 @@ const LaundryKanban = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* Use flex with horizontal scroll to keep all 5 columns in one row */}
+        <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 min-w-0">
           {onsiteColumns.map((column) => {
             const records = groupedOnsiteRecords[column.id];
             const Icon = column.icon;
@@ -462,7 +463,7 @@ const LaundryKanban = ({
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, column.id)}
                 data-testid={`onsite-column-${column.id}`}
-                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors ${
+                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[180px] ${
                   draggedItem?.status !== column.id && !draggedItem?.offsite
                     ? "hover:border-opacity-75"
                     : ""
@@ -521,7 +522,8 @@ const LaundryKanban = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Use flex with horizontal scroll to keep all 4 columns in one row */}
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 min-w-0">
             {offsiteColumns.map((column) => {
               const records = groupedOffsiteRecords[column.id];
               const Icon = column.icon;
@@ -532,7 +534,7 @@ const LaundryKanban = ({
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
                   data-testid={`offsite-column-${column.id}`}
-                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors ${
+                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[200px] ${
                     draggedItem?.status !== column.id && draggedItem?.offsite
                       ? "hover:border-opacity-75"
                       : ""

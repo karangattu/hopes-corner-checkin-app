@@ -1,6 +1,7 @@
 import React from "react";
 import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
+import ServiceStatusOverview from "../../components/ServiceStatusOverview";
 
 const CheckIn = () => {
   return (
@@ -27,6 +28,9 @@ const CheckIn = () => {
           </div>
         </div>
       </div>
+
+      {/* Service Status Overview - At-a-glance availability */}
+      <ServiceStatusOverview />
 
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

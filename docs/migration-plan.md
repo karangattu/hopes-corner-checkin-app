@@ -327,7 +327,7 @@ create policy "Only admins can delete guests"
 
 - `app/(protected)/services/page.tsx`
 
-#### 3.2 Migrate Admin Dashboard
+#### 3.2 Migrate Admin page
 
 **Files to migrate:**
 
@@ -942,7 +942,7 @@ Before starting the migration, I'd like to clarify a few key decisions:
 - [ ] Test role-based access (admin can delete, staff cannot)
 - [ ] Migrate service components (showers, laundry, bicycles)
 - [ ] Create services page (`app/(protected)/services/page.tsx`)
-- [ ] Migrate admin dashboard and reports
+- [ ] Migrate admin page and reports
 - [ ] Migrate all chart components (add 'use client')
 - [ ] Create admin page (`app/(protected)/admin/page.tsx`)
 
@@ -993,7 +993,7 @@ Before starting the migration, I'd like to clarify a few key decisions:
 
 11. `app/(protected)/check-in/page.tsx` - Check-in page
 12. `app/(protected)/services/page.tsx` - Services page
-13. `app/(protected)/admin/page.tsx` - Admin dashboard
+13. `app/(protected)/admin/page.tsx` - Admin page
 
 ### Database
 
