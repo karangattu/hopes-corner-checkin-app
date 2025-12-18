@@ -11,7 +11,6 @@ const ServiceStatusOverview = () => {
   const {
     showerRecords,
     laundryRecords,
-    laundrySlots,
     allShowerSlots,
     settings,
   } = useAppContext();
@@ -69,8 +68,12 @@ const ServiceStatusOverview = () => {
       (record) => pacificDateStringFrom(record.date) === todayString
     );
     
-    const onsiteSlotsTaken = (laundrySlots || []).filter(
-      (slot) => slot.laundryType === "onsite" || !slot.laundryType
+    // Count active on-site laundry (not picked up yet) as slots taken
+    const activeOnsiteStatuses = ["waiting", "washer", "dryer", "done"];
+    const onsiteSlotsTaken = todaysRecords.filter(
+      (record) => 
+        (record.laundryType === "onsite" || !record.laundryType) &&
+        activeOnsiteStatuses.includes(record.status)
     ).length;
     
     const onsiteAvailable = Math.max(maxSlots - onsiteSlotsTaken, 0);
@@ -101,7 +104,7 @@ const ServiceStatusOverview = () => {
       isFull: onsiteAvailable === 0,
       isNearlyFull: onsiteAvailable === 1,
     };
-  }, [laundryRecords, laundrySlots, settings, todayString]);
+  }, [laundryRecords, settings, todayString]);
 
   const getStatusColor = (isFull, isNearlyFull) => {
     if (isFull) return "text-red-600 bg-red-50 border-red-200";

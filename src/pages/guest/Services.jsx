@@ -182,6 +182,7 @@ const Services = () => {
 
   // View mode state for compact vs detailed views
   const [showerViewMode, setShowerViewMode] = useState("detailed"); // "detailed" or "compact"
+  const [showerTab, setShowerTab] = useState("active"); // "active", "completed", "waitlist"
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -279,9 +280,6 @@ const Services = () => {
   const [showerSort, setShowerSort] = useState(
     () => savedFilters?.showerSort ?? "time-asc",
   );
-  const [showCompletedShowers, setShowCompletedShowers] = useState(() =>
-    Boolean(savedFilters?.showCompletedShowers),
-  );
   const [expandedShowerRows, setExpandedShowerRows] = useState({});
 
   const [laundryTypeFilter, setLaundryTypeFilter] = useState(
@@ -331,7 +329,6 @@ const Services = () => {
       showerStatusFilter,
       showerLaundryFilter,
       showerSort,
-      showCompletedShowers,
       laundryTypeFilter,
       laundryStatusFilter,
       laundrySort,
@@ -348,7 +345,6 @@ const Services = () => {
     showerStatusFilter,
     showerLaundryFilter,
     showerSort,
-    showCompletedShowers,
     laundryTypeFilter,
     laundryStatusFilter,
     laundrySort,
@@ -3496,9 +3492,6 @@ const Services = () => {
       );
     };
 
-    const isCompletedShowersOpen =
-      showCompletedShowers || activeShowers.length === 0;
-
     // Compact view mode - return simplified list
     if (showerViewMode === "compact") {
       return (
@@ -3631,21 +3624,67 @@ const Services = () => {
                 <span className="bg-blue-100 text-blue-700 font-medium px-3 py-1 rounded-full">
                   {todayShowerRecords.length} total bookings
                 </span>
-                <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full">
-                  Active queue {activeShowers.length}
-                </span>
-                <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full">
-                  Completed {completedShowers.length}
-                </span>
-                <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
-                  Waitlisted {todayWaitlisted.length}
-                </span>
-                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                  Showing {filteredShowers.length}
-                </span>
               </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="flex border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowerTab("active")}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  showerTab === "active"
+                    ? "border-blue-500 text-blue-600 bg-blue-50/50"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Clock size={16} />
+                <span>Active Queue</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  showerTab === "active" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {activeShowers.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowerTab("completed")}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  showerTab === "completed"
+                    ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <CheckCircle size={16} />
+                <span>Completed</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  showerTab === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {completedShowers.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowerTab("waitlist")}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  showerTab === "waitlist"
+                    ? "border-amber-500 text-amber-600 bg-amber-50/50"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <History size={16} />
+                <span>Waitlist</span>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                  showerTab === "waitlist" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {todayWaitlisted.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Tab Content: Active Queue */}
+            {showerTab === "active" && (
+              <>
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
               <select
                 value={showerStatusFilter}
@@ -3677,324 +3716,303 @@ const Services = () => {
               </select>
             </div>
 
-            {filteredShowers.length === 0 ? (
+            {activeShowers.length === 0 ? (
               <div className="border border-dashed border-blue-200 rounded-lg text-center py-12 text-sm text-blue-700 bg-blue-50">
-                No shower bookings match your filters.
+                <Clock size={32} className="mx-auto mb-3 text-blue-400" />
+                <p>No active shower bookings in queue.</p>
+                <p className="text-xs text-blue-500 mt-1">
+                  Guests with assigned slots will appear here.
+                </p>
               </div>
             ) : (
-              <div className="space-y-5">
-                {activeShowers.length > 0 ? (
-                  <div className="space-y-4">
-                    {activeShowers.map((record, idx) =>
-                      renderShowerCard(record, activeShowersTrail[idx], {
-                        index: idx,
-                        section: "active",
-                      }),
-                    )}
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-blue-200 rounded-lg text-center py-10 text-sm text-blue-600 bg-blue-50">
-                    No active shower bookings.
-                  </div>
-                )}
-
-                {completedShowers.length > 0 && (
-                  <div className="pt-4 border-t border-blue-100">
-                    <button
-                      type="button"
-                      onClick={() => setShowCompletedShowers((prev) => !prev)}
-                      className="w-full flex items-center justify-between text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg px-4 py-2 transition-colors"
-                    >
-                      <span>Completed showers ({completedShowers.length})</span>
-                      {isCompletedShowersOpen ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </button>
-                    {isCompletedShowersOpen && (
-                      <div className="mt-3 space-y-3">
-                        {completedShowers.map((record, idx) =>
-                          renderShowerCard(record, completedShowersTrail[idx], {
-                            index: idx,
-                            section: "completed",
-                          }),
-                        )}
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-4">
+                {activeShowers.map((record, idx) =>
+                  renderShowerCard(record, activeShowersTrail[idx], {
+                    index: idx,
+                    section: "active",
+                  }),
                 )}
               </div>
             )}
-          </div>
-        </div>
+              </>
+            )}
 
-        {todayWaitlisted.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Enhanced Waitlist Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 lg:px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-white/20 backdrop-blur rounded-lg">
-                    <Clock size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">
-                      Shower Waitlist
-                    </h3>
-                    <p className="text-amber-100 text-xs">
-                      {todayWaitlisted.length} {todayWaitlisted.length === 1 ? 'guest' : 'guests'} waiting for available slots
+            {/* Tab Content: Completed */}
+            {showerTab === "completed" && (
+              <>
+                {completedShowers.length === 0 ? (
+                  <div className="border border-dashed border-emerald-200 rounded-lg text-center py-12 text-sm text-emerald-700 bg-emerald-50">
+                    <CheckCircle size={32} className="mx-auto mb-3 text-emerald-400" />
+                    <p>No completed showers yet today.</p>
+                    <p className="text-xs text-emerald-500 mt-1">
+                      Finished showers will be listed here.
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-white/20 backdrop-blur text-white text-sm font-medium px-4 py-2 rounded-lg">
-                    Queue: {todayWaitlisted.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Waitlist Queue */}
-            <div className="p-4 lg:p-6">
-              <div className="space-y-3">
-                {waitlistTrail.map((style, idx) => {
-                  const record = todayWaitlisted[idx];
-                  if (!record) return null;
-                  const guest = guests.find((g) => g.id === record.guestId);
-                  const nameDetails = getGuestNameDetails(record.guestId);
-                  const guestName = nameDetails.primaryName;
-                  const queuePosition = idx + 1;
-                  const isNextUp = queuePosition <= 2;
-                  const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
-                  const canSB = guest
-                    ? canGiveItem(guest.id, "sleeping_bag")
-                    : false;
-                  const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
-                  const canTent = guest ? canGiveItem(guest.id, "tent") : false;
-                  const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
+                ) : (
+                  <div className="space-y-4">
+                    {completedShowers.map((record, idx) =>
+                      renderShowerCard(record, completedShowersTrail[idx], {
+                        index: idx,
+                        section: "completed",
+                      }),
+                    )}
+                  </div>
+                )}
+              </>
+            )}
 
-                  const waitlistActions = guest
-                    ? [
-                        {
-                          key: "tshirt",
-                          label: "Give T-Shirt",
-                          canGive: canT,
-                          successMessage: "T-Shirt given",
-                          days: getDaysUntilAvailable(guest.id, "tshirt"),
-                          nextDate: getNextAvailabilityDate(
-                            "tshirt",
-                            getLastGivenItem(guest.id, "tshirt")?.date,
-                          ),
-                        },
-                        {
-                          key: "sleeping_bag",
-                          label: "Give Sleeping Bag",
-                          canGive: canSB,
-                          successMessage: "Sleeping bag given",
-                          days: getDaysUntilAvailable(guest.id, "sleeping_bag"),
-                          nextDate: getNextAvailabilityDate(
-                            "sleeping_bag",
-                            getLastGivenItem(guest.id, "sleeping_bag")?.date,
-                          ),
-                        },
-                        {
-                          key: "backpack",
-                          label: "Give Backpack/Duffel Bag",
-                          canGive: canBP,
-                          successMessage: "Backpack/Duffel Bag given",
-                          days: getDaysUntilAvailable(guest.id, "backpack"),
-                          nextDate: getNextAvailabilityDate(
-                            "backpack",
-                            getLastGivenItem(guest.id, "backpack")?.date,
-                          ),
-                        },
-                        {
-                          key: "tent",
-                          label: "Give Tent",
-                          canGive: canTent,
-                          successMessage: "Tent given",
-                          days: getDaysUntilAvailable(guest.id, "tent"),
-                          nextDate: getNextAvailabilityDate(
-                            "tent",
-                            getLastGivenItem(guest.id, "tent")?.date,
-                          ),
-                        },
-                        {
-                          key: "flip_flops",
-                          label: "Give Flip Flops",
-                          canGive: canFF,
-                          successMessage: "Flip Flops given",
-                          days: getDaysUntilAvailable(guest.id, "flip_flops"),
-                          nextDate: getNextAvailabilityDate(
-                            "flip_flops",
-                            getLastGivenItem(guest.id, "flip_flops")?.date,
-                          ),
-                        },
-                      ]
-                    : [];
+            {/* Tab Content: Waitlist */}
+            {showerTab === "waitlist" && (
+              <>
+                {todayWaitlisted.length === 0 ? (
+                  <div className="border border-dashed border-amber-200 rounded-lg text-center py-12 text-sm text-amber-700 bg-amber-50">
+                    <History size={32} className="mx-auto mb-3 text-amber-400" />
+                    <p>No guests on the waitlist.</p>
+                    <p className="text-xs text-amber-500 mt-1">
+                      When all slots are full, guests can be added to the waitlist.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {waitlistTrail.map((style, idx) => {
+                      const record = todayWaitlisted[idx];
+                      if (!record) return null;
+                      const guest = guests.find((g) => g.id === record.guestId);
+                      const nameDetails = getGuestNameDetails(record.guestId);
+                      const guestName = nameDetails.primaryName;
+                      const queuePosition = idx + 1;
+                      const isNextUp = queuePosition <= 2;
+                      const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
+                      const canSB = guest
+                        ? canGiveItem(guest.id, "sleeping_bag")
+                        : false;
+                      const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
+                      const canTent = guest ? canGiveItem(guest.id, "tent") : false;
+                      const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
 
-                  return (
-                    <Animated.div
-                      key={record.id}
-                      style={style}
-                      className={`will-change-transform rounded-xl border-2 transition-all duration-200 ${
-                        isNextUp 
-                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-md' 
-                          : 'bg-gray-50 border-gray-200'
-                      }`}
-                    >
-                      <div className="p-4">
-                        <div className="flex items-start gap-4">
-                          {/* Queue Position Badge */}
-                          <div className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl ${
+                      const waitlistActions = guest
+                        ? [
+                            {
+                              key: "tshirt",
+                              label: "Give T-Shirt",
+                              canGive: canT,
+                              successMessage: "T-Shirt given",
+                              days: getDaysUntilAvailable(guest.id, "tshirt"),
+                              nextDate: getNextAvailabilityDate(
+                                "tshirt",
+                                getLastGivenItem(guest.id, "tshirt")?.date,
+                              ),
+                            },
+                            {
+                              key: "sleeping_bag",
+                              label: "Give Sleeping Bag",
+                              canGive: canSB,
+                              successMessage: "Sleeping bag given",
+                              days: getDaysUntilAvailable(guest.id, "sleeping_bag"),
+                              nextDate: getNextAvailabilityDate(
+                                "sleeping_bag",
+                                getLastGivenItem(guest.id, "sleeping_bag")?.date,
+                              ),
+                            },
+                            {
+                              key: "backpack",
+                              label: "Give Backpack/Duffel Bag",
+                              canGive: canBP,
+                              successMessage: "Backpack/Duffel Bag given",
+                              days: getDaysUntilAvailable(guest.id, "backpack"),
+                              nextDate: getNextAvailabilityDate(
+                                "backpack",
+                                getLastGivenItem(guest.id, "backpack")?.date,
+                              ),
+                            },
+                            {
+                              key: "tent",
+                              label: "Give Tent",
+                              canGive: canTent,
+                              successMessage: "Tent given",
+                              days: getDaysUntilAvailable(guest.id, "tent"),
+                              nextDate: getNextAvailabilityDate(
+                                "tent",
+                                getLastGivenItem(guest.id, "tent")?.date,
+                              ),
+                            },
+                            {
+                              key: "flip_flops",
+                              label: "Give Flip Flops",
+                              canGive: canFF,
+                              successMessage: "Flip Flops given",
+                              days: getDaysUntilAvailable(guest.id, "flip_flops"),
+                              nextDate: getNextAvailabilityDate(
+                                "flip_flops",
+                                getLastGivenItem(guest.id, "flip_flops")?.date,
+                              ),
+                            },
+                          ]
+                        : [];
+
+                      return (
+                        <Animated.div
+                          key={record.id}
+                          style={style}
+                          className={`will-change-transform rounded-xl border-2 transition-all duration-200 ${
                             isNextUp 
-                              ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200' 
-                              : 'bg-gray-200 text-gray-600'
-                          }`}>
-                            <span className="text-[10px] uppercase font-semibold tracking-wide opacity-80">
-                              {isNextUp ? 'Next' : 'Queue'}
-                            </span>
-                            <span className="text-xl font-bold">#{queuePosition}</span>
-                          </div>
-                          
-                          {/* Guest Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-semibold ${isNextUp ? 'text-amber-900' : 'text-gray-900'}`}>
-                                {guestName}
-                              </span>
-                              {nameDetails.hasPreferred && (
-                                <span className="text-[11px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                                  Legal: {nameDetails.legalName}
+                              ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-md' 
+                              : 'bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start gap-4">
+                              {/* Queue Position Badge */}
+                              <div className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl ${
+                                isNextUp 
+                                  ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200' 
+                                  : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                <span className="text-[10px] uppercase font-semibold tracking-wide opacity-80">
+                                  {isNextUp ? 'Next' : 'Queue'}
                                 </span>
-                              )}
-                              {isNextUp && (
-                                <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wide animate-pulse">
-                                  Priority
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Clock size={12} />
-                                Joined at {new Date(record.date).toLocaleTimeString([], {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                              <span className="text-gray-300">•</span>
-                              <span>
-                                Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)} min
-                              </span>
-                            </div>
-                            
-                            {/* Quick Actions */}
-                            <div className="flex items-center gap-2 mt-3 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    const success = await updateShowerStatus(
-                                      record.id,
-                                      "done",
-                                    );
-                                    if (success) {
-                                      toast.success(
-                                        "Waitlisted shower marked complete",
-                                      );
-                                    }
-                                  } catch (err) {
-                                    toast.error(err.message);
-                                  }
-                                }}
-                                className={`text-xs font-medium px-4 py-2 rounded-lg transition-all ${
-                                  isNextUp
-                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
-                                    : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                }`}
-                              >
-                                ✓ Mark Complete
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  try {
-                                    cancelShowerRecord(record.id);
-                                    toast.success("Waitlist entry cancelled");
-                                  } catch (err) {
-                                    toast.error(err.message);
-                                  }
-                                }}
-                                className="text-xs font-medium px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                              >
-                                ✗ Cancel
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Essentials Quick Actions */}
-                        {waitlistActions.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-200/50">
-                            <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mb-2">
-                              Offer Essentials
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {waitlistActions.map((action) => {
-                                const nextDateLabel = action.nextDate
-                                  ? action.nextDate.toLocaleDateString("en-CA")
-                                  : null;
-                                return (
+                                <span className="text-xl font-bold">#{queuePosition}</span>
+                              </div>
+                              
+                              {/* Guest Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`font-semibold ${isNextUp ? 'text-amber-900' : 'text-gray-900'}`}>
+                                    {guestName}
+                                  </span>
+                                  {nameDetails.hasPreferred && (
+                                    <span className="text-[11px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                                      Legal: {nameDetails.legalName}
+                                    </span>
+                                  )}
+                                  {isNextUp && (
+                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wide animate-pulse">
+                                      Priority
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock size={12} />
+                                    Joined at {new Date(record.date).toLocaleTimeString([], {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                  <span className="text-gray-300">•</span>
+                                  <span>
+                                    Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)} min
+                                  </span>
+                                </div>
+                                
+                                {/* Quick Actions */}
+                                <div className="flex items-center gap-2 mt-3 flex-wrap">
                                   <button
-                                    key={action.key}
-                                    disabled={!action.canGive}
-                                    onClick={() => {
-                                      if (!guest) return;
+                                    type="button"
+                                    onClick={async () => {
                                       try {
-                                        giveItem(guest.id, action.key);
-                                        toast.success(action.successMessage);
-                                      } catch (e) {
-                                        toast.error(e.message);
+                                        const success = await updateShowerStatus(
+                                          record.id,
+                                          "done",
+                                        );
+                                        if (success) {
+                                          toast.success(
+                                            "Waitlisted shower marked complete",
+                                          );
+                                        }
+                                      } catch (err) {
+                                        toast.error(err.message);
                                       }
                                     }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                    title={
-                                      action.canGive
-                                        ? action.label
-                                        : nextDateLabel
-                                          ? `Available ${nextDateLabel}`
-                                          : "Not yet available"
-                                    }
+                                    className={`text-xs font-medium px-4 py-2 rounded-lg transition-all ${
+                                      isNextUp
+                                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
+                                        : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                                    }`}
                                   >
-                                    {action.label}
-                                    {!action.canGive && action.days > 0 && (
-                                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">
-                                        {action.days}d
-                                      </span>
-                                    )}
+                                    ✓ Mark Complete
                                   </button>
-                                );
-                              })}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      try {
+                                        cancelShowerRecord(record.id);
+                                        toast.success("Waitlist entry cancelled");
+                                      } catch (err) {
+                                        toast.error(err.message);
+                                      }
+                                    }}
+                                    className="text-xs font-medium px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
+                                  >
+                                    ✗ Cancel
+                                  </button>
+                                </div>
+                              </div>
                             </div>
+                            
+                            {/* Essentials Quick Actions */}
+                            {waitlistActions.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-gray-200/50">
+                                <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mb-2">
+                                  Offer Essentials
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {waitlistActions.map((action) => {
+                                    const nextDateLabel = action.nextDate
+                                      ? action.nextDate.toLocaleDateString("en-CA")
+                                      : null;
+                                    return (
+                                      <button
+                                        key={action.key}
+                                        disabled={!action.canGive}
+                                        onClick={() => {
+                                          if (!guest) return;
+                                          try {
+                                            giveItem(guest.id, action.key);
+                                            toast.success(action.successMessage);
+                                          } catch (e) {
+                                            toast.error(e.message);
+                                          }
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                        title={
+                                          action.canGive
+                                            ? action.label
+                                            : nextDateLabel
+                                              ? `Available ${nextDateLabel}`
+                                              : "Not yet available"
+                                        }
+                                      >
+                                        {action.label}
+                                        {!action.canGive && action.days > 0 && (
+                                          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">
+                                            {action.days}d
+                                          </span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </Animated.div>
-                  );
-                })}
-              </div>
-              
-              {/* Waitlist Tips */}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  <strong>Tip:</strong> Guests marked as "Priority" are next in line. 
-                  Mark them complete as soon as a shower slot opens up.
-                </p>
-              </div>
-            </div>
+                        </Animated.div>
+                      );
+                    })}
+                    
+                    {/* Waitlist Tips */}
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                      <p className="text-xs text-blue-700">
+                        <strong>Tip:</strong> Guests marked as "Priority" are next in line. 
+                        Mark them complete as soon as a shower slot opens up.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
     );
   };

@@ -241,8 +241,15 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    await waitFor(() => {
+      // Verify we're in the waitlist tab by checking for supply buttons
+      expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
     });
   });
 
@@ -252,12 +259,16 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
 
-    // Check that all 5 supply buttons are present
-    expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
+    await waitFor(() => {
+      // Check that all 5 supply buttons are present
+      expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: /Give Sleeping Bag/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Give Backpack\/Duffel Bag/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Give Tent/i })).toBeInTheDocument();
@@ -270,8 +281,14 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
     });
 
     // Click the T-Shirt button
@@ -287,8 +304,14 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Give Tent/i })).toBeInTheDocument();
     });
 
     // Click the Tent button
@@ -304,8 +327,14 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Give Flip Flops/i })).toBeInTheDocument();
     });
 
     // Click the Flip Flops button
@@ -328,8 +357,14 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Give Tent/i })).toBeInTheDocument();
     });
 
     // Check that Tent and Flip Flops buttons are disabled
@@ -381,11 +416,15 @@ describe("Services - Backpack/Duffel Bag naming", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the Waitlist tab to see waitlisted guests
     await waitFor(() => {
-      expect(screen.getByText("Shower Waitlist")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
 
-    // Check that the button shows Backpack/Duffel Bag
-    expect(screen.getByRole("button", { name: /Give Backpack\/Duffel Bag/i })).toBeInTheDocument();
+    await waitFor(() => {
+      // Check that the button shows Backpack/Duffel Bag
+      expect(screen.getByRole("button", { name: /Give Backpack\/Duffel Bag/i })).toBeInTheDocument();
+    });
   });
 });
