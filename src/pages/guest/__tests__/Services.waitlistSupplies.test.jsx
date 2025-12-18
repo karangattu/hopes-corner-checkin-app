@@ -247,6 +247,12 @@ describe("Services - Waitlist Supplies", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
 
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
+
     await waitFor(() => {
       // Verify we're in the waitlist tab by checking for supply buttons
       expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
@@ -264,6 +270,12 @@ describe("Services - Waitlist Supplies", () => {
       expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
       // Check that all 5 supply buttons are present
@@ -286,6 +298,12 @@ describe("Services - Waitlist Supplies", () => {
       expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
@@ -310,6 +328,12 @@ describe("Services - Waitlist Supplies", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
 
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
+
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Give Tent/i })).toBeInTheDocument();
     });
@@ -332,6 +356,12 @@ describe("Services - Waitlist Supplies", () => {
       expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Give Flip Flops/i })).toBeInTheDocument();
@@ -362,6 +392,12 @@ describe("Services - Waitlist Supplies", () => {
       expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Give Tent/i })).toBeInTheDocument();
@@ -401,7 +437,7 @@ describe("Services - Backpack/Duffel Bag naming", () => {
     });
 
     // Expand the essentials section for the shower card
-    const detailsBtn = screen.getByRole("button", { name: /Essentials & notes/i });
+    const detailsBtn = screen.getByTitle(/Essentials & Notes/i);
     fireEvent.click(detailsBtn);
 
     await waitFor(() => {
@@ -421,6 +457,12 @@ describe("Services - Backpack/Duffel Bag naming", () => {
       expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+
+    // Expand the card to see essentials
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
       // Check that the button shows Backpack/Duffel Bag

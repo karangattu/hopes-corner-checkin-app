@@ -378,7 +378,6 @@ describe("Services page", () => {
 
   it("restores and persists shower filter selections", async () => {
     const savedFilters = {
-      showerStatusFilter: "done",
       showerLaundryFilter: "with",
       showerSort: "name",
       showCompletedShowers: true,
@@ -399,16 +398,16 @@ describe("Services page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    const statusSelect = await screen.findByDisplayValue("Status: Done");
+    const laundrySelect = await screen.findByDisplayValue("With Laundry");
 
     // Verify initial restoration
-    expect(statusSelect.value).toBe("done");
+    expect(laundrySelect.value).toBe("with");
 
     // Now change it and verify persistence
-    fireEvent.change(statusSelect, { target: { value: "awaiting" } });
+    fireEvent.change(laundrySelect, { target: { value: "without" } });
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("Status: Awaiting")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("No Laundry")).toBeInTheDocument();
     });
 
     // Check that localStorage was updated
@@ -416,7 +415,7 @@ describe("Services page", () => {
       const stored = window.localStorage.getItem(FILTER_STORAGE_KEY);
       expect(stored).toBeTruthy();
       const parsed = JSON.parse(stored);
-      expect(parsed.showerStatusFilter).toBe("awaiting");
+      expect(parsed.showerLaundryFilter).toBe("without");
     });
   });
 

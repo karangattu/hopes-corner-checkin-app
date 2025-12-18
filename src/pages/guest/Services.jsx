@@ -46,6 +46,9 @@ import {
   FileText,
   ArrowRight,
   Package,
+  Filter,
+  ArrowUpDown,
+  MessageSquare,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
@@ -153,7 +156,6 @@ const Services = () => {
     canGiveItem,
     getLastGivenItem,
     giveItem,
-    getNextAvailabilityDate,
     getDaysUntilAvailable,
     bicycleRecords,
     updateBicycleRecord,
@@ -271,9 +273,6 @@ const Services = () => {
     };
   }, []);
 
-  const [showerStatusFilter, setShowerStatusFilter] = useState(
-    () => savedFilters?.showerStatusFilter ?? "all",
-  );
   const [showerLaundryFilter, setShowerLaundryFilter] = useState(
     () => savedFilters?.showerLaundryFilter ?? "any",
   );
@@ -326,7 +325,6 @@ const Services = () => {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const payload = {
-      showerStatusFilter,
       showerLaundryFilter,
       showerSort,
       laundryTypeFilter,
@@ -342,7 +340,6 @@ const Services = () => {
       console.warn("Failed to persist Services filters", error);
     }
   }, [
-    showerStatusFilter,
     showerLaundryFilter,
     showerSort,
     laundryTypeFilter,
@@ -368,9 +365,28 @@ const Services = () => {
   const todayShowerRecords = showerRecords.filter(
     (record) => pacificDateStringFrom(record.date) === todayShorthand,
   );
-  const todayWaitlisted = todayShowerRecords.filter(
-    (r) => r.status === "waitlisted",
-  );
+  const todayWaitlisted = todayShowerRecords
+    .filter((r) => {
+      if (r.status !== "waitlisted") return false;
+      if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
+        return false;
+      if (
+        showerLaundryFilter === "without" &&
+        laundryGuestIdsSet.has(r.guestId)
+      )
+        return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (showerSort === "name") {
+        const an = getGuestNameDetails(a.guestId).sortKey;
+        const bn = getGuestNameDetails(b.guestId).sortKey;
+        return an.localeCompare(bn);
+      }
+      if (showerSort === "time-desc")
+        return parseTimeToMinutes(b.time) - parseTimeToMinutes(a.time);
+      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+    });
   const todayBookedShowers = todayShowerRecords.filter(
     (r) => r.status !== "waitlisted",
   );
@@ -594,9 +610,6 @@ const Services = () => {
   );
   const filteredShowers = [...(todayBookedShowers || [])]
     .filter((r) => {
-      if (showerStatusFilter === "awaiting" && r.status === "done")
-        return false;
-      if (showerStatusFilter === "done" && r.status !== "done") return false;
       if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
         return false;
       if (
@@ -3045,27 +3058,26 @@ const Services = () => {
       const guest = guests.find((g) => g.id === record.guestId);
       const nameDetails = getGuestNameDetails(record.guestId);
       const guestName = nameDetails.primaryName;
+      
+      // Essentials logic
       const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
       const canSB = guest ? canGiveItem(guest.id, "sleeping_bag") : false;
       const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
       const canTent = guest ? canGiveItem(guest.id, "tent") : false;
       const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
+      
       const daysT = guest ? getDaysUntilAvailable(guest.id, "tshirt") : 0;
-      const daysSB = guest
-        ? getDaysUntilAvailable(guest.id, "sleeping_bag")
-        : 0;
+      const daysSB = guest ? getDaysUntilAvailable(guest.id, "sleeping_bag") : 0;
       const daysBP = guest ? getDaysUntilAvailable(guest.id, "backpack") : 0;
       const daysTent = guest ? getDaysUntilAvailable(guest.id, "tent") : 0;
       const daysFF = guest ? getDaysUntilAvailable(guest.id, "flip_flops") : 0;
+      
       const lastTGuest = guest ? getLastGivenItem(guest.id, "tshirt") : null;
-      const lastSBGuest = guest
-        ? getLastGivenItem(guest.id, "sleeping_bag")
-        : null;
+      const lastSBGuest = guest ? getLastGivenItem(guest.id, "sleeping_bag") : null;
       const lastBPGuest = guest ? getLastGivenItem(guest.id, "backpack") : null;
       const lastTentGuest = guest ? getLastGivenItem(guest.id, "tent") : null;
-      const lastFFGuest = guest
-        ? getLastGivenItem(guest.id, "flip_flops")
-        : null;
+      const lastFFGuest = guest ? getLastGivenItem(guest.id, "flip_flops") : null;
+      
       const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
       const isDone = record.status === "done";
       const slotLabel = formatShowerSlotLabel(record.time);
@@ -3073,19 +3085,19 @@ const Services = () => {
         hour: "numeric",
         minute: "2-digit",
       });
+      
       const statusInfo = getShowerStatusInfo(record.status);
       const StatusIcon = statusInfo.icon;
-      const queuePosition = section === "active" ? index + 1 : null;
+      const isWaitlisted = record.status === "waitlisted";
+      const queuePosition = section === "active" || section === "waitlist" ? index + 1 : null;
+      const isPriority = isWaitlisted && queuePosition <= 2;
       const rowExpanded = Boolean(expandedShowerRows[record.id]);
-      const toggleStatusLabel = isDone ? "Reopen shower" : "Mark as complete";
-      const toggleStatusClass = isDone
-        ? "bg-white border border-blue-200 text-blue-700 hover:bg-blue-50"
-        : "bg-blue-600 text-white border border-blue-600 hover:bg-blue-500";
+      
       const essentialsConfig = guest
         ? [
             {
               key: "tshirt",
-              label: "T-Shirt (Weekly)",
+              label: "T-Shirt",
               buttonLabel: "Give T-Shirt",
               icon: Shirt,
               canGive: canT,
@@ -3095,7 +3107,7 @@ const Services = () => {
             },
             {
               key: "sleeping_bag",
-              label: "Sleeping Bag (Monthly)",
+              label: "Sleeping Bag",
               buttonLabel: "Give Sleeping Bag",
               icon: Bed,
               canGive: canSB,
@@ -3105,7 +3117,7 @@ const Services = () => {
             },
             {
               key: "backpack",
-              label: "Backpack/Duffel Bag (Monthly)",
+              label: "Backpack/Duffel Bag",
               buttonLabel: "Give Backpack/Duffel Bag",
               icon: Backpack,
               canGive: canBP,
@@ -3115,7 +3127,7 @@ const Services = () => {
             },
             {
               key: "tent",
-              label: "Tent (Monthly)",
+              label: "Tent",
               buttonLabel: "Give Tent",
               icon: TentTree,
               canGive: canTent,
@@ -3125,7 +3137,7 @@ const Services = () => {
             },
             {
               key: "flip_flops",
-              label: "Flip Flops (Monthly)",
+              label: "Flip Flops",
               buttonLabel: "Give Flip Flops",
               icon: Footprints,
               canGive: canFF,
@@ -3135,8 +3147,8 @@ const Services = () => {
             },
           ]
         : [];
+        
       const availableItems = essentialsConfig.filter((i) => i.canGive);
-      const comingItems = essentialsConfig.filter((i) => !i.canGive);
 
       const handleGiveItem = (itemKey, successMessage) => {
         if (!guest) return;
@@ -3155,336 +3167,290 @@ const Services = () => {
         }));
       };
 
-      const queueBadgeClasses = queuePosition
-        ? "bg-blue-50 border border-blue-200 text-blue-700"
-        : "bg-emerald-50 border border-emerald-200 text-emerald-700";
-
       return (
         <Animated.div
           key={record.id}
           style={animationStyle}
-          className={`will-change-transform bg-white rounded-xl shadow-sm p-4 border ${
+          className={`will-change-transform bg-white rounded-2xl shadow-sm border-2 transition-all duration-200 focus-within:z-50 relative ${
             isDone
-              ? "border-emerald-100 border-l-4 border-l-emerald-300"
-              : "border-blue-100 border-l-4 border-l-blue-300"
+              ? "border-emerald-100 bg-emerald-50/30"
+              : "border-blue-100 hover:border-blue-200 hover:shadow-md"
           }`}
         >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col lg:flex-row lg:items-start gap-3 justify-between">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg text-xs font-bold uppercase tracking-wide ${queueBadgeClasses}`}
-                >
-                  {queuePosition ? `#${String(queuePosition).padStart(2, "0")}` : (
-                    <CheckCircle2Icon className="text-emerald-600" size={16} />
+          <div className="p-4 sm:p-5">
+            {/* Header Section */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
+              <div className="flex items-start gap-4 min-w-0">
+                {/* Status Icon/Queue Number */}
+                <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl ${
+                  isDone 
+                    ? "bg-emerald-100 text-emerald-600" 
+                    : isPriority
+                    ? "bg-amber-500 text-white shadow-lg shadow-amber-200"
+                    : isWaitlisted
+                    ? "bg-amber-100 text-amber-600"
+                    : "bg-blue-100 text-blue-600"
+                }`}>
+                  {isDone ? (
+                    <CheckCircle2Icon size={24} />
+                  ) : (
+                    <div className="flex flex-col items-center leading-none">
+                      {isWaitlisted && <span className="text-[8px] uppercase font-bold mb-0.5">{isPriority ? "Next" : "Wait"}</span>}
+                      <span className="text-lg font-bold">
+                        {queuePosition ? `#${queuePosition}` : <ShowerHead size={24} />}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-semibold text-gray-900">
+
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 className="text-lg font-bold text-gray-900 truncate">
                       {guestName}
-                    </span>
+                    </h3>
                     {nameDetails.hasPreferred && (
-                      <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                         Legal: {nameDetails.legalName}
                       </span>
                     )}
-                    {hasLaundryToday && (
-                      <span className="text-[11px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                        Laundry today
+                    {isPriority && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded uppercase tracking-wide animate-pulse">
+                        Priority
                       </span>
                     )}
-                    {!isDone && (
-                      <WaiverBadge guestId={record.guestId} serviceType="shower" />
-                    )}
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                    <span className="inline-flex items-center gap-1">
-                      <Clock size={12} /> Slot {slotLabel}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarClock size={12} /> Added {bookedLabel}
-                    </span>
+                  
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={14} className={isWaitlisted ? "text-amber-500" : "text-blue-500"} />
+                      <span className="font-medium text-gray-700">
+                        {isWaitlisted ? `Joined ${bookedLabel}` : slotLabel}
+                      </span>
+                    </div>
+                    {isWaitlisted && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <History size={14} />
+                          <span>Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)}m</span>
+                        </div>
+                      </>
+                    )}
+                    {!isWaitlisted && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <CalendarClock size={14} />
+                          <span>Added {bookedLabel}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
-              <span
-                className={`${statusInfo.badgeClass} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}
-              >
-                <StatusIcon
-                  size={14}
-                  className={`${statusInfo.iconClass || ""} shrink-0`}
-                />
-                {statusInfo.label}
-              </span>
+
+              <div className="flex flex-col items-end gap-2">
+                <span className={`${statusInfo.badgeClass} px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5`}>
+                  <StatusIcon size={14} />
+                  {statusInfo.label}
+                </span>
+                {hasLaundryToday && (
+                  <span className="bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1">
+                    <WashingMachine size={12} />
+                    Laundry Linked
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col xl:flex-row xl:items-center gap-3 justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                <span className="font-semibold text-blue-900 uppercase tracking-wide flex items-center gap-1">
-                  <Clock size={12} className="text-blue-500" /> Slot
-                </span>
+            {/* Action Bar */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Primary Action */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const nextStatus = isDone ? "awaiting" : "done";
+                    const success = await updateShowerStatus(record.id, nextStatus);
+                    if (success) {
+                      toast.success(nextStatus === "done" ? "Shower completed!" : "Shower reopened");
+                    }
+                  } catch (error) {
+                    toast.error(error.message);
+                  }
+                }}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
+                  isDone
+                    ? "bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    : isWaitlisted
+                    ? "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-amber-200"
+                    : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
+                }`}
+              >
+                {isDone ? (
+                  <>
+                    <RotateCcw size={18} />
+                    Reopen
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2Icon size={18} />
+                    {isWaitlisted ? "Mark Complete" : "Complete Shower"}
+                  </>
+                )}
+              </button>
+
+              {/* Reschedule / Assign */}
+              <div className="flex-1 sm:flex-none min-w-[180px]">
                 <Selectize
                   options={showerSlotOptions}
                   value={record.time || ""}
                   onChange={async (time) => {
                     try {
                       const updated = await rescheduleShower(record.id, time);
-                      if (!updated || updated.time !== time) {
-                        return;
-                      }
+                      if (!updated || updated.time !== time) return;
                       if (record.status === "waitlisted") {
-                        const statusSuccess = await updateShowerStatus(
-                          record.id,
-                          "awaiting",
-                        );
-                        if (!statusSuccess) {
-                          return;
-                        }
+                        await updateShowerStatus(record.id, "awaiting");
                       }
-                      const friendly = formatShowerSlotLabel(time);
-                      toast.success(
-                        `Shower moved to ${friendly || "new slot"}`,
-                      );
+                      toast.success(`Moved to ${formatShowerSlotLabel(time)}`);
                     } catch (error) {
                       toast.error(error.message);
                     }
                   }}
-                  size="xs"
-                  className="w-40"
-                  placeholder="Select slot"
-                  displayValue={
-                    record.time
-                      ? formatShowerSlotLabel(record.time)
-                      : "Select slot"
-                  }
+                  size="sm"
+                  className="w-full"
+                  buttonClassName={`w-full !rounded-xl !border-2 !py-2.5 !px-4 !font-bold !transition-all !shadow-sm ${
+                    isDone 
+                      ? "!border-emerald-100 !text-emerald-700 hover:!bg-emerald-50" 
+                      : "!border-blue-100 !text-blue-700 hover:!bg-blue-50"
+                  }`}
+                  placeholder={isWaitlisted ? "Assign to slot..." : "Reschedule..."}
+                  displayValue={record.time ? `Move: ${formatShowerSlotLabel(record.time)}` : isWaitlisted ? "Assign Slot" : "Reschedule"}
                 />
-                <span className="text-[11px] text-blue-600">
-                  2 guests max per slot
-                </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                {queuePosition && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 font-medium">
-                    <Users size={12} /> Queue #{queuePosition}
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 font-medium">
-                  <DropletIcon size={12} className="text-sky-500" />
-                  {hasLaundryToday ? "Laundry linked" : "Shower only"}
-                </span>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const nextStatus = isDone ? "awaiting" : "done";
-                    const success = await updateShowerStatus(
-                      record.id,
-                      nextStatus,
-                    );
-                    if (success) {
-                      toast.success(
-                        nextStatus === "done"
-                          ? "Marked as completed"
-                          : "Reopened shower",
-                      );
+              {/* More Actions */}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={handleToggleDetails}
+                  className={`p-2.5 rounded-xl border-2 transition-all ${
+                    rowExpanded 
+                      ? "bg-blue-50 border-blue-200 text-blue-600" 
+                      : "bg-white border-gray-100 text-gray-500 hover:border-gray-200 hover:text-gray-700"
+                  }`}
+                  title="Essentials & Notes"
+                >
+                  <Sparkles size={20} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to cancel this booking?")) {
+                      try {
+                        cancelShowerRecord(record.id);
+                        toast.success("Booking cancelled");
+                      } catch (error) {
+                        toast.error(error.message);
+                      }
                     }
-                  } catch (error) {
-                    toast.error(error.message);
-                  }
-                }}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${toggleStatusClass}`}
-              >
-                {toggleStatusLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    cancelShowerRecord(record.id);
-                    toast.success("Shower booking cancelled");
-                  } catch (error) {
-                    toast.error(error.message);
-                  }
-                }}
-                className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-              >
-                Cancel booking
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleDetails}
-                aria-expanded={rowExpanded}
-                className="text-xs font-medium px-3 py-1.5 rounded-full border border-blue-200 text-blue-700 hover:bg-blue-50 inline-flex items-center gap-1"
-              >
-                {rowExpanded ? (
-                  <>
-                    <ChevronUp size={14} /> Hide details
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown size={14} /> Essentials & notes
-                  </>
-                )}
-              </button>
+                  }}
+                  className="p-2.5 rounded-xl border-2 border-gray-100 text-gray-400 hover:border-red-100 hover:text-red-500 hover:bg-red-50 transition-all"
+                  title="Cancel Booking"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
 
+            {/* Expanded Details */}
             {rowExpanded && (
-              <div className="space-y-4 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/40 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-blue-900 font-semibold">
-                    <Sparkles size={18} className="text-blue-600" />
-                    <span>Guest essentials kit</span>
-                  </div>
-                  <div className="text-[11px] text-blue-600 font-medium">
-                    {availableItems.length} ready · {comingItems.length} waiting
-                  </div>
-                </div>
+              <div className="mt-5 pt-5 border-t border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Essentials Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                        <Sparkles size={14} />
+                        Essentials Kit
+                      </h4>
+                      <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                        {availableItems.length} available
+                      </span>
+                    </div>
 
-                {availableItems.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                      Available now ({availableItems.length})
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {availableItems.map((item) => {
+                    <div className="grid grid-cols-1 gap-2">
+                      {essentialsConfig.map((item) => {
                         const Icon = item.icon;
+                        const isAvailable = item.canGive;
+                        
                         return (
                           <div
                             key={item.key}
-                            className="flex items-center justify-between gap-3 bg-white rounded-lg p-3 border border-emerald-100 hover:border-emerald-200 hover:shadow-sm transition-all"
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                              isAvailable
+                                ? "bg-white border-emerald-100 hover:border-emerald-300"
+                                : "bg-gray-50 border-gray-100 opacity-75"
+                            }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="flex-shrink-0 p-2 bg-emerald-50 rounded-lg">
-                                <Icon size={18} className="text-emerald-600" />
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`p-2 rounded-lg ${
+                                isAvailable ? "bg-emerald-50 text-emerald-600" : "bg-gray-200 text-gray-400"
+                              }`}>
+                                <Icon size={18} />
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm font-semibold text-gray-900 truncate">
-                                  {item.label.split("(")[0].trim()}
+                              <div className="min-w-0">
+                                <div className="text-sm font-bold text-gray-900 truncate">
+                                  {item.label}
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                  {item.lastRecord ? (
-                                    <span>
-                                      Last {" "}
-                                      {new Date(item.lastRecord.date).toLocaleDateString(
-                                        "en-CA",
-                                      )}
-                                    </span>
+                                <div className="text-[11px] text-gray-500">
+                                  {isAvailable ? (
+                                    item.lastRecord ? (
+                                      `Last: ${new Date(item.lastRecord.date).toLocaleDateString()}`
+                                    ) : (
+                                      <span className="text-emerald-600 font-medium">Never given</span>
+                                    )
                                   ) : (
-                                    <span className="text-emerald-600 font-semibold">
-                                      Never given
+                                    <span className="text-amber-600">
+                                      Available in {item.daysRemaining} days
                                     </span>
                                   )}
                                 </div>
                               </div>
                             </div>
+                            
                             <button
                               type="button"
-                              onClick={() =>
-                                handleGiveItem(item.key, item.successMessage)
-                              }
-                              className="flex-shrink-0 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-emerald-700 transition-colors"
-                              title={item.buttonLabel}
+                              disabled={!isAvailable}
+                              onClick={() => handleGiveItem(item.key, item.successMessage)}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                                isAvailable
+                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              }`}
                             >
-                              <span className="hidden sm:inline">
-                                {item.buttonLabel}
-                              </span>
-                              <span className="sm:hidden">Give</span>
+                              {item.buttonLabel}
                             </button>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                )}
 
-                {comingItems.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
-                      Coming soon ({comingItems.length})
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {comingItems.map((item) => {
-                        const Icon = item.icon;
-                        const nextDate = item.lastRecord
-                          ? getNextAvailabilityDate(
-                              item.key,
-                              item.lastRecord.date,
-                            )
-                          : null;
-                        const nextDateLabel = nextDate
-                          ? nextDate.toLocaleDateString("en-CA")
-                          : null;
-                        const daysUntil = nextDate
-                          ? Math.max(
-                              0,
-                              Math.ceil(
-                                (nextDate - new Date()) /
-                                  (1000 * 60 * 60 * 24),
-                              ),
-                            )
-                          : 0;
-                        const windowDays =
-                          item.daysRemaining && item.daysRemaining > 0
-                            ? item.daysRemaining
-                            : 0;
-                        const progressPercent = windowDays
-                          ? Math.max(
-                              0,
-                              Math.min(
-                                100,
-                                ((windowDays - daysUntil) / windowDays) * 100,
-                              ),
-                            )
-                          : 0;
-                        return (
-                          <div
-                            key={item.key}
-                            className="flex items-center justify-between gap-3 bg-white rounded-lg p-3 border border-amber-100 hover:border-amber-200"
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="flex-shrink-0 p-2 bg-amber-50 rounded-lg">
-                                <Icon size={18} className="text-amber-600" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm font-semibold text-gray-900 truncate">
-                                  {item.label.split("(")[0].trim()}
-                                </div>
-                                <div className="mt-1 space-y-1">
-                                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                                    <div
-                                      className="bg-gradient-to-r from-amber-400 to-amber-500 h-1.5 rounded-full"
-                                      style={{ width: `${progressPercent}%` }}
-                                    />
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    {nextDateLabel ? (
-                                      <span>
-                                        Available {nextDateLabel}
-                                        {daysUntil > 0 && ` (${daysUntil}d)`}
-                                      </span>
-                                    ) : (
-                                      <span className="text-emerald-600 font-semibold">
-                                        Ready once limit resets
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <span className="flex-shrink-0 px-3 py-2 rounded-lg bg-gray-100 text-gray-500 text-xs font-bold">
-                              Waiting
-                            </span>
-                          </div>
-                        );
-                      })}
+                  {/* Notes Section (Placeholder for now) */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                      <MessageSquare size={14} />
+                      Staff Notes
+                    </h4>
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 h-full min-h-[120px] flex flex-col items-center justify-center text-center">
+                      <MessageSquare size={24} className="text-gray-300 mb-2" />
+                      <p className="text-xs text-gray-500 italic">
+                        No notes for this booking yet.
+                      </p>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -3685,67 +3651,117 @@ const Services = () => {
             {/* Tab Content: Active Queue */}
             {showerTab === "active" && (
               <>
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
-              <select
-                value={showerStatusFilter}
-                onChange={(event) => setShowerStatusFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="all">Status: All</option>
-                <option value="awaiting">Status: Awaiting</option>
-                <option value="done">Status: Done</option>
-              </select>
-              <select
-                value={showerLaundryFilter}
-                onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="any">Laundry: Any</option>
-                <option value="with">Laundry: With</option>
-                <option value="without">Laundry: Without</option>
-              </select>
-              <select
-                value={showerSort}
-                onChange={(event) => setShowerSort(event.target.value)}
-                className="w-full md:w-auto text-xs font-medium bg-white border border-blue-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                <option value="time-asc">Sort: Time ↑</option>
-                <option value="time-desc">Sort: Time ↓</option>
-                <option value="status">Sort: Status</option>
-                <option value="name">Sort: Name</option>
-              </select>
-            </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
+                      <select
+                        value={showerLaundryFilter}
+                        onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-blue-100 rounded-xl focus:border-blue-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                      >
+                        <option value="any">Any Laundry</option>
+                        <option value="with">With Laundry</option>
+                        <option value="without">No Laundry</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
 
-            {activeShowers.length === 0 ? (
-              <div className="border border-dashed border-blue-200 rounded-lg text-center py-12 text-sm text-blue-700 bg-blue-50">
-                <Clock size={32} className="mx-auto mb-3 text-blue-400" />
-                <p>No active shower bookings in queue.</p>
-                <p className="text-xs text-blue-500 mt-1">
-                  Guests with assigned slots will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activeShowers.map((record, idx) =>
-                  renderShowerCard(record, activeShowersTrail[idx], {
-                    index: idx,
-                    section: "active",
-                  }),
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
+                    <div className="relative">
+                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={showerSort}
+                        onChange={(event) => setShowerSort(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                      >
+                        <option value="time-asc">Time (Earliest)</option>
+                        <option value="time-desc">Time (Latest)</option>
+                        <option value="name">Guest Name</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {activeShowers.length === 0 ? (
+                  <div className="bg-white border-2 border-dashed border-blue-100 rounded-2xl text-center py-16 px-6">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ShowerHead size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">No active showers</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto">
+                      Guests with assigned slots for today will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {activeShowers.map((record, idx) =>
+                      renderShowerCard(record, activeShowersTrail[idx], {
+                        index: idx,
+                        section: "active",
+                      }),
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
               </>
             )}
 
             {/* Tab Content: Completed */}
             {showerTab === "completed" && (
               <>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
+                      <select
+                        value={showerLaundryFilter}
+                        onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                      >
+                        <option value="any">Any Laundry</option>
+                        <option value="with">With Laundry</option>
+                        <option value="without">No Laundry</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                    
+                    <div className="px-3 py-2 bg-emerald-50 border-2 border-emerald-100 rounded-xl flex items-center gap-2">
+                      <CheckCircle2Icon size={14} className="text-emerald-600" />
+                      <span className="text-sm font-bold text-emerald-700">
+                        {completedShowers.length} Completed
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
+                    <div className="relative">
+                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={showerSort}
+                        onChange={(event) => setShowerSort(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-emerald-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                      >
+                        <option value="time-asc">Time (Earliest)</option>
+                        <option value="time-desc">Time (Latest)</option>
+                        <option value="name">Guest Name</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
                 {completedShowers.length === 0 ? (
-                  <div className="border border-dashed border-emerald-200 rounded-lg text-center py-12 text-sm text-emerald-700 bg-emerald-50">
-                    <CheckCircle size={32} className="mx-auto mb-3 text-emerald-400" />
-                    <p>No completed showers yet today.</p>
-                    <p className="text-xs text-emerald-500 mt-1">
-                      Finished showers will be listed here.
+                  <div className="bg-white border-2 border-dashed border-emerald-100 rounded-2xl text-center py-16 px-6">
+                    <div className="w-16 h-16 bg-emerald-50 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2Icon size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">No completed showers</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto">
+                      Once guests finish their showers, they will be listed here for your records.
                     </p>
                   </div>
                 ) : (
@@ -3764,248 +3780,78 @@ const Services = () => {
             {/* Tab Content: Waitlist */}
             {showerTab === "waitlist" && (
               <>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
+                      <select
+                        value={showerLaundryFilter}
+                        onChange={(event) => setShowerLaundryFilter(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-amber-100 rounded-xl focus:border-amber-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                      >
+                        <option value="any">Any Laundry</option>
+                        <option value="with">With Laundry</option>
+                        <option value="without">No Laundry</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                    
+                    <div className="px-3 py-2 bg-amber-50 border-2 border-amber-100 rounded-xl flex items-center gap-2">
+                      <History size={14} className="text-amber-600" />
+                      <span className="text-sm font-bold text-amber-700">
+                        {todayWaitlisted.length} Waitlisted
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
+                    <div className="relative">
+                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={showerSort}
+                        onChange={(event) => setShowerSort(event.target.value)}
+                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-amber-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                      >
+                        <option value="time-asc">Time (Earliest)</option>
+                        <option value="time-desc">Time (Latest)</option>
+                        <option value="name">Guest Name</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
                 {todayWaitlisted.length === 0 ? (
-                  <div className="border border-dashed border-amber-200 rounded-lg text-center py-12 text-sm text-amber-700 bg-amber-50">
-                    <History size={32} className="mx-auto mb-3 text-amber-400" />
-                    <p>No guests on the waitlist.</p>
-                    <p className="text-xs text-amber-500 mt-1">
-                      When all slots are full, guests can be added to the waitlist.
+                  <div className="bg-white border-2 border-dashed border-amber-100 rounded-2xl text-center py-16 px-6">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <History size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">Waitlist is empty</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto">
+                      When all slots are full, guests added to the waitlist will appear here.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {waitlistTrail.map((style, idx) => {
-                      const record = todayWaitlisted[idx];
-                      if (!record) return null;
-                      const guest = guests.find((g) => g.id === record.guestId);
-                      const nameDetails = getGuestNameDetails(record.guestId);
-                      const guestName = nameDetails.primaryName;
-                      const queuePosition = idx + 1;
-                      const isNextUp = queuePosition <= 2;
-                      const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
-                      const canSB = guest
-                        ? canGiveItem(guest.id, "sleeping_bag")
-                        : false;
-                      const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
-                      const canTent = guest ? canGiveItem(guest.id, "tent") : false;
-                      const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
-
-                      const waitlistActions = guest
-                        ? [
-                            {
-                              key: "tshirt",
-                              label: "Give T-Shirt",
-                              canGive: canT,
-                              successMessage: "T-Shirt given",
-                              days: getDaysUntilAvailable(guest.id, "tshirt"),
-                              nextDate: getNextAvailabilityDate(
-                                "tshirt",
-                                getLastGivenItem(guest.id, "tshirt")?.date,
-                              ),
-                            },
-                            {
-                              key: "sleeping_bag",
-                              label: "Give Sleeping Bag",
-                              canGive: canSB,
-                              successMessage: "Sleeping bag given",
-                              days: getDaysUntilAvailable(guest.id, "sleeping_bag"),
-                              nextDate: getNextAvailabilityDate(
-                                "sleeping_bag",
-                                getLastGivenItem(guest.id, "sleeping_bag")?.date,
-                              ),
-                            },
-                            {
-                              key: "backpack",
-                              label: "Give Backpack/Duffel Bag",
-                              canGive: canBP,
-                              successMessage: "Backpack/Duffel Bag given",
-                              days: getDaysUntilAvailable(guest.id, "backpack"),
-                              nextDate: getNextAvailabilityDate(
-                                "backpack",
-                                getLastGivenItem(guest.id, "backpack")?.date,
-                              ),
-                            },
-                            {
-                              key: "tent",
-                              label: "Give Tent",
-                              canGive: canTent,
-                              successMessage: "Tent given",
-                              days: getDaysUntilAvailable(guest.id, "tent"),
-                              nextDate: getNextAvailabilityDate(
-                                "tent",
-                                getLastGivenItem(guest.id, "tent")?.date,
-                              ),
-                            },
-                            {
-                              key: "flip_flops",
-                              label: "Give Flip Flops",
-                              canGive: canFF,
-                              successMessage: "Flip Flops given",
-                              days: getDaysUntilAvailable(guest.id, "flip_flops"),
-                              nextDate: getNextAvailabilityDate(
-                                "flip_flops",
-                                getLastGivenItem(guest.id, "flip_flops")?.date,
-                              ),
-                            },
-                          ]
-                        : [];
-
-                      return (
-                        <Animated.div
-                          key={record.id}
-                          style={style}
-                          className={`will-change-transform rounded-xl border-2 transition-all duration-200 ${
-                            isNextUp 
-                              ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-md' 
-                              : 'bg-gray-50 border-gray-200'
-                          }`}
-                        >
-                          <div className="p-4">
-                            <div className="flex items-start gap-4">
-                              {/* Queue Position Badge */}
-                              <div className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-14 rounded-xl ${
-                                isNextUp 
-                                  ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-200' 
-                                  : 'bg-gray-200 text-gray-600'
-                              }`}>
-                                <span className="text-[10px] uppercase font-semibold tracking-wide opacity-80">
-                                  {isNextUp ? 'Next' : 'Queue'}
-                                </span>
-                                <span className="text-xl font-bold">#{queuePosition}</span>
-                              </div>
-                              
-                              {/* Guest Info */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`font-semibold ${isNextUp ? 'text-amber-900' : 'text-gray-900'}`}>
-                                    {guestName}
-                                  </span>
-                                  {nameDetails.hasPreferred && (
-                                    <span className="text-[11px] font-medium text-gray-600 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                                      Legal: {nameDetails.legalName}
-                                    </span>
-                                  )}
-                                  {isNextUp && (
-                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wide animate-pulse">
-                                      Priority
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <Clock size={12} />
-                                    Joined at {new Date(record.date).toLocaleTimeString([], {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                  <span className="text-gray-300">•</span>
-                                  <span>
-                                    Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)} min
-                                  </span>
-                                </div>
-                                
-                                {/* Quick Actions */}
-                                <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      try {
-                                        const success = await updateShowerStatus(
-                                          record.id,
-                                          "done",
-                                        );
-                                        if (success) {
-                                          toast.success(
-                                            "Waitlisted shower marked complete",
-                                          );
-                                        }
-                                      } catch (err) {
-                                        toast.error(err.message);
-                                      }
-                                    }}
-                                    className={`text-xs font-medium px-4 py-2 rounded-lg transition-all ${
-                                      isNextUp
-                                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm'
-                                        : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                    }`}
-                                  >
-                                    ✓ Mark Complete
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      try {
-                                        cancelShowerRecord(record.id);
-                                        toast.success("Waitlist entry cancelled");
-                                      } catch (err) {
-                                        toast.error(err.message);
-                                      }
-                                    }}
-                                    className="text-xs font-medium px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-all"
-                                  >
-                                    ✗ Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Essentials Quick Actions */}
-                            {waitlistActions.length > 0 && (
-                              <div className="mt-4 pt-4 border-t border-gray-200/50">
-                                <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mb-2">
-                                  Offer Essentials
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {waitlistActions.map((action) => {
-                                    const nextDateLabel = action.nextDate
-                                      ? action.nextDate.toLocaleDateString("en-CA")
-                                      : null;
-                                    return (
-                                      <button
-                                        key={action.key}
-                                        disabled={!action.canGive}
-                                        onClick={() => {
-                                          if (!guest) return;
-                                          try {
-                                            giveItem(guest.id, action.key);
-                                            toast.success(action.successMessage);
-                                          } catch (e) {
-                                            toast.error(e.message);
-                                          }
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                        title={
-                                          action.canGive
-                                            ? action.label
-                                            : nextDateLabel
-                                              ? `Available ${nextDateLabel}`
-                                              : "Not yet available"
-                                        }
-                                      >
-                                        {action.label}
-                                        {!action.canGive && action.days > 0 && (
-                                          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-700">
-                                            {action.days}d
-                                          </span>
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </Animated.div>
-                      );
-                    })}
+                  <div className="space-y-4">
+                    {todayWaitlisted.map((record, idx) =>
+                      renderShowerCard(record, waitlistTrail[idx], {
+                        index: idx,
+                        section: "waitlist",
+                      }),
+                    )}
                     
-                    {/* Waitlist Tips */}
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                      <p className="text-xs text-blue-700">
-                        <strong>Tip:</strong> Guests marked as "Priority" are next in line. 
-                        Mark them complete as soon as a shower slot opens up.
-                      </p>
+                    <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-start gap-3">
+                      <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-amber-900 mb-1">Waitlist Management</h4>
+                        <p className="text-xs text-amber-700 leading-relaxed">
+                          Guests marked as <strong>Priority</strong> are next in line. 
+                          Assign them to a slot or mark them complete as soon as a shower becomes available.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
