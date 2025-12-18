@@ -68,12 +68,10 @@ const ServiceStatusOverview = () => {
       (record) => pacificDateStringFrom(record.date) === todayString
     );
     
-    // Count active on-site laundry (not picked up yet) as slots taken
-    const activeOnsiteStatuses = ["waiting", "washer", "dryer", "done"];
+    // Count all on-site laundry records for today as slots taken
+    // We only process a fixed number (maxSlots) per day regardless of status
     const onsiteSlotsTaken = todaysRecords.filter(
-      (record) => 
-        (record.laundryType === "onsite" || !record.laundryType) &&
-        activeOnsiteStatuses.includes(record.status)
+      (record) => (record.laundryType === "onsite" || !record.laundryType)
     ).length;
     
     const onsiteAvailable = Math.max(maxSlots - onsiteSlotsTaken, 0);

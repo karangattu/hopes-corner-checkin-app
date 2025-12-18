@@ -203,6 +203,31 @@ describe("ServiceStatusOverview", () => {
     expect(screen.getByText("3 open")).toBeInTheDocument();
   });
 
+  it("counts picked_up laundry records towards the daily limit", () => {
+    mockContext.laundryRecords = [
+      {
+        id: "laundry-1",
+        guestId: "guest-1",
+        date: "2025-01-15T08:00:00Z",
+        status: "picked_up",
+        laundryType: "onsite",
+      },
+      {
+        id: "laundry-2",
+        guestId: "guest-2",
+        date: "2025-01-15T08:00:00Z",
+        status: "done",
+        laundryType: "onsite",
+      },
+    ];
+
+    render(<ServiceStatusOverview />);
+
+    // Both picked_up and done should count towards the 5 daily slots
+    expect(screen.getByText("2/5")).toBeInTheDocument();
+    expect(screen.getByText("3 open")).toBeInTheDocument();
+  });
+
   it("shows off-site laundry count", () => {
     mockContext.laundryRecords = [
       {
