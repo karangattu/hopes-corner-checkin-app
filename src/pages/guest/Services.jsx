@@ -3654,11 +3654,10 @@ const Services = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
                       <select
                         value={showerLaundryFilter}
                         onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-blue-100 rounded-xl focus:border-blue-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                        className="px-3 py-2 text-sm font-bold bg-white border-2 border-blue-100 rounded-xl focus:border-blue-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
                       >
                         <option value="any">Any Laundry</option>
                         <option value="with">With Laundry</option>
@@ -3671,11 +3670,10 @@ const Services = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
                     <div className="relative">
-                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <select
                         value={showerSort}
                         onChange={(event) => setShowerSort(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                        className="px-3 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-blue-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
                       >
                         <option value="time-asc">Time (Earliest)</option>
                         <option value="time-desc">Time (Latest)</option>
@@ -3715,11 +3713,10 @@ const Services = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
                       <select
                         value={showerLaundryFilter}
                         onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                        className="px-3 py-2 text-sm font-bold bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
                       >
                         <option value="any">Any Laundry</option>
                         <option value="with">With Laundry</option>
@@ -3739,11 +3736,10 @@ const Services = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
                     <div className="relative">
-                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <select
                         value={showerSort}
                         onChange={(event) => setShowerSort(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-emerald-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                        className="px-3 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-emerald-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
                       >
                         <option value="time-asc">Time (Earliest)</option>
                         <option value="time-desc">Time (Latest)</option>
@@ -3783,11 +3779,10 @@ const Services = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                      <WashingMachine size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
                       <select
                         value={showerLaundryFilter}
                         onChange={(event) => setShowerLaundryFilter(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-white border-2 border-amber-100 rounded-xl focus:border-amber-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
+                        className="px-3 py-2 text-sm font-bold bg-white border-2 border-amber-100 rounded-xl focus:border-amber-300 focus:ring-0 appearance-none cursor-pointer text-gray-700"
                       >
                         <option value="any">Any Laundry</option>
                         <option value="with">With Laundry</option>
@@ -3807,11 +3802,10 @@ const Services = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-1">Sort By:</span>
                     <div className="relative">
-                      <ArrowUpDown size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <select
                         value={showerSort}
                         onChange={(event) => setShowerSort(event.target.value)}
-                        className="pl-10 pr-8 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-amber-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
+                        className="px-3 py-2 text-sm font-bold bg-gray-50 border-2 border-transparent rounded-xl focus:bg-white focus:border-amber-200 focus:ring-0 appearance-none cursor-pointer text-gray-600"
                       >
                         <option value="time-asc">Time (Earliest)</option>
                         <option value="time-desc">Time (Latest)</option>
