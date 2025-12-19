@@ -36,7 +36,7 @@ import {
   RotateCcw,
   Ban,
   Lightbulb,
-  Link2,
+  Link,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { useGuestsStore } from "../stores/useGuestsStore";
@@ -1191,7 +1191,7 @@ const GuestList = () => {
                     const linkedCount = getLinkedGuests(guest.id).length;
                     return linkedCount > 0 ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                        <Link2 size={10} />
+                        <Link size={10} />
                         {linkedCount}
                       </span>
                     ) : null;
@@ -1313,12 +1313,15 @@ const GuestList = () => {
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => setLinkingGuestId(guest.id)}
-                    className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation"
-                  >
-                    Link
-                  </button>
+                  {getLinkedGuests(guest.id).length === 0 && (
+                    <button
+                      onClick={() => setLinkingGuestId(guest.id)}
+                      className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation inline-flex items-center gap-2"
+                    >
+                      <Link size={16} />
+                      Link Guest
+                    </button>
+                  )}
                   <button
                     onClick={() => deleteGuest(guest)}
                     className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
@@ -1489,8 +1492,8 @@ const GuestList = () => {
                 </div>
               </div>
             )}
-            {/* Linked Guests Manager - only show when linking is active */}
-            {linkingGuestId === guest.id && editingGuestId !== guest.id && (
+            {/* Linked Guests Manager - auto-show if has linked guests, or when linking is active */}
+            {(linkingGuestId === guest.id || getLinkedGuests(guest.id).length > 0) && editingGuestId !== guest.id && (
               <div className="mb-4">
                 <LinkedGuestsManager
                   guest={guest}
@@ -1499,6 +1502,9 @@ const GuestList = () => {
                   onLinkGuest={linkGuests}
                   onUnlinkGuest={unlinkGuests}
                   onAssignMeals={handleMealSelection}
+                  mealRecords={mealRecords}
+                  actionHistory={actionHistory}
+                  onUndoAction={undoAction}
                 />
                 <div className="mt-3 flex justify-end">
                   <button
@@ -2673,7 +2679,7 @@ const GuestList = () => {
                                   const linkedCount = getLinkedGuests(guest.id).length;
                                   return linkedCount > 0 ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                                      <Link2 size={10} />
+                                      <Link size={10} />
                                       {linkedCount}
                                     </span>
                                   ) : null;
@@ -2872,12 +2878,15 @@ const GuestList = () => {
                                 >
                                   Edit
                                 </button>
-                                <button
-                                  onClick={() => setLinkingGuestId(guest.id)}
-                                  className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation"
-                                >
-                                  Link
-                                </button>
+                                {getLinkedGuests(guest.id).length === 0 && (
+                                  <button
+                                    onClick={() => setLinkingGuestId(guest.id)}
+                                    className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation inline-flex items-center gap-2"
+                                  >
+                                    <Link size={16} />
+                                    Link Guest
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => deleteGuest(guest)}
                                   className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
@@ -3230,8 +3239,8 @@ const GuestList = () => {
                               </p>
                             </div>
                           )}
-                          {/* Linked Guests Manager - virtualized view */}
-                          {linkingGuestId === guest.id && editingGuestId !== guest.id && (
+                          {/* Linked Guests Manager - auto-show if has linked guests, or when linking is active */}
+                          {(linkingGuestId === guest.id || getLinkedGuests(guest.id).length > 0) && editingGuestId !== guest.id && (
                             <div className="mb-4">
                               <LinkedGuestsManager
                                 guest={guest}
@@ -3240,6 +3249,9 @@ const GuestList = () => {
                                 onLinkGuest={linkGuests}
                                 onUnlinkGuest={unlinkGuests}
                                 onAssignMeals={handleMealSelection}
+                                mealRecords={mealRecords}
+                                actionHistory={actionHistory}
+                                onUndoAction={undoAction}
                               />
                               <div className="mt-3 flex justify-end">
                                 <button

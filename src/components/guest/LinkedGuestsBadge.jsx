@@ -1,5 +1,5 @@
 import React from "react";
-import { Link2, User, ChevronRight } from "lucide-react";
+import { Link, User, ChevronRight } from "lucide-react";
 
 /**
  * Shows linked guests as a compact badge/section when viewing a guest.
@@ -17,7 +17,7 @@ const LinkedGuestsBadge = ({
   if (compact) {
     return (
       <div className="inline-flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-full border border-purple-100">
-        <Link2 size={12} />
+        <Link size={12} />
         <span>{linkedGuests.length} linked</span>
       </div>
     );
@@ -26,7 +26,7 @@ const LinkedGuestsBadge = ({
   return (
     <div className="mt-2 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-100">
       <div className="flex items-center gap-2 mb-2">
-        <Link2 size={14} className="text-purple-500" />
+        <Link size={14} className="text-purple-500" />
         <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
           Linked Guests ({linkedGuests.length})
         </span>

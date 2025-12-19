@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { Users, Link2, Unlink2, Search, X, Plus, AlertCircle, Utensils } from "lucide-react";
+import { Users, Link, Unlink, Search, X, Plus, AlertCircle, Utensils, RotateCcw } from "lucide-react";
 import toast from "react-hot-toast";
 import haptics from "../../utils/haptics";
+import { todayPacificDateString, pacificDateStringFrom } from "../../utils/date";
+import { SpringIcon } from "../../utils/animations";
 
 const MAX_LINKED_GUESTS = 3;
 
@@ -16,6 +18,9 @@ const LinkedGuestsManager = ({
   onLinkGuest,
   onUnlinkGuest,
   onAssignMeals,
+  mealRecords = [],
+  actionHistory = [],
+  onUndoAction,
   isLoading = false,
 }) => {
   const [showLinkSearch, setShowLinkSearch] = useState(false);
@@ -139,67 +144,102 @@ const LinkedGuestsManager = ({
       {/* Linked guests list */}
       {linkedGuests.length > 0 ? (
         <div className="space-y-2 mb-3">
-          {linkedGuests.map((linkedGuest) => (
-            <div
-              key={linkedGuest.id}
-              className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-100 shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Link2 size={14} className="text-purple-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {linkedGuest.preferredName || linkedGuest.name}
-                  </p>
-                  {linkedGuest.preferredName && (
-                    <p className="text-xs text-gray-500">
-                      ({linkedGuest.name})
+          {linkedGuests.map((linkedGuest) => {
+            const today = todayPacificDateString();
+            const alreadyHasMeal = mealRecords.some(
+              (record) =>
+                record.guestId === linkedGuest.id &&
+                pacificDateStringFrom(record.date) === today,
+            );
+            const linkedGuestMealAction = actionHistory.find(
+              (action) =>
+                action.type === "MEAL_ADDED" &&
+                action.data?.guestId === linkedGuest.id &&
+                pacificDateStringFrom(new Date(action.timestamp)) === today,
+            );
+
+            return (
+              <div
+                key={linkedGuest.id}
+                className="flex items-center justify-between p-3 bg-white rounded-lg border border-purple-100 shadow-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Link size={14} className="text-purple-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {linkedGuest.preferredName || linkedGuest.name}
                     </p>
+                    {linkedGuest.preferredName && (
+                      <p className="text-xs text-gray-500">
+                        ({linkedGuest.name})
+                      </p>
+                    )}
+                  </div>
+                  {linkedGuest.isBanned && (
+                    <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                      Banned
+                    </span>
                   )}
                 </div>
-                {linkedGuest.isBanned && (
-                  <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                    Banned
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {onAssignMeals && !linkedGuest.isBanned && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => onAssignMeals(linkedGuest.id, 1)}
-                      disabled={isLoading}
-                      className="px-2 py-1.5 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-                      title={`Give 1 meal to ${linkedGuest.preferredName || linkedGuest.name}`}
-                    >
-                      <Utensils size={12} />
-                      1
-                    </button>
-                    <button
-                      onClick={() => onAssignMeals(linkedGuest.id, 2)}
-                      disabled={isLoading}
-                      className="px-2 py-1.5 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-                      title={`Give 2 meals to ${linkedGuest.preferredName || linkedGuest.name}`}
-                    >
-                      <Utensils size={12} />
-                      2
-                    </button>
-                  </div>
-                )}
-                <button
-                  onClick={() => handleUnlinkGuest(linkedGuest)}
-                  disabled={unlinkingGuestId === linkedGuest.id || isLoading}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={`Unlink ${linkedGuest.preferredName || linkedGuest.name}`}
-                >
-                  {unlinkingGuestId === linkedGuest.id ? (
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Unlink2 size={16} />
+                <div className="flex items-center gap-2">
+                  {onAssignMeals && !linkedGuest.isBanned && (
+                    <div className="flex gap-1">
+                      {[1, 2].map((count) => {
+                        const isDisabled = alreadyHasMeal;
+                        return (
+                          <button
+                            key={count}
+                            onClick={() => onAssignMeals(linkedGuest.id, count)}
+                            disabled={isDisabled || isLoading}
+                            className={`px-2 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 ${
+                              alreadyHasMeal
+                                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                            }`}
+                            title={alreadyHasMeal ? "Guest already received meals today" : `Give ${count} meal${count > 1 ? "s" : ""}`}
+                          >
+                            <Utensils size={12} />
+                            {count}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                  {alreadyHasMeal && linkedGuestMealAction && onUndoAction && (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await onUndoAction(linkedGuestMealAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Meal undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="p-1.5 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Undo meal"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleUnlinkGuest(linkedGuest)}
+                    disabled={unlinkingGuestId === linkedGuest.id || isLoading}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={`Unlink ${linkedGuest.preferredName || linkedGuest.name}`}
+                  >
+                    {unlinkingGuestId === linkedGuest.id ? (
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Unlink size={16} />
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="p-4 bg-white/50 rounded-lg border border-dashed border-purple-200 text-center mb-3">
