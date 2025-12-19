@@ -934,8 +934,8 @@ const GuestList = () => {
       setShowCreateForm(false);
       setSearchTerm(
         newGuest.preferredName ||
-          newGuest.name ||
-          `${guestData.firstName} ${guestData.lastName}`.trim(),
+        newGuest.name ||
+        `${guestData.firstName} ${guestData.lastName}`.trim(),
       );
       setExpandedGuest(newGuest.id);
     } catch (err) {
@@ -1096,9 +1096,10 @@ const GuestList = () => {
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
       : null;
 
-    const containerClass = `border rounded-lg hover:shadow-md transition-all bg-white hover:bg-white overflow-hidden ${
-      isSelected ? "ring-4 ring-blue-500 border-blue-400 shadow-xl bg-blue-50 scale-[1.02]" : ""
-    } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-300 border-emerald-200 bg-white" : ""} ${isBanned ? "border-red-300" : ""}`;
+    const containerClass = `border rounded-xl transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
+      ? "ring-4 ring-blue-500/30 border-blue-400 shadow-2xl bg-blue-50/50 scale-[1.02] z-10"
+      : "shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-0.5"
+      } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-400/20 border-emerald-300 bg-white shadow-lg" : ""} ${isBanned ? "border-red-200 bg-red-50/30" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
 
@@ -1147,95 +1148,98 @@ const GuestList = () => {
         className={containerClass}
       >
         <div
-          className="p-4 cursor-pointer flex justify-between items-center"
+          className="p-4 cursor-pointer flex justify-between items-center group"
           onClick={() => toggleExpanded(guest.id)}
         >
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-2 rounded-full">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 shadow-sm group-hover:scale-110 transition-transform">
               <User size={24} className="text-blue-600" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <h3 className="font-semibold text-gray-900 flex-1">
-                  {guest.preferredName ? (
-                    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="text-lg font-semibold text-gray-900">
-                        {guest.preferredName}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        ({guest.name})
-                      </span>
-                      <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                        Preferred
-                      </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 flex items-baseline gap-2">
+                    <span className="text-lg font-bold text-gray-900">
+                      {guest.preferredName || guest.name}
                     </span>
-                  ) : (
-                    guest.name
-                  )}
-                </h3>
-                <div className="flex gap-1 ml-2 items-center">
+                    {guest.preferredName && guest.name !== guest.preferredName && (
+                      <span className="text-xs font-medium text-gray-400 truncate hidden sm:inline">
+                        {guest.name}
+                      </span>
+                    )}
+                  </h3>
+                </div>
+                <div className="flex gap-1.5 ml-2 items-center shrink-0">
                   {(() => {
                     const isNewGuest =
                       guest.createdAt &&
                       pacificDateStringFrom(new Date(guest.createdAt)) ===
-                        todayPacificDateString();
+                      todayPacificDateString();
 
                     return isNewGuest ? (
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-pulse">
-                        NEW
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-sm animate-pulse">
+                        ✨ NEW
                       </span>
                     ) : null;
                   })()}
-                  {/* Linked guests badge */}
+                  {/* Linked guests badge - indigo color */}
                   {(() => {
                     const linkedCount = getLinkedGuests(guest.id).length;
                     return linkedCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                        <Link size={10} />
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 shadow-sm" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
+                        <Link size={10} strokeWidth={2.5} />
                         {linkedCount}
                       </span>
                     ) : null;
                   })()}
                   {todayServices.length > 0 && (
-                    <>
+                    <div className="flex -space-x-1.5">
                       {todayServices.map((service, idx) => {
                         const Icon = service.icon;
+                        const timeLabel =
+                          service.serviceType === "Shower"
+                            ? formatShowerSlotLabel(service.record?.time)
+                            : service.serviceType === "Laundry"
+                              ? formatLaundryRangeLabel(service.record?.time)
+                              : null;
+                        const timeStr = new Date(service.record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 border transition-all hover:scale-110 hover:shadow-sm"
-                            title={`${service.serviceType} today`}
+                            className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-100 shadow-sm transition-all hover:scale-125 hover:z-10 hover:shadow-md"
+                            title={`${service.serviceType}${timeLabel ? ` (${timeLabel})` : ''} at ${timeStr} today`}
                           >
-                            <Icon size={12} className={service.iconClass} />
+                            <Icon size={15} className={service.iconClass} />
                           </div>
                         );
                       })}
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
+
               {/* Waiver badges for shower and laundry */}
               <div className="flex flex-wrap gap-2 mt-2 mb-2">
                 {(() => {
                   const servicesThatNeedWaivers = [];
-                  
+
                   // Check if guest has shower records
                   const guestShowerRecords = showerRecords.filter(
                     (r) => r.guestId === guest.id
                   );
                   const hasShower = guestShowerRecords.length > 0;
-                  
+
                   // Check if guest has laundry records
                   const guestLaundryRecords = laundryRecords.filter(
                     (r) => r.guestId === guest.id
                   );
                   const hasLaundry = guestLaundryRecords.length > 0;
-                  
+
                   // Shower and laundry share a common waiver - only show one badge if either is used
                   if (hasShower || hasLaundry) {
                     servicesThatNeedWaivers.push('shower');
                   }
-                  
+
                   return servicesThatNeedWaivers.map((service) => (
                     <WaiverBadge
                       key={`waiver-${guest.id}-${service}`}
@@ -1248,58 +1252,84 @@ const GuestList = () => {
                   ));
                 })()}
               </div>
-              {guest.preferredName && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Use their preferred name when greeting; legal name is shown in
-                  parentheses.
-                </p>
-              )}
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Home size={14} />
-                <span>{guest.housingStatus}</span>
+
+              <div className="flex items-center gap-2 mt-2.5 text-xs text-gray-600 font-medium">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50/60 rounded-md border border-blue-100/50">
+                  <Home size={13} className="text-blue-500" />
+                  <span className="text-gray-700">{guest.housingStatus}</span>
+                </div>
                 {guest.location && (
-                  <>
-                    <span className="text-gray-300">•</span>
-                    <MapPin size={14} />
-                    <span>{guest.location}</span>
-                  </>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50/60 rounded-md border border-amber-100/50">
+                    <MapPin size={13} className="text-amber-600" />
+                    <span className="text-gray-700">{guest.location}</span>
+                  </div>
                 )}
               </div>
+
               {lastService && ServiceIcon && (
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                  <span className="inline-flex items-center gap-1 text-gray-700 font-medium">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/50 text-blue-700 rounded-md border border-blue-100/50 font-semibold uppercase tracking-wider text-[10px]">
                     <ServiceIcon
-                      size={14}
+                      size={12}
                       className={`${lastService.iconClass || "text-blue-500"}`}
+                      strokeWidth={2.5}
                     />
                     <span>{lastService.summary}</span>
                   </span>
                   {formattedDate && (
-                    <>
-                      <span className="text-gray-300">•</span>
+                    <span className="text-gray-400 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-gray-300" />
                       <span title={fullDateTooltip}>{formattedDate}</span>
-                    </>
+                    </span>
                   )}
                   {relativeLabel && (
-                    <>
-                      <span className="text-gray-300">•</span>
-                      <span className="text-gray-400">{relativeLabel}</span>
-                    </>
+                    <span className="text-blue-500 flex items-center gap-1 font-semibold">
+                      <span className="w-1 h-1 rounded-full bg-blue-300" />
+                      <span>{relativeLabel}</span>
+                    </span>
                   )}
                 </div>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {expandedGuest === guest.id ? (
-              <SpringIcon>
-                <ChevronUp size={18} className="text-gray-400" />
-              </SpringIcon>
-            ) : (
-              <SpringIcon>
-                <ChevronDown size={18} className="text-gray-400" />
-              </SpringIcon>
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            {/* Quick Action Meal Buttons (Only shown when not expanded) */}
+            {expandedGuest !== guest.id && !isBanned && (
+              <div className="hidden md:flex items-center gap-2 p-1 bg-gray-50/50 rounded-xl border border-gray-100 shadow-inner">
+                {[1, 2].map((count) => {
+                  const today = todayPacificDateString();
+                  const alreadyHasMeal = mealRecords.some(
+                    (record) =>
+                      record.guestId === guest.id &&
+                      pacificDateStringFrom(record.date) === today
+                  );
+                  if (alreadyHasMeal) return null;
+
+                  return (
+                    <button
+                      key={count}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMealSelection(guest.id, count);
+                      }}
+                      className="flex items-center justify-center gap-1.5 h-10 px-3 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 transition-all shadow-sm active:scale-95 group/btn"
+                      title={`Quick log ${count} meal${count > 1 ? 's' : ''}`}
+                    >
+                      <Utensils size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
+
+            <div className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-blue-500 transition-colors">
+              {expandedGuest === guest.id ? (
+                <ChevronUp size={20} strokeWidth={2.5} />
+              ) : (
+                <ChevronDown size={20} strokeWidth={2.5} />
+              )}
+            </div>
           </div>
         </div>
         {expandedGuest === guest.id && (
@@ -1566,12 +1596,12 @@ const GuestList = () => {
                       <span className="text-blue-500 font-medium">💙</span>
                       <span>
                         Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
-                            <span className="block mt-1 text-[11px] text-gray-600">
-                              Spanish: “¿Tiene una vivienda estable en este momento?”
-                            </span>
-                            <span className="block mt-0.5 text-[11px] text-gray-600">
-                              Mandarin: “您现在有稳定的住处吗？” (Pinyin: Nín xiànzài yǒu wěndìng de zhùchù ma?)
-                            </span>
+                        <span className="block mt-1 text-[11px] text-gray-600">
+                          Spanish: “¿Tiene una vivienda estable en este momento?”
+                        </span>
+                        <span className="block mt-0.5 text-[11px] text-gray-600">
+                          Mandarin: “您现在有稳定的住处吗？” (Pinyin: Nín xiànzài yǒu wěndìng de zhùchù ma?)
+                        </span>
                       </span>
                     </p>
                     <select
@@ -1732,15 +1762,14 @@ const GuestList = () => {
                                 handleMealSelection(guest.id, count)
                               }
                               disabled={isDisabled}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                isBanned
-                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                  : alreadyHasMeal
-                                    ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                    : isPendingMeal
-                                      ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                      : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                              }`}
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                : alreadyHasMeal
+                                  ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                  : isPendingMeal
+                                    ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                    : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                                }`}
                               title={
                                 isBanned
                                   ? banTooltip
@@ -1858,7 +1887,7 @@ const GuestList = () => {
               {(() => {
                 const linkedGuestsForMeal = getLinkedGuests(guest.id);
                 if (linkedGuestsForMeal.length === 0) return null;
-                
+
                 return (
                   <LinkedGuestsBadge
                     linkedGuests={linkedGuestsForMeal}
@@ -1903,13 +1932,12 @@ const GuestList = () => {
                     }
                   }}
                   disabled={isBanned || pendingActions.has(`haircut-${guest.id}`)}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    isBanned
-                      ? "bg-red-100 text-red-500 cursor-not-allowed"
-                      : pendingActions.has(`haircut-${guest.id}`)
-                          ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                          : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
-                  }`}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                    : pendingActions.has(`haircut-${guest.id}`)
+                      ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                      : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                    }`}
                   title={isBanned ? banTooltip : "Log haircut for today"}
                 >
                   <Scissors size={16} />
@@ -1927,7 +1955,7 @@ const GuestList = () => {
                       action.type === "HAIRCUT_LOGGED" &&
                       action.data?.guestId === guest.id &&
                       pacificDateStringFrom(new Date(action.timestamp)) ===
-                        today,
+                      today,
                   );
 
                   if (!haircutAction) return null;
@@ -1969,11 +1997,10 @@ const GuestList = () => {
                     }
                   }}
                   disabled={isBanned}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    isBanned
-                      ? "bg-red-100 text-red-500 cursor-not-allowed"
-                      : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
-                  }`}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                    : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                    }`}
                   title={isBanned ? banTooltip : "Log holiday service for today"}
                 >
                   <Gift size={16} />
@@ -1987,7 +2014,7 @@ const GuestList = () => {
                       action.type === "HOLIDAY_LOGGED" &&
                       action.data?.guestId === guest.id &&
                       pacificDateStringFrom(new Date(action.timestamp)) ===
-                        today,
+                      today,
                   );
 
                   if (!holidayAction) return null;
@@ -2031,19 +2058,18 @@ const GuestList = () => {
                     haptics.buttonPress();
                     setBicyclePickerGuest(guest);
                   }}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                    isBanned
-                      ? "bg-red-100 text-red-500 cursor-not-allowed"
-                      : !guest.bicycleDescription?.trim()
-                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                          : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
-                  }`}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                    : !guest.bicycleDescription?.trim()
+                      ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                      : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                    }`}
                   title={
                     isBanned
                       ? banTooltip
                       : !guest.bicycleDescription?.trim()
-                      ? "Add bicycle description to guest profile first"
-                      : "Log bicycle repair for today"
+                        ? "Add bicycle description to guest profile first"
+                        : "Log bicycle repair for today"
                   }
                   disabled={isBanned || !guest.bicycleDescription?.trim()}
                 >
@@ -2058,7 +2084,7 @@ const GuestList = () => {
                       action.type === "BICYCLE_LOGGED" &&
                       action.data?.guestId === guest.id &&
                       pacificDateStringFrom(new Date(action.timestamp)) ===
-                        today,
+                      today,
                   );
 
                   if (!bicycleAction) return null;
@@ -2088,12 +2114,12 @@ const GuestList = () => {
                 {(() => {
                   const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
                   const isDisabled = isBanned || hasShowerToday;
-                  const tooltipText = isBanned 
-                    ? banTooltip 
-                    : hasShowerToday 
-                      ? "Already has a shower booked today" 
+                  const tooltipText = isBanned
+                    ? banTooltip
+                    : hasShowerToday
+                      ? "Already has a shower booked today"
                       : "Book a shower";
-                  
+
                   return (
                     <button
                       onClick={() => {
@@ -2106,13 +2132,12 @@ const GuestList = () => {
                         setShowerPickerGuest(guest);
                       }}
                       disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                        isBanned
-                          ? "bg-red-100 text-red-500 cursor-not-allowed"
-                          : hasShowerToday
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                      }`}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                        : hasShowerToday
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                        }`}
                       title={tooltipText}
                     >
                       <SpringIcon>
@@ -2132,7 +2157,7 @@ const GuestList = () => {
                       action.type === "SHOWER_BOOKED" &&
                       action.data?.guestId === guest.id &&
                       pacificDateStringFrom(new Date(action.timestamp)) ===
-                        today,
+                      today,
                   );
 
                   if (!showerAction) return null;
@@ -2162,12 +2187,12 @@ const GuestList = () => {
                 {(() => {
                   const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
                   const isDisabled = isBanned || hasLaundryToday;
-                  const tooltipText = isBanned 
-                    ? banTooltip 
-                    : hasLaundryToday 
-                      ? "Already has laundry booked today" 
+                  const tooltipText = isBanned
+                    ? banTooltip
+                    : hasLaundryToday
+                      ? "Already has laundry booked today"
                       : "Book laundry";
-                  
+
                   return (
                     <button
                       onClick={() => {
@@ -2180,13 +2205,12 @@ const GuestList = () => {
                         setLaundryPickerGuest(guest);
                       }}
                       disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                        isBanned
-                          ? "bg-red-100 text-red-500 cursor-not-allowed"
-                          : hasLaundryToday
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                            : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                      }`}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                        : hasLaundryToday
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                        }`}
                       title={tooltipText}
                     >
                       <SpringIcon>
@@ -2206,7 +2230,7 @@ const GuestList = () => {
                       action.type === "LAUNDRY_BOOKED" &&
                       action.data?.guestId === guest.id &&
                       pacificDateStringFrom(new Date(action.timestamp)) ===
-                        today,
+                      today,
                   );
 
                   if (!laundryAction) return null;
@@ -2318,7 +2342,7 @@ const GuestList = () => {
           </div>
           {/* Search results count badge - removed to reduce clutter */}
         </div>
-        
+
         {/* Keyboard shortcuts hint - more compact */}
         <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-2">
           <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Ctrl+K</kbd>
@@ -2382,16 +2406,16 @@ const GuestList = () => {
           onLocationChange={(val) => setCreateFormData((prev) => ({ ...prev, location: val }))}
           firstNameRef={createFirstNameRef}
         />
-        
-        
-        
-        
+
+
+
+
       )}
-      
-      
-      
-      
-      
+
+
+
+
+
 
       {!showCreateForm && (
         <>
@@ -2444,7 +2468,7 @@ const GuestList = () => {
                   </p>
                 </div>
               </div>
-              
+
               {/* "Did you mean?" suggestions */}
               {fuzzySuggestions.length > 0 && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-5">
@@ -2522,28 +2546,26 @@ const GuestList = () => {
                       <span>Expand</span>
                     </div>
                   </div>
-                  
+
                   {/* Sort buttons - enhanced */}
                   <div className="flex gap-2 px-1">
                     <span className="text-xs text-gray-500 self-center mr-1">Sort:</span>
                     <button
                       onClick={() => handleSort("firstName")}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
-                        sortConfig.key === "firstName"
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                          : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${sortConfig.key === "firstName"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                        : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+                        }`}
                       title="Sort by first name"
                     >
                       First Name {sortConfig.key === "firstName" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </button>
                     <button
                       onClick={() => handleSort("lastName")}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${
-                        sortConfig.key === "lastName"
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                          : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 touch-manipulation ${sortConfig.key === "lastName"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                        : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+                        }`}
                       title="Sort by last name"
                     >
                       Last Name {sortConfig.key === "lastName" && (sortConfig.direction === "asc" ? "↑" : "↓")}
@@ -2592,17 +2614,16 @@ const GuestList = () => {
                   const isBanned = Boolean(guest.isBanned);
                   const bannedUntilDate =
                     isBanned &&
-                    guest.bannedUntil &&
-                    !Number.isNaN(new Date(guest.bannedUntil).getTime())
+                      guest.bannedUntil &&
+                      !Number.isNaN(new Date(guest.bannedUntil).getTime())
                       ? new Date(guest.bannedUntil)
                       : null;
                   const banSummaryLabel = bannedUntilDate
                     ? dateTimeFormatter.format(bannedUntilDate)
                     : null;
                   const banTooltip = isBanned
-                    ? `${guest.preferredName || guest.name || "Guest"} is banned${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}${
-                        guest.banReason ? ` Reason: ${guest.banReason}` : ""
-                      }`
+                    ? `${guest.preferredName || guest.name || "Guest"} is banned${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}${guest.banReason ? ` Reason: ${guest.banReason}` : ""
+                    }`
                     : "";
                   const isBanEditorOpen = banEditor.guestId === guest.id;
                   const banFormMinValue = isBanEditorOpen
@@ -2616,11 +2637,10 @@ const GuestList = () => {
                       }}
                       style={trail[i]}
                       key={`guest-${guest.id}-${searchTerm}`}
-                      className={`group relative border rounded-xl hover:shadow-lg transition-all duration-300 bg-white overflow-hidden ${
-                        selectedGuestIndex === i
-                          ? "ring-3 ring-blue-500 border-blue-400 shadow-xl scale-[1.02] bg-blue-50/50"
-                          : "border-gray-100 hover:border-gray-200"
-                      }`}
+                      className={`group relative border rounded-xl hover:shadow-lg transition-all duration-300 bg-white overflow-hidden ${selectedGuestIndex === i
+                        ? "ring-3 ring-blue-500 border-blue-400 shadow-xl scale-[1.02] bg-blue-50/50"
+                        : "border-gray-100 hover:border-gray-200"
+                        }`}
                     >
                       {/* Keyboard navigation indicator - left accent bar */}
                       {selectedGuestIndex === i && (
@@ -2629,7 +2649,7 @@ const GuestList = () => {
 
                       {/* Subtle gradient overlay on hover */}
                       <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
-                      
+
                       <div
                         className="relative p-4 cursor-pointer flex justify-between items-center"
                         onClick={() => toggleExpanded(guest.id)}
@@ -2649,12 +2669,11 @@ const GuestList = () => {
                                     <span className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">
                                       {guest.preferredName}
                                     </span>
-                                    <span className="text-sm text-gray-500">
-                                      ({guest.name})
-                                    </span>
-                                    <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 uppercase tracking-wide">
-                                      Preferred
-                                    </span>
+                                    {guest.name !== guest.preferredName && (
+                                      <span className="text-sm text-gray-400">
+                                        {guest.name}
+                                      </span>
+                                    )}
                                   </span>
                                 ) : (
                                   <span className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{guest.name}</span>
@@ -2669,17 +2688,17 @@ const GuestList = () => {
                                     ) === todayPacificDateString();
 
                                   return isNewGuest ? (
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-gradient-to-r from-emerald-50 to-green-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-sm animate-pulse uppercase tracking-wider">
+                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-sm animate-pulse uppercase tracking-wider">
                                       ✨ New
                                     </span>
                                   ) : null;
                                 })()}
-                                {/* Linked guests badge */}
+                                {/* Linked guests badge - indigo color */}
                                 {(() => {
                                   const linkedCount = getLinkedGuests(guest.id).length;
                                   return linkedCount > 0 ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                                      <Link size={10} />
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-sm" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
+                                      <Link size={10} strokeWidth={2.5} />
                                       {linkedCount}
                                     </span>
                                   ) : null;
@@ -2695,15 +2714,16 @@ const GuestList = () => {
                                             : service.serviceType === "Laundry"
                                               ? formatLaundryRangeLabel(service.record?.time)
                                               : null;
+                                        const timeStr = new Date(service.record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                                         return (
                                           <div
                                             key={idx}
-                                            className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 transition-all duration-200 hover:scale-110 hover:shadow-md hover:-translate-y-0.5"
-                                            title={timeLabel ? `${service.serviceType}: ${timeLabel}` : `${service.serviceType} today`}
+                                            className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 transition-all duration-200 hover:scale-110 hover:shadow-md hover:-translate-y-0.5"
+                                            title={`${service.serviceType}${timeLabel ? ` (${timeLabel})` : ''} at ${timeStr} today`}
                                           >
                                             <Icon
-                                              size={14}
+                                              size={15}
                                               className={service.iconClass}
                                             />
                                           </div>
@@ -2734,54 +2754,54 @@ const GuestList = () => {
                                 Use their preferred name when greeting
                               </p>
                             )}
-                              {/* Show explicit times for booked services so check-in users can tell guests their slot */}
-                              <div className="mt-2 flex flex-wrap items-center gap-2">
-                                {(() => {
-                                  const services = todayServices || [];
-                                  const shower = services.find((s) => s.serviceType === "Shower");
-                                  const laundry = services.find((s) => s.serviceType === "Laundry");
-                                  return (
-                                    <>
-                                      {shower ? (
-                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                                          <ShowerHead size={14} className="text-emerald-600" />
-                                          <span>Shower:</span>
-                                          <span className="font-medium text-gray-900">{formatShowerSlotLabel(shower.record?.time) || "No slot"}</span>
-                                        </span>
-                                      ) : null}
-                                      {laundry ? (
-                                        <span className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg">
-                                          <WashingMachine size={14} className="text-indigo-700" />
-                                          <span>Laundry:</span>
-                                          <span className="font-medium text-gray-900">{formatLaundryRangeLabel(laundry.record?.time)}</span>
-                                        </span>
-                                      ) : null}
-                                    </>
-                                  );
-                                })()}
-                              </div>
+                            {/* Show explicit times for booked services so check-in users can tell guests their slot */}
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {(() => {
+                                const services = todayServices || [];
+                                const shower = services.find((s) => s.serviceType === "Shower");
+                                const laundry = services.find((s) => s.serviceType === "Laundry");
+                                return (
+                                  <>
+                                    {shower ? (
+                                      <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                                        <ShowerHead size={14} className="text-emerald-600" />
+                                        <span>Shower:</span>
+                                        <span className="font-medium text-gray-900">{formatShowerSlotLabel(shower.record?.time) || "No slot"}</span>
+                                      </span>
+                                    ) : null}
+                                    {laundry ? (
+                                      <span className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg">
+                                        <WashingMachine size={14} className="text-indigo-700" />
+                                        <span>Laundry:</span>
+                                        <span className="font-medium text-gray-900">{formatLaundryRangeLabel(laundry.record?.time)}</span>
+                                      </span>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
+                            </div>
                             {/* Waiver badges for shower and laundry */}
                             <div className="flex flex-wrap gap-2 mt-2">
                               {(() => {
                                 const servicesThatNeedWaivers = [];
-                                
+
                                 // Check if guest has shower records
                                 const guestShowerRecords = showerRecords.filter(
                                   (r) => r.guestId === guest.id
                                 );
                                 const hasShower = guestShowerRecords.length > 0;
-                                
+
                                 // Check if guest has laundry records
                                 const guestLaundryRecords = laundryRecords.filter(
                                   (r) => r.guestId === guest.id
                                 );
                                 const hasLaundry = guestLaundryRecords.length > 0;
-                                
+
                                 // Shower and laundry share a common waiver - only show one badge if either is used
                                 if (hasShower || hasLaundry) {
                                   servicesThatNeedWaivers.push('shower');
                                 }
-                                
+
                                 return servicesThatNeedWaivers.map((service) => (
                                   <WaiverBadge
                                     key={`waiver-${guest.id}-${service}`}
@@ -2836,18 +2856,16 @@ const GuestList = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${
-                            expandedGuest === guest.id 
-                              ? "bg-blue-100 rotate-180" 
-                              : "bg-gray-100 group-hover:bg-blue-50"
-                          }`}>
-                            <ChevronDown 
-                              size={18} 
-                              className={`transition-colors ${
-                                expandedGuest === guest.id 
-                                  ? "text-blue-600" 
-                                  : "text-gray-400 group-hover:text-blue-500"
-                              }`} 
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${expandedGuest === guest.id
+                            ? "bg-blue-100 rotate-180"
+                            : "bg-gray-100 group-hover:bg-blue-50"
+                            }`}>
+                            <ChevronDown
+                              size={18}
+                              className={`transition-colors ${expandedGuest === guest.id
+                                ? "text-blue-600"
+                                : "text-gray-400 group-hover:text-blue-500"
+                                }`}
                             />
                           </div>
                         </div>
@@ -3273,7 +3291,7 @@ const GuestList = () => {
                                     (record) =>
                                       record.guestId === guest.id &&
                                       pacificDateStringFrom(record.date) ===
-                                        today,
+                                      today,
                                   );
                                 const isPendingMeal = pendingMealGuests.has(
                                   guest.id,
@@ -3298,21 +3316,20 @@ const GuestList = () => {
                                               )
                                             }
                                             disabled={isDisabled}
-                                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                              isBanned
-                                                ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                                : alreadyHasMeal
-                                                    ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
-                                                    : isPendingMeal
-                                                        ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                                        : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                                            }`}
+                                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                              ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                              : alreadyHasMeal
+                                                ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                                                : isPendingMeal
+                                                  ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                                  : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                                              }`}
                                             title={
                                               isBanned
                                                 ? banTooltip
                                                 : alreadyHasMeal
-                                                    ? "Guest already received meals today"
-                                                    : `Give ${count} meal${count > 1 ? "s" : ""}`
+                                                  ? "Guest already received meals today"
+                                                  : `Give ${count} meal${count > 1 ? "s" : ""}`
                                             }
                                           >
                                             <SpringIcon>
@@ -3361,7 +3378,7 @@ const GuestList = () => {
                                               (action) =>
                                                 action.type === "MEAL_ADDED" &&
                                                 action.data?.guestId ===
-                                                  guest.id &&
+                                                guest.id &&
                                                 pacificDateStringFrom(
                                                   new Date(action.timestamp),
                                                 ) === today,
@@ -3469,13 +3486,12 @@ const GuestList = () => {
                                   isBanned ||
                                   pendingActions.has(`haircut-${guest.id}`)
                                 }
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  isBanned
-                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                    : pendingActions.has(`haircut-${guest.id}`)
-                                        ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                                        : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
-                                }`}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                  : pendingActions.has(`haircut-${guest.id}`)
+                                    ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                                    : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                                  }`}
                                 title={
                                   isBanned
                                     ? banTooltip
@@ -3542,11 +3558,10 @@ const GuestList = () => {
                                   }
                                 }}
                                 disabled={isBanned}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  isBanned
-                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                    : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
-                                }`}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                  : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                                  }`}
                                 title={
                                   isBanned
                                     ? banTooltip
@@ -3613,13 +3628,12 @@ const GuestList = () => {
                                   haptics.buttonPress();
                                   setBicyclePickerGuest(guest);
                                 }}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                  isBanned
-                                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                    : !guest.bicycleDescription?.trim()
-                                        ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                                        : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
-                                }`}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                  : !guest.bicycleDescription?.trim()
+                                    ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                    : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                                  }`}
                                 title={
                                   isBanned
                                     ? banTooltip
@@ -3677,12 +3691,12 @@ const GuestList = () => {
                               {(() => {
                                 const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
                                 const isDisabled = isBanned || hasShowerToday;
-                                const tooltipText = isBanned 
-                                  ? banTooltip 
-                                  : hasShowerToday 
-                                    ? "Already has a shower booked today" 
+                                const tooltipText = isBanned
+                                  ? banTooltip
+                                  : hasShowerToday
+                                    ? "Already has a shower booked today"
                                     : "Book a shower";
-                                
+
                                 return (
                                   <button
                                     onClick={() => {
@@ -3695,13 +3709,12 @@ const GuestList = () => {
                                       setShowerPickerGuest(guest);
                                     }}
                                     disabled={isDisabled}
-                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                      isBanned
-                                        ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                        : hasShowerToday
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                                    }`}
+                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                      : hasShowerToday
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                      }`}
                                     title={tooltipText}
                                   >
                                     <SpringIcon>
@@ -3754,12 +3767,12 @@ const GuestList = () => {
                               {(() => {
                                 const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
                                 const isDisabled = isBanned || hasLaundryToday;
-                                const tooltipText = isBanned 
-                                  ? banTooltip 
-                                  : hasLaundryToday 
-                                    ? "Already has laundry booked today" 
+                                const tooltipText = isBanned
+                                  ? banTooltip
+                                  : hasLaundryToday
+                                    ? "Already has laundry booked today"
                                     : "Book laundry";
-                                
+
                                 return (
                                   <button
                                     onClick={() => {
@@ -3772,13 +3785,12 @@ const GuestList = () => {
                                       setLaundryPickerGuest(guest);
                                     }}
                                     disabled={isDisabled}
-                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${
-                                      isBanned
-                                        ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                        : hasLaundryToday
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                                    }`}
+                                    className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                                      ? "bg-red-100 text-red-500 cursor-not-allowed"
+                                      : hasLaundryToday
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                        : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                                      }`}
                                     title={tooltipText}
                                   >
                                     <SpringIcon>
