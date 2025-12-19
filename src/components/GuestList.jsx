@@ -223,7 +223,7 @@ const GuestList = () => {
       ...prev,
       firstName,
       lastName,
-      preferredName: firstName,
+      preferredName: "",
     }));
     setShowCreateForm(true);
     setCreateError("");
