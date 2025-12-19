@@ -919,44 +919,38 @@ Before starting the migration, I'd like to clarify a few key decisions:
 
 ### Week 1: Foundation
 
-- [ ] Create `feature/nextjs-migration` branch
-- [ ] Initialize Next.js project with TypeScript
-- [ ] Install dependencies (Supabase, Zustand, next-pwa, etc.)
+- [x] Create `feature/nextjs-migration` branch
+- [x] Initialize Next.js project with TypeScript
+- [x] Install dependencies (Supabase, Zustand, next-pwa, etc.)
 - [ ] Create fresh Supabase project
 - [ ] Apply schema.sql to Supabase
 - [ ] Create 4 test users in Supabase (admin, board, staff, checkin)
-- [ ] Create RLS policies SQL file (008_enable_rls.sql)
-- [ ] Implement Supabase client utilities (client.ts, server.ts)
-- [ ] Implement middleware for auth and role checks
-- [ ] Create login page
+- [x] Create RLS policies SQL file (009_enable_rls.sql)
+- [x] Implement Supabase client utilities (client.ts, server.ts)
+- [x] Implement middleware for auth and role checks
+- [x] Create login page
 - [ ] Deploy to Vercel (hello world)
-
-### Week 2-3: Core Features
-
-- [ ] Migrate Zustand stores to `lib/stores/` (TypeScript)
+- [x] Migrate Zustand stores to `lib/stores/` (TypeScript)
 - [ ] Create StoreProvider wrapper
 - [ ] Migrate GuestList component (add 'use client', TypeScript)
 - [ ] Migrate GuestForm and related components
-- [ ] Create check-in page (`app/(protected)/check-in/page.tsx`)
+- [x] Create check-in page (`app/(protected)/check-in/page.tsx`)
 - [ ] Test guest CRUD operations
 - [ ] Test role-based access (admin can delete, staff cannot)
 - [ ] Migrate service components (showers, laundry, bicycles)
-- [ ] Create services page (`app/(protected)/services/page.tsx`)
+- [x] Create services page (`app/(protected)/services/page.tsx`)
 - [ ] Migrate admin page and reports
 - [ ] Migrate all chart components (add 'use client')
-- [ ] Create admin page (`app/(protected)/admin/page.tsx`)
-
-### Week 4: Offline & PWA
-
+- [x] Create admin page (`app/(protected)/admin/page.tsx`)
 - [ ] Migrate offline utilities (offlineQueueManager, indexedDB)
 - [ ] Create SyncProvider
-- [ ] Configure next-pwa in next.config.js
+- [x] Configure next-pwa in next.config.js
 - [ ] Update service worker for Next.js routes
 - [ ] Test offline functionality (add guest while offline)
 - [ ] Test PWA installation on mobile
 - [ ] Test background sync
 
-### Week 5-6: Testing & Merge
+### Week 2: Testing & Merge
 
 - [ ] Migrate Vitest tests to new structure
 - [ ] Add Playwright E2E tests
