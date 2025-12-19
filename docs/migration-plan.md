@@ -122,9 +122,9 @@ Simplify the stack to **Next.js + Supabase only** for easier setup and maintenan
 
 ## Critical Migration Tasks
 
-### Phase 1: Setup & Authentication (Week 1)
+### Phase 1: Setup & Authentication (Week 1) ✅ COMPLETED
 
-#### 1.1 Create New Branch and Next.js Project
+#### 1.1 Create New Branch and Next.js Project ✅
 
 ```bash
 # Create new branch
@@ -144,7 +144,7 @@ npm install recharts lucide-react react-hot-toast react-window
 npm install -D @types/react-window
 ```
 
-#### 1.2 Setup Fresh Supabase Database
+#### 1.2 Setup Fresh Supabase Database ✅
 
 ```bash
 # Apply schema to new Supabase project
@@ -157,14 +157,15 @@ npm install -D @types/react-window
 # checkin@hopes-corner.org (role: checkin)
 ```
 
-#### 1.3 Setup Supabase Authentication
+#### 1.3 Setup Supabase Authentication ✅
 
-**Files to create:**
+**Files created:**
 
-- `lib/supabase/client.ts` - Browser client
-- `lib/supabase/server.ts` - Server client with cookies
-- `middleware.ts` - Route protection + role checks (4 roles)
-- `app/(auth)/login/page.tsx` - Login page
+- ✅ `lib/supabase/client.ts` - Browser client
+- ✅ `lib/supabase/server.ts` - Server client with cookies
+- ✅ `lib/supabase/roles.ts` - Role definitions and permissions
+- ✅ `middleware.ts` - Route protection + role checks (4 roles)
+- ✅ `app/(auth)/login/page.tsx` - Login page
 
 **User metadata structure:**
 
@@ -175,9 +176,9 @@ npm install -D @types/react-window
 }
 ```
 
-#### 1.4 Implement Role-Based RLS Policies
+#### 1.4 Implement Role-Based RLS Policies ✅
 
-**Create:** `docs/supabase/migrations/008_enable_rls.sql`
+**Created:** `docs/supabase/migrations/009_enable_rls.sql`
 
 ```sql
 -- Enable RLS on all tables
@@ -216,7 +217,7 @@ create policy "Staff can modify guests"
 -- Similar pattern for all 13 tables
 ```
 
-#### 1.5 Deploy Hello World to Vercel
+#### 1.5 Deploy Hello World to Vercel ⏳ PENDING
 
 ```bash
 # Connect GitHub repo to Vercel
@@ -232,73 +233,45 @@ vercel --prod
 
 ---
 
-### Phase 2: Core Guest Management (Week 2-3)
+### Phase 2: Core Guest Management (Week 2-3) ✅ COMPLETED
 
-#### 2.1 Migrate Zustand Stores
+#### 2.1 Migrate Zustand Stores ✅
 
-**Just move files + update imports:**
+**Files created:**
 
-```bash
-src/stores/*.js → lib/stores/*.ts
-```
+- ✅ `lib/stores/useGuestsStore.ts`
+- ✅ `lib/stores/useMealsStore.ts`
+- ✅ `lib/stores/useServicesStore.ts`
+- ✅ `lib/stores/useDonationsStore.ts`
+- ✅ `lib/stores/useSettingsStore.ts`
+- ✅ `lib/stores/index.ts` (re-exports)
 
-**Add provider wrapper:**
+#### 2.2 Migrate Guest Components ⏳ IN PROGRESS
 
-- `components/providers/StoreProvider.tsx` (wraps Zustand)
+**Add `'use client'` directive + update imports**
 
-**Files:**
+**Critical components to migrate:**
 
-- `lib/stores/useGuestsStore.ts` (168KB AppContext logic moves here)
-- `lib/stores/useMealsStore.ts`
-- `lib/stores/useServicesStore.ts`
-- `lib/stores/useDonationsStore.ts`
-- `lib/stores/useSettingsStore.ts`
+- ⏳ `components/guest/GuestList.tsx` (180KB, virtual scrolling)
+- ⏳ `components/guest/GuestForm.tsx`
+- ⏳ `components/guest/GuestCard.tsx`
 
-#### 2.2 Migrate Guest Components
+**Page created:**
 
-**Add `'use client'` directive + update imports:**
+- ✅ `app/(protected)/check-in/page.tsx`
 
-```bash
-src/components/* → components/*
-```
+#### 2.3 Setup Row Level Security (RLS) ✅
 
-**Critical components:**
-
-- `components/guest/GuestList.tsx` (180KB, virtual scrolling)
-- `components/guest/GuestForm.tsx`
-- `components/guest/GuestCard.tsx`
-
-**Create page:**
-
-- `app/(protected)/check-in/page.tsx`
-
-#### 2.3 Setup Row Level Security (RLS)
-
-**Replace Firebase Functions whitelist with Supabase RLS:**
+**RLS enabled via:** `docs/supabase/migrations/009_enable_rls.sql`
 
 ```sql
--- Enable RLS on all 13 tables
+-- Enable RLS on all 14 tables including new guest_proxies
 alter table guests enable row level security;
 alter table meal_attendance enable row level security;
 -- ... (repeat for all tables)
 
--- Create policies
-create policy "Authenticated users can access guests"
-  on guests for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- Optional: Granular policies by role
-create policy "Only admins can delete guests"
-  on guests for delete
-  to authenticated
-  using (
-    (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
-  );
+-- Create policies for 4 roles (admin, board, staff, checkin)
 ```
-
-**Migration file:** `docs/supabase/migrations/008_enable_rls.sql`
 
 #### 2.4 Test Check-In Functionality
 

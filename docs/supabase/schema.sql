@@ -443,11 +443,11 @@ create table if not exists public.sync_state (
 );
 
 -- 7. Service waivers (from migrations)
--- Track if a guest has an active waiver for shower or laundry
+-- Track if a guest has an active waiver for shower, laundry, or bicycle
 create table if not exists public.service_waivers (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid not null references public.guests(id) on delete cascade,
-  service_type text not null check (service_type in ('shower', 'laundry')),
+  service_type text not null check (service_type in ('shower', 'laundry', 'bicycle')),
   signed_at timestamptz not null default now(),
   dismissed_at timestamptz,
   dismissed_by_user_id uuid,
@@ -528,6 +528,33 @@ where
         and sw.service_type = 'laundry'
         and sw.dismissed_at < date_trunc('year', now())::date
     )
+  )
+union all
+select distinct g.id,
+  g.external_id,
+  g.full_name,
+  g.preferred_name,
+  'bicycle' as service_type
+from public.guests g
+where 
+  exists (
+    select 1 from public.bicycle_repairs br
+    where br.guest_id = g.id
+      and br.requested_at >= date_trunc('year', now())
+  )
+  and (
+    not exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = g.id 
+        and sw.service_type = 'bicycle'
+    )
+    or
+    exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = g.id
+        and sw.service_type = 'bicycle'
+        and sw.dismissed_at < date_trunc('year', now())::date
+    )
   );
 
 -- Helper functions for waivers
@@ -588,48 +615,76 @@ declare
   v_year_start date;
 begin
   v_year_start := date_trunc('year', now())::date;
-  case 
-    when p_service_type = 'shower' then
-      -- Check if guest has any shower scheduled this year
-      if not exists (
-        select 1 from public.shower_reservations sr
-        where sr.guest_id = p_guest_id
-          and sr.scheduled_for >= v_year_start
-      ) then
-        return false;
-      end if;
-    when p_service_type = 'laundry' then
-      -- Check if guest has any laundry booked this year
-      if not exists (
-        select 1 from public.laundry_bookings lb
-        where lb.guest_id = p_guest_id
-          and lb.scheduled_for >= v_year_start
-      ) then
-        return false;
-      end if;
-    else
+  
+  -- Check for bicycle service type
+  if p_service_type = 'bicycle' then
+    -- Check if guest has any bicycle repair this year
+    if not exists (
+      select 1 from public.bicycle_repairs br
+      where br.guest_id = p_guest_id
+        and br.requested_at >= v_year_start
+    ) then
       return false;
-  end case;
-  -- Guest has a service this year, check if they need a waiver
-  return (
-    -- No waiver record exists at all
-    not exists (
+    end if;
+    
+    -- Check for existing waiver this year
+    if exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
-        and sw.service_type = p_service_type
-    )
-  )
-  or
-  (
-    -- Waiver was dismissed before this year (needs renewal)
-    exists (
+        and sw.service_type = 'bicycle'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  -- Check for shower
+  if p_service_type = 'shower' then
+    if not exists (
+      select 1 from public.shower_reservations sr
+      where sr.guest_id = p_guest_id
+        and sr.scheduled_for >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    if exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
-        and sw.service_type = p_service_type
-        and sw.dismissed_at is not null
-        and sw.dismissed_at < v_year_start
-    )
-  );
+        and sw.service_type = 'shower'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  -- Check for laundry
+  if p_service_type = 'laundry' then
+    if not exists (
+      select 1 from public.laundry_bookings lb
+      where lb.guest_id = p_guest_id
+        and lb.scheduled_for >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    if exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = p_guest_id
+        and sw.service_type = 'laundry'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  return false;
 end;
 $$ language plpgsql stable;
 
@@ -663,3 +718,131 @@ create policy "Authenticated users can manage waivers"
   to authenticated, anon
   using (true)
   with check (true);
+
+-- ============================================================================
+-- 8. Guest Proxies (from 008_guest_proxies.sql)
+-- Symmetric relationship for linking guests (family members, etc.)
+-- ============================================================================
+
+create table if not exists public.guest_proxies (
+  id uuid primary key default gen_random_uuid(),
+  guest_id uuid not null references public.guests(id) on delete cascade,
+  proxy_id uuid not null references public.guests(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  
+  -- Prevent self-linking
+  constraint guest_proxies_no_self_link check (guest_id <> proxy_id),
+  -- Prevent duplicate links (regardless of order)
+  constraint guest_proxies_unique_link unique (guest_id, proxy_id)
+);
+
+-- Index for fast lookup by either guest
+create index if not exists guest_proxies_guest_id_idx 
+  on public.guest_proxies (guest_id);
+create index if not exists guest_proxies_proxy_id_idx 
+  on public.guest_proxies (proxy_id);
+
+-- Enable RLS
+alter table public.guest_proxies enable row level security;
+
+-- Policies for guest proxies
+drop policy if exists "Authenticated users can view guest proxies" on public.guest_proxies;
+create policy "Authenticated users can view guest proxies"
+  on public.guest_proxies for select
+  to authenticated, anon
+  using (true);
+
+drop policy if exists "Authenticated users can manage guest proxies" on public.guest_proxies;
+create policy "Authenticated users can manage guest proxies"
+  on public.guest_proxies for all
+  to authenticated, anon
+  using (true)
+  with check (true);
+
+-- Trigger to maintain symmetry: if A -> B, then B -> A
+create or replace function public.maintain_guest_proxy_symmetry()
+returns trigger as $$
+begin
+  if (tg_op = 'INSERT') then
+    insert into public.guest_proxies (guest_id, proxy_id)
+    values (new.proxy_id, new.guest_id)
+    on conflict (guest_id, proxy_id) do nothing;
+  elsif (tg_op = 'DELETE') then
+    delete from public.guest_proxies
+    where guest_id = old.proxy_id and proxy_id = old.guest_id;
+  end if;
+  return null;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_maintain_guest_proxy_symmetry on public.guest_proxies;
+create trigger trg_maintain_guest_proxy_symmetry
+after insert or delete on public.guest_proxies
+for each row execute function public.maintain_guest_proxy_symmetry();
+
+-- Function to check limit of 3 proxies per guest
+create or replace function public.check_guest_proxy_limit()
+returns trigger as $$
+begin
+  if (select count(*) from public.guest_proxies where guest_id = new.guest_id) >= 3 then
+    raise exception 'A guest can have at most 3 linked accounts.';
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_check_guest_proxy_limit on public.guest_proxies;
+create trigger trg_check_guest_proxy_limit
+before insert on public.guest_proxies
+for each row execute function public.check_guest_proxy_limit();
+
+-- ============================================================================
+-- 9. Additional Performance Indexes (from 004_add_performance_indexes.sql)
+-- ============================================================================
+
+-- Shower reservations indexes
+create index if not exists shower_scheduled_for_idx
+  on public.shower_reservations (scheduled_for desc);
+create index if not exists shower_created_at_idx
+  on public.shower_reservations (created_at desc);
+create index if not exists shower_guest_id_idx
+  on public.shower_reservations (guest_id);
+
+-- Laundry bookings indexes
+create index if not exists laundry_scheduled_for_idx
+  on public.laundry_bookings (scheduled_for desc);
+create index if not exists laundry_created_at_idx
+  on public.laundry_bookings (created_at desc);
+create index if not exists laundry_guest_id_idx
+  on public.laundry_bookings (guest_id);
+
+-- Bicycle repairs indexes
+create index if not exists bicycle_requested_at_idx
+  on public.bicycle_repairs (requested_at desc);
+create index if not exists bicycle_guest_id_idx
+  on public.bicycle_repairs (guest_id);
+create index if not exists bicycle_status_idx
+  on public.bicycle_repairs (status);
+
+-- Haircut visits indexes
+create index if not exists haircut_served_at_idx
+  on public.haircut_visits (served_at desc);
+create index if not exists haircut_created_at_idx
+  on public.haircut_visits (created_at desc);
+create index if not exists haircut_guest_id_idx
+  on public.haircut_visits (guest_id);
+
+-- Holiday visits indexes
+create index if not exists holiday_served_at_idx
+  on public.holiday_visits (served_at desc);
+create index if not exists holiday_created_at_idx
+  on public.holiday_visits (created_at desc);
+create index if not exists holiday_guest_id_idx
+  on public.holiday_visits (guest_id);
+
+-- La Plaza donations indexes
+create index if not exists la_plaza_donations_received_at_idx
+  on public.la_plaza_donations (received_at desc);
+
+comment on table public.service_waivers is 'Tracks service waivers for shower, laundry, and bicycle programs. Each waiver is valid for one calendar year.';
+comment on table public.guest_proxies is 'Symmetric relationship table for linking guests (family members, etc.). Max 3 proxies per guest.';
