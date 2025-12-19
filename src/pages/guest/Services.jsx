@@ -302,6 +302,9 @@ const Services = () => {
     () => savedFilters?.laundryViewMode ?? "list",
   );
   const [showPreviousServiceDay, setShowPreviousServiceDay] = useState(false);
+  
+  // Laundry time-travel feature: allow staff to view and manage laundry from past dates
+  const [laundryViewDate, setLaundryViewDate] = useState(today);
 
   // Calculate previous service day laundry data
   const previousServiceDay = getPreviousServiceDay();
@@ -321,6 +324,37 @@ const Services = () => {
       day: "numeric",
     });
   };
+
+  // Helper to go to previous laundry date (go back 1 day at a time through history)
+  const goToPreviousLaundryDate = useCallback(() => {
+    setLaundryViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() - 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      return `${newYear}-${newMonth}-${newDay}`;
+    });
+  }, []);
+
+  // Helper to go to next laundry date (go forward 1 day at a time, but not past today)
+  const goToNextLaundryDate = useCallback(() => {
+    setLaundryViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      const newDateString = `${newYear}-${newMonth}-${newDay}`;
+      // Don't go past today
+      if (newDateString > today) {
+        return today;
+      }
+      return newDateString;
+    });
+  }, [today]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4491,7 +4525,56 @@ const Services = () => {
                 attemptLaundryStatusChange={attemptLaundryStatusChange}
               />
             ) : laundryViewMode === "compact" ? (
-              <CompactLaundryList />
+              <div className="space-y-3">
+                {/* Date Navigation for Laundry Time Travel */}
+                {laundryViewDate !== today && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <History size={16} className="text-blue-600" />
+                        <span className="text-sm font-medium text-blue-900">
+                          Viewing Laundry from {formatServiceDayLabel(laundryViewDate)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLaundryViewDate(today)}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+                      >
+                        Back to Today
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Date Navigation Buttons */}
+                <div className="flex items-center justify-between gap-2 bg-purple-50 border border-purple-100 rounded-lg p-2">
+                  <button
+                    type="button"
+                    onClick={goToPreviousLaundryDate}
+                    className="px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors inline-flex items-center gap-1"
+                  >
+                    <ChevronLeft size={16} />
+                    Previous Day
+                  </button>
+                  
+                  <div className="text-center text-sm font-medium text-gray-600">
+                    {formatServiceDayLabel(laundryViewDate)}
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={goToNextLaundryDate}
+                    disabled={laundryViewDate >= today}
+                    className="px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next Day
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                <CompactLaundryList viewDate={laundryViewDate} />
+              </div>
             ) : (
               <>
                 <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">

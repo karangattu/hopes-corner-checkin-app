@@ -50,7 +50,7 @@ describe("CompactLaundryList", () => {
   it("renders empty state when no bookings exist", () => {
     render(<CompactLaundryList />);
     expect(screen.getByText("Laundry Today")).toBeInTheDocument();
-    expect(screen.getByText("No laundry bookings yet today")).toBeInTheDocument();
+    expect(screen.getByText(/No laundry bookings for/)).toBeInTheDocument();
   });
 
   it("displays on-site laundry bookings for today", () => {
@@ -256,7 +256,7 @@ describe("CompactLaundryList", () => {
 
     render(<CompactLaundryList />);
 
-    expect(screen.getByText("No laundry bookings yet today")).toBeInTheDocument();
+    expect(screen.getByText(/No laundry bookings for/)).toBeInTheDocument();
   });
 
   it("shows Quick View label", () => {

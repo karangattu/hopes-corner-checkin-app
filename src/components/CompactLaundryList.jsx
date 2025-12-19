@@ -4,10 +4,11 @@ import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 
 /**
- * CompactLaundryList - A simplified read-only view of today's laundry bookings
+ * CompactLaundryList - A simplified read-only view of laundry bookings for a specific date
  * Shows guest name, time slot, and status in a compact format for quick reference
+ * Can view today's laundry or travel back in time to see laundry from past dates
  */
-const CompactLaundryList = () => {
+const CompactLaundryList = ({ viewDate = null }) => {
   const {
     laundryRecords,
     guests,
@@ -16,6 +17,9 @@ const CompactLaundryList = () => {
 
   const [showOffsite, setShowOffsite] = useState(false);
   const todayString = todayPacificDateString();
+  
+  // Use provided viewDate or default to today
+  const displayDate = viewDate || todayString;
 
   const formatLaundrySlot = (slot) => {
     if (!slot) return "—";
@@ -40,11 +44,11 @@ const CompactLaundryList = () => {
 
   // Group laundry records by type and status
   const laundryData = useMemo(() => {
-    const todaysRecords = (laundryRecords || []).filter(
-      (record) => pacificDateStringFrom(record.date) === todayString
+    const targetDayRecords = (laundryRecords || []).filter(
+      (record) => pacificDateStringFrom(record.date) === displayDate
     );
     
-    const onsite = todaysRecords
+    const onsite = targetDayRecords
       .filter(r => r.laundryType !== "offsite")
       .sort((a, b) => {
         // First sort by time slot
@@ -68,7 +72,7 @@ const CompactLaundryList = () => {
         };
       });
 
-    const offsite = todaysRecords
+    const offsite = targetDayRecords
       .filter(r => r.laundryType === "offsite")
       .sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -86,8 +90,8 @@ const CompactLaundryList = () => {
         };
       });
 
-    return { onsite, offsite, total: todaysRecords.length };
-  }, [laundryRecords, guests, todayString]);
+    return { onsite, offsite, total: targetDayRecords.length };
+  }, [laundryRecords, guests, displayDate]);
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -162,17 +166,35 @@ const CompactLaundryList = () => {
     ].includes(status);
   };
 
+  // Determine if viewing a past date
+  const isViewingPastDate = displayDate !== todayString;
+  const dateLabel = isViewingPastDate
+    ? (() => {
+        const [year, month, day] = displayDate.split("-").map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+      })()
+    : "Today";
+
   if (laundryData.total === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
           <WashingMachine size={18} className="text-purple-600" />
-          <h3 className="font-semibold text-gray-900 text-sm">Laundry Today</h3>
+          <h3 className="font-semibold text-gray-900 text-sm">
+            Laundry {isViewingPastDate ? `(${dateLabel})` : "Today"}
+          </h3>
           <span className="text-xs text-gray-500 ml-auto flex items-center gap-1">
             <Eye size={12} /> Quick View
           </span>
         </div>
-        <p className="text-sm text-gray-500 text-center py-4">No laundry bookings yet today</p>
+        <p className="text-sm text-gray-500 text-center py-4">
+          No laundry bookings for {dateLabel.toLowerCase()}
+        </p>
       </div>
     );
   }
@@ -184,7 +206,9 @@ const CompactLaundryList = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <WashingMachine size={18} className="text-purple-600" />
-            <h3 className="font-semibold text-gray-900 text-sm">Laundry Today</h3>
+            <h3 className="font-semibold text-gray-900 text-sm">
+              Laundry {isViewingPastDate ? `(${dateLabel})` : "Today"}
+            </h3>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 flex items-center gap-1">
