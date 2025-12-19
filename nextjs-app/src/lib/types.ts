@@ -21,6 +21,9 @@ export interface Guest {
   bannedUntil: string | null;
   banReason: string;
   isBanned: boolean;
+  banned?: boolean; // Legacy alias for isBanned
+  visitCount?: number;
+  lastVisit?: string | null;
   createdAt: string;
   updatedAt: string;
 }
