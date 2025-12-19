@@ -105,8 +105,8 @@ export function BicycleRepairBooking({ guest, onClose, onSubmit }: BicycleRepair
     <Modal
       isOpen={Boolean(guest)}
       onClose={handleClose}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
+      labelledBy={titleId}
+      describedBy={descriptionId}
     >
       <div className="w-full rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-xl sm:max-w-lg md:max-w-2xl lg:max-w-3xl">
         <div className="flex items-start justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
