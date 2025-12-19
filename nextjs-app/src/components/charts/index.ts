@@ -8,3 +8,4 @@ export * from './DonutCard';
 export * from './StackedBarCard';
 export * from './TrendLine';
 export * from './DonationsChart';
+export * from './PieCardRecharts';

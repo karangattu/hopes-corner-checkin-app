@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- hope-corner-logo-v2.svg
+     Clean, improved SVG approximation of the provided raster logo (v2).
+     - Uses layered outlines (outer green, white gap, and green fill) for letters & heart O.
+     - Centered and tuned positions/chevrons.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 580" width="1000" height="580" role="img" aria-label="Hope's Corner logo">
+  <defs>
+    <style>
+      :root { --green: #2a8a44; }
+      .outer-stroke-text { stroke: var(--green); stroke-width: 10; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+      .white-stroke-text { stroke: #ffffff; stroke-width: 18; stroke-linejoin: round; stroke-linecap: round; fill: none; }
+      .green-fill-text { fill: var(--green); stroke: var(--green); stroke-width: 2; stroke-linejoin: round; }
+      .top-fill { font-family: 'Montserrat', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 800; font-size: 170px; }
+      .subtitle { font-family: 'Montserrat', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 22px; font-weight: 700; fill: var(--green); letter-spacing: 2px; }
+      .chevron { stroke: var(--green); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    </style>
+  </defs>
+
+  <!-- top 'HOPE'S' — triple layered for outer green outline -> white gap -> green text -->
+  <g transform="translate(0,20)">
+    <text x="50%" y="150" text-anchor="middle" class="top-fill outer-stroke-text">HOPE'S</text>
+    <text x="50%" y="150" text-anchor="middle" class="top-fill white-stroke-text">HOPE'S</text>
+    <text x="50%" y="150" text-anchor="middle" class="top-fill green-fill-text">HOPE'S</text>
+
+    <!-- heart replacing O: drawn with identical outer outline, white gap, and green fill layers -->
+    <g transform="translate(438,80) scale(0.96)">
+      <path d="M40 8 C40 -8 24 -8 24 8 C24 28 40 40 40 40 C40 40 56 28 56 8 C56 -8 40 -8 40 8 Z" class="outer-stroke-text" />
+      <path d="M40 8 C40 -8 24 -8 24 8 C24 28 40 40 40 40 C40 40 56 28 56 8 C56 -8 40 -8 40 8 Z" class="white-stroke-text" />
+      <path d="M40 8 C40 -8 24 -8 24 8 C24 28 40 40 40 40 C40 40 56 28 56 8 C56 -8 40 -8 40 8 Z" class="green-fill-text" />
+    </g>
+  </g>
+
+  <!-- Second row 'CORNER' with identical layered treatment -->
+  <g>
+    <text x="50%" y="320" text-anchor="middle" class="top-fill outer-stroke-text">CORNER</text>
+    <text x="50%" y="320" text-anchor="middle" class="top-fill white-stroke-text">CORNER</text>
+    <text x="50%" y="320" text-anchor="middle" class="top-fill green-fill-text">CORNER</text>
+  </g>
+
+  <!-- Subtitle stacked on two lines -->
+  <g>
+    <text x="50%" y="375" text-anchor="middle" class="subtitle">SHARING MEALS, BUILDING</text>
+    <text x="50%" y="405" text-anchor="middle" class="subtitle">COMMUNITY</text>
+  </g>
+
+  <!-- Chevron lines forming 'V' shape -->
+  <path class="chevron" d="M120 470 L480 525" />
+  <path class="chevron" d="M880 470 L520 525" />
+  <!-- small center gap line to finish the V connection visually -->
+  <path d="M480 520 L520 520" stroke="#2a8a44" stroke-width="6" stroke-linecap="round" fill="none" />
+
+  <title>Hope's Corner — Sharing Meals, Building Community</title>
+</svg>
