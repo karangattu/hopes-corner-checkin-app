@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import toast from "react-hot-toast";
 import { exportChartAsImage } from "../../utils/chartExport";
+import { formatDateForDisplay } from "../../utils/date";
 
 const BicyclesChart = ({ days = [] }) => {
   const chartRef = useRef(null);
@@ -38,7 +39,7 @@ const BicyclesChart = ({ days = [] }) => {
   }
 
   const chartData = filteredDays.map((day) => ({
-    date: new Date(day.date).toLocaleDateString("en-US", {
+    date: formatDateForDisplay(day.date, {
       month: "short",
       day: "numeric",
     }),
@@ -79,7 +80,7 @@ const BicyclesChart = ({ days = [] }) => {
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">
-          {new Date(data.fullDate).toLocaleDateString()}
+          {formatDateForDisplay(data.fullDate)}
         </p>
         <div className="space-y-1 text-sm">
           <p className="text-cyan-600 font-medium">
@@ -151,6 +152,12 @@ const BicyclesChart = ({ days = [] }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
               dataKey="date"
+              tickFormatter={(value) =>
+                formatDateForDisplay(value, {
+                  month: "short",
+                  day: "numeric",
+                })
+              }
               tick={{ fontSize: 12 }}
               angle={-45}
               textAnchor="end"

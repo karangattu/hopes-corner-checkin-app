@@ -15,6 +15,7 @@ import {
 import { Heart, TrendingUp, Package } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { CHART_COLORS } from "./ChartTheme";
+import { formatDateForDisplay } from "../../utils/date";
 
 /**
  * DonationsChart - Specialized visualization for donation tracking
@@ -73,7 +74,7 @@ const DonationsChart = ({ startDate, endDate }) => {
       }
       dailyMap[dateStr].count += 1;
       dailyMap[dateStr].trays += donation.trays || 0;
-      dailyMap[dateStr].weight += donation.weightLbs || 0;
+      dailyMap[dateStr].weight = Math.round((dailyMap[dateStr].weight + (donation.weightLbs || 0)) * 10) / 10;
     });
 
     const dailyData = Object.values(dailyMap).sort((a, b) =>
@@ -105,7 +106,7 @@ const DonationsChart = ({ startDate, endDate }) => {
       }
       donorMap[donor].count += 1;
       donorMap[donor].trays += donation.trays || 0;
-      donorMap[donor].weight += donation.weightLbs || 0;
+      donorMap[donor].weight = Math.round((donorMap[donor].weight + (donation.weightLbs || 0)) * 10) / 10;
     });
 
     const byDonor = Object.values(donorMap)
@@ -118,10 +119,10 @@ const DonationsChart = ({ startDate, endDate }) => {
       byDonor,
       totalDonations: filteredDonations.length,
       totalTrays: filteredDonations.reduce((sum, d) => sum + (d.trays || 0), 0),
-      totalWeight: filteredDonations.reduce(
+      totalWeight: Math.round(filteredDonations.reduce(
         (sum, d) => sum + (d.weightLbs || 0),
         0,
-      ),
+      ) * 10) / 10,
       uniqueDonors: Object.keys(donorMap).length,
     };
   }, [filteredDonations]);
@@ -146,7 +147,7 @@ const DonationsChart = ({ startDate, endDate }) => {
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">
-          {new Date(label).toLocaleDateString(undefined, {
+          {formatDateForDisplay(label, {
             weekday: "long",
             month: "short",
             day: "numeric",
@@ -256,7 +257,7 @@ const DonationsChart = ({ startDate, endDate }) => {
               <XAxis
                 dataKey="date"
                 tickFormatter={(value) =>
-                  new Date(value).toLocaleDateString(undefined, {
+                  formatDateForDisplay(value, {
                     month: "short",
                     day: "numeric",
                   })
@@ -329,22 +330,21 @@ const DonationsChart = ({ startDate, endDate }) => {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${
-                      index === 0
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white ${index === 0
                         ? "bg-yellow-500"
                         : index === 1
                           ? "bg-gray-400"
                           : index === 2
                             ? "bg-amber-600"
                             : "bg-gray-300"
-                    }`}
+                      }`}
                   >
                     {index + 1}
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{donor.donor}</p>
                     <p className="text-xs text-gray-500">
-                      {donor.trays} trays • {donor.weight} lbs
+                      {donor.trays} trays • {donor.weight.toFixed(1)} lbs
                     </p>
                   </div>
                 </div>

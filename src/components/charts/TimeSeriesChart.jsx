@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { CHART_COLORS } from "./ChartTheme";
+import { formatDateForDisplay } from "../../utils/date";
 
 /**
  * TimeSeriesChart - Universal time-series visualization component
@@ -49,7 +50,7 @@ const TimeSeriesChart = ({
     return data.map((item) => ({
       ...item,
       date: item.date,
-      dateFormatted: new Date(item.date).toLocaleDateString(undefined, {
+      dateFormatted: formatDateForDisplay(item.date, {
         month: "short",
         day: "numeric",
       }),
@@ -103,7 +104,7 @@ const TimeSeriesChart = ({
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">
-          {new Date(label).toLocaleDateString(undefined, {
+          {formatDateForDisplay(label, {
             weekday: "long",
             month: "short",
             day: "numeric",
@@ -162,13 +163,12 @@ const TimeSeriesChart = ({
         {/* Trend Indicator */}
         {trendAnalysis && (
           <div
-            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
-              trendAnalysis.trend === "increasing"
+            className={`mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${trendAnalysis.trend === "increasing"
                 ? "bg-green-50 border-green-200"
                 : trendAnalysis.trend === "decreasing"
                   ? "bg-red-50 border-red-200"
                   : "bg-gray-50 border-gray-200"
-            }`}
+              }`}
           >
             {React.createElement(trendAnalysis.icon, {
               size: 16,
@@ -197,7 +197,7 @@ const TimeSeriesChart = ({
           <XAxis
             dataKey="date"
             tickFormatter={(value) =>
-              new Date(value).toLocaleDateString(undefined, {
+              formatDateForDisplay(value, {
                 month: "short",
                 day: "numeric",
               })

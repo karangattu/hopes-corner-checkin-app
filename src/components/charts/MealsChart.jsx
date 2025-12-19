@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import toast from "react-hot-toast";
 import { exportChartAsImage } from "../../utils/chartExport";
+import { formatDateForDisplay } from "../../utils/date";
 
 const MEAL_TYPE_COLORS = {
   guest: "#3b82f6", // Blue
@@ -66,7 +67,7 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
   }
 
   const chartData = filteredDays.map((day) => ({
-    date: new Date(day.date).toLocaleDateString("en-US", {
+    date: formatDateForDisplay(day.date, {
       month: "short",
       day: "numeric",
     }),
@@ -106,7 +107,7 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
     return (
       <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">
-          {new Date(data.fullDate).toLocaleDateString()}
+          {formatDateForDisplay(data.fullDate)}
         </p>
         <div className="space-y-1 text-sm">
           {selectedMealTypes.map((type) => (

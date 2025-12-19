@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Gift, Calendar } from "lucide-react";
 import { CHART_COLORS } from "./ChartTheme";
+import { formatDateForDisplay } from "../../utils/date";
 
 /**
  * HolidaysChart - Specialized visualization for holiday services
@@ -45,7 +46,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
 
   const chartData = days.map((day) => ({
     date: day.date,
-    dateFormatted: new Date(day.date).toLocaleDateString(undefined, {
+    dateFormatted: formatDateForDisplay(day.date, {
       month: "short",
       day: "numeric",
     }),
@@ -73,7 +74,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
     return (
       <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-800 mb-2">
-          {new Date(label).toLocaleDateString(undefined, {
+          {formatDateForDisplay(label, {
             weekday: "long",
             month: "short",
             day: "numeric",
@@ -136,7 +137,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
           <p className="text-sm text-gray-600 mb-1">Peak Day</p>
           <p className="text-2xl font-bold text-gray-900">{peakDay.holidays}</p>
           <p className="text-xs text-gray-500 mt-1">
-            {new Date(peakDay.date).toLocaleDateString(undefined, {
+            {formatDateForDisplay(peakDay.date, {
               month: "short",
               day: "numeric",
             })}
@@ -161,7 +162,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
             <XAxis
               dataKey="date"
               tickFormatter={(value) =>
-                new Date(value).toLocaleDateString(undefined, {
+                formatDateForDisplay(value, {
                   month: "short",
                   day: "numeric",
                 })
@@ -237,7 +238,7 @@ const HolidaysChart = ({ days = [], target = null }) => {
                   className="flex items-center justify-between text-sm"
                 >
                   <span className="text-pink-800">
-                    {new Date(day.date).toLocaleDateString(undefined, {
+                    {formatDateForDisplay(day.date, {
                       weekday: "long",
                       month: "short",
                       day: "numeric",
