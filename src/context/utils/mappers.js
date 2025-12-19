@@ -171,3 +171,10 @@ export const mapLaPlazaDonationRow = (row) => {
     createdAt: row.created_at,
   };
 };
+
+export const mapGuestProxyRow = (row) => ({
+  id: row.id,
+  guestId: row.guest_id,
+  proxyId: row.proxy_id,
+  createdAt: row.created_at,
+});

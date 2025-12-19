@@ -110,6 +110,7 @@ export const supabaseProxy = onCall(
       // Validate table name (whitelist approach for security)
       const allowedTables = [
         "guests",
+        "guest_proxies",
         "meal_attendance",
         "shower_reservations",
         "laundry_bookings",

@@ -36,12 +36,16 @@ import {
   RotateCcw,
   Ban,
   Lightbulb,
+  Link2,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useGuestsStore } from "../stores/useGuestsStore";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 import GuestCreateForm from "./guest/GuestCreateForm";
+import LinkedGuestsManager from "./guest/LinkedGuestsManager";
+import LinkedGuestsBadge from "./guest/LinkedGuestsBadge";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
@@ -75,6 +79,14 @@ const GuestList = () => {
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
   const { banGuest, clearGuestBan } = useAppContext();
+
+  // Guest proxy (linked guests) store functions and state
+  // guestProxies subscription ensures component re-renders when linked guests change
+  // eslint-disable-next-line no-unused-vars
+  const guestProxies = useGuestsStore((state) => state.guestProxies);
+  const getLinkedGuests = useGuestsStore((state) => state.getLinkedGuests);
+  const linkGuests = useGuestsStore((state) => state.linkGuests);
+  const unlinkGuests = useGuestsStore((state) => state.unlinkGuests);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -116,6 +128,7 @@ const GuestList = () => {
   const [banSubmittingId, setBanSubmittingId] = useState(null);
 
   const [editingGuestId, setEditingGuestId] = useState(null);
+  const [linkingGuestId, setLinkingGuestId] = useState(null);
   const [editFormData, setEditFormData] = useState({
     firstName: "",
     lastName: "",
@@ -1173,6 +1186,16 @@ const GuestList = () => {
                       </span>
                     ) : null;
                   })()}
+                  {/* Linked guests badge */}
+                  {(() => {
+                    const linkedCount = getLinkedGuests(guest.id).length;
+                    return linkedCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
+                        <Link2 size={10} />
+                        {linkedCount}
+                      </span>
+                    ) : null;
+                  })()}
                   {todayServices.length > 0 && (
                     <>
                       {todayServices.map((service, idx) => {
@@ -1289,6 +1312,12 @@ const GuestList = () => {
                     className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => setLinkingGuestId(guest.id)}
+                    className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation"
+                  >
+                    Link
                   </button>
                   <button
                     onClick={() => deleteGuest(guest)}
@@ -1457,6 +1486,27 @@ const GuestList = () => {
                   <span className="text-gray-700">
                     {guest.bicycleDescription}
                   </span>
+                </div>
+              </div>
+            )}
+            {/* Linked Guests Manager - only show when linking is active */}
+            {linkingGuestId === guest.id && editingGuestId !== guest.id && (
+              <div className="mb-4">
+                <LinkedGuestsManager
+                  guest={guest}
+                  allGuests={guestsList}
+                  linkedGuests={getLinkedGuests(guest.id)}
+                  onLinkGuest={linkGuests}
+                  onUnlinkGuest={unlinkGuests}
+                  onAssignMeals={handleMealSelection}
+                />
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={() => setLinkingGuestId(null)}
+                    className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm font-medium transition-colors"
+                  >
+                    Done
+                  </button>
                 </div>
               </div>
             )}
@@ -1797,6 +1847,25 @@ const GuestList = () => {
                   );
                 })()}
               </div>
+
+              {/* Linked guests for quick meal assignment */}
+              {(() => {
+                const linkedGuestsForMeal = getLinkedGuests(guest.id);
+                if (linkedGuestsForMeal.length === 0) return null;
+                
+                return (
+                  <LinkedGuestsBadge
+                    linkedGuests={linkedGuestsForMeal}
+                    onSelectGuest={(linkedGuest) => {
+                      // Navigate to the linked guest
+                      haptics.buttonPress();
+                      setSearchTerm(linkedGuest.preferredName || linkedGuest.name);
+                      setExpandedGuest(linkedGuest.id);
+                      toast.success(`Switched to ${linkedGuest.preferredName || linkedGuest.name}`);
+                    }}
+                  />
+                );
+              })()}
 
               <div className="flex flex-wrap gap-2 items-center">
                 <button
@@ -2599,6 +2668,16 @@ const GuestList = () => {
                                     </span>
                                   ) : null;
                                 })()}
+                                {/* Linked guests badge */}
+                                {(() => {
+                                  const linkedCount = getLinkedGuests(guest.id).length;
+                                  return linkedCount > 0 ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
+                                      <Link2 size={10} />
+                                      {linkedCount}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {todayServices.length > 0 && (
                                   <>
                                     <div className="flex items-center gap-1">
@@ -2792,6 +2871,12 @@ const GuestList = () => {
                                   className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
                                 >
                                   Edit
+                                </button>
+                                <button
+                                  onClick={() => setLinkingGuestId(guest.id)}
+                                  className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation"
+                                >
+                                  Link
                                 </button>
                                 <button
                                   onClick={() => deleteGuest(guest)}
@@ -3143,6 +3228,27 @@ const GuestList = () => {
                               <p className="text-sm bg-white p-2 rounded border">
                                 {guest.notes}
                               </p>
+                            </div>
+                          )}
+                          {/* Linked Guests Manager - virtualized view */}
+                          {linkingGuestId === guest.id && editingGuestId !== guest.id && (
+                            <div className="mb-4">
+                              <LinkedGuestsManager
+                                guest={guest}
+                                allGuests={guestsList}
+                                linkedGuests={getLinkedGuests(guest.id)}
+                                onLinkGuest={linkGuests}
+                                onUnlinkGuest={unlinkGuests}
+                                onAssignMeals={handleMealSelection}
+                              />
+                              <div className="mt-3 flex justify-end">
+                                <button
+                                  onClick={() => setLinkingGuestId(null)}
+                                  className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm font-medium transition-colors"
+                                >
+                                  Done
+                                </button>
+                              </div>
                             </div>
                           )}
                           <div className="flex flex-wrap gap-2">

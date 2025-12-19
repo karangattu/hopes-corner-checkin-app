@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.0.4 · 2025-12-18
+
+### ✨ New Features
+
+- **Linked Guests**: Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.
+
 ## 0.0.3 · 2025-11-28
 
 ### ✨ New Features

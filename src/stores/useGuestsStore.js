@@ -13,7 +13,7 @@ import {
   computeIsGuestBanned,
   normalizeDateInputToISO,
 } from '../context/utils/normalizers';
-import { mapGuestRow } from '../context/utils/mappers';
+import { mapGuestRow, mapGuestProxyRow } from '../context/utils/mappers';
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
@@ -21,6 +21,7 @@ import {
 } from '../context/constants';
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
+const MAX_LINKED_GUESTS = 3;
 
 export const useGuestsStore = create(
   devtools(
@@ -28,6 +29,7 @@ export const useGuestsStore = create(
       immer((set, get) => ({
         // State
         guests: [],
+        guestProxies: [], // Linked guest relationships
 
         // Helper functions
         migrateGuestData: (guestList) => {
@@ -813,6 +815,236 @@ export const useGuestsStore = create(
         clearGuests: () => {
           set((state) => {
             state.guests = [];
+          });
+        },
+
+        // ============ Guest Proxy (Linked Guests) Functions ============
+
+        // Get all linked guests for a specific guest
+        getLinkedGuests: (guestId) => {
+          const { guests, guestProxies } = get();
+          if (!guestId) return [];
+          
+          // Find all proxy relationships where this guest is involved
+          const linkedGuestIds = new Set();
+          guestProxies.forEach((proxy) => {
+            if (proxy.guestId === guestId) {
+              linkedGuestIds.add(proxy.proxyId);
+            } else if (proxy.proxyId === guestId) {
+              linkedGuestIds.add(proxy.guestId);
+            }
+          });
+
+          // Return the actual guest objects
+          return guests.filter((g) => linkedGuestIds.has(g.id));
+        },
+
+        // Get count of linked guests for a specific guest
+        getLinkedGuestsCount: (guestId) => {
+          const { guestProxies } = get();
+          if (!guestId) return 0;
+          
+          const linkedGuestIds = new Set();
+          guestProxies.forEach((proxy) => {
+            if (proxy.guestId === guestId) {
+              linkedGuestIds.add(proxy.proxyId);
+            } else if (proxy.proxyId === guestId) {
+              linkedGuestIds.add(proxy.guestId);
+            }
+          });
+
+          return linkedGuestIds.size;
+        },
+
+        // Link two guests together
+        linkGuests: async (guestId, proxyId) => {
+          const { guests, guestProxies, getLinkedGuestsCount } = get();
+
+          if (!guestId || !proxyId) {
+            throw new Error('Both guest IDs are required');
+          }
+
+          if (guestId === proxyId) {
+            throw new Error('Cannot link a guest to themselves');
+          }
+
+          // Check if both guests exist
+          const guest1 = guests.find((g) => g.id === guestId);
+          const guest2 = guests.find((g) => g.id === proxyId);
+
+          if (!guest1 || !guest2) {
+            throw new Error('One or both guests not found');
+          }
+
+          // Check if already linked
+          const existingLink = guestProxies.find(
+            (p) =>
+              (p.guestId === guestId && p.proxyId === proxyId) ||
+              (p.guestId === proxyId && p.proxyId === guestId)
+          );
+
+          if (existingLink) {
+            throw new Error('These guests are already linked');
+          }
+
+          // Check if either guest has reached the limit
+          const guest1Count = getLinkedGuestsCount(guestId);
+          const guest2Count = getLinkedGuestsCount(proxyId);
+
+          if (guest1Count >= MAX_LINKED_GUESTS) {
+            throw new Error(`${guest1.preferredName || guest1.name} already has ${MAX_LINKED_GUESTS} linked accounts`);
+          }
+
+          if (guest2Count >= MAX_LINKED_GUESTS) {
+            throw new Error(`${guest2.preferredName || guest2.name} already has ${MAX_LINKED_GUESTS} linked accounts`);
+          }
+
+          if (isSupabaseEnabled() && supabase) {
+            try {
+              // Insert only one direction - the trigger in the database handles symmetry
+              const { data, error } = await supabase
+                .from('guest_proxies')
+                .insert({ guest_id: guestId, proxy_id: proxyId })
+                .select()
+                .single();
+
+              if (error) {
+                console.error('Failed to link guests in Supabase:', error);
+                throw new Error(error.message || 'Failed to link guests');
+              }
+
+              // The database trigger creates the symmetric link, so we add both
+              const mapped = mapGuestProxyRow(data);
+              set((state) => {
+                state.guestProxies.push(mapped);
+                // Add symmetric link to local state
+                state.guestProxies.push({
+                  id: `${mapped.id}-reverse`,
+                  guestId: proxyId,
+                  proxyId: guestId,
+                  createdAt: mapped.createdAt,
+                });
+              });
+
+              return mapped;
+            } catch (error) {
+              console.error('Failed to link guests:', error);
+              throw error;
+            }
+          }
+
+          // Fallback for local-only storage
+          const localId = `local-proxy-${Date.now()}`;
+          const newProxy = {
+            id: localId,
+            guestId,
+            proxyId,
+            createdAt: new Date().toISOString(),
+          };
+
+          set((state) => {
+            state.guestProxies.push(newProxy);
+            // Add symmetric link
+            state.guestProxies.push({
+              id: `${localId}-reverse`,
+              guestId: proxyId,
+              proxyId: guestId,
+              createdAt: newProxy.createdAt,
+            });
+          });
+
+          return newProxy;
+        },
+
+        // Unlink two guests
+        unlinkGuests: async (guestId, proxyId) => {
+          const { guestProxies } = get();
+
+          if (!guestId || !proxyId) {
+            throw new Error('Both guest IDs are required');
+          }
+
+          // Find the existing links (both directions)
+          const linksToRemove = guestProxies.filter(
+            (p) =>
+              (p.guestId === guestId && p.proxyId === proxyId) ||
+              (p.guestId === proxyId && p.proxyId === guestId)
+          );
+
+          if (linksToRemove.length === 0) {
+            throw new Error('These guests are not linked');
+          }
+
+          if (isSupabaseEnabled() && supabase) {
+            try {
+              // Delete only one direction - the trigger handles the symmetric delete
+              const { error } = await supabase
+                .from('guest_proxies')
+                .delete()
+                .eq('guest_id', guestId)
+                .eq('proxy_id', proxyId);
+
+              if (error) {
+                console.error('Failed to unlink guests in Supabase:', error);
+                throw new Error(error.message || 'Failed to unlink guests');
+              }
+
+              // Remove both directions from local state
+              set((state) => {
+                state.guestProxies = state.guestProxies.filter(
+                  (p) =>
+                    !(p.guestId === guestId && p.proxyId === proxyId) &&
+                    !(p.guestId === proxyId && p.proxyId === guestId)
+                );
+              });
+
+              return true;
+            } catch (error) {
+              console.error('Failed to unlink guests:', error);
+              throw error;
+            }
+          }
+
+          // Fallback for local-only storage
+          set((state) => {
+            state.guestProxies = state.guestProxies.filter(
+              (p) =>
+                !(p.guestId === guestId && p.proxyId === proxyId) &&
+                !(p.guestId === proxyId && p.proxyId === guestId)
+            );
+          });
+
+          return true;
+        },
+
+        // Load guest proxies from Supabase
+        loadGuestProxiesFromSupabase: async () => {
+          if (!isSupabaseEnabled() || !supabase) return;
+
+          try {
+            const { data, error } = await supabase
+              .from('guest_proxies')
+              .select('id, guest_id, proxy_id, created_at');
+
+            if (error) {
+              console.error('Failed to load guest proxies:', error);
+              return;
+            }
+
+            const mappedProxies = (data || []).map(mapGuestProxyRow);
+
+            set((state) => {
+              state.guestProxies = mappedProxies;
+            });
+          } catch (error) {
+            console.error('Failed to load guest proxies from Supabase:', error);
+          }
+        },
+
+        // Clear all guest proxies
+        clearGuestProxies: () => {
+          set((state) => {
+            state.guestProxies = [];
           });
         },
       })),

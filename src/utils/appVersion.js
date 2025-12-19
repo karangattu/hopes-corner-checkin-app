@@ -10,6 +10,17 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // Changelog entries - add new entries at the top
 export const CHANGELOG = [
   {
+    version: "0.0.4",
+    date: "December 18, 2025",
+    highlights: [
+      {
+        type: "feature",
+        title: "Linked Guests",
+        description: "Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.",
+      },
+    ],
+  },
+  {
     version: "0.0.3",
     date: "November 28, 2025",
     highlights: [
