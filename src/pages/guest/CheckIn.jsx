@@ -2,8 +2,33 @@ import React from "react";
 import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
+import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
+  const { setActiveTab } = useAppContext();
+
+  const handleShowerClick = () => {
+    setActiveTab("services");
+    // Scroll to the services tab
+    setTimeout(() => {
+      const servicesTab = document.querySelector('[aria-current="page"]');
+      if (servicesTab) {
+        servicesTab.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  const handleLaundryClick = () => {
+    setActiveTab("services");
+    // Scroll to the services tab
+    setTimeout(() => {
+      const servicesTab = document.querySelector('[aria-current="page"]');
+      if (servicesTab) {
+        servicesTab.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Hero Header */}
@@ -30,7 +55,7 @@ const CheckIn = () => {
       </div>
 
       {/* Service Status Overview - At-a-glance availability */}
-      <ServiceStatusOverview />
+      <ServiceStatusOverview onShowerClick={handleShowerClick} onLaundryClick={handleLaundryClick} />
 
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

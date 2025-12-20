@@ -1,19 +1,22 @@
 import React, { useMemo } from "react";
 import { ShowerHead, WashingMachine, Users, Clock, AlertCircle, CheckCircle } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 
 /**
  * ServiceStatusOverview - A compact at-a-glance view of today's shower and laundry capacity
  * Designed for check-in users to quickly see availability without searching for a guest
+ * Staff and admin users can click on cards to navigate to the Services tab
  */
-const ServiceStatusOverview = () => {
+const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
   const {
     showerRecords,
     laundryRecords,
     allShowerSlots,
     settings,
   } = useAppContext();
+  const { user } = useAuth();
 
   const todayString = todayPacificDateString();
 
@@ -122,6 +125,9 @@ const ServiceStatusOverview = () => {
     return `${available} open`;
   };
 
+  // Check if user can click cards (staff or admin)
+  const canClickCards = user?.role && ["staff", "admin"].includes(user.role);
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-gray-50 to-white px-4 py-3 border-b border-gray-100">
@@ -133,7 +139,20 @@ const ServiceStatusOverview = () => {
       
       <div className="p-4 grid grid-cols-2 gap-4">
         {/* Shower Status */}
-        <div className={`rounded-lg border p-3 ${getStatusColor(showerStats.isFull, showerStats.isNearlyFull)}`}>
+        <div 
+          onClick={canClickCards ? onShowerClick : undefined}
+          className={`rounded-lg border p-3 ${getStatusColor(showerStats.isFull, showerStats.isNearlyFull)} ${
+            canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
+          }`}
+          role={canClickCards ? "button" : undefined}
+          tabIndex={canClickCards ? 0 : undefined}
+          onKeyDown={canClickCards ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onShowerClick?.();
+            }
+          } : undefined}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <ShowerHead size={18} className="text-blue-600" />
@@ -176,7 +195,20 @@ const ServiceStatusOverview = () => {
         </div>
 
         {/* Laundry Status */}
-        <div className={`rounded-lg border p-3 ${getStatusColor(laundryStats.isFull, laundryStats.isNearlyFull)}`}>
+        <div 
+          onClick={canClickCards ? onLaundryClick : undefined}
+          className={`rounded-lg border p-3 ${getStatusColor(laundryStats.isFull, laundryStats.isNearlyFull)} ${
+            canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
+          }`}
+          role={canClickCards ? "button" : undefined}
+          tabIndex={canClickCards ? 0 : undefined}
+          onKeyDown={canClickCards ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onLaundryClick?.();
+            }
+          } : undefined}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <WashingMachine size={18} className="text-purple-600" />

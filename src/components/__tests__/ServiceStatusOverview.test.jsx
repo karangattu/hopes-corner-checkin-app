@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mock the date utilities
 vi.mock("../../utils/date", () => ({
@@ -22,8 +23,14 @@ let mockContext = {
   settings: { maxOnsiteLaundrySlots: 5 },
 };
 
+let mockUser = null;
+
 vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => mockContext,
+}));
+
+vi.mock("../../context/useAuth", () => ({
+  useAuth: () => ({ user: mockUser }),
 }));
 
 import ServiceStatusOverview from "../ServiceStatusOverview";
@@ -35,6 +42,7 @@ describe("ServiceStatusOverview", () => {
     mockContext.laundrySlots = [];
     mockContext.allShowerSlots = ["08:00", "08:30", "09:00", "09:30", "10:00"];
     mockContext.settings = { maxOnsiteLaundrySlots: 5 };
+    mockUser = null;
     vi.clearAllMocks();
   });
 
@@ -355,5 +363,138 @@ describe("ServiceStatusOverview", () => {
 
     // Should default to 5 slots
     expect(screen.getByText("0/5")).toBeInTheDocument();
+  });
+
+  describe("Clickability based on user role", () => {
+    it("shower card is not clickable for checkin users", () => {
+      mockUser = { role: "checkin", name: "John" };
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      // Find the shower card container (the one with the status color classes)
+      const cards = screen.getAllByRole("generic");
+      const showerCard = cards.find(el => el.querySelector('[class*="text-blue-600"]'));
+      expect(showerCard).not.toHaveClass("cursor-pointer");
+    });
+
+    it("laundry card is not clickable for checkin users", () => {
+      mockUser = { role: "checkin", name: "John" };
+      const onLaundryClick = vi.fn();
+
+      render(<ServiceStatusOverview onLaundryClick={onLaundryClick} />);
+
+      // Find the laundry card container
+      const cards = screen.getAllByRole("generic");
+      const laundryCard = cards.find(el => el.querySelector('[class*="text-purple-600"]'));
+      expect(laundryCard).not.toHaveClass("cursor-pointer");
+    });
+
+    it("shower card is clickable for staff users", async () => {
+      mockUser = { role: "staff", name: "Jane" };
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      // Find the button role for shower card
+      const buttons = screen.getAllByRole("button");
+      const showerButton = buttons.find(el => el.textContent.includes("Showers"));
+      expect(showerButton).toHaveClass("cursor-pointer");
+
+      await userEvent.click(showerButton);
+      expect(onShowerClick).toHaveBeenCalledOnce();
+    });
+
+    it("laundry card is clickable for staff users", async () => {
+      mockUser = { role: "staff", name: "Jane" };
+      const onLaundryClick = vi.fn();
+
+      render(<ServiceStatusOverview onLaundryClick={onLaundryClick} />);
+
+      // Find the button role for laundry card
+      const buttons = screen.getAllByRole("button");
+      const laundryButton = buttons.find(el => el.textContent.includes("Laundry"));
+      expect(laundryButton).toHaveClass("cursor-pointer");
+
+      await userEvent.click(laundryButton);
+      expect(onLaundryClick).toHaveBeenCalledOnce();
+    });
+
+    it("shower card is clickable for admin users", async () => {
+      mockUser = { role: "admin", name: "Admin User" };
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      // Find the button role for shower card
+      const buttons = screen.getAllByRole("button");
+      const showerButton = buttons.find(el => el.textContent.includes("Showers"));
+      expect(showerButton).toHaveClass("cursor-pointer");
+
+      await userEvent.click(showerButton);
+      expect(onShowerClick).toHaveBeenCalledOnce();
+    });
+
+    it("laundry card is clickable for admin users", async () => {
+      mockUser = { role: "admin", name: "Admin User" };
+      const onLaundryClick = vi.fn();
+
+      render(<ServiceStatusOverview onLaundryClick={onLaundryClick} />);
+
+      // Find the button role for laundry card
+      const buttons = screen.getAllByRole("button");
+      const laundryButton = buttons.find(el => el.textContent.includes("Laundry"));
+      expect(laundryButton).toHaveClass("cursor-pointer");
+
+      await userEvent.click(laundryButton);
+      expect(onLaundryClick).toHaveBeenCalledOnce();
+    });
+
+    it("shower card responds to Enter key for staff users", async () => {
+      mockUser = { role: "staff", name: "Jane" };
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      const buttons = screen.getAllByRole("button");
+      const showerButton = buttons.find(el => el.textContent.includes("Showers"));
+      fireEvent.keyDown(showerButton, { key: "Enter" });
+      expect(onShowerClick).toHaveBeenCalledOnce();
+    });
+
+    it("shower card responds to Space key for staff users", async () => {
+      mockUser = { role: "staff", name: "Jane" };
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      const buttons = screen.getAllByRole("button");
+      const showerButton = buttons.find(el => el.textContent.includes("Showers"));
+      fireEvent.keyDown(showerButton, { key: " " });
+      expect(onShowerClick).toHaveBeenCalledOnce();
+    });
+
+    it("laundry card responds to Enter key for admin users", async () => {
+      mockUser = { role: "admin", name: "Admin User" };
+      const onLaundryClick = vi.fn();
+
+      render(<ServiceStatusOverview onLaundryClick={onLaundryClick} />);
+
+      const buttons = screen.getAllByRole("button");
+      const laundryButton = buttons.find(el => el.textContent.includes("Laundry"));
+      fireEvent.keyDown(laundryButton, { key: "Enter" });
+      expect(onLaundryClick).toHaveBeenCalledOnce();
+    });
+
+    it("does not call callback if user is undefined", async () => {
+      mockUser = undefined;
+      const onShowerClick = vi.fn();
+
+      render(<ServiceStatusOverview onShowerClick={onShowerClick} />);
+
+      // When no user, cards should not be buttons
+      const buttons = screen.queryAllByRole("button");
+      expect(buttons.length).toBe(0);
+    });
   });
 });
