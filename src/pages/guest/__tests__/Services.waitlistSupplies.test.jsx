@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, beforeEach, afterEach, describe, it, expect } from "vitest";
 import Services from "../Services.jsx";
+import CompactShowerList from "../../../components/CompactShowerList";
 
 const fixedToday = "2025-10-24";
 
@@ -76,6 +77,24 @@ vi.mock("../../../components/Donations", () => ({
 vi.mock("../../../components/LaPlazaDonations", () => ({
   __esModule: true,
   default: () => <div data-testid="la-plaza-donations" />,
+}));
+
+vi.mock("../../../components/CompactShowerList", () => ({
+  __esModule: true,
+  default: vi.fn(() => null),
+}));
+
+vi.mock("../../../components/CompactLaundryList", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+vi.mock("../../../components/ShowerDetailModal", () => ({
+  __esModule: true,
+  default: ({ isOpen, children }) => {
+    if (!isOpen) return null;
+    return <div data-testid="shower-detail-modal">{children}</div>;
+  },
 }));
 
 vi.mock("react-hot-toast", () => ({
@@ -236,40 +255,58 @@ afterEach(() => {
 
 describe("Services - Waitlist Supplies", () => {
   it("shows waitlist section with supply buttons when there are waitlisted guests", async () => {
+    // Need to test via compact view now since detailed view toggle was removed
+    // Create a mock that renders CompactShowerList properly
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
-    // Expand the card to see essentials
+    // Wait for modal to show the detailed card with essentials section
     await waitFor(() => {
       expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
     });
     fireEvent.click(screen.getByTitle(/Essentials & Notes/i));
 
     await waitFor(() => {
-      // Verify we're in the waitlist tab by checking for supply buttons
+      // Verify we can see supply buttons in the modal
       expect(screen.getByRole("button", { name: /Give T-Shirt/i })).toBeInTheDocument();
     });
   });
 
   it("renders all 5 supply buttons for waitlisted guests (T-Shirt, Sleeping Bag, Backpack/Duffel Bag, Tent, Flip Flops)", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {
@@ -288,16 +325,24 @@ describe("Services - Waitlist Supplies", () => {
   });
 
   it("calls giveItem when clicking supply button for waitlisted guest", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     const { context } = renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {
@@ -317,16 +362,24 @@ describe("Services - Waitlist Supplies", () => {
   });
 
   it("calls giveItem for Tent supply on waitlisted guest", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     const { context } = renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {
@@ -346,16 +399,24 @@ describe("Services - Waitlist Supplies", () => {
   });
 
   it("calls giveItem for Flip Flops supply on waitlisted guest", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     const { context } = renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {
@@ -375,6 +436,14 @@ describe("Services - Waitlist Supplies", () => {
   });
 
   it("disables supply buttons when item cannot be given", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     const context = buildContext();
     // Make canGiveItem return false for tent and flip_flops
     context.canGiveItem = vi.fn((guestId, itemKey) => {
@@ -387,11 +456,11 @@ describe("Services - Waitlist Supplies", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {
@@ -406,7 +475,7 @@ describe("Services - Waitlist Supplies", () => {
     // Check that Tent and Flip Flops buttons are disabled
     const tentBtn = screen.getByRole("button", { name: /Give Tent/i });
     const flipFlopsBtn = screen.getByRole("button", { name: /Give Flip Flops/i });
-    
+
     expect(tentBtn).toBeDisabled();
     expect(flipFlopsBtn).toBeDisabled();
   });
@@ -424,7 +493,15 @@ describe("Services - Backpack/Duffel Bag naming", () => {
         time: "09:00",
       },
     ];
-    
+
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-1")}>
+          Alice - 9:00 AM
+        </button>
+      </div>
+    ));
+
     renderServices({
       showerRecords: bookedShowerRecords,
     });
@@ -432,11 +509,16 @@ describe("Services - Backpack/Duffel Bag naming", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Click on the booked shower to open modal
     await waitFor(() => {
-      expect(screen.getByText("Today's Showers")).toBeInTheDocument();
+      expect(screen.getByText(/Alice - 9:00 AM/i)).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByText(/Alice - 9:00 AM/i));
 
     // Expand the essentials section for the shower card
+    await waitFor(() => {
+      expect(screen.getByTitle(/Essentials & Notes/i)).toBeInTheDocument();
+    });
     const detailsBtn = screen.getByTitle(/Essentials & Notes/i);
     fireEvent.click(detailsBtn);
 
@@ -447,16 +529,24 @@ describe("Services - Backpack/Duffel Bag naming", () => {
   });
 
   it("shows Backpack/Duffel Bag button in waitlist section", async () => {
+    CompactShowerList.mockImplementation(({ onGuestClick }) => (
+      <div>
+        <button onClick={() => onGuestClick("guest-1", "shower-waitlist-1")}>
+          Alice
+        </button>
+      </div>
+    ));
+
     renderServices();
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click on the Waitlist tab to see waitlisted guests
+    // Click on the waitlisted guest to open modal
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Waitlist/i })).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /Waitlist/i }));
+    fireEvent.click(screen.getByText("Alice"));
 
     // Expand the card to see essentials
     await waitFor(() => {

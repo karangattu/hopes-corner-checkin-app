@@ -91,6 +91,7 @@ import OverviewSection from "./services/sections/OverviewSection";
 import TimelineSection from "./services/sections/TimelineSection";
 import CompactShowerList from "../../components/CompactShowerList";
 import CompactLaundryList from "../../components/CompactLaundryList";
+import ShowerDetailModal from "../../components/ShowerDetailModal";
 
 const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
@@ -168,6 +169,51 @@ const Services = () => {
   const { user } = useAuth();
   const quickActionRole = user?.role ?? "staff";
 
+  const todayLaundryWithGuests = getTodayLaundryWithGuests();
+
+  // Create set of guest IDs that have laundry today for filtering showers
+  const laundryGuestIdsSet = new Set(
+    (todayLaundryWithGuests || []).map((l) => l.guestId),
+  );
+
+  const parseTimeToMinutes = useCallback((t) => {
+    if (!t) return Number.POSITIVE_INFINITY;
+    const [h, m] = String(t).split(":");
+    const hh = parseInt(h, 10);
+    const mm = parseInt(m, 10);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return Number.POSITIVE_INFINITY;
+    return hh * 60 + mm;
+  }, []);
+
+  const getGuestNameDetails = useCallback(
+    (guestId) => {
+      const guest = guests.find((g) => g.id === guestId) || null;
+      const fallback = "Unknown Guest";
+      const legalName =
+        guest?.name ||
+        `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
+        fallback;
+      const preferredName = (guest?.preferredName || "").trim();
+      const hasPreferred =
+        Boolean(preferredName) &&
+        preferredName.toLowerCase() !== legalName.toLowerCase();
+      const primaryName = hasPreferred ? preferredName : legalName;
+      const displayName = hasPreferred
+        ? `${preferredName} (${legalName})`
+        : legalName;
+      return {
+        guest,
+        legalName,
+        preferredName,
+        hasPreferred,
+        primaryName,
+        displayName,
+        sortKey: legalName.toLowerCase(),
+      };
+    },
+    [guests],
+  );
+
   const [activeSection, setActiveSection] = useState("overview");
 
   // Report generation state - only compute expensive metrics when explicitly requested
@@ -183,8 +229,9 @@ const Services = () => {
   const [showCompletedTimeline, setShowCompletedTimeline] = useState(false);
 
   // View mode state for compact vs detailed views
-  const [showerViewMode, setShowerViewMode] = useState("detailed"); // "detailed" or "compact"
+  const [showerViewMode, setShowerViewMode] = useState("compact"); // "detailed" or "compact"
   const [showerTab, setShowerTab] = useState("active"); // "active", "completed", "waitlist"
+  const [selectedShowerRecord, setSelectedShowerRecord] = useState(null); // For modal detail view
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -384,6 +431,20 @@ const Services = () => {
     laundryViewMode,
   ]);
 
+  const parseLaundryStartToMinutes = useCallback(
+    (range) => {
+      if (!range) return Number.POSITIVE_INFINITY;
+      const [start] = String(range).split(" - ");
+      return parseTimeToMinutes(start);
+    },
+    [parseTimeToMinutes],
+  );
+
+  const getGuestName = useCallback(
+    (guestId) => getGuestNameDetails(guestId).displayName,
+    [getGuestNameDetails],
+  );
+
   const todayMetrics = getTodayMetrics();
 
   const todayShorthand = today;
@@ -425,26 +486,6 @@ const Services = () => {
     (r) => r.status !== "waitlisted",
   );
 
-  const todayLaundryWithGuests = getTodayLaundryWithGuests();
-
-  const parseTimeToMinutes = useCallback((t) => {
-    if (!t) return Number.POSITIVE_INFINITY;
-    const [h, m] = String(t).split(":");
-    const hh = parseInt(h, 10);
-    const mm = parseInt(m, 10);
-    if (Number.isNaN(hh) || Number.isNaN(mm)) return Number.POSITIVE_INFINITY;
-    return hh * 60 + mm;
-  }, []);
-
-  const parseLaundryStartToMinutes = useCallback(
-    (range) => {
-      if (!range) return Number.POSITIVE_INFINITY;
-      const [start] = String(range).split(" - ");
-      return parseTimeToMinutes(start);
-    },
-    [parseTimeToMinutes],
-  );
-
   const formatTimeLabel = useCallback((timeStr) => {
     if (!timeStr) return "";
     const [hoursStr, minutesStr] = String(timeStr).split(":");
@@ -479,40 +520,6 @@ const Services = () => {
     [formatTimeLabel],
   );
 
-  const getGuestNameDetails = useCallback(
-    (guestId) => {
-      const guest = guests.find((g) => g.id === guestId) || null;
-      const fallback = "Unknown Guest";
-      const legalName =
-        guest?.name ||
-        `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
-        fallback;
-      const preferredName = (guest?.preferredName || "").trim();
-      const hasPreferred =
-        Boolean(preferredName) &&
-        preferredName.toLowerCase() !== legalName.toLowerCase();
-      const primaryName = hasPreferred ? preferredName : legalName;
-      const displayName = hasPreferred
-        ? `${preferredName} (${legalName})`
-        : legalName;
-      return {
-        guest,
-        legalName,
-        preferredName,
-        hasPreferred,
-        primaryName,
-        displayName,
-        sortKey: legalName.toLowerCase(),
-      };
-    },
-    [guests],
-  );
-
-  const getGuestName = useCallback(
-    (guestId) => getGuestNameDetails(guestId).displayName,
-    [getGuestNameDetails],
-  );
-
   const getShowerStatusInfo = useCallback((status) => {
     switch (status) {
       case "done":
@@ -543,10 +550,10 @@ const Services = () => {
       default:
         return {
           label: "Scheduled",
-          icon: ShowerHead,
-          iconClass: "text-slate-500",
-          chipClass: "bg-slate-50 text-slate-700 border border-slate-200",
-          badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
+          icon: CalendarClock,
+          iconClass: "text-blue-500",
+          chipClass: "bg-blue-50 text-blue-700 border border-blue-200",
+          badgeClass: "bg-blue-100 text-blue-700 border border-blue-200",
         };
     }
   }, []);
@@ -639,9 +646,6 @@ const Services = () => {
     [LAUNDRY_STATUS],
   );
 
-  const laundryGuestIdsSet = new Set(
-    (todayLaundryWithGuests || []).map((l) => l.guestId),
-  );
   const filteredShowers = [...(todayBookedShowers || [])]
     .filter((r) => {
       if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
@@ -3492,35 +3496,36 @@ const Services = () => {
       );
     };
 
+    // Handler for when a guest is clicked in the compact list
+    const handleShowerGuestClick = (guestId, recordId) => {
+      const record = showerRecords.find(r => r.id === recordId);
+      if (record) {
+        setSelectedShowerRecord(record);
+      }
+    };
+
     // Compact view mode - return simplified list
     if (showerViewMode === "compact") {
       return (
         <div className="space-y-6">
-          {/* View Mode Toggle */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <ShowerHead className="text-blue-600" size={20} />
-              <span>Today's Showers</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">View:</span>
-              <button
-                type="button"
-                onClick={() => setShowerViewMode("detailed")}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
-              >
-                Detailed
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowerViewMode("compact")}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white"
-              >
-                Compact
-              </button>
-            </div>
-          </div>
-          <CompactShowerList />
+          {/* Header */}
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <ShowerHead className="text-blue-600" size={20} />
+            <span>Today's Showers</span>
+          </h2>
+          <CompactShowerList onGuestClick={handleShowerGuestClick} />
+
+          {/* Modal for detailed view */}
+          {selectedShowerRecord && (
+            <ShowerDetailModal
+              isOpen={!!selectedShowerRecord}
+              onClose={() => setSelectedShowerRecord(null)}
+              showerRecord={selectedShowerRecord}
+              guest={guests.find(g => g.id === selectedShowerRecord.guestId)}
+            >
+              {renderShowerCard(selectedShowerRecord, {}, { section: "modal" })}
+            </ShowerDetailModal>
+          )}
         </div>
       );
     }

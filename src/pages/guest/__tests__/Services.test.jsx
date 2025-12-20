@@ -92,6 +92,21 @@ vi.mock("../../../components/LaPlazaDonations", () => ({
   default: () => <div data-testid="la-plaza-donations" />,
 }));
 
+vi.mock("../../../components/CompactShowerList", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+vi.mock("../../../components/CompactLaundryList", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+vi.mock("../../../components/ShowerDetailModal", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 vi.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {
@@ -376,7 +391,9 @@ describe("Services page", () => {
     expect(context.clearActionHistory).toHaveBeenCalledTimes(1);
   });
 
-  it("restores and persists shower filter selections", async () => {
+  // Skipped because detailed view with filters is no longer accessible from UI
+  // The compact view with modal is now the primary interface
+  it.skip("restores and persists shower filter selections", async () => {
     const savedFilters = {
       showerLaundryFilter: "with",
       showerSort: "name",
@@ -398,6 +415,7 @@ describe("Services page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
+    // Note: Detailed view toggle was removed, so this test no longer applies
     const laundrySelect = await screen.findByDisplayValue("With Laundry");
 
     // Verify initial restoration

@@ -6,8 +6,9 @@ import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 /**
  * CompactShowerList - A simplified read-only view of today's shower bookings
  * Shows guest name, time slot, and status in a compact format for quick reference
+ * @param {Function} onGuestClick - Callback when a guest row is clicked, receives (guestId, recordId)
  */
-const CompactShowerList = () => {
+const CompactShowerList = ({ onGuestClick }) => {
   const {
     showerRecords,
     guests,
@@ -37,10 +38,29 @@ const CompactShowerList = () => {
 
   // Group bookings by time slot and sort by creation time within each slot
   const showerData = useMemo(() => {
+    // Helper function to get guest name - matches the logic from Services.jsx
+    const getGuestDisplayName = (guestId) => {
+      const guest = guests?.find(g => g.id === guestId);
+      if (!guest) return "Unknown Guest";
+
+      const fallback = "Unknown Guest";
+      const legalName =
+        guest.name ||
+        `${guest.firstName || ""} ${guest.lastName || ""}`.trim() ||
+        fallback;
+      const preferredName = (guest.preferredName || "").trim();
+      const hasPreferred =
+        Boolean(preferredName) &&
+        preferredName.toLowerCase() !== legalName.toLowerCase();
+      const primaryName = hasPreferred ? preferredName : legalName;
+
+      return primaryName;
+    };
+
     const todaysRecords = (showerRecords || []).filter(
       (record) => pacificDateStringFrom(record.date) === todayString
     );
-    
+
     const booked = todaysRecords
       .filter(r => r.status !== "waitlisted")
       .sort((a, b) => {
@@ -53,11 +73,10 @@ const CompactShowerList = () => {
         return aTime - bTime;
       })
       .map(record => {
-        const guest = guests?.find(g => g.id === record.guestId);
         return {
           id: record.id,
           guestId: record.guestId,
-          name: guest?.name || guest?.preferredName || `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() || "Guest",
+          name: getGuestDisplayName(record.guestId),
           time: record.time,
           timeLabel: formatTimeLabel(record.time),
           status: record.status,
@@ -73,18 +92,17 @@ const CompactShowerList = () => {
         return aTime - bTime;
       })
       .map((record, index) => {
-        const guest = guests?.find(g => g.id === record.guestId);
         return {
           id: record.id,
           guestId: record.guestId,
-          name: guest?.name || guest?.preferredName || `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() || "Guest",
+          name: getGuestDisplayName(record.guestId),
           position: index + 1,
           createdAt: record.createdAt,
         };
       });
 
     const totalCapacity = (allShowerSlots?.length || 0) * 2;
-    
+
     return { booked, waitlisted, totalCapacity };
   }, [showerRecords, guests, allShowerSlots, todayString]);
 
@@ -152,9 +170,10 @@ const CompactShowerList = () => {
       {/* Compact List */}
       <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
         {showerData.booked.map((booking) => (
-          <div 
+          <div
             key={booking.id}
-            className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 ${
+            onClick={() => onGuestClick?.(booking.guestId, booking.id)}
+            className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors ${
               booking.status === "done" ? "bg-emerald-50/50" : ""
             }`}
           >
@@ -189,9 +208,10 @@ const CompactShowerList = () => {
           {showWaitlist && (
             <div className="divide-y divide-amber-200/50">
               {showerData.waitlisted.map((guest) => (
-                <div 
+                <div
                   key={guest.id}
-                  className="px-4 py-2 flex items-center gap-3"
+                  onClick={() => onGuestClick?.(guest.guestId, guest.id)}
+                  className="px-4 py-2 flex items-center gap-3 hover:bg-amber-100 cursor-pointer transition-colors"
                 >
                   <span className="text-xs font-bold text-amber-600 w-6">
                     #{guest.position}

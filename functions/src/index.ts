@@ -93,6 +93,7 @@ export const supabaseProxy = onCall(
         const allowedFunctions = [
           "guest_needs_waiver_reminder",
           "dismiss_waiver",
+          "has_active_waiver",
           "reset_waivers_for_new_year",
         ];
 
