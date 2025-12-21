@@ -159,12 +159,6 @@ const MainLayout = ({ children }) => {
         <div className="max-w-7xl mx-auto space-y-4">
           <SyncStatus />
           {children}
-          
-          {/* Data sync notice */}
-          <p className="text-xs text-gray-400 text-center mt-4">
-            Data syncs automatically with Supabase. If multiple users are using the app,
-            reload the page to see the latest changes from other sessions.
-          </p>
         </div>
       </main>
 
