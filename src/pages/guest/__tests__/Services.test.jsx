@@ -327,15 +327,30 @@ const buildContext = (overrides = {}) => {
     moveBicycleRecord: vi.fn(),
     settings: {},
     BICYCLE_REPAIR_STATUS: {},
+    activeServiceSection: "overview",
+    setActiveServiceSection: vi.fn(),
   };
 
   return { ...context, ...rest };
 };
 
 const renderServices = (overrides = {}) => {
-  const context = buildContext(overrides);
-  useAppContextMock.mockReturnValue(context);
-  return { context, ...render(<Services />) };
+  let capturedContext;
+  useAppContextMock.mockImplementation(() => {
+    const [activeSection, setActiveSection] = React.useState(
+      overrides.activeServiceSection || "overview",
+    );
+
+    capturedContext = buildContext({
+      ...overrides,
+      activeServiceSection: activeSection,
+      setActiveServiceSection: setActiveSection,
+    });
+    return capturedContext;
+  });
+
+  const result = render(<Services />);
+  return { ...result, context: capturedContext };
 };
 
 beforeEach(() => {
@@ -378,7 +393,13 @@ describe("Services page", () => {
   });
 
   it("invokes clear history from the undo panel", async () => {
-    const { context } = renderServices();
+    const clearActionHistory = vi.fn();
+    renderServices({
+      actionHistory: [
+        { id: 1, type: "test", timestamp: `${fixedToday}T12:00:00Z` },
+      ],
+      clearActionHistory,
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Undo Actions/i }));
 
@@ -388,7 +409,7 @@ describe("Services page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Clear All/i }));
 
-    expect(context.clearActionHistory).toHaveBeenCalledTimes(1);
+    expect(clearActionHistory).toHaveBeenCalledTimes(1);
   });
 
   // Skipped because detailed view with filters is no longer accessible from UI
@@ -465,6 +486,12 @@ describe("Services page", () => {
     // Wait for the export section heading to appear
     await screen.findByText(/Data exports & backups/i);
 
+    // Clear the dates to test disabled state
+    const startDateInput = screen.getByLabelText(/Start date/i);
+    const endDateInput = screen.getByLabelText(/End date/i);
+    fireEvent.change(startDateInput, { target: { value: "" } });
+    fireEvent.change(endDateInput, { target: { value: "" } });
+
     // The Download CSV button should be disabled when no dates are selected
     const downloadButton = screen.getByRole("button", {
       name: /Download CSV/i,
@@ -524,5 +551,101 @@ describe("Services page", () => {
     await waitFor(() => {
       expect(window.URL.createObjectURL).toHaveBeenCalled();
     });
+  });
+
+  it("end service day > cancels all active bookings", async () => {
+    const cancelMultipleShowers = vi.fn();
+    const cancelMultipleLaundry = vi.fn();
+    
+    renderServices({
+      cancelMultipleShowers,
+      cancelMultipleLaundry,
+      showerRecords: [
+        { id: "s1", guestId: "g1", date: `${fixedToday}T12:00:00Z`, status: "booked", time: "08:00" }
+      ],
+      laundryRecords: [
+        { id: "l1", guestId: "g1", date: `${fixedToday}T12:00:00Z`, status: "waiting", laundryType: "onsite" }
+      ]
+    });
+
+    // Navigate to Showers section
+    fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+    // Click End Service Day in Showers
+    const endDayBtn = await screen.findByRole("button", {
+      name: /End Service Day/i,
+    });
+    
+    // Mock window.confirm
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    
+    fireEvent.click(endDayBtn);
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(cancelMultipleShowers).toHaveBeenCalledWith(["s1"]);
+    
+    confirmSpy.mockRestore();
+  });
+
+  it("end service day > cancels awaiting showers as well", async () => {
+    const cancelMultipleShowers = vi.fn();
+    
+    renderServices({
+      cancelMultipleShowers,
+      showerRecords: [
+        { id: "s1", guestId: "g1", date: `${fixedToday}T12:00:00Z`, status: "awaiting", time: "08:00" }
+      ]
+    });
+
+    // Navigate to Export section where the End Service Day buttons are
+    fireEvent.click(screen.getByRole("button", { name: /Data export/i }));
+
+    const endDayBtn = await screen.findByRole("button", {
+      name: /End Shower Day/i,
+    });
+    
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    
+    fireEvent.click(endDayBtn);
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(cancelMultipleShowers).toHaveBeenCalledWith(["s1"]);
+    
+    confirmSpy.mockRestore();
+  });
+
+  it("allows staff users to end service day", async () => {
+    const cancelMultipleShowers = vi.fn();
+    
+    // Mock useAuth to return a staff user
+    vi.mock("../../../context/useAuth", () => ({
+      useAuth: () => ({ user: { role: "staff" } }),
+    }));
+
+    renderServices({
+      cancelMultipleShowers,
+      showerRecords: [
+        { id: "s1", guestId: "g1", date: `${fixedToday}T12:00:00Z`, status: "booked", time: "08:00" }
+      ]
+    });
+
+    // Navigate to Showers section
+    fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+    // Verify End Service Day button is visible for staff
+    const endDayBtn = await screen.findByRole("button", {
+      name: /End Service Day/i,
+    });
+    expect(endDayBtn).toBeInTheDocument();
+    
+    // Mock window.confirm
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    
+    fireEvent.click(endDayBtn);
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(cancelMultipleShowers).toHaveBeenCalledWith(["s1"]);
+    
+    confirmSpy.mockRestore();
   });
 });

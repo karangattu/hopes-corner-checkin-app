@@ -5,9 +5,10 @@ import ServiceStatusOverview from "../../components/ServiceStatusOverview";
 import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
-  const { setActiveTab } = useAppContext();
+  const { setActiveTab, setActiveServiceSection } = useAppContext();
 
   const handleShowerClick = () => {
+    setActiveServiceSection("showers");
     setActiveTab("services");
     // Scroll to the services tab
     setTimeout(() => {
@@ -19,6 +20,7 @@ const CheckIn = () => {
   };
 
   const handleLaundryClick = () => {
+    setActiveServiceSection("laundry");
     setActiveTab("services");
     // Scroll to the services tab
     setTimeout(() => {

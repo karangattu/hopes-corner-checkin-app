@@ -218,6 +218,11 @@ describe("CompactLaundryList", () => {
     render(<CompactLaundryList />);
 
     expect(screen.getByText("Dryer")).toBeInTheDocument();
+    
+    // Expand Done Laundry to see Done status
+    const doneButton = screen.getByText(/Done Laundry/);
+    fireEvent.click(doneButton);
+    
     expect(screen.getByText("Done")).toBeInTheDocument();
   });
 
@@ -235,6 +240,10 @@ describe("CompactLaundryList", () => {
     ];
 
     render(<CompactLaundryList />);
+
+    // Expand Done Laundry to see Picked Up status
+    const doneButton = screen.getByText(/Done Laundry/);
+    fireEvent.click(doneButton);
 
     expect(screen.getByText("Picked Up")).toBeInTheDocument();
     // Verify the "Picked Up" status is shown which indicates completion

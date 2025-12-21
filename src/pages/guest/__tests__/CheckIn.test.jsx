@@ -23,6 +23,7 @@ vi.mock("../../../components/ServiceStatusOverview", () => ({
 
 let mockContext = {
   setActiveTab: vi.fn(),
+  setActiveServiceSection: vi.fn(),
 };
 
 vi.mock("../../../context/useAppContext", () => ({
@@ -34,6 +35,7 @@ import CheckIn from "../CheckIn";
 describe("CheckIn", () => {
   beforeEach(() => {
     mockContext.setActiveTab = vi.fn();
+    mockContext.setActiveServiceSection = vi.fn();
     vi.clearAllMocks();
   });
 

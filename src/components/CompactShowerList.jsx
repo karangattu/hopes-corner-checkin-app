@@ -16,6 +16,7 @@ const CompactShowerList = ({ onGuestClick }) => {
   } = useAppContext();
 
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showDone, setShowDone] = useState(false);
   const todayString = todayPacificDateString();
 
   const formatTimeLabel = (timeStr) => {
@@ -84,6 +85,9 @@ const CompactShowerList = ({ onGuestClick }) => {
         };
       });
 
+    const active = booked.filter(b => b.status !== "done" && b.status !== "cancelled");
+    const done = booked.filter(b => b.status === "done");
+
     const waitlisted = todaysRecords
       .filter(r => r.status === "waitlisted")
       .sort((a, b) => {
@@ -103,7 +107,7 @@ const CompactShowerList = ({ onGuestClick }) => {
 
     const totalCapacity = (allShowerSlots?.length || 0) * 2;
 
-    return { booked, waitlisted, totalCapacity };
+    return { active, done, waitlisted, totalCapacity };
   }, [showerRecords, guests, allShowerSlots, todayString]);
 
   const getStatusBadge = (status) => {
@@ -132,7 +136,7 @@ const CompactShowerList = ({ onGuestClick }) => {
     }
   };
 
-  if (showerData.booked.length === 0 && showerData.waitlisted.length === 0) {
+  if (showerData.active.length === 0 && showerData.done.length === 0 && showerData.waitlisted.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -161,7 +165,7 @@ const CompactShowerList = ({ onGuestClick }) => {
               <Eye size={12} /> Quick View
             </span>
             <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-              {showerData.booked.length}/{showerData.totalCapacity}
+              {showerData.done.length}
             </span>
           </div>
         </div>
@@ -169,13 +173,17 @@ const CompactShowerList = ({ onGuestClick }) => {
 
       {/* Compact List */}
       <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-        {showerData.booked.map((booking) => (
+        {showerData.active.length === 0 && showerData.done.length > 0 && (
+          <div className="px-4 py-8 text-center">
+            <CheckCircle size={24} className="mx-auto text-emerald-400 mb-2" />
+            <p className="text-sm text-gray-500">All scheduled showers completed</p>
+          </div>
+        )}
+        {showerData.active.map((booking) => (
           <div
             key={booking.id}
             onClick={() => onGuestClick?.(booking.guestId, booking.id)}
-            className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors ${
-              booking.status === "done" ? "bg-emerald-50/50" : ""
-            }`}
+            className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
@@ -189,6 +197,45 @@ const CompactShowerList = ({ onGuestClick }) => {
           </div>
         ))}
       </div>
+
+      {/* Done Showers Section */}
+      {showerData.done.length > 0 && (
+        <div className="border-t border-emerald-200 bg-emerald-50">
+          <button
+            type="button"
+            onClick={() => setShowDone(!showDone)}
+            className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <CheckCircle size={14} />
+              Done Showers ({showerData.done.length})
+            </span>
+            {showDone ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          
+          {showDone && (
+            <div className="divide-y divide-emerald-200/50 bg-white">
+              {showerData.done.map((booking) => (
+                <div
+                  key={booking.id}
+                  onClick={() => onGuestClick?.(booking.guestId, booking.id)}
+                  className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-emerald-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
+                      {booking.timeLabel}
+                    </span>
+                    <span className="font-medium text-gray-700 text-sm truncate">
+                      {booking.name}
+                    </span>
+                  </div>
+                  {getStatusBadge(booking.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Waitlist Section */}
       {showerData.waitlisted.length > 0 && (

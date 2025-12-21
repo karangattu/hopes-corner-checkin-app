@@ -69,27 +69,40 @@ describe("CompactShowerList", () => {
     render(<CompactShowerList />);
 
     expect(screen.getByText("John Doe")).toBeInTheDocument();
+    
+    // Expand Done Showers to see Jane Smith
+    const doneButton = screen.getByText(/Done Showers/);
+    fireEvent.click(doneButton);
+    
     expect(screen.getByText("Jane Smith")).toBeInTheDocument();
     expect(screen.getByText("Booked")).toBeInTheDocument();
     expect(screen.getByText("Done")).toBeInTheDocument();
   });
 
-  it("shows capacity indicator correctly", () => {
+  it("shows completed count correctly", () => {
     mockContext.showerRecords = [
       {
         id: "shower-1",
         guestId: "guest-1",
         time: "08:00",
         date: "2025-01-15T08:00:00Z",
-        status: "booked",
+        status: "done",
         createdAt: "2025-01-15T07:00:00Z",
+      },
+      {
+        id: "shower-2",
+        guestId: "guest-2",
+        time: "08:30",
+        date: "2025-01-15T08:30:00Z",
+        status: "booked",
+        createdAt: "2025-01-15T07:05:00Z",
       },
     ];
 
     render(<CompactShowerList />);
 
-    // 5 slots * 2 capacity = 10 total, 1 booked
-    expect(screen.getByText("1/10")).toBeInTheDocument();
+    // Only 1 is done
+    expect(screen.getByText("1")).toBeInTheDocument();
   });
 
   it("sorts bookings by time slot, then by createdAt within same slot", () => {

@@ -247,18 +247,26 @@ export const createShowerMutations = ({
     const record = showerRecords.find((candidate) => candidate.id === recordId);
     if (!record) return false;
 
-    setShowerRecords((prev) => prev.filter((candidate) => candidate.id !== recordId));
+    // Instead of deleting, we mark as cancelled to prevent slot substitution
+    setShowerRecords((prev) =>
+      prev.map((candidate) =>
+        candidate.id === recordId ? { ...candidate, status: "cancelled" } : candidate
+      )
+    );
+    
     setShowerSlots((prev) =>
-      prev.filter(
-        (slot) => !(slot.guestId === record.guestId && slot.time === record.time),
-      ),
+      prev.map((slot) =>
+        slot.guestId === record.guestId && slot.time === record.time
+          ? { ...slot, status: "cancelled" }
+          : slot
+      )
     );
 
     if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
       try {
         const { error } = await supabaseClient
           .from("shower_reservations")
-          .delete()
+          .update({ status: "cancelled" })
           .eq("id", recordId);
         if (error) throw error;
       } catch (error) {
@@ -279,6 +287,60 @@ export const createShowerMutations = ({
         snapshot: { ...record },
       },
       description: `Cancelled shower at ${record.time}`,
+    });
+
+    return true;
+  };
+
+  const cancelMultipleShowers = async (recordIds) => {
+    if (!recordIds || recordIds.length === 0) return true;
+
+    const recordsToCancel = showerRecords.filter((r) => recordIds.includes(r.id));
+    if (recordsToCancel.length === 0) return true;
+
+    // Update local state
+    setShowerRecords((prev) =>
+      prev.map((candidate) =>
+        recordIds.includes(candidate.id)
+          ? { ...candidate, status: "cancelled" }
+          : candidate,
+      ),
+    );
+
+    setShowerSlots((prev) =>
+      prev.map((slot) => {
+        const matchingRecord = recordsToCancel.find(
+          (r) => r.guestId === slot.guestId && r.time === slot.time,
+        );
+        return matchingRecord ? { ...slot, status: "cancelled" } : slot;
+      }),
+    );
+
+    if (supabaseEnabled && supabaseClient) {
+      const nonLocalIds = recordIds.filter(
+        (id) => !String(id).startsWith("local-"),
+      );
+      if (nonLocalIds.length > 0) {
+        try {
+          const { error } = await supabaseClient
+            .from("shower_reservations")
+            .update({ status: "cancelled" })
+            .in("id", nonLocalIds);
+          if (error) throw error;
+        } catch (error) {
+          console.error("Failed to bulk cancel shower bookings:", error);
+          toast.error("Unable to cancel some shower bookings.");
+          return false;
+        }
+      }
+    }
+
+    pushAction({
+      id: Date.now() + Math.random(),
+      type: "SHOWER_BULK_CANCELLED",
+      timestamp: new Date().toISOString(),
+      data: { recordIds, count: recordIds.length },
+      description: `Bulk cancelled ${recordIds.length} showers`,
     });
 
     return true;
@@ -492,6 +554,7 @@ export const createShowerMutations = ({
     addShowerRecord,
     addShowerWaitlist,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     importShowerAttendanceRecord,

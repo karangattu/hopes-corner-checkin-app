@@ -120,6 +120,7 @@ export const AppProvider = ({ children }) => {
   const [laundrySlots, setLaundrySlots] = useState([]);
 
   const [activeTab, setActiveTab] = useState("check-in");
+  const [activeServiceSection, setActiveServiceSection] = useState("overview");
   const [showerPickerGuest, setShowerPickerGuest] = useState(null);
   const [laundryPickerGuest, setLaundryPickerGuest] = useState(null);
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
@@ -3035,6 +3036,7 @@ export const AppProvider = ({ children }) => {
     addShowerRecord,
     addShowerWaitlist,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     importShowerAttendanceRecord,
@@ -3061,6 +3063,7 @@ export const AppProvider = ({ children }) => {
       }),
     [
       supabaseEnabled,
+      supabase,
       mapShowerRow,
       ensureGuestServiceEligible,
       showerRecords,
@@ -3073,6 +3076,7 @@ export const AppProvider = ({ children }) => {
   const {
     addLaundryRecord,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     updateLaundryStatus,
     updateLaundryBagNumber,
@@ -3103,6 +3107,7 @@ export const AppProvider = ({ children }) => {
       }),
     [
       supabaseEnabled,
+      supabase,
       mapLaundryRow,
       laundryRecords,
       laundrySlots,
@@ -3203,7 +3208,9 @@ export const AppProvider = ({ children }) => {
       inRange(r.date),
     );
     const periodLunchBags = lunchBagRecords.filter((r) => inRange(r.date));
-    const periodShowers = showerRecords.filter((r) => inRange(r.date));
+    const periodShowers = showerRecords.filter(
+      (r) => inRange(r.date) && r.status === "done",
+    );
     const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
     const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
     const periodHolidays = holidayRecords.filter((r) => inRange(r.date));
@@ -3548,7 +3555,9 @@ export const AppProvider = ({ children }) => {
 
     // Process showers if included
     if (programs.includes("showers")) {
-      const periodShowers = showerRecords.filter((r) => inRange(r.date));
+      const periodShowers = showerRecords.filter(
+        (r) => inRange(r.date) && r.status === "done",
+      );
       periodShowers.forEach((record) => {
         const date = pacificDateStringFrom(record.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
@@ -5133,6 +5142,7 @@ export const AppProvider = ({ children }) => {
     dayWorkerMealRecords,
     lunchBagRecords,
     activeTab,
+    activeServiceSection,
     showerPickerGuest,
     laundryPickerGuest,
     bicyclePickerGuest,
@@ -5150,6 +5160,7 @@ export const AppProvider = ({ children }) => {
     allLaundrySlots,
 
     setActiveTab,
+    setActiveServiceSection,
     setShowerPickerGuest,
     setLaundryPickerGuest,
     setBicyclePickerGuest,
@@ -5210,9 +5221,11 @@ export const AppProvider = ({ children }) => {
     getLaPlazaDonationsForDate: (dateKey) => (laPlazaDonations || []).filter((r) => r.dateKey === dateKey),
     getTodayDonationsConsolidated,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     getTodayMetrics,
     getDateRangeMetrics,
@@ -5258,6 +5271,7 @@ export const AppProvider = ({ children }) => {
     dayWorkerMealRecords,
     lunchBagRecords,
     activeTab,
+    activeServiceSection,
     showerPickerGuest,
     laundryPickerGuest,
     bicyclePickerGuest,
@@ -5270,6 +5284,7 @@ export const AppProvider = ({ children }) => {
     allShowerSlots,
     allLaundrySlots,
     // Function dependencies (stable references from useCallback/useMemo)
+    setActiveServiceSection,
     updateSettings,
     addGuest,
     importGuestsFromCSV,
@@ -5319,9 +5334,11 @@ export const AppProvider = ({ children }) => {
     getRecentDonations,
     getTodayDonationsConsolidated,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     getTodayMetrics,
     getDateRangeMetrics,

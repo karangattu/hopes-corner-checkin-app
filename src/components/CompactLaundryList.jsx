@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
@@ -16,6 +16,7 @@ const CompactLaundryList = ({ viewDate = null }) => {
   } = useAppContext();
 
   const [showOffsite, setShowOffsite] = useState(false);
+  const [showDone, setShowDone] = useState(false);
   const todayString = todayPacificDateString();
   
   // Use provided viewDate or default to today
@@ -41,6 +42,15 @@ const CompactLaundryList = ({ viewDate = null }) => {
     const [h, m] = String(start).split(":");
     return parseInt(h, 10) * 60 + parseInt(m, 10);
   };
+
+  const isCompletedStatus = useCallback((status) => {
+    return [
+      LAUNDRY_STATUS?.DONE,
+      LAUNDRY_STATUS?.PICKED_UP,
+      LAUNDRY_STATUS?.RETURNED,
+      LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+    ].includes(status);
+  }, [LAUNDRY_STATUS]);
 
   // Group laundry records by type and status
   const laundryData = useMemo(() => {
@@ -72,6 +82,9 @@ const CompactLaundryList = ({ viewDate = null }) => {
         };
       });
 
+    const onsiteActive = onsite.filter(item => !isCompletedStatus(item.status) && item.status !== "cancelled");
+    const onsiteDone = onsite.filter(item => isCompletedStatus(item.status));
+
     const offsite = targetDayRecords
       .filter(r => r.laundryType === "offsite")
       .sort((a, b) => {
@@ -90,8 +103,11 @@ const CompactLaundryList = ({ viewDate = null }) => {
         };
       });
 
-    return { onsite, offsite, total: targetDayRecords.length };
-  }, [laundryRecords, guests, displayDate]);
+    const offsiteActive = offsite.filter(item => !isCompletedStatus(item.status) && item.status !== "cancelled");
+    const offsiteDone = offsite.filter(item => isCompletedStatus(item.status));
+
+    return { onsiteActive, onsiteDone, offsiteActive, offsiteDone, total: targetDayRecords.length };
+  }, [laundryRecords, guests, displayDate, isCompletedStatus]);
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -157,15 +173,6 @@ const CompactLaundryList = ({ viewDate = null }) => {
     );
   };
 
-  const isCompletedStatus = (status) => {
-    return [
-      LAUNDRY_STATUS?.DONE,
-      LAUNDRY_STATUS?.PICKED_UP,
-      LAUNDRY_STATUS?.RETURNED,
-      LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
-    ].includes(status);
-  };
-
   // Determine if viewing a past date
   const isViewingPastDate = displayDate !== todayString;
   const dateLabel = isViewingPastDate
@@ -222,14 +229,18 @@ const CompactLaundryList = ({ viewDate = null }) => {
       </div>
 
       {/* On-site List */}
-      {laundryData.onsite.length > 0 && (
+      {(laundryData.onsiteActive.length > 0 || laundryData.onsiteDone.length > 0) && (
         <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-          {laundryData.onsite.map((booking) => (
+          {laundryData.onsiteActive.length === 0 && laundryData.onsiteDone.length > 0 && (
+            <div className="px-4 py-8 text-center">
+              <CheckCircle size={24} className="mx-auto text-emerald-400 mb-2" />
+              <p className="text-sm text-gray-500">All on-site laundry completed</p>
+            </div>
+          )}
+          {laundryData.onsiteActive.map((booking) => (
             <div 
               key={booking.id}
-              className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 ${
-                isCompletedStatus(booking.status) ? "bg-emerald-50/50" : ""
-              }`}
+              className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
@@ -250,8 +261,51 @@ const CompactLaundryList = ({ viewDate = null }) => {
         </div>
       )}
 
+      {/* Done Laundry Section */}
+      {laundryData.onsiteDone.length > 0 && (
+        <div className="border-t border-emerald-200 bg-emerald-50">
+          <button
+            type="button"
+            onClick={() => setShowDone(!showDone)}
+            className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <CheckCircle size={14} />
+              Done Laundry ({laundryData.onsiteDone.length})
+            </span>
+            {showDone ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          
+          {showDone && (
+            <div className="divide-y divide-emerald-200/50 bg-white">
+              {laundryData.onsiteDone.map((booking) => (
+                <div 
+                  key={booking.id}
+                  className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-emerald-50"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
+                      {booking.timeLabel}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium text-gray-700 text-sm truncate block">
+                        {booking.name}
+                      </span>
+                      {booking.bagNumber && (
+                        <span className="text-xs text-emerald-600">Bag #{booking.bagNumber}</span>
+                      )}
+                    </div>
+                  </div>
+                  {getStatusBadge(booking.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Off-site Section */}
-      {laundryData.offsite.length > 0 && (
+      {(laundryData.offsiteActive.length > 0 || laundryData.offsiteDone.length > 0) && (
         <div className="border-t border-blue-200 bg-blue-50">
           <button
             type="button"
@@ -260,19 +314,17 @@ const CompactLaundryList = ({ viewDate = null }) => {
           >
             <span className="flex items-center gap-2">
               <Truck size={14} />
-              Off-site ({laundryData.offsite.length})
+              Off-site ({laundryData.offsiteActive.length + laundryData.offsiteDone.length})
             </span>
             {showOffsite ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
           
           {showOffsite && (
             <div className="divide-y divide-blue-200/50">
-              {laundryData.offsite.map((item) => (
+              {laundryData.offsiteActive.map((item) => (
                 <div 
                   key={item.id}
-                  className={`px-4 py-2.5 flex items-center justify-between gap-3 ${
-                    isCompletedStatus(item.status) ? "bg-emerald-50/30" : ""
-                  }`}
+                  className="px-4 py-2.5 flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0 flex-1">
                     <span className="font-medium text-blue-900 text-sm truncate block">
@@ -280,6 +332,22 @@ const CompactLaundryList = ({ viewDate = null }) => {
                     </span>
                     {item.bagNumber && (
                       <span className="text-xs text-blue-600">Bag #{item.bagNumber}</span>
+                    )}
+                  </div>
+                  {getStatusBadge(item.status)}
+                </div>
+              ))}
+              {laundryData.offsiteDone.map((item) => (
+                <div 
+                  key={item.id}
+                  className="px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-emerald-900 text-sm truncate block">
+                      {item.name}
+                    </span>
+                    {item.bagNumber && (
+                      <span className="text-xs text-emerald-600">Bag #{item.bagNumber}</span>
                     )}
                   </div>
                   {getStatusBadge(item.status)}

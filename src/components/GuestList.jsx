@@ -1293,9 +1293,9 @@ const GuestList = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0 ml-4">
-            {/* Quick Action Meal Buttons (Only shown when not expanded) */}
-            {expandedGuest !== guest.id && !isBanned && (
-              <div className="hidden md:flex items-center gap-2 p-1 bg-gray-50/50 rounded-xl border border-gray-100 shadow-inner">
+            {/* Quick Action Meal Buttons */}
+            {!isBanned && (
+              <div className="flex items-center gap-2 p-1 bg-gray-50/50 rounded-xl border border-gray-100 shadow-inner">
                 {[1, 2].map((count) => {
                   const today = todayPacificDateString();
                   const alreadyHasMeal = mealRecords.some(

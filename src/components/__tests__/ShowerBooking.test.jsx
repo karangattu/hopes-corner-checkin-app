@@ -93,6 +93,45 @@ describe("ShowerBooking", () => {
     expect(screen.getByText("1/2")).toBeInTheDocument();
   });
 
+  it("counts cancelled records towards slot capacity", () => {
+    mockContext.showerRecords = [
+      {
+        id: "rec1",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+    ];
+    render(<ShowerBooking />);
+
+    // Check if slot shows count (component renders like "1/2")
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+  });
+
+  it("marks slot as full if it has 2 cancelled records", () => {
+    mockContext.showerRecords = [
+      {
+        id: "rec1",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+      {
+        id: "rec2",
+        guestId: "3",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+    ];
+    render(<ShowerBooking />);
+
+    // Check if slot shows "2/2"
+    expect(screen.getByText("2/2")).toBeInTheDocument();
+  });
+
   it("allows booking a shower slot", async () => {
     render(<ShowerBooking />);
 

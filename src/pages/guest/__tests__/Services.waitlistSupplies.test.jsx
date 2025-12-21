@@ -231,15 +231,30 @@ const buildContext = (overrides = {}) => {
     moveBicycleRecord: vi.fn(),
     settings: {},
     BICYCLE_REPAIR_STATUS: {},
+    activeServiceSection: "overview",
+    setActiveServiceSection: vi.fn(),
   };
 
   return { ...context, ...rest };
 };
 
 const renderServices = (overrides = {}) => {
-  const context = buildContext(overrides);
-  useAppContextMock.mockReturnValue(context);
-  return { context, ...render(<Services />) };
+  let capturedContext;
+  useAppContextMock.mockImplementation(() => {
+    const [activeSection, setActiveSection] = React.useState(
+      overrides.activeServiceSection || "overview",
+    );
+
+    capturedContext = buildContext({
+      ...overrides,
+      activeServiceSection: activeSection,
+      setActiveServiceSection: setActiveSection,
+    });
+    return capturedContext;
+  });
+
+  const result = render(<Services />);
+  return { ...result, context: capturedContext };
 };
 
 beforeEach(() => {
@@ -333,7 +348,8 @@ describe("Services - Waitlist Supplies", () => {
       </div>
     ));
 
-    const { context } = renderServices();
+    const giveItem = vi.fn();
+    renderServices({ giveItem });
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
@@ -358,7 +374,7 @@ describe("Services - Waitlist Supplies", () => {
     const tshirtBtn = screen.getByRole("button", { name: /Give T-Shirt/i });
     fireEvent.click(tshirtBtn);
 
-    expect(context.giveItem).toHaveBeenCalledWith("guest-1", "tshirt");
+    expect(giveItem).toHaveBeenCalledWith("guest-1", "tshirt");
   });
 
   it("calls giveItem for Tent supply on waitlisted guest", async () => {
@@ -370,7 +386,8 @@ describe("Services - Waitlist Supplies", () => {
       </div>
     ));
 
-    const { context } = renderServices();
+    const giveItem = vi.fn();
+    renderServices({ giveItem });
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
@@ -395,7 +412,7 @@ describe("Services - Waitlist Supplies", () => {
     const tentBtn = screen.getByRole("button", { name: /Give Tent/i });
     fireEvent.click(tentBtn);
 
-    expect(context.giveItem).toHaveBeenCalledWith("guest-1", "tent");
+    expect(giveItem).toHaveBeenCalledWith("guest-1", "tent");
   });
 
   it("calls giveItem for Flip Flops supply on waitlisted guest", async () => {
@@ -407,7 +424,8 @@ describe("Services - Waitlist Supplies", () => {
       </div>
     ));
 
-    const { context } = renderServices();
+    const giveItem = vi.fn();
+    renderServices({ giveItem });
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
@@ -432,7 +450,7 @@ describe("Services - Waitlist Supplies", () => {
     const flipFlopsBtn = screen.getByRole("button", { name: /Give Flip Flops/i });
     fireEvent.click(flipFlopsBtn);
 
-    expect(context.giveItem).toHaveBeenCalledWith("guest-1", "flip_flops");
+    expect(giveItem).toHaveBeenCalledWith("guest-1", "flip_flops");
   });
 
   it("disables supply buttons when item cannot be given", async () => {
@@ -444,14 +462,12 @@ describe("Services - Waitlist Supplies", () => {
       </div>
     ));
 
-    const context = buildContext();
-    // Make canGiveItem return false for tent and flip_flops
-    context.canGiveItem = vi.fn((guestId, itemKey) => {
-      if (itemKey === "tent" || itemKey === "flip_flops") return false;
-      return true;
+    renderServices({
+      canGiveItem: vi.fn((guestId, itemKey) => {
+        if (itemKey === "tent" || itemKey === "flip_flops") return false;
+        return true;
+      }),
     });
-    useAppContextMock.mockReturnValue(context);
-    render(<Services />);
 
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));

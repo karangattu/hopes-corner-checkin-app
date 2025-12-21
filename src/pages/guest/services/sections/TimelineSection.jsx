@@ -10,6 +10,7 @@ import {
   Utensils,
   WashingMachine,
   X,
+  XCircle,
 } from "lucide-react";
 import { animated as Animated, useFadeInUp, useStagger } from "../../../../utils/animations";
 
@@ -29,6 +30,9 @@ const TimelineSection = ({
   handleBagNumberEdit,
   editingBagNumber,
   newBagNumber,
+  isAdmin = false,
+  onEndShowerDay,
+  onEndLaundryDay,
 }) => {
   const totalEvents = timelineEvents.length;
   const showerEvents = timelineEvents.filter((event) => event.type === "shower");
@@ -112,6 +116,34 @@ const TimelineSection = ({
           </button>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-red-800 mb-3 flex items-center gap-2">
+            <XCircle size={18} className="text-red-600" />
+            End Service Day (Bulk Cancellation)
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onEndShowerDay}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <ShowerHead size={18} />
+              End Shower Day
+            </button>
+            <button
+              onClick={onEndLaundryDay}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors"
+            >
+              <WashingMachine size={18} />
+              End Laundry Day
+            </button>
+          </div>
+          <p className="text-[11px] text-red-600 mt-2">
+            * These buttons will cancel all remaining booked/waiting showers or waiting laundry for today.
+          </p>
+        </div>
+      )}
 
       <Animated.div
         style={timelineHeaderSpring}

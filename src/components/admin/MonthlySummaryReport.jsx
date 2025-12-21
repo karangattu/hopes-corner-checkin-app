@@ -751,7 +751,7 @@ const MonthlySummaryReport = () => {
           return acc;
         }
         const status = (record.status || "").toString().toLowerCase();
-        if (status && status !== "done") return acc;
+        if (status !== "done") return acc;
         acc.push({
           guestId: record.guestId != null ? String(record.guestId) : null,
           date,

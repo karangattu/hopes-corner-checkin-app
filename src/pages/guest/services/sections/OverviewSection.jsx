@@ -34,6 +34,9 @@ const OverviewSection = ({
   isGeneratingReports = false,
   onGenerateReports,
   onRefreshReports,
+  onEndShowerDay,
+  onEndLaundryDay,
+  isAdmin = false,
 }) => {
   const headerSpring = useFadeInUp();
   const overviewSummarySpring = useFadeInUp();
@@ -263,6 +266,12 @@ const OverviewSection = ({
       Icon: ShowerHead,
       accent: "bg-sky-50 border border-sky-100 text-sky-700",
       onClick: () => setActiveSection("showers"),
+      actions: isAdmin ? [
+        {
+          label: "End Service Day",
+          handler: onEndShowerDay,
+        }
+      ] : null,
     },
     {
       id: "link-laundry",
@@ -271,6 +280,12 @@ const OverviewSection = ({
       Icon: WashingMachine,
       accent: "bg-purple-50 border border-purple-100 text-purple-700",
       onClick: () => setActiveSection("laundry"),
+      actions: isAdmin ? [
+        {
+          label: "End Service Day",
+          handler: onEndLaundryDay,
+        }
+      ] : null,
     },
     {
       id: "link-meals",

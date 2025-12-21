@@ -195,12 +195,20 @@ export const createLaundryMutations = ({
     const record = laundryRecords.find((candidate) => candidate.id === recordId);
     if (!record) return false;
 
-    setLaundryRecords((prev) => prev.filter((candidate) => candidate.id !== recordId));
+    // Instead of deleting, we mark as cancelled to prevent slot substitution
+    setLaundryRecords((prev) =>
+      prev.map((candidate) =>
+        candidate.id === recordId ? { ...candidate, status: "cancelled" } : candidate
+      )
+    );
+
     if (record.laundryType === "onsite") {
       setLaundrySlots((prev) =>
-        prev.filter(
-          (slot) => !(slot.guestId === record.guestId && slot.time === record.time),
-        ),
+        prev.map((slot) =>
+          slot.guestId === record.guestId && slot.time === record.time
+            ? { ...slot, status: "cancelled" }
+            : slot
+        )
       );
     }
 
@@ -208,7 +216,7 @@ export const createLaundryMutations = ({
       try {
         const { error } = await supabaseClient
           .from("laundry_bookings")
-          .delete()
+          .update({ status: "cancelled" })
           .eq("id", recordId);
         if (error) throw error;
       } catch (error) {
@@ -232,6 +240,63 @@ export const createLaundryMutations = ({
       description: `Cancelled ${record.laundryType} laundry${
         record.time ? ` at ${record.time}` : ""
       }`,
+    });
+
+    return true;
+  };
+
+  const cancelMultipleLaundry = async (recordIds) => {
+    if (!recordIds || recordIds.length === 0) return true;
+
+    const recordsToCancel = laundryRecords.filter((r) => recordIds.includes(r.id));
+    if (recordsToCancel.length === 0) return true;
+
+    // Update local state
+    setLaundryRecords((prev) =>
+      prev.map((candidate) =>
+        recordIds.includes(candidate.id)
+          ? { ...candidate, status: "cancelled" }
+          : candidate,
+      ),
+    );
+
+    setLaundrySlots((prev) =>
+      prev.map((slot) => {
+        const matchingRecord = recordsToCancel.find(
+          (r) =>
+            r.guestId === slot.guestId &&
+            r.time === slot.time &&
+            r.laundryType === "onsite",
+        );
+        return matchingRecord ? { ...slot, status: "cancelled" } : slot;
+      }),
+    );
+
+    if (supabaseEnabled && supabaseClient) {
+      const nonLocalIds = recordIds.filter(
+        (id) => !String(id).startsWith("local-"),
+      );
+      if (nonLocalIds.length > 0) {
+        try {
+          const { error } = await supabaseClient
+            .from("laundry_bookings")
+            .update({ status: "cancelled" })
+            .in("id", nonLocalIds);
+          if (error) throw error;
+        } catch (error) {
+          console.error("Failed to bulk cancel laundry bookings:", error);
+          toast.error("Unable to cancel some laundry bookings.");
+          return false;
+        }
+      }
+    }
+
+    pushAction({
+      id: Date.now() + Math.random(),
+      type: "LAUNDRY_BULK_CANCELLED",
+      timestamp: new Date().toISOString(),
+      data: { recordIds, count: recordIds.length },
+      description: `Bulk cancelled ${recordIds.length} laundry loads`,
     });
 
     return true;
@@ -561,6 +626,7 @@ export const createLaundryMutations = ({
   return {
     addLaundryRecord,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     updateLaundryStatus,
     updateLaundryBagNumber,

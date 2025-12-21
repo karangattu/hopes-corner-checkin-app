@@ -107,43 +107,18 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
     };
   }, [laundryRecords, settings, todayString]);
 
-  const getStatusColor = (isFull, isNearlyFull) => {
-    if (isFull) return "text-red-600 bg-red-50 border-red-200";
-    if (isNearlyFull) return "text-amber-600 bg-amber-50 border-amber-200";
-    return "text-emerald-600 bg-emerald-50 border-emerald-200";
-  };
-
-  const getStatusIcon = (isFull, isNearlyFull) => {
-    if (isFull) return <AlertCircle size={14} className="text-red-500" />;
-    if (isNearlyFull) return <Clock size={14} className="text-amber-500" />;
-    return <CheckCircle size={14} className="text-emerald-500" />;
-  };
-
-  const getStatusText = (available, isFull, isNearlyFull) => {
-    if (isFull) return "Full";
-    if (isNearlyFull) return `${available} left`;
-    return `${available} open`;
-  };
-
   // Check if user can click cards (staff or admin)
   const canClickCards = user?.role && ["staff", "admin"].includes(user.role);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-white px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-          <Users size={16} className="text-gray-500" />
-          Today's Service Availability
-        </h3>
-      </div>
-      
       <div className="p-4 grid grid-cols-2 gap-4">
         {/* Shower Status */}
         <div 
           onClick={canClickCards ? onShowerClick : undefined}
-          className={`rounded-lg border p-3 ${getStatusColor(showerStats.isFull, showerStats.isNearlyFull)} ${
+          className={`rounded-xl border p-4 ${
             canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
-          }`}
+          } ${showerStats.isFull ? "bg-red-50/30 border-red-100" : "bg-blue-50/30 border-blue-100"}`}
           role={canClickCards ? "button" : undefined}
           tabIndex={canClickCards ? 0 : undefined}
           onKeyDown={canClickCards ? (e) => {
@@ -153,53 +128,38 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
             }
           } : undefined}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <ShowerHead size={18} className="text-blue-600" />
-              <span className="font-semibold text-gray-900 text-sm">Showers</span>
+              <div className={`p-1.5 rounded-lg ${showerStats.isFull ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
+                <ShowerHead size={18} />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">Showers</span>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium">
-              {getStatusIcon(showerStats.isFull, showerStats.isNearlyFull)}
-              <span>{getStatusText(showerStats.available, showerStats.isFull, showerStats.isNearlyFull)}</span>
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              showerStats.isFull ? "bg-red-100 text-red-700 border-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+            }`}>
+              {showerStats.isFull ? "FULL" : "OPEN"}
             </div>
           </div>
           
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Capacity</span>
-              <span className="font-medium text-gray-900">
-                {showerStats.booked}/{showerStats.totalCapacity}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  showerStats.isFull ? "bg-red-500" : 
-                  showerStats.isNearlyFull ? "bg-amber-500" : "bg-blue-500"
-                }`}
-                style={{ width: `${Math.min((showerStats.booked / showerStats.totalCapacity) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-gray-500">
-              <span>Slots open: {showerStats.availableSlots}</span>
-              {showerStats.waitlisted > 0 && (
-                <span className="text-amber-600">Waitlist: {showerStats.waitlisted}</span>
-              )}
-            </div>
-            {showerStats.completed > 0 && (
-              <div className="text-emerald-600">
-                ✓ {showerStats.completed} done
-              </div>
-            )}
+          <div className="bg-white/60 rounded-lg p-2.5 border border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+              {showerStats.available > 0 ? "Available" : "Waitlist"}
+            </span>
+            <span className={`text-lg font-black ${
+              showerStats.available > 0 ? "text-blue-600" : "text-amber-600"
+            }`}>
+              {showerStats.available > 0 ? showerStats.available : showerStats.waitlisted}
+            </span>
           </div>
         </div>
 
         {/* Laundry Status */}
         <div 
           onClick={canClickCards ? onLaundryClick : undefined}
-          className={`rounded-lg border p-3 ${getStatusColor(laundryStats.isFull, laundryStats.isNearlyFull)} ${
+          className={`rounded-xl border p-3 ${
             canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
-          }`}
+          } ${laundryStats.isFull ? "bg-red-50/30 border-red-100" : "bg-purple-50/30 border-purple-100"}`}
           role={canClickCards ? "button" : undefined}
           tabIndex={canClickCards ? 0 : undefined}
           onKeyDown={canClickCards ? (e) => {
@@ -209,44 +169,25 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
             }
           } : undefined}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <WashingMachine size={18} className="text-purple-600" />
-              <span className="font-semibold text-gray-900 text-sm">Laundry</span>
+              <div className={`p-1.5 rounded-lg ${laundryStats.isFull ? "bg-red-100 text-red-600" : "bg-purple-100 text-purple-600"}`}>
+                <WashingMachine size={18} />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">Laundry</span>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium">
-              {getStatusIcon(laundryStats.isFull, laundryStats.isNearlyFull)}
-              <span>{getStatusText(laundryStats.onsiteAvailable, laundryStats.isFull, laundryStats.isNearlyFull)}</span>
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              laundryStats.isFull ? "bg-red-100 text-red-700 border-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+            }`}>
+              {laundryStats.isFull ? "FULL" : "OPEN"}
             </div>
           </div>
           
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-600">On-site slots</span>
-              <span className="font-medium text-gray-900">
-                {laundryStats.onsiteBooked}/{laundryStats.totalCapacity}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  laundryStats.isFull ? "bg-red-500" : 
-                  laundryStats.isNearlyFull ? "bg-amber-500" : "bg-purple-500"
-                }`}
-                style={{ width: `${Math.min((laundryStats.onsiteBooked / laundryStats.totalCapacity) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-gray-500">
-              <span>In progress: {laundryStats.inProgress}</span>
-              {laundryStats.offsiteCount > 0 && (
-                <span className="text-blue-600">Off-site: {laundryStats.offsiteCount}</span>
-              )}
-            </div>
-            {laundryStats.completed > 0 && (
-              <div className="text-emerald-600">
-                ✓ {laundryStats.completed} done
-              </div>
-            )}
+          <div className="bg-white/60 rounded-lg p-2.5 border border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Available</span>
+            <span className={`text-lg font-black ${laundryStats.onsiteAvailable > 0 ? "text-purple-600" : "text-gray-400"}`}>
+              {laundryStats.onsiteAvailable}
+            </span>
           </div>
         </div>
       </div>

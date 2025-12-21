@@ -19,6 +19,7 @@ export const LAUNDRY_STATUS = {
   TRANSPORTED: "transported",
   RETURNED: "returned",
   OFFSITE_PICKED_UP: "offsite_picked_up",
+  CANCELLED: "cancelled",
 };
 
 export const DONATION_TYPES = [
