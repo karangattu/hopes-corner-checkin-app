@@ -60,6 +60,7 @@ import Selectize from "../../components/Selectize";
 import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
 import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
+import OrphanedLaundryTracker from "../../components/OrphanedLaundryTracker";
 import { WaiverBadge } from "../../components/ui/WaiverBadge";
 import Donations from "../../components/Donations";
 import LaPlazaDonations from "../../components/LaPlazaDonations";
@@ -117,8 +118,6 @@ const Services = () => {
   const {
     getTodayMetrics,
     getTodayLaundryWithGuests,
-    getPreviousServiceDay,
-    getLaundryForDateWithGuests,
     mealRecords,
     rvMealRecords,
     addRvMealRecord,
@@ -396,14 +395,6 @@ const Services = () => {
   
   // Laundry time-travel feature: allow staff to view and manage laundry from past dates
   const [laundryViewDate, setLaundryViewDate] = useState(today);
-
-  // Calculate previous service day laundry data
-  const previousServiceDay = getPreviousServiceDay();
-  const previousServiceDayLaundry = useMemo(() => {
-    return getLaundryForDateWithGuests(previousServiceDay).filter(
-      (r) => r.laundryType === "offsite" && r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP
-    );
-  }, [previousServiceDay, getLaundryForDateWithGuests, LAUNDRY_STATUS]);
 
   // Format date for display
   const formatServiceDayLabel = (dateString) => {
@@ -4048,276 +4039,10 @@ const Services = () => {
   };
 
   const renderLaundrySection = () => {
-    const offsiteLoads = todayLaundryWithGuests.filter(
-      (record) => record.laundryType === "offsite",
-    );
-    const pendingOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.PENDING,
-    ).length;
-    const transportedOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.TRANSPORTED,
-    ).length;
-    const returnedOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.RETURNED,
-    ).length;
-    const pickedUpOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP,
-    ).length;
-
     return (
       <>
-        {/* Offsite Laundry Management */}
-        {(offsiteLoads.length > 0 || previousServiceDayLaundry.length > 0) && (
-          <div className="space-y-4">
-            {/* Today's Offsite Pipeline */}
-            {offsiteLoads.length > 0 && (
-              <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 rounded-xl border border-blue-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Truck className="text-white" size={18} />
-                    <h3 className="font-semibold text-white">Offsite Laundry Pipeline</h3>
-                  </div>
-                  <span className="bg-white/20 text-white text-xs font-medium px-2.5 py-1 rounded-full">
-                    {offsiteLoads.length} bag{offsiteLoads.length === 1 ? '' : 's'} total
-                  </span>
-                </div>
-                
-                {/* Status Pipeline Visualization */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between relative px-2">
-                    {/* Pipeline connector line */}
-                    <div className="absolute top-5 left-6 right-6 h-1 bg-gray-100 rounded-full" />
-                    <div 
-                      className="absolute top-5 left-6 h-1 bg-blue-500 rounded-full transition-all duration-1000 ease-in-out"
-                      style={{ 
-                        width: pickedUpOffsite > 0 
-                          ? 'calc(100% - 48px)' 
-                          : returnedOffsite > 0 
-                            ? 'calc(66.6% - 32px)' 
-                            : transportedOffsite > 0 
-                              ? 'calc(33.3% - 16px)' 
-                              : '0%' 
-                      }}
-                    />
-                    
-                    {/* Stage 1: Pending */}
-                    <div className="relative z-10 flex flex-col items-center group">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        pendingOffsite > 0 
-                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50' 
-                          : 'bg-white border-2 border-gray-200 text-gray-400'
-                      }`}>
-                        <Clock size={18} className={pendingOffsite > 0 ? 'animate-pulse' : ''} />
-                      </div>
-                      <div className="mt-3 flex flex-col items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${pendingOffsite > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                          Waiting
-                        </span>
-                        <span className={`text-lg font-black leading-none mt-1 ${pendingOffsite > 0 ? 'text-blue-700' : 'text-gray-300'}`}>
-                          {pendingOffsite}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Stage 2: Transported */}
-                    <div className="relative z-10 flex flex-col items-center group">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        transportedOffsite > 0 
-                          ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-200 ring-4 ring-indigo-50' 
-                          : 'bg-white border-2 border-gray-200 text-gray-400'
-                      }`}>
-                        <Truck size={18} className={transportedOffsite > 0 ? 'animate-bounce' : ''} />
-                      </div>
-                      <div className="mt-3 flex flex-col items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${transportedOffsite > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                          In Transit
-                        </span>
-                        <span className={`text-lg font-black leading-none mt-1 ${transportedOffsite > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
-                          {transportedOffsite}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Stage 3: Returned */}
-                    <div className="relative z-10 flex flex-col items-center group">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        returnedOffsite > 0 
-                          ? 'bg-violet-500 text-white shadow-lg shadow-violet-200 ring-4 ring-violet-50' 
-                          : 'bg-white border-2 border-gray-200 text-gray-400'
-                      }`}>
-                        <Package size={18} />
-                      </div>
-                      <div className="mt-3 flex flex-col items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${returnedOffsite > 0 ? 'text-violet-600' : 'text-gray-400'}`}>
-                          Returned
-                        </span>
-                        <span className={`text-lg font-black leading-none mt-1 ${returnedOffsite > 0 ? 'text-violet-700' : 'text-gray-300'}`}>
-                          {returnedOffsite}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Stage 4: Picked Up */}
-                    <div className="relative z-10 flex flex-col items-center group">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        pickedUpOffsite > 0 
-                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200 ring-4 ring-emerald-50' 
-                          : 'bg-white border-2 border-gray-200 text-gray-400'
-                      }`}>
-                        <CheckCircle size={18} />
-                      </div>
-                      <div className="mt-3 flex flex-col items-center">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${pickedUpOffsite > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          Picked Up
-                    </span>
-                        <span className={`text-lg font-black leading-none mt-1 ${pickedUpOffsite > 0 ? 'text-emerald-700' : 'text-gray-300'}`}>
-                          {pickedUpOffsite}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick Actions for Offsite Bags */}
-                  {(pendingOffsite > 0 || transportedOffsite > 0 || returnedOffsite > 0) && (
-                    <div className="mt-6 pt-6 border-t border-blue-100">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Zap size={14} className="text-amber-500" />
-                          <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Quick Pipeline Updates</span>
-                        </div>
-                        <span className="text-[10px] text-gray-400 italic">Showing next 6 pending bags</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {offsiteLoads
-                          .filter(record => record.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP)
-                          .slice(0, 6)
-                          .map((record) => {
-                            const statusInfo = getLaundryStatusInfo(record.status);
-                            const StatusIcon = statusInfo.icon;
-                            const nextStatus = record.status === LAUNDRY_STATUS.PENDING 
-                              ? LAUNDRY_STATUS.TRANSPORTED 
-                              : record.status === LAUNDRY_STATUS.TRANSPORTED 
-                                ? LAUNDRY_STATUS.RETURNED 
-                                : LAUNDRY_STATUS.OFFSITE_PICKED_UP;
-                            const nextLabel = record.status === LAUNDRY_STATUS.PENDING 
-                              ? 'Transport' 
-                              : record.status === LAUNDRY_STATUS.TRANSPORTED 
-                                ? 'Return' 
-                                : 'Pick Up';
-                            
-                            return (
-                              <div 
-                                key={record.id}
-                                className="bg-white rounded-xl border border-gray-100 p-3 hover:border-blue-200 hover:shadow-md transition-all group"
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                                      <ShoppingBag size={12} className="text-blue-500" />
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900 truncate">
-                                      {record.guestName}
-                                    </span>
-                                  </div>
-                                  <span className="text-[10px] font-black bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded flex-shrink-0">
-                                    #{record.bagNumber || '—'}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-1 text-[10px] font-bold rounded-lg inline-flex items-center gap-1`}>
-                                    <StatusIcon size={10} />
-                                    {statusInfo.label}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      updateLaundryStatus(record.id, nextStatus);
-                                      toast.success(`${record.guestName}'s laundry updated`);
-                                    }}
-                                    className="flex-1 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white px-2 py-1 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1"
-                                  >
-                                    {nextLabel}
-                                    <ArrowRight size={10} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                      {offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length > 6 && (
-                        <p className="text-xs text-gray-500 text-center mt-3">
-                          +{offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length - 6} more bags in the list below
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Previous Service Day Carryover */}
-            {previousServiceDayLaundry.length > 0 && (
-              <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 bg-amber-500 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <History className="text-white" size={18} />
-                    <h3 className="font-semibold text-white">Previous Day Carryover</h3>
-                  </div>
-                  <span className="bg-white/20 text-white text-xs font-medium px-2.5 py-1 rounded-full">
-                    {previousServiceDayLaundry.length} bag{previousServiceDayLaundry.length === 1 ? '' : 's'} from {formatServiceDayLabel(previousServiceDay)}
-                  </span>
-                </div>
-                <div className="p-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {previousServiceDayLaundry.map((record) => {
-                      const statusInfo = getLaundryStatusInfo(record.status);
-                      const StatusIcon = statusInfo.icon;
-                      return (
-                        <div 
-                          key={record.id}
-                          className="bg-amber-50/30 rounded-xl border border-amber-100 p-3 hover:border-amber-300 hover:shadow-md transition-all group"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <ShoppingBag size={12} className="text-amber-600" />
-                              </div>
-                              <span className="text-sm font-bold text-gray-900 truncate">
-                                {record.guestName}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">
-                              #{record.bagNumber || '—'}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between gap-2">
-                            <span className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-1 text-[10px] font-bold rounded-lg inline-flex items-center gap-1`}>
-                              <StatusIcon size={10} />
-                              {statusInfo.label}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateLaundryStatus(record.id, LAUNDRY_STATUS.OFFSITE_PICKED_UP);
-                                toast.success(`${record.guestName}'s laundry marked as picked up`);
-                              }}
-                              className="flex-1 bg-amber-100 hover:bg-emerald-600 text-amber-700 hover:text-white px-2 py-1 rounded-lg text-[10px] font-bold transition-colors flex items-center justify-center gap-1"
-                            >
-                              Mark Picked Up
-                              <CheckCircle size={10} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Pending Pickup - Orphaned Laundry from Previous Days */}
+        <OrphanedLaundryTracker />
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="p-4 lg:p-6 space-y-5">
