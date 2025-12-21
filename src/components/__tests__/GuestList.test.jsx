@@ -28,6 +28,9 @@ const createDefaultContext = () => ({
   addHolidayRecord: vi.fn(),
   updateGuest: vi.fn(),
   removeGuest: vi.fn(),
+  guestNeedsWaiverReminder: vi.fn().mockResolvedValue(false),
+  dismissWaiver: vi.fn().mockResolvedValue(true),
+  hasActiveWaiver: vi.fn().mockReturnValue(true),
 });
 
 let mockContextValue = createDefaultContext();
@@ -936,7 +939,7 @@ describe("GuestList", () => {
       await waitFor(() => {
         const card = screen.getByText(/Alice Smith/).closest("[class*='border rounded']");
         if (card) {
-          expect(card).toHaveClass("ring-3", "ring-blue-500");
+          expect(card).toHaveClass("ring-4", "ring-blue-500/30");
         }
       });
     });

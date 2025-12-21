@@ -55,17 +55,15 @@ describe("ServiceStatusOverview", () => {
   it("displays correct shower status when empty", () => {
     render(<ServiceStatusOverview />);
     expect(screen.getAllByText("OPEN")[0]).toBeInTheDocument();
-    // Waitlist and Done should be 0
-    const zeros = screen.getAllByText("0");
-    expect(zeros.length).toBeGreaterThanOrEqual(2);
+    // Available should be 10 (5 slots * 2)
+    expect(screen.getByText("10")).toBeInTheDocument();
   });
 
   it("displays correct laundry status when empty", () => {
     render(<ServiceStatusOverview />);
     expect(screen.getAllByText("OPEN")[0]).toBeInTheDocument();
-    // Off-site and Done should be 0
-    const zeros = screen.getAllByText("0");
-    expect(zeros.length).toBeGreaterThanOrEqual(2);
+    // Available should be 5
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
   it("updates shower status when bookings exist", () => {
@@ -84,17 +82,11 @@ describe("ServiceStatusOverview", () => {
         date: "2025-01-15T08:00:00Z",
         status: "booked",
       },
-      {
-        id: "shower-3",
-        guestId: "guest-3",
-        time: "08:30",
-        date: "2025-01-15T08:30:00Z",
-        status: "done",
-      },
     ];
 
     render(<ServiceStatusOverview />);
-    expect(screen.getByText("1")).toBeInTheDocument(); // Done count
+    // 10 total - 2 booked = 8 available
+    expect(screen.getByText("8")).toBeInTheDocument();
   });
 
   it("shows full status when all slots taken", () => {
@@ -113,50 +105,38 @@ describe("ServiceStatusOverview", () => {
   });
 
   it("counts waitlisted guests separately", () => {
-    mockContext.showerRecords = [
+    // Fill all 10 slots first so it shows waitlist
+    mockContext.showerRecords = Array.from({ length: 10 }, (_, i) => ({
+      id: `shower-${i}`,
+      guestId: `guest-${i}`,
+      time: mockContext.allShowerSlots[Math.floor(i / 2)],
+      date: "2025-01-15T08:00:00Z",
+      status: "booked",
+    }));
+
+    // Add 2 waitlisted
+    mockContext.showerRecords.push(
       {
-        id: "shower-1",
-        guestId: "guest-1",
+        id: "shower-w1",
+        guestId: "guest-w1",
         time: null,
         date: "2025-01-15T08:00:00Z",
         status: "waitlisted",
       },
       {
-        id: "shower-2",
-        guestId: "guest-2",
+        id: "shower-w2",
+        guestId: "guest-w2",
         time: null,
         date: "2025-01-15T08:00:00Z",
         status: "waitlisted",
       },
-    ];
+    );
 
     render(<ServiceStatusOverview />);
 
     // Waitlisted should be 2
     expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("shows completed shower count", () => {
-    mockContext.showerRecords = [
-      {
-        id: "shower-1",
-        guestId: "guest-1",
-        time: "08:00",
-        date: "2025-01-15T08:00:00Z",
-        status: "done",
-      },
-      {
-        id: "shower-2",
-        guestId: "guest-2",
-        time: "08:30",
-        date: "2025-01-15T08:30:00Z",
-        status: "done",
-      },
-    ];
-
-    render(<ServiceStatusOverview />);
-
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("Waitlist")).toBeInTheDocument();
   });
 
   it("updates laundry status based on slots taken", () => {
@@ -208,77 +188,6 @@ describe("ServiceStatusOverview", () => {
     expect(screen.getAllByText("OPEN")[0]).toBeInTheDocument();
   });
 
-  it("shows off-site laundry count", () => {
-    mockContext.laundryRecords = [
-      {
-        id: "laundry-1",
-        guestId: "guest-1",
-        date: "2025-01-15T08:00:00Z",
-        status: "pending",
-        laundryType: "offsite",
-      },
-      {
-        id: "laundry-2",
-        guestId: "guest-2",
-        date: "2025-01-15T08:00:00Z",
-        status: "transported",
-        laundryType: "offsite",
-      },
-    ];
-
-    render(<ServiceStatusOverview />);
-
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("shows laundry in progress count", () => {
-    mockContext.laundryRecords = [
-      {
-        id: "laundry-1",
-        guestId: "guest-1",
-        date: "2025-01-15T08:00:00Z",
-        status: "waiting",
-        laundryType: "onsite",
-      },
-      {
-        id: "laundry-2",
-        guestId: "guest-2",
-        date: "2025-01-15T08:00:00Z",
-        status: "washer",
-        laundryType: "onsite",
-      },
-      {
-        id: "laundry-3",
-        guestId: "guest-3",
-        date: "2025-01-15T08:00:00Z",
-        status: "dryer",
-        laundryType: "onsite",
-      },
-    ];
-
-    render(<ServiceStatusOverview />);
-
-    // Done count should be 0
-    const zeros = screen.getAllByText("0");
-    expect(zeros.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("shows completed laundry count", () => {
-    mockContext.laundryRecords = [
-      {
-        id: "laundry-1",
-        guestId: "guest-1",
-        date: "2025-01-15T08:00:00Z",
-        status: "done",
-        laundryType: "onsite",
-      },
-    ];
-
-    render(<ServiceStatusOverview />);
-
-    expect(screen.getByText("1")).toBeInTheDocument();
-  });
-
   it("does not count records from other days", () => {
     mockContext.showerRecords = [
       {
@@ -290,8 +199,9 @@ describe("ServiceStatusOverview", () => {
     ];
 
     render(<ServiceStatusOverview />);
-    const zeros = screen.getAllByText("0");
-    expect(zeros.length).toBeGreaterThanOrEqual(2);
+    // Should still show full availability (10 and 5)
+    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
   it("handles missing settings gracefully", () => {

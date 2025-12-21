@@ -157,7 +157,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
         {/* Laundry Status */}
         <div 
           onClick={canClickCards ? onLaundryClick : undefined}
-          className={`rounded-xl border p-3 ${
+          className={`rounded-xl border p-4 ${
             canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
           } ${laundryStats.isFull ? "bg-red-50/30 border-red-100" : "bg-purple-50/30 border-purple-100"}`}
           role={canClickCards ? "button" : undefined}
