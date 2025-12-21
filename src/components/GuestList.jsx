@@ -52,8 +52,11 @@ import { flexibleNameSearch } from "../utils/flexibleNameSearch";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
+const COMPACT_ITEM_HEIGHT = 72;
 const ITEM_VERTICAL_GAP = 16;
+const COMPACT_ITEM_GAP = 8;
 const VIRTUAL_ITEM_SIZE = DEFAULT_ITEM_HEIGHT + ITEM_VERTICAL_GAP;
+const COMPACT_THRESHOLD = 5; // Show compact cards when more than this many results
 const MIN_VISIBLE_ROWS = 5;
 const MAX_VISIBLE_ROWS = 12;
 
@@ -324,6 +327,10 @@ const GuestList = () => {
     sortedGuests.length > VIRTUALIZATION_THRESHOLD &&
     expandedGuest === null &&
     !showCreateForm;
+
+  // Use compact cards when there are many search results
+  const isCompact = sortedGuests.length > COMPACT_THRESHOLD;
+  const effectiveItemSize = isCompact ? COMPACT_ITEM_HEIGHT + COMPACT_ITEM_GAP : VIRTUAL_ITEM_SIZE;
 
   const trail = useStagger(
     shouldVirtualize ? 0 : (filteredGuests || []).length,
@@ -1066,7 +1073,7 @@ const GuestList = () => {
   const renderGuestCard = (guest, index, options = {}) => {
     if (!guest) return null;
 
-    const { style, key: keyOverride, ref: refOverride } = options;
+    const { style, key: keyOverride, ref: refOverride, compact = false } = options;
     const lastService = latestServiceByGuest.get(String(guest.id));
     const ServiceIcon = lastService?.icon;
     const formattedDate = lastService
@@ -1096,9 +1103,9 @@ const GuestList = () => {
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
       : null;
 
-    const containerClass = `border rounded-xl transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
-      ? "ring-4 ring-blue-500/30 border-blue-400 shadow-2xl bg-blue-50/50 scale-[1.02] z-10"
-      : "shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-0.5"
+    const containerClass = `border ${compact ? "rounded-lg" : "rounded-xl"} transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
+      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl bg-blue-50/50 ${compact ? "" : "scale-[1.02]"} z-10`
+      : `shadow-sm hover:shadow-xl hover:border-blue-200 ${compact ? "" : "hover:-translate-y-0.5"}`
       } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-400/20 border-emerald-300 bg-white shadow-lg" : ""} ${isBanned ? "border-red-200 bg-red-50/30" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
@@ -1157,22 +1164,22 @@ const GuestList = () => {
         <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
 
         <div
-          className="p-4 cursor-pointer flex justify-between items-center group"
+          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex justify-between items-center group`}
           onClick={() => toggleExpanded(guest.id)}
         >
-          <div className="flex items-center gap-4">
-            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 shadow-sm group-hover:scale-110 transition-transform">
-              <User size={24} className="text-blue-600" />
+          <div className={`flex items-center ${compact ? "gap-3" : "gap-4"}`}>
+            <div className={`bg-blue-50 ${compact ? "p-2 rounded-lg" : "p-3 rounded-xl"} border border-blue-100 shadow-sm group-hover:scale-110 transition-transform`}>
+              <User size={compact ? 18 : 24} className="text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-gray-900">
+                  <h3 className={`font-bold text-gray-900 flex items-baseline gap-2 ${compact ? "text-sm" : ""}`}>
+                    <span className={`${compact ? "text-sm" : "text-lg"} font-bold text-gray-900`}>
                       {guest.preferredName || guest.name}
                     </span>
                     {guest.preferredName && guest.name !== guest.preferredName && (
-                      <span className="text-xs font-medium text-gray-400 truncate hidden sm:inline">
+                      <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-gray-400 truncate hidden sm:inline`}>
                         {guest.name}
                       </span>
                     )}
@@ -1186,7 +1193,7 @@ const GuestList = () => {
                       todayPacificDateString();
 
                     return isNewGuest ? (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 shadow-sm animate-pulse">
+                      <span className={`${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-emerald-700 bg-emerald-50 rounded-full border border-emerald-200 shadow-sm animate-pulse`}>
                         ✨ NEW
                       </span>
                     ) : null;
@@ -1195,14 +1202,14 @@ const GuestList = () => {
                   {(() => {
                     const linkedCount = getLinkedGuests(guest.id).length;
                     return linkedCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200 shadow-sm" title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                        <Link size={10} strokeWidth={2.5} />
+                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-indigo-700 bg-indigo-50 rounded-full border border-indigo-200 shadow-sm`} title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
+                        <Link size={compact ? 8 : 10} strokeWidth={2.5} />
                         {linkedCount}
                       </span>
                     ) : null;
                   })()}
                   {todayServices.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 ml-2">
+                    <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-1.5"} ml-2`}>
                       {todayServices.map((service, idx) => {
                         const Icon = service.icon;
                         const timeLabel =
@@ -1220,9 +1227,9 @@ const GuestList = () => {
                           return (
                             <div
                               key={idx}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 text-[10px] font-bold text-gray-600 shadow-sm"
+                              className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"} rounded-full bg-gray-50 border border-gray-100 font-bold text-gray-600 shadow-sm`}
                             >
-                              <Icon size={12} className={service.iconClass} />
+                              <Icon size={compact ? 10 : 12} className={service.iconClass} />
                               <span>
                                 {service.serviceType}: {timeLabel || "Done"}
                               </span>
@@ -1239,10 +1246,10 @@ const GuestList = () => {
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-100 shadow-sm transition-all hover:scale-125 hover:z-10 hover:shadow-md"
+                            className={`flex items-center justify-center ${compact ? "w-6 h-6" : "w-8 h-8"} rounded-full bg-white border border-gray-100 shadow-sm transition-all hover:scale-125 hover:z-10 hover:shadow-md`}
                             title={`${service.serviceType}${timeLabel ? ` (${timeLabel})` : ""} at ${timeStr} today`}
                           >
-                            <Icon size={15} className={service.iconClass} />
+                            <Icon size={compact ? 12 : 15} className={service.iconClass} />
                           </div>
                         );
                       })}
@@ -1251,55 +1258,58 @@ const GuestList = () => {
                 </div>
               </div>
 
-              {/* Waiver badges for shower and laundry */}
-              <div className="flex flex-wrap gap-2 mt-2 mb-2">
-                {(() => {
-                  const servicesThatNeedWaivers = [];
+              {/* Waiver badges for shower and laundry - hidden in compact mode */}
+              {!compact && (
+                <div className="flex flex-wrap gap-2 mt-2 mb-2">
+                  {(() => {
+                    const servicesThatNeedWaivers = [];
 
-                  // Check if guest has shower records
-                  const guestShowerRecords = showerRecords.filter(
-                    (r) => r.guestId === guest.id
-                  );
-                  const hasShower = guestShowerRecords.length > 0;
+                    // Check if guest has shower records
+                    const guestShowerRecords = showerRecords.filter(
+                      (r) => r.guestId === guest.id
+                    );
+                    const hasShower = guestShowerRecords.length > 0;
 
-                  // Check if guest has laundry records
-                  const guestLaundryRecords = laundryRecords.filter(
-                    (r) => r.guestId === guest.id
-                  );
-                  const hasLaundry = guestLaundryRecords.length > 0;
+                    // Check if guest has laundry records
+                    const guestLaundryRecords = laundryRecords.filter(
+                      (r) => r.guestId === guest.id
+                    );
+                    const hasLaundry = guestLaundryRecords.length > 0;
 
-                  // Shower and laundry share a common waiver - only show one badge if either is used
-                  if (hasShower || hasLaundry) {
-                    servicesThatNeedWaivers.push('shower');
-                  }
+                    // Shower and laundry share a common waiver - only show one badge if either is used
+                    if (hasShower || hasLaundry) {
+                      servicesThatNeedWaivers.push('shower');
+                    }
 
-                  return servicesThatNeedWaivers.map((service) => (
-                    <WaiverBadge
-                      key={`waiver-${guest.id}-${service}`}
-                      guestId={guest.id}
-                      serviceType={service}
-                      onDismissed={() => {
-                        toast.success(`${service} waiver acknowledged`);
-                      }}
-                    />
-                  ));
-                })()}
-              </div>
+                    return servicesThatNeedWaivers.map((service) => (
+                      <WaiverBadge
+                        key={`waiver-${guest.id}-${service}`}
+                        guestId={guest.id}
+                        serviceType={service}
+                        onDismissed={() => {
+                          toast.success(`${service} waiver acknowledged`);
+                        }}
+                      />
+                    ));
+                  })()}
+                </div>
+              )}
 
-              <div className="flex items-center gap-2 mt-2.5 text-xs text-gray-600 font-medium">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50/60 rounded-md border border-blue-100/50">
-                  <Home size={13} className="text-blue-500" />
+              <div className={`flex items-center gap-2 ${compact ? "mt-1" : "mt-2.5"} ${compact ? "text-[10px]" : "text-xs"} text-gray-600 font-medium`}>
+                <div className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5" : "px-2.5 py-1"} bg-blue-50/60 rounded-md border border-blue-100/50`}>
+                  <Home size={compact ? 10 : 13} className="text-blue-500" />
                   <span className="text-gray-700">{guest.housingStatus}</span>
                 </div>
                 {guest.location && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50/60 rounded-md border border-amber-100/50">
-                    <MapPin size={13} className="text-amber-600" />
+                  <div className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5" : "px-2.5 py-1"} bg-amber-50/60 rounded-md border border-amber-100/50`}>
+                    <MapPin size={compact ? 10 : 13} className="text-amber-600" />
                     <span className="text-gray-700">{guest.location}</span>
                   </div>
                 )}
               </div>
 
-              {lastService && ServiceIcon && (
+              {/* Last service info - hidden in compact mode */}
+              {!compact && lastService && ServiceIcon && (
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
                   <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/50 text-blue-700 rounded-md border border-blue-100/50 font-semibold uppercase tracking-wider text-[10px]">
                     <ServiceIcon
@@ -1325,10 +1335,10 @@ const GuestList = () => {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0 ml-4">
+          <div className={`flex items-center ${compact ? "gap-2" : "gap-3"} shrink-0 ${compact ? "ml-2" : "ml-4"}`}>
             {/* Quick Action Meal Buttons */}
             {!isBanned && (
-              <div className="flex items-center gap-2 p-1 bg-gray-50/50 rounded-xl border border-gray-100 shadow-inner">
+              <div className={`flex items-center ${compact ? "gap-1 p-0.5" : "gap-2 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
                 {(() => {
                   const today = todayPacificDateString();
                   const alreadyHasMeal = mealRecords.some(
@@ -1348,7 +1358,7 @@ const GuestList = () => {
                           handleMealSelection(guest.id, count);
                         }
                       }}
-                      className={`flex items-center justify-center gap-1.5 h-10 px-3 rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 group/btn ${alreadyHasMeal
+                      className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm active:scale-95 group/btn ${alreadyHasMeal
                         ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-200"
                         : "bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
                         }`}
@@ -1360,12 +1370,12 @@ const GuestList = () => {
                     >
                       {alreadyHasMeal ? (
                         <PlusCircle
-                          size={14}
+                          size={compact ? 12 : 14}
                           className="group-hover/btn:scale-110 transition-transform"
                         />
                       ) : (
                         <Utensils
-                          size={14}
+                          size={compact ? 12 : 14}
                           className="group-hover/btn:scale-110 transition-transform"
                         />
                       )}
@@ -1376,11 +1386,11 @@ const GuestList = () => {
               </div>
             )}
 
-            <div className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-blue-500 transition-colors">
+            <div className={`${compact ? "p-1.5 rounded-lg" : "p-2 rounded-xl"} bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-blue-500 transition-colors`}>
               {expandedGuest === guest.id ? (
-                <ChevronUp size={20} strokeWidth={2.5} />
+                <ChevronUp size={compact ? 16 : 20} strokeWidth={2.5} />
               ) : (
-                <ChevronDown size={20} strokeWidth={2.5} />
+                <ChevronDown size={compact ? 16 : 20} strokeWidth={2.5} />
               )}
             </div>
           </div>
@@ -2635,7 +2645,7 @@ const GuestList = () => {
                   <List
                     height={listHeight}
                     itemCount={sortedGuests.length}
-                    itemSize={VIRTUAL_ITEM_SIZE}
+                    itemSize={effectiveItemSize}
                     overscanCount={6}
                     width="100%"
                     ref={listRef}
@@ -2643,6 +2653,7 @@ const GuestList = () => {
                     {({ index, style }) =>
                       renderGuestCard(sortedGuests[index], index, {
                         style,
+                        compact: isCompact,
                       })
                     }
                   </List>
@@ -2655,6 +2666,7 @@ const GuestList = () => {
                     },
                     key: `guest-${guest.id}-${searchTerm}`,
                     style: trail[i],
+                    compact: isCompact,
                   }),
                 )
               )}
