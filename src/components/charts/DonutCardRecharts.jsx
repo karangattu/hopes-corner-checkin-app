@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo } from "react";
 import {
   PieChart,
   Pie,
@@ -27,10 +27,10 @@ const COLORS = [
 const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
   const chartRef = useRef(null);
 
-  const chartData = Object.entries(dataMap || {}).map(([name, value]) => ({
-    name,
-    value,
-  }));
+  const chartData = useMemo(
+    () => Object.entries(dataMap || {}).map(([name, value]) => ({ name, value })),
+    [dataMap]
+  );
 
   const handleExportChart = async () => {
     try {
@@ -44,22 +44,26 @@ const DonutCardRecharts = ({ title, subtitle, dataMap }) => {
     }
   };
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useMemo(
+    () =>
+      ({ active, payload }) => {
+        if (!active || !payload || !payload.length) return null;
 
-    const data = payload[0];
-    const total = chartData.reduce((sum, item) => sum + item.value, 0);
-    const percentage = ((data.value / total) * 100).toFixed(1);
+        const data = payload[0];
+        const total = chartData.reduce((sum, item) => sum + item.value, 0);
+        const percentage = ((data.value / total) * 100).toFixed(1);
 
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800">{data.name}</p>
-        <p className="text-sm text-gray-600">
-          {data.value} ({percentage}%)
-        </p>
-      </div>
-    );
-  };
+        return (
+          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+            <p className="font-semibold text-gray-800">{data.name}</p>
+            <p className="text-sm text-gray-600">
+              {data.value} ({percentage}%)
+            </p>
+          </div>
+        );
+      },
+    [chartData]
+  );
 
   return (
     <div

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo, useCallback } from "react";
 import {
   PieChart,
   Pie,
@@ -27,12 +27,12 @@ const COLORS = [
 const PieCardRecharts = ({ title, subtitle, dataMap }) => {
   const chartRef = useRef(null);
 
-  const chartData = Object.entries(dataMap || {}).map(([name, value]) => ({
-    name,
-    value,
-  }));
+  const chartData = useMemo(
+    () => Object.entries(dataMap || {}).map(([name, value]) => ({ name, value })),
+    [dataMap]
+  );
 
-  const handleExportChart = async () => {
+  const handleExportChart = useCallback(async () => {
     try {
       const timestamp = new Date().toISOString().slice(0, 10);
       const filename = `${title.toLowerCase().replace(/\s+/g, "-")}-${timestamp}.png`;
@@ -42,56 +42,55 @@ const PieCardRecharts = ({ title, subtitle, dataMap }) => {
       console.error("Error exporting chart:", error);
       toast.error("Failed to export chart");
     }
-  };
+  }, [title]);
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useMemo(
+    () =>
+      ({ active, payload }) => {
+        if (!active || !payload || !payload.length) return null;
 
-    const data = payload[0];
-    const total = chartData.reduce((sum, item) => sum + item.value, 0);
-    const percentage = ((data.value / total) * 100).toFixed(1);
+        const data = payload[0];
+        const total = chartData.reduce((sum, item) => sum + item.value, 0);
+        const percentage = ((data.value / total) * 100).toFixed(1);
 
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800">{data.name}</p>
-        <p className="text-sm text-gray-600">
-          {data.value} ({percentage}%)
-        </p>
-      </div>
-    );
-  };
+        return (
+          <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+            <p className="font-semibold text-gray-800">{data.name}</p>
+            <p className="text-sm text-gray-600">
+              {data.value} ({percentage}%)
+            </p>
+          </div>
+        );
+      },
+    [chartData]
+  );
 
   // Custom label renderer for the pie slices
-  const renderCustomizedLabel = ({
-    cx,
-    cy,
-    midAngle,
-    outerRadius,
-    percent,
-    value,
-    name,
-  }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 25;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const renderCustomizedLabel = useCallback(
+    ({ cx, cy, midAngle, outerRadius, percent, value, name }) => {
+      const RADIAN = Math.PI / 180;
+      const radius = outerRadius + 25;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-    // Only show label if percentage is >= 5% to avoid cluttering
-    if (percent < 0.05) return null;
+      // Only show label if percentage is >= 5% to avoid cluttering
+      if (percent < 0.05) return null;
 
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#374151"
-        textAnchor={x > cx ? "start" : "end"}
-        dominantBaseline="central"
-        className="text-xs font-semibold"
-      >
-        {`${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-      </text>
-    );
-  };
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="#374151"
+          textAnchor={x > cx ? "start" : "end"}
+          dominantBaseline="central"
+          className="text-xs font-semibold"
+        >
+          {`${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+        </text>
+      );
+    },
+    []
+  );
 
   return (
     <div

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { Download, Bike } from "lucide-react";
 import {
   BarChart,

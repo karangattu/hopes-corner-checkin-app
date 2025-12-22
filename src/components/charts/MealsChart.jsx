@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo, useCallback } from "react";
 import { Download, Utensils } from "lucide-react";
 import {
   AreaChart,
@@ -49,13 +49,16 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
   }
 
   // Filter data to only include days with activity
-  const filteredDays = days.filter((day) => {
-    const dayTotal = selectedMealTypes.reduce(
-      (sum, type) => sum + (day.mealsByType?.[type] || 0),
-      0,
-    );
-    return dayTotal > 0;
-  });
+  const filteredDays = useMemo(() =>
+    days.filter((day) => {
+      const dayTotal = selectedMealTypes.reduce(
+        (sum, type) => sum + (day.mealsByType?.[type] || 0),
+        0,
+      );
+      return dayTotal > 0;
+    }),
+    [days, selectedMealTypes]
+  );
 
   if (filteredDays.length === 0) {
     return (
@@ -66,28 +69,36 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
     );
   }
 
-  const chartData = filteredDays.map((day) => ({
-    date: formatDateForDisplay(day.date, {
-      month: "short",
-      day: "numeric",
-    }),
-    fullDate: day.date,
-    guest: day.mealsByType?.guest || 0,
-    rv: day.mealsByType?.rv || 0,
-    shelter: day.mealsByType?.shelter || 0,
-    unitedEffort: day.mealsByType?.unitedEffort || 0,
-    extras: day.mealsByType?.extras || 0,
-    dayWorker: day.mealsByType?.dayWorker || 0,
-    lunchBags: day.mealsByType?.lunchBags || 0,
-  }));
+  const chartData = useMemo(
+    () =>
+      filteredDays.map((day) => ({
+        date: formatDateForDisplay(day.date, {
+          month: "short",
+          day: "numeric",
+        }),
+        fullDate: day.date,
+        guest: day.mealsByType?.guest || 0,
+        rv: day.mealsByType?.rv || 0,
+        shelter: day.mealsByType?.shelter || 0,
+        unitedEffort: day.mealsByType?.unitedEffort || 0,
+        extras: day.mealsByType?.extras || 0,
+        dayWorker: day.mealsByType?.dayWorker || 0,
+        lunchBags: day.mealsByType?.lunchBags || 0,
+      })),
+    [filteredDays]
+  );
 
   // Calculate totals for the period
-  const totals = selectedMealTypes.reduce((acc, type) => {
-    acc[type] = chartData.reduce((sum, day) => sum + (day[type] || 0), 0);
-    return acc;
-  }, {});
+  const totals = useMemo(
+    () =>
+      selectedMealTypes.reduce((acc, type) => {
+        acc[type] = chartData.reduce((sum, day) => sum + (day[type] || 0), 0);
+        return acc;
+      }, {}),
+    [selectedMealTypes, chartData]
+  );
 
-  const handleExportChart = async () => {
+  const handleExportChart = useCallback(async () => {
     try {
       const timestamp = new Date().toISOString().slice(0, 10);
       const filename = `meals-report-${timestamp}.png`;
@@ -97,32 +108,35 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
       console.error("Error exporting chart:", error);
       toast.error("Failed to export chart");
     }
-  };
+  }, []);
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useCallback(
+    ({ active, payload }) => {
+      if (!active || !payload || !payload.length) return null;
 
-    const data = payload[0].payload;
+      const data = payload[0].payload;
 
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {formatDateForDisplay(data.fullDate)}
-        </p>
-        <div className="space-y-1 text-sm">
-          {selectedMealTypes.map((type) => (
-            <p
-              key={type}
-              style={{ color: MEAL_TYPE_COLORS[type] }}
-              className="font-medium"
-            >
-              {MEAL_TYPE_LABELS[type]}: {data[type] || 0}
-            </p>
-          ))}
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {formatDateForDisplay(data.fullDate)}
+          </p>
+          <div className="space-y-1 text-sm">
+            {selectedMealTypes.map((type) => (
+              <p
+                key={type}
+                style={{ color: MEAL_TYPE_COLORS[type] }}
+                className="font-medium"
+              >
+                {MEAL_TYPE_LABELS[type]}: {data[type] || 0}
+              </p>
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    [selectedMealTypes]
+  );
 
   return (
     <div className="bg-white border rounded-lg p-4 space-y-4">

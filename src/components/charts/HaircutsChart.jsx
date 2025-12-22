@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -57,30 +57,33 @@ const HaircutsChart = ({ days = [], target = null }) => {
 
   const targetProgress = target ? (totalHaircuts / target) * 100 : null;
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useCallback(
+    ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
 
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {new Date(label).toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Scissors size={14} className="text-yellow-600" />
-            <span className="text-sm text-gray-700">Haircuts:</span>
-            <span className="text-sm font-semibold text-gray-900">
-              {payload[0].value}
-            </span>
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {new Date(label).toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Scissors size={14} className="text-yellow-600" />
+              <span className="text-sm text-gray-700">Haircuts:</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {payload[0].value}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    []
+  );
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

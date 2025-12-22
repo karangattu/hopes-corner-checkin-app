@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -66,37 +66,40 @@ const HolidaysChart = ({ days = [], target = null }) => {
 
   const targetProgress = target ? (totalHolidays / target) * 100 : null;
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useCallback(
+    ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
 
-    const isEventDay = payload[0].value > eventThreshold;
+      const isEventDay = payload[0].value > eventThreshold;
 
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {formatDateForDisplay(label, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Gift size={14} className="text-pink-600" />
-            <span className="text-sm text-gray-700">Holiday Services:</span>
-            <span className="text-sm font-semibold text-gray-900">
-              {payload[0].value}
-            </span>
-          </div>
-          {isEventDay && (
-            <div className="mt-2 px-2 py-1 bg-pink-100 rounded text-xs text-pink-800">
-              Special Event Day
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {formatDateForDisplay(label, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Gift size={14} className="text-pink-600" />
+              <span className="text-sm text-gray-700">Holiday Services:</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {payload[0].value}
+              </span>
             </div>
-          )}
+            {isEventDay && (
+              <div className="mt-2 px-2 py-1 bg-pink-100 rounded text-xs text-pink-800">
+                Special Event Day
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    [eventThreshold]
+  );
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

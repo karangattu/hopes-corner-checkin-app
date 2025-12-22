@@ -5,8 +5,6 @@ import { useAuth } from "./context/useAuth";
 import { useAppContext } from "./context/useAppContext";
 import MainLayout from "./layouts/MainLayout";
 import CheckIn from "./pages/guest/CheckIn";
-import Services from "./pages/guest/Services";
-import Dashboard from "./pages/admin/Dashboard";
 import ShowerBooking from "./components/ShowerBooking";
 import LaundryBooking from "./components/LaundryBooking";
 import BicycleRepairBooking from "./components/BicycleRepairBooking";
@@ -15,9 +13,23 @@ import KeyboardShortcutsHelp from "./components/KeyboardShortcutsHelp";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import SyncStatusIndicator from "./components/SyncStatusIndicator";
 import { EXECUTE_FUNCTIONS } from "./utils/offlineOperations";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useStoreInitialization } from "./hooks/useStoreInitialization";
 import "./utils/performanceDiagnostics"; // Load performance diagnostics in dev mode
+
+// Lazy load heavy pages for faster initial load
+const Services = lazy(() => import("./pages/guest/Services"));
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+
+// Fallback loading component
+const PageLoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white">
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4" />
+      <p className="text-emerald-700 font-medium">Loading page...</p>
+    </div>
+  </div>
+);
 
 const AppContent = () => {
   const {
@@ -72,9 +84,17 @@ const AppContent = () => {
       case "check-in":
         return <CheckIn />;
       case "services":
-        return <Services />;
+        return (
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Services />
+          </Suspense>
+        );
       case "admin":
-        return <Dashboard />;
+        return (
+          <Suspense fallback={<PageLoadingFallback />}>
+            <Dashboard />
+          </Suspense>
+        );
       default:
         return <CheckIn />;
     }
