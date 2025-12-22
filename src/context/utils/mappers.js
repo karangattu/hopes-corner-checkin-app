@@ -38,6 +38,11 @@ export const mapGuestRow = (row) => ({
   bannedUntil: row.banned_until,
   banReason: row.ban_reason || "",
   isBanned: computeIsGuestBanned(row.banned_until),
+  // Program-specific bans - if all are false/null but isBanned is true, it's a blanket ban
+  bannedFromBicycle: row.banned_from_bicycle || false,
+  bannedFromMeals: row.banned_from_meals || false,
+  bannedFromShower: row.banned_from_shower || false,
+  bannedFromLaundry: row.banned_from_laundry || false,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   docId: row.id,
@@ -177,4 +182,13 @@ export const mapGuestProxyRow = (row) => ({
   guestId: row.guest_id,
   proxyId: row.proxy_id,
   createdAt: row.created_at,
+});
+
+export const mapBlockedSlotRow = (row) => ({
+  id: row.id,
+  serviceType: row.service_type,
+  slotTime: row.slot_time,
+  date: row.date,
+  createdAt: row.created_at,
+  createdBy: row.created_by,
 });

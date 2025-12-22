@@ -37,6 +37,7 @@ import {
   Ban,
   Lightbulb,
   Link,
+  Check,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { useGuestsStore } from "../stores/useGuestsStore";
@@ -73,7 +74,6 @@ const GuestList = () => {
     setShowerPickerGuest,
     setLaundryPickerGuest,
     addMealRecord,
-    addExtraMealRecord,
     addGuest,
     setBicyclePickerGuest,
     actionHistory,
@@ -126,6 +126,11 @@ const GuestList = () => {
     guestId: null,
     until: "",
     reason: "",
+    // Program-specific bans - if all false, it's a blanket ban
+    bannedFromBicycle: false,
+    bannedFromMeals: false,
+    bannedFromShower: false,
+    bannedFromLaundry: false,
   });
   const [banError, setBanError] = useState("");
   const [banSubmittingId, setBanSubmittingId] = useState(null);
@@ -452,18 +457,6 @@ const GuestList = () => {
     }
   };
 
-  const handleAddExtraMeals = (guestId, count) => {
-    try {
-      haptics.buttonPress();
-      addExtraMealRecord(guestId, count);
-      haptics.success();
-      toast.success(`${count} extra meal${count > 1 ? "s" : ""} added!`);
-    } catch (error) {
-      haptics.error();
-      toast.error(`Error adding extra meals: ${error.message}`);
-    }
-  };
-
   const formatDateTimeLocal = (value) => {
     if (!value) return "";
     const date = value instanceof Date ? value : new Date(value);
@@ -485,12 +478,24 @@ const GuestList = () => {
         ? formatDateTimeLocal(guest.bannedUntil)
         : getDefaultBanUntil(),
       reason: guest.banReason || "",
+      bannedFromBicycle: guest.bannedFromBicycle || false,
+      bannedFromMeals: guest.bannedFromMeals || false,
+      bannedFromShower: guest.bannedFromShower || false,
+      bannedFromLaundry: guest.bannedFromLaundry || false,
     });
     setBanError("");
   };
 
   const closeBanEditor = () => {
-    setBanEditor({ guestId: null, until: "", reason: "" });
+    setBanEditor({ 
+      guestId: null, 
+      until: "", 
+      reason: "",
+      bannedFromBicycle: false,
+      bannedFromMeals: false,
+      bannedFromShower: false,
+      bannedFromLaundry: false,
+    });
     setBanError("");
   };
 
@@ -519,6 +524,10 @@ const GuestList = () => {
       await banGuest(banEditor.guestId, {
         bannedUntil: banEditor.until,
         banReason: banEditor.reason,
+        bannedFromBicycle: banEditor.bannedFromBicycle,
+        bannedFromMeals: banEditor.bannedFromMeals,
+        bannedFromShower: banEditor.bannedFromShower,
+        bannedFromLaundry: banEditor.bannedFromLaundry,
       });
       haptics.success();
       toast.success("Ban saved");
@@ -1095,9 +1104,31 @@ const GuestList = () => {
     const banSummaryLabel = bannedUntilDate
       ? dateTimeFormatter.format(bannedUntilDate)
       : null;
-    const banTooltip = isBanned
-      ? `${guest.preferredName || guest.name || "Guest"} is banned${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}${guest.banReason ? ` Reason: ${guest.banReason}` : ""}`
-      : "";
+    
+    // Build program-specific ban tooltip
+    const banTooltip = (() => {
+      if (!isBanned) return "";
+      const nameLabel = guest.preferredName || guest.name || "Guest";
+      const bannedPrograms = [];
+      if (guest.bannedFromMeals) bannedPrograms.push("Meals");
+      if (guest.bannedFromShower) bannedPrograms.push("Showers");
+      if (guest.bannedFromLaundry) bannedPrograms.push("Laundry");
+      if (guest.bannedFromBicycle) bannedPrograms.push("Bicycle");
+      
+      const programsText = bannedPrograms.length > 0 
+        ? `from ${bannedPrograms.join(", ")}` 
+        : "from all services";
+      const untilText = banSummaryLabel ? ` until ${banSummaryLabel}` : "";
+      const reasonText = guest.banReason ? ` Reason: ${guest.banReason}` : "";
+      
+      return `${nameLabel} is banned ${programsText}${untilText}.${reasonText}`;
+    })();
+    
+    // Check if guest is banned from specific services
+    const hasProgramSpecificBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
+    const isBannedFromMeals = isBanned && (!hasProgramSpecificBans || guest.bannedFromMeals);
+    // Note: isBannedFromShower, isBannedFromLaundry, isBannedFromBicycle are checked in their respective components (Services.jsx, etc.)
+    
     const isBanEditorOpen = banEditor.guestId === guest.id;
     const banFormMinValue = isBanEditorOpen
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
@@ -1295,7 +1326,7 @@ const GuestList = () => {
                 </div>
               )}
 
-              <div className={`flex items-center gap-2 ${compact ? "mt-1" : "mt-2.5"} ${compact ? "text-[10px]" : "text-xs"} text-gray-600 font-medium`}>
+              <div className={`flex items-center flex-wrap gap-2 ${compact ? "mt-1" : "mt-2.5"} ${compact ? "text-[10px]" : "text-xs"} text-gray-600 font-medium`}>
                 <div className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5" : "px-2.5 py-1"} bg-blue-50/60 rounded-md border border-blue-100/50`}>
                   <Home size={compact ? 10 : 13} className="text-blue-500" />
                   <span className="text-gray-700">{guest.housingStatus}</span>
@@ -1305,6 +1336,17 @@ const GuestList = () => {
                     <MapPin size={compact ? 10 : 13} className="text-amber-600" />
                     <span className="text-gray-700">{guest.location}</span>
                   </div>
+                )}
+                {/* Gender and age - compact badges for quick identification */}
+                {guest.gender && (
+                  <span className={`${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"} bg-purple-50/60 text-purple-700 rounded-md border border-purple-100/50`}>
+                    {guest.gender.charAt(0)}
+                  </span>
+                )}
+                {guest.age && (
+                  <span className={`${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"} bg-teal-50/60 text-teal-700 rounded-md border border-teal-100/50`}>
+                    {guest.age}
+                  </span>
                 )}
               </div>
 
@@ -1341,37 +1383,38 @@ const GuestList = () => {
               <div className={`flex items-center ${compact ? "gap-1 p-0.5" : "gap-2 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
                 {(() => {
                   const today = todayPacificDateString();
-                  const alreadyHasMeal = mealRecords.some(
+                  const todayMealRecord = mealRecords.find(
                     (record) =>
                       record.guestId === guest.id &&
                       pacificDateStringFrom(record.date) === today
                   );
+                  const alreadyHasMeal = !!todayMealRecord;
+                  const mealCount = todayMealRecord?.mealCount || 0;
 
                   return [1, 2].map((count) => (
                     <button
                       key={count}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (alreadyHasMeal) {
-                          handleAddExtraMeals(guest.id, count);
-                        } else {
+                        if (!alreadyHasMeal) {
                           handleMealSelection(guest.id, count);
                         }
                       }}
-                      className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm active:scale-95 group/btn ${alreadyHasMeal
-                        ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-200"
-                        : "bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                      disabled={alreadyHasMeal}
+                      className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn ${alreadyHasMeal
+                        ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95"
                         }`}
                       title={
                         alreadyHasMeal
-                          ? `Add ${count} extra meal${count > 1 ? "s" : ""}`
+                          ? `Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`
                           : `Quick log ${count} meal${count > 1 ? "s" : ""}`
                       }
                     >
                       {alreadyHasMeal ? (
-                        <PlusCircle
+                        <Check
                           size={compact ? 12 : 14}
-                          className="group-hover/btn:scale-110 transition-transform"
+                          className="text-emerald-500"
                         />
                       ) : (
                         <Utensils
@@ -1435,14 +1478,43 @@ const GuestList = () => {
                     />
                     <div>
                       <p className="text-sm font-semibold text-red-700">
-                        Guest is banned
-                        {banSummaryLabel ? ` until ${banSummaryLabel}` : "."}
+                        {(() => {
+                          const bannedPrograms = [];
+                          if (guest.bannedFromMeals) bannedPrograms.push("Meals");
+                          if (guest.bannedFromShower) bannedPrograms.push("Showers");
+                          if (guest.bannedFromLaundry) bannedPrograms.push("Laundry");
+                          if (guest.bannedFromBicycle) bannedPrograms.push("Bicycle");
+                          
+                          if (bannedPrograms.length === 0) {
+                            return `Guest is banned from all services${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
+                          }
+                          return `Guest is banned from ${bannedPrograms.join(", ")}${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
+                        })()}
                       </p>
                       {guest.banReason && (
                         <p className="mt-1 text-sm text-red-700">
                           Reason: {guest.banReason}
                         </p>
                       )}
+                      {/* Show which programs are still allowed */}
+                      {(() => {
+                        const hasProgramBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
+                        if (!hasProgramBans) return null;
+                        
+                        const allowedPrograms = [];
+                        if (!guest.bannedFromMeals) allowedPrograms.push("Meals");
+                        if (!guest.bannedFromShower) allowedPrograms.push("Showers");
+                        if (!guest.bannedFromLaundry) allowedPrograms.push("Laundry");
+                        if (!guest.bannedFromBicycle) allowedPrograms.push("Bicycle");
+                        
+                        if (allowedPrograms.length === 0) return null;
+                        
+                        return (
+                          <p className="mt-1 text-sm text-green-700">
+                            ✓ Still allowed: {allowedPrograms.join(", ")}
+                          </p>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1523,6 +1595,55 @@ const GuestList = () => {
                     />
                   </div>
                 </div>
+                
+                {/* Program-specific ban selection */}
+                <div>
+                  <label className="block text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">
+                    Ban from specific programs (optional)
+                  </label>
+                  <p className="text-xs text-blue-700 mb-3">
+                    Select programs to ban from. Leave all unchecked to ban from all services.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={banEditor.bannedFromMeals}
+                        onChange={(e) => handleBanFieldChange("bannedFromMeals", e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-blue-900">Meals</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={banEditor.bannedFromShower}
+                        onChange={(e) => handleBanFieldChange("bannedFromShower", e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-blue-900">Showers</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={banEditor.bannedFromLaundry}
+                        onChange={(e) => handleBanFieldChange("bannedFromLaundry", e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-blue-900">Laundry</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={banEditor.bannedFromBicycle}
+                        onChange={(e) => handleBanFieldChange("bannedFromBicycle", e.target.checked)}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-blue-900">Bicycle</span>
+                    </label>
+                  </div>
+                </div>
+
                 {banError && (
                   <p className="text-sm text-red-600" role="alert">
                     {banError}
@@ -1802,21 +1923,22 @@ const GuestList = () => {
               <div>
                 {(() => {
                   const today = todayPacificDateString();
+                  const todayMealRecord = mealRecords.find(
+                    (record) =>
+                      record.guestId === guest.id &&
+                      pacificDateStringFrom(record.date) === today,
+                  );
                   const alreadyHasMeal =
-                    pendingMealGuests.has(guest.id) ||
-                    mealRecords.some(
-                      (record) =>
-                        record.guestId === guest.id &&
-                        pacificDateStringFrom(record.date) === today,
-                    );
+                    pendingMealGuests.has(guest.id) || !!todayMealRecord;
                   const isPendingMeal = pendingMealGuests.has(guest.id);
+                  const mealCount = todayMealRecord?.mealCount || 0;
 
                   return (
                     <div className="flex flex-wrap gap-2">
                       <div className="space-x-1 relative">
                         {[1, 2].map((count) => {
                           const isDisabled =
-                            isBanned || alreadyHasMeal || isPendingMeal;
+                            isBannedFromMeals || alreadyHasMeal || isPendingMeal;
 
                           return (
                             <button
@@ -1825,7 +1947,7 @@ const GuestList = () => {
                                 handleMealSelection(guest.id, count)
                               }
                               disabled={isDisabled}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
                                 ? "bg-red-100 text-red-500 cursor-not-allowed"
                                 : alreadyHasMeal
                                   ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
@@ -1834,15 +1956,15 @@ const GuestList = () => {
                                     : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
                                 }`}
                               title={
-                                isBanned
+                                isBannedFromMeals
                                   ? banTooltip
                                   : alreadyHasMeal
-                                    ? "Guest already received meals today"
+                                    ? `Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`
                                     : `Give ${count} meal${count > 1 ? "s" : ""}`
                               }
                             >
                               <SpringIcon>
-                                <Utensils size={16} />
+                                {alreadyHasMeal ? <Check size={16} className="text-emerald-600" /> : <Utensils size={16} />}
                               </SpringIcon>
                               {count} Meal{count > 1 ? "s" : ""}
                             </button>
@@ -1850,31 +1972,8 @@ const GuestList = () => {
                         })}
                       </div>
 
-                      {alreadyHasMeal && !isBanned && (
+                      {alreadyHasMeal && !isBannedFromMeals && (
                         <>
-                          <div className="space-x-1 relative">
-                            {[1, 2].map((count) => (
-                              <button
-                                key={`extra-${count}`}
-                                onClick={() =>
-                                  handleAddExtraMeals(guest.id, count)
-                                }
-                                disabled={isBanned}
-                                className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-green-100 hover:bg-green-200 active:bg-green-300 text-green-800 hover:shadow-sm active:scale-95"
-                                title={
-                                  isBanned
-                                    ? banTooltip
-                                    : `Add ${count} extra meal${count > 1 ? "s" : ""}`
-                                }
-                              >
-                                <SpringIcon>
-                                  <PlusCircle size={16} />
-                                </SpringIcon>
-                                {count} Extra
-                              </button>
-                            ))}
-                          </div>
-
                           {(() => {
                             const today = todayPacificDateString();
                             const guestMealAction = actionHistory.find(

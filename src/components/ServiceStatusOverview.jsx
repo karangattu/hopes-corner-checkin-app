@@ -14,6 +14,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
     showerRecords,
     laundryRecords,
     allShowerSlots,
+    blockedSlots,
     settings,
   } = useAppContext();
   const { user } = useAuth();
@@ -28,7 +29,14 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
         record.status !== "waitlisted"
     );
     
-    const totalCapacity = (allShowerSlots?.length || 0) * 2;
+    // Count blocked shower slots for today
+    const blockedShowerSlots = (blockedSlots || []).filter(
+      (slot) => slot.serviceType === "shower" && slot.date === todayString
+    );
+    
+    // Total capacity = slots * 2, minus blocked slots
+    const totalSlots = (allShowerSlots?.length || 0) - blockedShowerSlots.length;
+    const totalCapacity = totalSlots * 2;
     const booked = todaysRecords.length;
     const available = Math.max(totalCapacity - booked, 0);
     const waitlisted = (showerRecords || []).filter(
@@ -47,7 +55,6 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
     });
     
     const fullSlots = Object.values(slotCounts).filter(count => count >= 2).length;
-    const totalSlots = allShowerSlots?.length || 0;
     const availableSlots = totalSlots - fullSlots;
     
     return {
@@ -61,7 +68,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
       isFull: available === 0,
       isNearlyFull: available <= 2 && available > 0,
     };
-  }, [showerRecords, allShowerSlots, todayString]);
+  }, [showerRecords, allShowerSlots, blockedSlots, todayString]);
 
   // Calculate laundry statistics
   const laundryStats = useMemo(() => {
@@ -71,13 +78,21 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
       (record) => pacificDateStringFrom(record.date) === todayString
     );
     
+    // Count blocked laundry slots for today
+    const blockedLaundrySlots = (blockedSlots || []).filter(
+      (slot) => slot.serviceType === "laundry" && slot.date === todayString
+    );
+    
+    // Adjust capacity based on blocked slots
+    const availableCapacity = Math.max(maxSlots - blockedLaundrySlots.length, 0);
+    
     // Count all on-site laundry records for today as slots taken
-    // We only process a fixed number (maxSlots) per day regardless of status
+    // We only process a fixed number (availableCapacity) per day regardless of status
     const onsiteSlotsTaken = todaysRecords.filter(
       (record) => (record.laundryType === "onsite" || !record.laundryType)
     ).length;
     
-    const onsiteAvailable = Math.max(maxSlots - onsiteSlotsTaken, 0);
+    const onsiteAvailable = Math.max(availableCapacity - onsiteSlotsTaken, 0);
     const offsiteCount = todaysRecords.filter(r => r.laundryType === "offsite").length;
     
     // Count by status
@@ -95,7 +110,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
                       (statusCounts["offsite_picked_up"] || 0);
     
     return {
-      totalCapacity: maxSlots,
+      totalCapacity: availableCapacity,
       onsiteBooked: onsiteSlotsTaken,
       onsiteAvailable,
       offsiteCount,
@@ -105,7 +120,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
       isFull: onsiteAvailable === 0,
       isNearlyFull: onsiteAvailable === 1,
     };
-  }, [laundryRecords, settings, todayString]);
+  }, [laundryRecords, blockedSlots, settings, todayString]);
 
   // Check if user can click cards (staff or admin)
   const canClickCards = user?.role && ["staff", "admin"].includes(user.role);

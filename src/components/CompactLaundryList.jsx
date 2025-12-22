@@ -82,7 +82,7 @@ const CompactLaundryList = ({ viewDate = null }) => {
         };
       });
 
-    const onsiteActive = onsite.filter(item => !isCompletedStatus(item.status) && item.status !== "cancelled");
+    const onsiteActive = onsite.filter(item => !isCompletedStatus(item.status));
     const onsiteDone = onsite.filter(item => isCompletedStatus(item.status));
 
     const offsite = targetDayRecords
@@ -103,7 +103,7 @@ const CompactLaundryList = ({ viewDate = null }) => {
         };
       });
 
-    const offsiteActive = offsite.filter(item => !isCompletedStatus(item.status) && item.status !== "cancelled");
+    const offsiteActive = offsite.filter(item => !isCompletedStatus(item.status));
     const offsiteDone = offsite.filter(item => isCompletedStatus(item.status));
 
     return { onsiteActive, onsiteDone, offsiteActive, offsiteDone, total: targetDayRecords.length };

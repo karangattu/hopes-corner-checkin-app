@@ -67,6 +67,7 @@ import {
   mapItemRow as mapItemRowPure,
   mapDonationRow as mapDonationRowPure,
   mapLaPlazaDonationRow as mapLaPlazaDonationRowPure,
+  mapBlockedSlotRow as mapBlockedSlotRowPure,
   mapShowerStatusToDb,
 } from "./utils/mappers";
 import { persistentStore } from "../utils/persistentStore";
@@ -118,6 +119,7 @@ export const AppProvider = ({ children }) => {
 
   const [showerSlots, setShowerSlots] = useState([]);
   const [laundrySlots, setLaundrySlots] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
 
   const [activeTab, setActiveTab] = useState("check-in");
   const [activeServiceSection, setActiveServiceSection] = useState("overview");
@@ -136,12 +138,21 @@ export const AppProvider = ({ children }) => {
       const bannedUntil = guest?.bannedUntil ?? guest?.banned_until ?? null;
       const bannedAt = guest?.bannedAt ?? guest?.banned_at ?? null;
       const banReason = guest?.banReason ?? guest?.ban_reason ?? "";
+      // Program-specific bans
+      const bannedFromBicycle = guest?.bannedFromBicycle ?? guest?.banned_from_bicycle ?? false;
+      const bannedFromMeals = guest?.bannedFromMeals ?? guest?.banned_from_meals ?? false;
+      const bannedFromShower = guest?.bannedFromShower ?? guest?.banned_from_shower ?? false;
+      const bannedFromLaundry = guest?.bannedFromLaundry ?? guest?.banned_from_laundry ?? false;
       const withBanMetadata = {
         ...guest,
         bannedUntil,
         bannedAt,
         banReason,
         isBanned: computeIsGuestBanned(bannedUntil),
+        bannedFromBicycle,
+        bannedFromMeals,
+        bannedFromShower,
+        bannedFromLaundry,
       };
 
       const baseGuest = withBanMetadata;
@@ -211,6 +222,23 @@ export const AppProvider = ({ children }) => {
 
   const mapDonationRow = useCallback(mapDonationRowPure, []);
   const mapLaPlazaDonationRow = useCallback(mapLaPlazaDonationRowPure, []);
+  const mapBlockedSlotRow = useCallback(mapBlockedSlotRowPure, []);
+
+  /**
+   * Map service labels to their corresponding ban fields
+   */
+  const SERVICE_BAN_MAP = {
+    'bicycle repairs': 'bannedFromBicycle',
+    'bicycle repair': 'bannedFromBicycle',
+    'bicycle': 'bannedFromBicycle',
+    'meal service': 'bannedFromMeals',
+    'meals': 'bannedFromMeals',
+    'shower bookings': 'bannedFromShower',
+    'shower': 'bannedFromShower',
+    'showers': 'bannedFromShower',
+    'laundry bookings': 'bannedFromLaundry',
+    'laundry': 'bannedFromLaundry',
+  };
 
   const ensureGuestServiceEligible = useCallback(
     (guestId, serviceLabel = "this service") => {
@@ -228,6 +256,37 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
+      // Check if this is a program-specific ban
+      const banFieldKey = SERVICE_BAN_MAP[serviceLabel.toLowerCase()];
+      const hasProgramSpecificBans = 
+        guest.bannedFromBicycle || 
+        guest.bannedFromMeals || 
+        guest.bannedFromShower || 
+        guest.bannedFromLaundry;
+      
+      // If program-specific bans exist, only block if this specific service is banned
+      if (hasProgramSpecificBans) {
+        // If a specific ban field exists for this service and it's false, allow the service
+        if (banFieldKey && !guest[banFieldKey]) {
+          return; // Not banned from this specific service
+        }
+        // If banned from this specific service, throw error
+        if (banFieldKey && guest[banFieldKey]) {
+          const formatted = banDateFormatter.format(bannedUntil);
+          const reasonSuffix = guest.banReason
+            ? ` Reason: ${guest.banReason}`
+            : "";
+          const nameLabel = guest.name || guest.preferredName || "Guest";
+          throw new Error(
+            `${nameLabel} is banned from ${serviceLabel} until ${formatted}.${reasonSuffix ? ` ${reasonSuffix}` : ""}`,
+          );
+        }
+        // For services not in the map (like haircuts, holidays), allow if program-specific bans exist
+        // since those services weren't specifically banned
+        return;
+      }
+
+      // If no program-specific bans, it's a blanket ban - block all services
       const formatted = banDateFormatter.format(bannedUntil);
       const reasonSuffix = guest.banReason
         ? ` Reason: ${guest.banReason}`
@@ -615,6 +674,10 @@ export const AppProvider = ({ children }) => {
           "banned_until",
           "banned_at",
           "ban_reason",
+          "banned_from_bicycle",
+          "banned_from_meals",
+          "banned_from_shower",
+          "banned_from_laundry",
           "created_at",
           "updated_at",
         ].join(",");
@@ -2117,7 +2180,16 @@ export const AppProvider = ({ children }) => {
 
   const banGuest = async (
     guestId,
-    { bannedUntil, banReason = "", bannedAt: bannedAtOverride } = {},
+    { 
+      bannedUntil, 
+      banReason = "", 
+      bannedAt: bannedAtOverride,
+      // Program-specific bans - if all false, it's a blanket ban from all services
+      bannedFromBicycle = false,
+      bannedFromMeals = false,
+      bannedFromShower = false,
+      bannedFromLaundry = false,
+    } = {},
   ) => {
     if (!guestId) throw new Error("Guest ID is required.");
 
@@ -2147,6 +2219,10 @@ export const AppProvider = ({ children }) => {
       bannedUntil: normalizedUntil,
       bannedAt: normalizedBannedAt,
       isBanned: true,
+      bannedFromBicycle,
+      bannedFromMeals,
+      bannedFromShower,
+      bannedFromLaundry,
     });
 
     setGuests((prev) =>
@@ -2161,6 +2237,10 @@ export const AppProvider = ({ children }) => {
             ban_reason: sanitizedReason || null,
             banned_until: normalizedUntil,
             banned_at: normalizedBannedAt,
+            banned_from_bicycle: bannedFromBicycle,
+            banned_from_meals: bannedFromMeals,
+            banned_from_shower: bannedFromShower,
+            banned_from_laundry: bannedFromLaundry,
           })
           .eq("id", guestId)
           .select()
@@ -2200,6 +2280,10 @@ export const AppProvider = ({ children }) => {
       bannedUntil: null,
       bannedAt: null,
       isBanned: false,
+      bannedFromBicycle: false,
+      bannedFromMeals: false,
+      bannedFromShower: false,
+      bannedFromLaundry: false,
     };
 
     setGuests((prev) =>
@@ -2214,6 +2298,10 @@ export const AppProvider = ({ children }) => {
             ban_reason: null,
             banned_until: null,
             banned_at: null,
+            banned_from_bicycle: false,
+            banned_from_meals: false,
+            banned_from_shower: false,
+            banned_from_laundry: false,
           })
           .eq("id", guestId)
           .select()
@@ -3259,6 +3347,242 @@ export const AppProvider = ({ children }) => {
       handleServiceCompleted,
     ],
   );
+
+  // Blocked Slots Management - Synced with Supabase for cross-device consistency
+  const BLOCKED_SLOTS_STORAGE_KEY = "hopes-corner-blocked-slots";
+
+  // Load blocked slots from Supabase on mount (with localStorage fallback)
+  useEffect(() => {
+    const loadBlockedSlots = async () => {
+      const today = todayPacificDateString();
+      
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("blocked_slots")
+            .select("id,service_type,slot_time,date,created_at,created_by")
+            .gte("date", today);
+          
+          if (error) {
+            console.error("Error loading blocked slots from Supabase:", error);
+            // Fall back to localStorage
+            loadFromLocalStorage();
+          } else if (data) {
+            const mapped = data.map(mapBlockedSlotRow);
+            setBlockedSlots(mapped);
+            // Also update localStorage as cache
+            localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(mapped));
+          }
+        } catch (e) {
+          console.error("Error loading blocked slots:", e);
+          loadFromLocalStorage();
+        }
+      } else {
+        loadFromLocalStorage();
+      }
+    };
+    
+    const loadFromLocalStorage = () => {
+      try {
+        const stored = localStorage.getItem(BLOCKED_SLOTS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const today = todayPacificDateString();
+          const current = parsed.filter(slot => slot.date >= today);
+          setBlockedSlots(current);
+          if (current.length !== parsed.length) {
+            localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(current));
+          }
+        }
+      } catch (e) {
+        console.error("Error loading blocked slots from localStorage:", e);
+      }
+    };
+    
+    loadBlockedSlots();
+  }, [supabaseEnabled, mapBlockedSlotRow]);
+
+  // Persist blocked slots to localStorage as cache
+  useEffect(() => {
+    try {
+      localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(blockedSlots));
+    } catch (e) {
+      console.error("Error saving blocked slots to localStorage:", e);
+    }
+  }, [blockedSlots]);
+
+  const blockSlot = useCallback(async (serviceType, slotTime, date) => {
+    const newSlot = {
+      id: createLocalId(),
+      serviceType,
+      slotTime,
+      date,
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Optimistically update local state
+    setBlockedSlots(prev => [...prev, newSlot]);
+    
+    // Persist to Supabase if enabled
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("blocked_slots")
+          .insert({
+            service_type: serviceType,
+            slot_time: slotTime,
+            date: date,
+          })
+          .select()
+          .single();
+        
+        if (error) {
+          // If it's a duplicate, that's okay - slot is already blocked
+          if (error.code !== '23505') {
+            console.error("Error blocking slot in Supabase:", error);
+            // Revert optimistic update on error (except duplicates)
+            setBlockedSlots(prev => prev.filter(s => s.id !== newSlot.id));
+            throw error;
+          }
+        } else if (data) {
+          // Update with actual Supabase ID
+          const mapped = mapBlockedSlotRow(data);
+          setBlockedSlots(prev => 
+            prev.map(s => s.id === newSlot.id ? mapped : s)
+          );
+          return mapped;
+        }
+      } catch (e) {
+        console.error("Error blocking slot:", e);
+        throw e;
+      }
+    }
+    
+    return newSlot;
+  }, [supabaseEnabled, mapBlockedSlotRow]);
+
+  const unblockSlot = useCallback(async (serviceType, slotTime, date) => {
+    // Optimistically update local state
+    setBlockedSlots(prev => 
+      prev.filter(slot => 
+        !(slot.serviceType === serviceType && slot.slotTime === slotTime && slot.date === date)
+      )
+    );
+    
+    // Delete from Supabase if enabled
+    if (supabaseEnabled && supabase) {
+      try {
+        const { error } = await supabase
+          .from("blocked_slots")
+          .delete()
+          .eq("service_type", serviceType)
+          .eq("slot_time", slotTime)
+          .eq("date", date);
+        
+        if (error) {
+          console.error("Error unblocking slot in Supabase:", error);
+          // Note: We don't revert here since the slot might not exist in Supabase
+        }
+      } catch (e) {
+        console.error("Error unblocking slot:", e);
+      }
+    }
+  }, [supabaseEnabled]);
+
+  const isSlotBlocked = useCallback((serviceType, slotTime, date) => {
+    return blockedSlots.some(
+      slot => slot.serviceType === serviceType && slot.slotTime === slotTime && slot.date === date
+    );
+  }, [blockedSlots]);
+
+  /**
+   * Refresh service slot data from the database.
+   * Call this when opening booking modals to ensure users see the latest availability.
+   * This prevents race conditions where two users see the same slot as available.
+   * @param {string} serviceType - "shower" or "laundry"
+   * @returns {Promise<boolean>} - true if refresh succeeded
+   */
+  const refreshServiceSlots = useCallback(async (serviceType) => {
+    if (!supabaseEnabled || !supabase || !navigator.onLine) {
+      return false;
+    }
+
+    const today = todayPacificDateString();
+
+    try {
+      if (serviceType === "shower") {
+        const { data, error } = await supabase
+          .from("shower_reservations")
+          .select("id,guest_id,scheduled_for,scheduled_time,status,created_at,updated_at")
+          .eq("scheduled_for", today)
+          .neq("status", "cancelled");
+
+        if (error) {
+          console.error("Error refreshing shower slots:", error);
+          return false;
+        }
+
+        if (data) {
+          const mapped = data.map(mapShowerRow);
+          // Update only today's records in the state
+          setShowerRecords((prev) => {
+            const otherDays = prev.filter(
+              (r) => pacificDateStringFrom(r.date) !== today
+            );
+            return [...otherDays, ...mapped];
+          });
+          // Update shower slots
+          const newSlots = mapped
+            .filter((r) => r.time && r.status !== "waitlisted" && r.status !== "cancelled")
+            .map((r) => ({ guestId: r.guestId, time: r.time }));
+          setShowerSlots(newSlots);
+          console.log(`[Shower slots refreshed] ${mapped.length} records for today`);
+        }
+        return true;
+      }
+
+      if (serviceType === "laundry") {
+        const { data, error } = await supabase
+          .from("laundry_bookings")
+          .select("id,guest_id,slot_label,laundry_type,bag_number,scheduled_for,status,created_at,updated_at")
+          .eq("scheduled_for", today);
+
+        if (error) {
+          console.error("Error refreshing laundry slots:", error);
+          return false;
+        }
+
+        if (data) {
+          const mapped = data.map(mapLaundryRow);
+          // Update only today's records in the state
+          setLaundryRecords((prev) => {
+            const otherDays = prev.filter(
+              (r) => pacificDateStringFrom(r.date) !== today
+            );
+            return [...otherDays, ...mapped];
+          });
+          // Update laundry slots (only onsite bookings have slot times)
+          const newSlots = mapped
+            .filter((r) => r.laundryType === "onsite" && r.time)
+            .map((r) => ({
+              guestId: r.guestId,
+              time: r.time,
+              laundryType: r.laundryType,
+              bagNumber: r.bagNumber,
+              status: r.status,
+            }));
+          setLaundrySlots(newSlots);
+          console.log(`[Laundry slots refreshed] ${mapped.length} records for today`);
+        }
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error(`Error refreshing ${serviceType} slots:`, error);
+      return false;
+    }
+  }, [supabaseEnabled, mapShowerRow, mapLaundryRow]);
 
   const getTodayMetrics = () => {
     const today = todayPacificDateString();
@@ -5300,6 +5624,7 @@ export const AppProvider = ({ children }) => {
 
     allShowerSlots,
     allLaundrySlots,
+    blockedSlots,
 
     setActiveTab,
     setActiveServiceSection,
@@ -5399,6 +5724,12 @@ export const AppProvider = ({ children }) => {
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
     getWaiverStatusSummary,
+    // Blocked slots operations
+    blockSlot,
+    unblockSlot,
+    isSlotBlocked,
+    // Slot refresh for real-time availability
+    refreshServiceSlots,
   }), [
     // State dependencies
     guests,
@@ -5432,6 +5763,7 @@ export const AppProvider = ({ children }) => {
     // Computed values
     allShowerSlots,
     allLaundrySlots,
+    blockedSlots,
     // Function dependencies (stable references from useCallback/useMemo)
     setActiveServiceSection,
     updateSettings,
@@ -5514,6 +5846,10 @@ export const AppProvider = ({ children }) => {
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
     getWaiverStatusSummary,
+    blockSlot,
+    unblockSlot,
+    isSlotBlocked,
+    refreshServiceSlots,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,5 +1,6 @@
 import { addShowerWithOffline } from '../../utils/offlineOperations';
 import { mapShowerStatusToDb } from './mappers';
+import { globalSyncManager } from '../SupabaseSync';
 
 export const createShowerMutations = ({
   supabaseEnabled,
@@ -20,6 +21,18 @@ export const createShowerMutations = ({
   normalizeDateInputToISO,
   onServiceCompleted, // Callback when a service is marked complete
 }) => {
+  /**
+   * Trigger a sync for other users to see updated slots immediately
+   */
+  const triggerShowerSync = () => {
+    try {
+      // Reset the last sync time to force an immediate sync
+      globalSyncManager?.lastSync.set('showers', 0);
+    } catch (error) {
+      console.warn('Could not trigger shower sync:', error);
+    }
+  };
+
   /**
    * Validates slot availability by checking database directly (if online)
    * This helps prevent race conditions when multiple users book simultaneously
@@ -144,6 +157,8 @@ export const createShowerMutations = ({
           data: { recordId: mapped.id, guestId, time },
           description: `Booked shower at ${time} for guest`,
         });
+        // Trigger sync so other users see the new booking immediately
+        triggerShowerSync();
         return mapped;
       } catch (error) {
         console.error("Failed to create shower booking:", error);
@@ -511,6 +526,9 @@ export const createShowerMutations = ({
     if (newStatus === "done" && onServiceCompleted) {
       onServiceCompleted(previousRecord.guestId, "shower");
     }
+
+    // Trigger sync so other users see the status update immediately
+    triggerShowerSync();
 
     return true;
   };

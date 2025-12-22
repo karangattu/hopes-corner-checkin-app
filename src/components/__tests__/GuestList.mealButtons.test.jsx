@@ -83,7 +83,7 @@ describe("GuestList - Meal Button Changes", () => {
       });
     });
 
-    it("renders only 1 extra and 2 extra buttons, not 3 extra", async () => {
+    it("disables meal buttons after guest receives meal", async () => {
       const today = new Date().toISOString();
       mockContextValue = {
         ...createDefaultContext(),
@@ -116,11 +116,13 @@ describe("GuestList - Meal Button Changes", () => {
       fireEvent.click(guestCard);
 
       await waitFor(() => {
-        const extraButtons = screen.getAllByRole("button", { name: /\d+ Extra$/i });
-        expect(extraButtons).toHaveLength(2);
-        expect(screen.getByRole("button", { name: /1 Extra$/i })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /2 Extra$/i })).toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: /3 Extra$/i })).not.toBeInTheDocument();
+        // After meal is logged, meal buttons should be disabled
+        const mealButtons = screen.getAllByRole("button", { name: /\d+ Meal/ });
+        mealButtons.forEach((button) => {
+          expect(button).toBeDisabled();
+        });
+        // No extra meal buttons should be shown
+        expect(screen.queryByRole("button", { name: /\d+ Extra$/i })).not.toBeInTheDocument();
       });
     });
   });

@@ -45,6 +45,8 @@ const LaundryBooking = () => {
     guests,
     settings,
     LAUNDRY_STATUS,
+    blockedSlots,
+    refreshServiceSlots,
   } = useAppContext();
 
   const { user } = useAuth();
@@ -69,6 +71,22 @@ const LaundryBooking = () => {
   ];
 
   const todayString = todayPacificDateString();
+
+  // Get blocked laundry slots for today
+  const blockedLaundrySlots = useMemo(() => {
+    return new Set(
+      (blockedSlots || [])
+        .filter(slot => slot.serviceType === "laundry" && slot.date === todayString)
+        .map(slot => slot.slotTime)
+    );
+  }, [blockedSlots, todayString]);
+
+  // Refresh slot availability from database when modal opens
+  useEffect(() => {
+    if (laundryPickerGuest && refreshServiceSlots) {
+      refreshServiceSlots("laundry");
+    }
+  }, [laundryPickerGuest, refreshServiceSlots]);
 
   useEffect(() => {
     if (!laundryPickerGuest) {
@@ -177,10 +195,17 @@ const LaundryBooking = () => {
     );
   }, [laundryPickerGuest, laundryRecords]);
 
+  // Filter out blocked slots for next available calculation
+  const availableLaundrySlots = useMemo(() => {
+    return allLaundrySlots.filter(slotTime => !blockedLaundrySlots.has(slotTime));
+  }, [allLaundrySlots, blockedLaundrySlots]);
+
+  const blockedCount = blockedLaundrySlots.size;
+
   const nextAvailableSlot = useMemo(() => {
     if (capacityReached) return null;
-    return allLaundrySlots.find((slotTime) => !isSlotBooked(slotTime));
-  }, [allLaundrySlots, capacityReached, isSlotBooked]);
+    return availableLaundrySlots.find((slotTime) => !isSlotBooked(slotTime));
+  }, [availableLaundrySlots, capacityReached, isSlotBooked]);
 
   const statusChipStyles = {
     [LAUNDRY_STATUS?.WAITING]: "bg-amber-100 text-amber-800",
@@ -561,10 +586,15 @@ const LaundryBooking = () => {
                 </h3>
                 <p className="text-xs text-gray-500 mb-3">
                   Maximum of {onsiteCapacity} on-site laundry slots per day
+                  {blockedCount > 0 && (
+                    <span className="ml-2 text-red-600">
+                      • {blockedCount} slot{blockedCount !== 1 ? "s" : ""} blocked today
+                    </span>
+                  )}
                 </p>
 
                 <div className="grid grid-cols-1 gap-3">
-                  {allLaundrySlots.map((slotTime) => {
+                  {availableLaundrySlots.map((slotTime) => {
                     const booked = isSlotBooked(slotTime);
                     const slotInfo = slotAssignments.get(slotTime);
 
@@ -591,6 +621,8 @@ const LaundryBooking = () => {
                           <p className="text-sm text-gray-500">
                             {booked
                               ? "Currently assigned"
+                              : capacityReached
+                              ? "Daily capacity reached"
                               : "Tap to reserve this hour"}
                           </p>
                         </div>
@@ -607,6 +639,14 @@ const LaundryBooking = () => {
                                 {humanizeStatus(slotInfo.status)}
                               </span>
                             </>
+                          ) : booked ? (
+                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-red-100 text-red-700">
+                              Full
+                            </span>
+                          ) : capacityReached ? (
+                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-red-100 text-red-700">
+                              Full
+                            </span>
                           ) : (
                             <span className="text-sm text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
                               Available

@@ -20,6 +20,7 @@ let mockContext = {
   laundryRecords: [],
   laundrySlots: [],
   allShowerSlots: ["08:00", "08:30", "09:00", "09:30", "10:00"],
+  blockedSlots: [],
   settings: { maxOnsiteLaundrySlots: 5 },
 };
 
@@ -40,6 +41,7 @@ describe("ServiceStatusOverview", () => {
     mockContext.showerRecords = [];
     mockContext.laundryRecords = [];
     mockContext.laundrySlots = [];
+    mockContext.blockedSlots = [];
     mockContext.allShowerSlots = ["08:00", "08:30", "09:00", "09:30", "10:00"];
     mockContext.settings = { maxOnsiteLaundrySlots: 5 };
     mockUser = null;
@@ -208,6 +210,64 @@ describe("ServiceStatusOverview", () => {
     mockContext.settings = null;
     render(<ServiceStatusOverview />);
     expect(screen.getByText("Laundry")).toBeInTheDocument();
+  });
+
+  it("deducts blocked shower slots from available capacity", () => {
+    // 5 slots total, 2 blocked
+    mockContext.blockedSlots = [
+      { serviceType: "shower", date: "2025-01-15", slotTime: "08:00" },
+      { serviceType: "shower", date: "2025-01-15", slotTime: "08:30" },
+    ];
+    render(<ServiceStatusOverview />);
+    // (5 - 2) slots * 2 = 6 available
+    expect(screen.getByText("6")).toBeInTheDocument();
+  });
+
+  it("deducts blocked laundry slots from available capacity", () => {
+    // 5 slots total, 2 blocked
+    mockContext.blockedSlots = [
+      { serviceType: "laundry", date: "2025-01-15", slotTime: "08:30 - 10:00" },
+      { serviceType: "laundry", date: "2025-01-15", slotTime: "09:00 - 10:15" },
+    ];
+    render(<ServiceStatusOverview />);
+    // 5 - 2 = 3 available laundry slots
+    const laundryText = screen.getAllByText("3");
+    expect(laundryText.length).toBeGreaterThan(0);
+  });
+
+  it("combines booked and blocked slots for shower calculation", () => {
+    // 5 slots, 1 blocked, 2 booked = 2 available per slot
+    mockContext.blockedSlots = [
+      { serviceType: "shower", date: "2025-01-15", slotTime: "08:00" },
+    ];
+    mockContext.showerRecords = [
+      {
+        id: "shower-1",
+        guestId: "guest-1",
+        time: "08:30",
+        date: "2025-01-15T08:00:00Z",
+        status: "booked",
+      },
+      {
+        id: "shower-2",
+        guestId: "guest-2",
+        time: "08:30",
+        date: "2025-01-15T08:00:00Z",
+        status: "booked",
+      },
+    ];
+    render(<ServiceStatusOverview />);
+    // (5 - 1) slots * 2 - 2 booked = 6 available
+    expect(screen.getByText("6")).toBeInTheDocument();
+  });
+
+  it("does not count blocked slots from other dates", () => {
+    mockContext.blockedSlots = [
+      { serviceType: "shower", date: "2025-01-14", slotTime: "08:00" },
+    ];
+    render(<ServiceStatusOverview />);
+    // Should still be 10 (5 slots * 2) since blocked slot is for a different date
+    expect(screen.getByText("10")).toBeInTheDocument();
   });
 
   describe("Clickability based on user role", () => {

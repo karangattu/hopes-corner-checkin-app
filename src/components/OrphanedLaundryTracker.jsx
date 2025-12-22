@@ -94,9 +94,6 @@ const OrphanedLaundryTracker = () => {
         const recordDateStr = pacificDateStringFrom(record.date);
         if (recordDateStr >= todayString) return false;
 
-        // Must not be cancelled
-        if (record.status === LAUNDRY_STATUS?.CANCELLED) return false;
-
         const isOffsite = record.laundryType === "offsite" || record.offsite;
 
         // Check if it's in an unpicked status
@@ -132,7 +129,6 @@ const OrphanedLaundryTracker = () => {
     laundryRecords,
     guests,
     todayString,
-    LAUNDRY_STATUS,
     onsiteUnpickedStatuses,
     offsiteUnpickedStatuses,
     getDaysSince,

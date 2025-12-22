@@ -123,6 +123,7 @@ export const supabaseProxy = onCall(
         "la_plaza_donations",
         "app_settings",
         "service_waivers",
+        "blocked_slots",
       ];
 
       // For non-RPC operations, table is required

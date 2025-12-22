@@ -112,6 +112,20 @@ const LaundryKanban = ({
     };
   };
 
+  const formatSlotTime = (slotTime) => {
+    if (!slotTime) return null;
+    // Slot can be a range like "8:30 - 9:30"
+    const [start] = String(slotTime).split(" - ");
+    const [hoursStr, minutesStr] = String(start).split(":");
+    const hours = Number(hoursStr);
+    const minutes = Number(minutesStr);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return slotTime;
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes, 0, 0);
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  };
+
   const toggleCard = (recordId) => {
     setExpandedCards((prev) => ({
       ...prev,
@@ -322,14 +336,21 @@ const LaundryKanban = ({
               className="text-gray-400 flex-shrink-0 mt-0.5"
             />
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-xs text-gray-900 leading-tight" title={nameDetails.displayName}>
+              <div className="font-medium text-xs text-gray-900 leading-tight truncate" title={nameDetails.displayName}>
                 {nameDetails.primaryName}
               </div>
-              {nameDetails.hasPreferred && (
-                <div className="text-[9px] text-gray-500 truncate">
-                  {nameDetails.legalName}
-                </div>
-              )}
+              <div className="flex items-center gap-2 mt-1">
+                {nameDetails.hasPreferred && (
+                  <div className="text-[9px] text-gray-500 truncate">
+                    {nameDetails.legalName}
+                  </div>
+                )}
+                {!isOffsite && record.time && (
+                  <span className="flex-shrink-0 text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {formatSlotTime(record.time)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">

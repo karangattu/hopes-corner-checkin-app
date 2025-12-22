@@ -37,12 +37,21 @@ export const useGuestsStore = create(
             const bannedUntil = guest?.bannedUntil ?? guest?.banned_until ?? null;
             const bannedAt = guest?.bannedAt ?? guest?.banned_at ?? null;
             const banReason = guest?.banReason ?? guest?.ban_reason ?? '';
+            // Program-specific bans
+            const bannedFromBicycle = guest?.bannedFromBicycle ?? guest?.banned_from_bicycle ?? false;
+            const bannedFromMeals = guest?.bannedFromMeals ?? guest?.banned_from_meals ?? false;
+            const bannedFromShower = guest?.bannedFromShower ?? guest?.banned_from_shower ?? false;
+            const bannedFromLaundry = guest?.bannedFromLaundry ?? guest?.banned_from_laundry ?? false;
             const withBanMetadata = {
               ...guest,
               bannedUntil,
               bannedAt,
               banReason,
               isBanned: computeIsGuestBanned(bannedUntil),
+              bannedFromBicycle,
+              bannedFromMeals,
+              bannedFromShower,
+              bannedFromLaundry,
             };
 
             const baseGuest = withBanMetadata;
@@ -320,7 +329,16 @@ export const useGuestsStore = create(
 
         banGuest: async (
           guestId,
-          { bannedUntil, banReason = '', bannedAt: bannedAtOverride } = {}
+          { 
+            bannedUntil, 
+            banReason = '', 
+            bannedAt: bannedAtOverride,
+            // Program-specific bans - if all false, it's a blanket ban from all services
+            bannedFromBicycle = false,
+            bannedFromMeals = false,
+            bannedFromShower = false,
+            bannedFromLaundry = false,
+          } = {}
         ) => {
           const { guests } = get();
 
@@ -355,6 +373,10 @@ export const useGuestsStore = create(
                 bannedUntil: normalizedUntil,
                 bannedAt: normalizedBannedAt,
                 isBanned: true,
+                bannedFromBicycle,
+                bannedFromMeals,
+                bannedFromShower,
+                bannedFromLaundry,
               };
             }
           });
@@ -367,6 +389,10 @@ export const useGuestsStore = create(
                   ban_reason: sanitizedReason || null,
                   banned_until: normalizedUntil,
                   banned_at: normalizedBannedAt,
+                  banned_from_bicycle: bannedFromBicycle,
+                  banned_from_meals: bannedFromMeals,
+                  banned_from_shower: bannedFromShower,
+                  banned_from_laundry: bannedFromLaundry,
                 })
                 .eq('id', guestId)
                 .select()
@@ -419,6 +445,10 @@ export const useGuestsStore = create(
                 bannedUntil: null,
                 bannedAt: null,
                 isBanned: false,
+                bannedFromBicycle: false,
+                bannedFromMeals: false,
+                bannedFromShower: false,
+                bannedFromLaundry: false,
               };
             }
           });
@@ -431,6 +461,10 @@ export const useGuestsStore = create(
                   ban_reason: null,
                   banned_until: null,
                   banned_at: null,
+                  banned_from_bicycle: false,
+                  banned_from_meals: false,
+                  banned_from_shower: false,
+                  banned_from_laundry: false,
                 })
                 .eq('id', guestId)
                 .select()
@@ -785,6 +819,10 @@ export const useGuestsStore = create(
               'banned_until',
               'banned_at',
               'ban_reason',
+              'banned_from_bicycle',
+              'banned_from_meals',
+              'banned_from_shower',
+              'banned_from_laundry',
               'created_at',
               'updated_at',
             ].join(',');

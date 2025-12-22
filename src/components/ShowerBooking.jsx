@@ -57,6 +57,8 @@ const ShowerBooking = () => {
     addShowerWaitlist,
     showerRecords,
     guests,
+    blockedSlots,
+    refreshServiceSlots,
   } = useAppContext();
 
   const { user } = useAuth();
@@ -67,14 +69,31 @@ const ShowerBooking = () => {
 
   const todayString = todayPacificDateString();
 
+  // Refresh slot availability from database when modal opens
+  useEffect(() => {
+    if (showerPickerGuest && refreshServiceSlots) {
+      refreshServiceSlots("shower");
+    }
+  }, [showerPickerGuest, refreshServiceSlots]);
+
   useEffect(() => {
     setError("");
     setSuccess(false);
   }, [showerPickerGuest]);
 
+  // Get blocked shower slots for today
+  const blockedShowerSlots = useMemo(() => {
+    return new Set(
+      (blockedSlots || [])
+        .filter(slot => slot.serviceType === "shower" && slot.date === todayString)
+        .map(slot => slot.slotTime)
+    );
+  }, [blockedSlots, todayString]);
+
   const slotsWithDetails = useMemo(() => {
     return allShowerSlots
       .map((slotTime) => {
+        const isBlocked = blockedShowerSlots.has(slotTime);
         const todaysRecords = (showerRecords || []).filter(
           (record) =>
             record.time === slotTime &&
@@ -104,24 +123,30 @@ const ShowerBooking = () => {
           statuses,
           isFull: count >= 2,
           isNearlyFull: count === 1,
+          isBlocked,
           sortKey: toMinutes(slotTime),
         };
       })
       .sort((a, b) => {
+        // Blocked slots go to the end
+        if (a.isBlocked !== b.isBlocked) return a.isBlocked ? 1 : -1;
         if (a.isFull !== b.isFull) return a.isFull ? 1 : -1;
         return a.sortKey - b.sortKey; // keep timeline order for remaining capacity
       });
-  }, [allShowerSlots, showerRecords, guests, todayString]);
+  }, [allShowerSlots, showerRecords, guests, todayString, blockedShowerSlots]);
 
-  const totalCapacity = allShowerSlots.length * 2;
-  const occupied = slotsWithDetails.reduce((sum, slot) => sum + slot.count, 0);
+  // Calculate capacity excluding blocked slots
+  const availableSlots = slotsWithDetails.filter(slot => !slot.isBlocked);
+  const totalCapacity = availableSlots.length * 2;
+  const occupied = availableSlots.reduce((sum, slot) => sum + slot.count, 0);
   const available = Math.max(totalCapacity - occupied, 0);
   const capacityProgress = Math.min(
     (occupied / Math.max(totalCapacity, 1)) * 100,
     100,
   );
-  const allSlotsFull = slotsWithDetails.every((slot) => slot.isFull);
-  const nextAvailableSlot = slotsWithDetails.find((slot) => !slot.isFull);
+  const allSlotsFull = availableSlots.every((slot) => slot.isFull);
+  const nextAvailableSlot = slotsWithDetails.find((slot) => !slot.isFull && !slot.isBlocked);
+  const blockedCount = slotsWithDetails.filter(slot => slot.isBlocked).length;
 
   const waitlistToday = useMemo(
     () =>
@@ -448,10 +473,15 @@ const ShowerBooking = () => {
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               Maximum of 2 guests per time slot
+              {blockedCount > 0 && (
+                <span className="ml-2 text-red-600">
+                  • {blockedCount} slot{blockedCount !== 1 ? "s" : ""} blocked today
+                </span>
+              )}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {slotsWithDetails.map((slot) => (
+              {slotsWithDetails.filter(slot => !slot.isBlocked).map((slot) => (
                 <button
                   key={slot.slotTime}
                   onClick={() =>

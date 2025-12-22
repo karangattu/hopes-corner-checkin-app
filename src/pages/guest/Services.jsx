@@ -94,6 +94,7 @@ import TimelineSection from "./services/sections/TimelineSection";
 import CompactShowerList from "../../components/CompactShowerList";
 import CompactLaundryList from "../../components/CompactLaundryList";
 import ShowerDetailModal from "../../components/ShowerDetailModal";
+import SlotBlockManager from "../../components/SlotBlockManager";
 
 const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
@@ -181,8 +182,7 @@ const Services = () => {
     const pendingShowers = showerRecords.filter(
       (r) =>
         pacificDateStringFrom(r.date) === today &&
-        r.status !== "done" &&
-        r.status !== "cancelled",
+        r.status !== "done"
     );
 
     if (pendingShowers.length === 0) {
@@ -674,14 +674,6 @@ const Services = () => {
             textColor: "text-purple-800",
             label: "Picked Up",
           };
-        case LAUNDRY_STATUS.CANCELLED:
-          return {
-            icon: XCircle,
-            color: "text-red-500",
-            bgColor: "bg-red-100",
-            textColor: "text-red-800",
-            label: "Cancelled",
-          };
         default:
           return {
             icon: ShoppingBag,
@@ -697,7 +689,6 @@ const Services = () => {
 
   const filteredShowers = [...(todayBookedShowers || [])]
     .filter((r) => {
-      if (r.status === "cancelled") return false;
       if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
         return false;
       if (
@@ -726,7 +717,6 @@ const Services = () => {
     });
 
   const filteredLaundry = [...(todayLaundryWithGuests || [])]
-    .filter((r) => r.status !== "cancelled")
     .sort((a, b) => {
       return (
         parseLaundryStartToMinutes(a.time) - parseLaundryStartToMinutes(b.time)
@@ -3687,6 +3677,10 @@ const Services = () => {
               </button>
             )}
           </div>
+          
+          {/* Slot Block Manager - Only visible to admin/staff */}
+          <SlotBlockManager serviceType="shower" />
+          
           <CompactShowerList onGuestClick={handleShowerGuestClick} />
 
           {/* Modal for detailed view */}
@@ -4180,6 +4174,9 @@ const Services = () => {
                 </div>
               </div>
             </div>
+
+            {/* Slot Block Manager - Only visible to admin/staff, shown in both views */}
+            <SlotBlockManager serviceType="laundry" />
 
             {laundryViewMode === "kanban" ? (
               <LaundryKanban

@@ -85,7 +85,7 @@ const CompactShowerList = ({ onGuestClick }) => {
         };
       });
 
-    const active = booked.filter(b => b.status !== "done" && b.status !== "cancelled");
+    const active = booked.filter(b => b.status !== "done");
     const done = booked.filter(b => b.status === "done");
 
     const waitlisted = todaysRecords
