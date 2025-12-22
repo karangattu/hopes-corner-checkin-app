@@ -308,6 +308,7 @@ const Services = () => {
   const [isAddingLunchBags, setIsAddingLunchBags] = useState(false);
   const [dayWorkerMealCount, setDayWorkerMealCount] = useState("");
   const [isAddingDayWorkerMeals, setIsAddingDayWorkerMeals] = useState(false);
+  const [mealTypeTab, setMealTypeTab] = useState("guest");
   const today = todayPacificDateString();
   const [mealsDate, setMealsDate] = useState(today);
 
@@ -2216,7 +2217,6 @@ const Services = () => {
         {/* Stats Overview Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-emerald-100 p-3">
@@ -2236,7 +2236,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-blue-100 p-3">
@@ -2256,7 +2255,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-teal-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-teal-100 p-3">
@@ -2276,7 +2274,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-amber-100 p-3">
@@ -2294,7 +2291,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-purple-100 p-3">
@@ -2322,7 +2318,6 @@ const Services = () => {
         {/* Meal Category Breakdown */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-blue-100 p-3">
@@ -2345,7 +2340,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-indigo-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-indigo-100 p-3">
@@ -2368,7 +2362,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-orange-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-orange-100 p-3">
@@ -2389,7 +2382,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-purple-100 p-3">
@@ -2410,7 +2402,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-sky-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-sky-100 p-3">
@@ -2431,7 +2422,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-amber-100 p-3">
@@ -2454,11 +2444,38 @@ const Services = () => {
           </div>
         </div>
 
+        {/* Meal Type Tabs */}
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+          {[
+            { id: "guest", label: "Guest Meals", icon: Users },
+            { id: "dw", label: "Day Worker", icon: SquarePlus },
+            { id: "rv", label: "RV Meals", icon: Caravan },
+            { id: "shelter", label: "Shelter", icon: Bed },
+            { id: "ue", label: "United Effort", icon: HeartHandshake },
+            { id: "extras", label: "Extra Meals", icon: Sparkles },
+            { id: "lunch", label: "Lunch Bags", icon: Apple },
+            // eslint-disable-next-line no-unused-vars
+          ].map(({ id, label, icon: IconComponent }) => (
+            <button
+              key={id}
+              onClick={() => setMealTypeTab(id)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                mealTypeTab === id
+                  ? "bg-emerald-600 text-white shadow-md"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <IconComponent size={18} />
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Meal Input Forms */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          {/* Day Worker Section */}
+          <div style={{ display: mealTypeTab === "dw" ? "block" : "none" }} className="space-y-4">
             <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-indigo-100/30 blur-3xl" />
               <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -2550,10 +2567,12 @@ const Services = () => {
                 )}
               </div>
             </div>
+          </div>
 
+          {/* RV and Shelter Section */}
+          <div style={{ display: mealTypeTab === "rv" || mealTypeTab === "shelter" ? "block" : "none" }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-orange-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "rv" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2620,8 +2639,7 @@ const Services = () => {
                 </div>
               </div>
 
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-purple-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "shelter" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2690,10 +2708,12 @@ const Services = () => {
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* United Effort and Extra Meals Section */}
+          <div style={{ display: mealTypeTab === "ue" || mealTypeTab === "extras" ? "block" : "none" }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-sky-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "ue" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2758,8 +2778,7 @@ const Services = () => {
                 </div>
               </div>
 
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-amber-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "extras" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2828,9 +2847,11 @@ const Services = () => {
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* Lunch Bags Section */}
+          <div style={{ display: mealTypeTab === "lunch" ? "block" : "none" }} className="w-full">
             <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-lime-100/30 blur-3xl" />
               <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -2921,9 +2942,7 @@ const Services = () => {
         </div>
 
         {/* Guest Meal Log - Revamped */}
-        <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
-          <div className="absolute right-0 top-0 h-40 w-40 -translate-y-12 translate-x-12 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-200/40 blur-3xl" />
-          <div className="absolute left-0 bottom-0 h-32 w-32 translate-y-8 -translate-x-8 rounded-full bg-gradient-to-tr from-blue-200/30 to-emerald-200/30 blur-3xl" />
+        <div style={{ display: mealTypeTab === "guest" ? "block" : "none" }} className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
           
           <div className="relative space-y-6">
             {/* Header Section */}
