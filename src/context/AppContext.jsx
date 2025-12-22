@@ -2371,7 +2371,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2468,7 +2474,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2565,7 +2577,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2671,7 +2689,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2775,7 +2799,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2872,7 +2902,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      const d = new Date(`${dateStr}T12:00:00`);
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      const d = new Date(`${dateStr}T${hours}:${minutes}:${seconds}`);
       return d.toISOString();
     };
     const iso = dateOverride
@@ -2961,6 +2997,112 @@ export const AppProvider = ({ children }) => {
     };
     setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
     return record;
+  };
+
+  // Delete meal records
+  const deleteMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete meal record."
+      );
+      if (!deleted) return false;
+    }
+    setMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Meal record deleted");
+    return true;
+  };
+
+  const deleteRvMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete RV meal record."
+      );
+      if (!deleted) return false;
+    }
+    setRvMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("RV meal record deleted");
+    return true;
+  };
+
+  const deleteShelterMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete shelter meal record."
+      );
+      if (!deleted) return false;
+    }
+    setShelterMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Shelter meal record deleted");
+    return true;
+  };
+
+  const deleteUnitedEffortMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete United Effort meal record."
+      );
+      if (!deleted) return false;
+    }
+    setUnitedEffortMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("United Effort meal record deleted");
+    return true;
+  };
+
+  const deleteExtraMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete extra meal record."
+      );
+      if (!deleted) return false;
+    }
+    setExtraMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Extra meal record deleted");
+    return true;
+  };
+
+  const deleteDayWorkerMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete day worker meal record."
+      );
+      if (!deleted) return false;
+    }
+    setDayWorkerMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Day worker meal record deleted");
+    return true;
+  };
+
+  const deleteLunchBagRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete lunch bag record."
+      );
+      if (!deleted) return false;
+    }
+    setLunchBagRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Lunch bag record deleted");
+    return true;
   };
 
   // Create waiver mutations first so we can use guestNeedsWaiverReminder in service callbacks
@@ -5184,6 +5326,13 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
+    deleteMealRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
+    deleteExtraMealRecord,
+    deleteDayWorkerMealRecord,
+    deleteLunchBagRecord,
     removeMealAttendanceRecord,
     addShowerRecord,
     importShowerAttendanceRecord,
@@ -5299,6 +5448,13 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
+    deleteMealRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
+    deleteExtraMealRecord,
+    deleteDayWorkerMealRecord,
+    deleteLunchBagRecord,
     removeMealAttendanceRecord,
     addShowerRecord,
     importShowerAttendanceRecord,

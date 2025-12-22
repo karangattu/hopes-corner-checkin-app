@@ -388,7 +388,6 @@ const OverviewSection = ({
                 <p className="text-gray-600 font-medium mb-1">Reports Not Generated</p>
                 <p className="text-sm text-gray-500">
                   Click "Generate Reports" above to compute monthly and yearly statistics.<br />
-                  This helps prevent slowdowns with large datasets (33k+ records).
                 </p>
               </div>
             ) : (

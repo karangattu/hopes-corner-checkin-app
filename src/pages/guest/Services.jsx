@@ -127,11 +127,17 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     addExtraMealRecord,
+    deleteExtraMealRecord,
     dayWorkerMealRecords,
     removeMealAttendanceRecord,
     addDayWorkerMealRecord,
+    deleteDayWorkerMealRecord,
     lunchBagRecords,
     addLunchBagRecord,
+    deleteLunchBagRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
     laundryRecords,
     showerRecords,
     haircutRecords,
@@ -2550,12 +2556,21 @@ const Services = () => {
                           key={record.id}
                           className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                         >
-                          <span className="text-xs text-gray-600">
-                            {new Date(record.date).toLocaleTimeString()}
-                          </span>
-                          <span className="text-sm font-bold text-indigo-700">
-                            {record.count} meals
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-indigo-700">
+                              {record.count} meals
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => deleteDayWorkerMealRecord(record.id)}
+                            className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                            title="Delete this entry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -2621,12 +2636,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-orange-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-orange-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteRvMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2690,12 +2714,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-purple-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-purple-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteShelterMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2760,12 +2793,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-sky-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-sky-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteUnitedEffortMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2829,12 +2871,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-amber-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-amber-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteExtraMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2921,12 +2972,21 @@ const Services = () => {
                           key={record.id}
                           className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                         >
-                          <span className="text-xs text-gray-600">
-                            {new Date(record.date).toLocaleTimeString()}
-                          </span>
-                          <span className="text-sm font-bold text-lime-700">
-                            {record.count} bag{record.count > 1 ? "s" : ""}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-lime-700">
+                              {record.count} bag{record.count > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => deleteLunchBagRecord(record.id)}
+                            className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                            title="Delete this entry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </li>
                       ))}
                     </ul>

@@ -42,9 +42,14 @@ const parseDateKey = (dateKey) => {
   if (!dateKey || !DATE_ONLY_REGEX.test(dateKey)) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
   if ([year, month, day].some((segment) => Number.isNaN(segment))) return null;
-  const utcMidday = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  if (Number.isNaN(utcMidday.getTime())) return null;
-  return utcMidday;
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const hours = String(pacificTime.getHours()).padStart(2, '0');
+  const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+  const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+  const dateWithPacificTime = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${hours}:${minutes}:${seconds}`);
+  if (Number.isNaN(dateWithPacificTime.getTime())) return null;
+  return dateWithPacificTime;
 };
 
 const getDateKeyNDaysBefore = (dateKey, daysBefore) => {
