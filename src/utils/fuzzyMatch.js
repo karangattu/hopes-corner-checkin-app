@@ -111,6 +111,43 @@ export const soundsLike = (a, b) => {
 };
 
 /**
+ * Check if a search token is a good substring match for a name
+ * Useful for catching partial matches like "francas" -> "francis"
+ * @param {string} token - Search token
+ * @param {string} name - Name to check
+ * @returns {number} - Similarity score from 0 to 1
+ */
+const getSubstringMatchScore = (token, name) => {
+  if (!token || !name) return 0;
+  if (token.length > name.length) return 0;
+  
+  // Prefix match is strongest (e.g., "fran" -> "francis")
+  if (name.startsWith(token)) {
+    // Full marks for short prefixes that are most of the name
+    const prefixRatio = token.length / name.length;
+    return 0.75 + (prefixRatio * 0.25);
+  }
+  
+  // Check for substring match anywhere in the name
+  if (name.includes(token)) {
+    return 0.6;
+  }
+  
+  // Check if token is very similar to a substring
+  // (e.g., "francas" is similar to "francis")
+  const tokenLen = token.length;
+  for (let i = 0; i <= name.length - tokenLen; i++) {
+    const substring = name.substring(i, i + tokenLen);
+    const similarity = similarityScore(token, substring);
+    if (similarity > 0.8) {
+      return 0.7;
+    }
+  }
+  
+  return 0;
+};
+
+/**
  * Find fuzzy matches for a search term in a list of guests
  * @param {string} searchTerm - The term being searched for
  * @param {Array} guests - Array of guest objects
@@ -138,14 +175,27 @@ export const findFuzzySuggestions = (searchTerm, guests, maxSuggestions = 5) => 
     if (searchTokens.length === 1) {
       const token = searchTokens[0];
       
-      // Check first name
+      // Check substring matches (catches partial name matches)
+      const firstNameSubstring = getSubstringMatchScore(token, firstName);
+      if (firstNameSubstring > bestScore) {
+        bestScore = firstNameSubstring;
+        matchType = 'firstNameSubstring';
+      }
+      
+      const lastNameSubstring = getSubstringMatchScore(token, lastName);
+      if (lastNameSubstring > bestScore) {
+        bestScore = lastNameSubstring;
+        matchType = 'lastNameSubstring';
+      }
+      
+      // Check first name with Levenshtein distance
       const firstNameScore = similarityScore(token, firstName);
       if (firstNameScore > bestScore) {
         bestScore = firstNameScore;
         matchType = 'firstName';
       }
       
-      // Check last name
+      // Check last name with Levenshtein distance
       const lastNameScore = similarityScore(token, lastName);
       if (lastNameScore > bestScore) {
         bestScore = lastNameScore;
@@ -154,6 +204,12 @@ export const findFuzzySuggestions = (searchTerm, guests, maxSuggestions = 5) => 
       
       // Check preferred name
       if (preferredName) {
+        const preferredSubstring = getSubstringMatchScore(token, preferredName);
+        if (preferredSubstring > bestScore) {
+          bestScore = preferredSubstring;
+          matchType = 'preferredNameSubstring';
+        }
+        
         const preferredScore = similarityScore(token, preferredName);
         if (preferredScore > bestScore) {
           bestScore = preferredScore;
@@ -174,6 +230,16 @@ export const findFuzzySuggestions = (searchTerm, guests, maxSuggestions = 5) => 
       }
     } else if (searchTokens.length >= 2) {
       const [firstToken, secondToken] = searchTokens;
+      
+      // Try substring matching first for multi-token searches
+      const firstSubstring = getSubstringMatchScore(firstToken, firstName);
+      const secondSubstring = getSubstringMatchScore(secondToken, lastName);
+      const substringCombined = (firstSubstring + secondSubstring) / 2;
+      
+      if (substringCombined > 0.6) {
+        bestScore = substringCombined;
+        matchType = 'fullNameSubstring';
+      }
       
       // Score first + last name combination
       const firstMatch = similarityScore(firstToken, firstName);
@@ -210,10 +276,10 @@ export const findFuzzySuggestions = (searchTerm, guests, maxSuggestions = 5) => 
     };
   });
   
-  // Filter to only include reasonably similar matches (score > 0.5)
-  // and exclude exact matches (which would already be shown in results)
+  // Filter to include good matches while excluding exact matches
+  // Lowered threshold to 0.45 to catch more helpful suggestions
   const suggestions = scored
-    .filter(item => item.score > 0.5 && item.score < 1.0)
+    .filter(item => item.score >= 0.45 && item.score < 1.0)
     .sort((a, b) => b.score - a.score)
     .slice(0, maxSuggestions)
     .map(item => ({

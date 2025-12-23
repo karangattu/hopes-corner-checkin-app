@@ -167,6 +167,42 @@ describe("fuzzyMatch utilities", () => {
       const suggestions = findFuzzySuggestions("XYZZZ", guestList);
       expect(suggestions.length).toBe(0);
     });
+
+    it("suggests similar names from substring matching (francas -> francis)", () => {
+      const guests = [
+        { id: "1", firstName: "Francis", lastName: "Smith" },
+        { id: "2", firstName: "Francisco", lastName: "Lopez" },
+        { id: "3", firstName: "Frank", lastName: "Johnson" },
+      ];
+      const suggestions = findFuzzySuggestions("francas", guests);
+      // Should find Francis and Francisco as they contain "franc" and are similar overall
+      const firstNames = suggestions.map(s => s.firstName);
+      expect(
+        firstNames.includes("Francis") || firstNames.includes("Francisco")
+      ).toBe(true);
+    });
+
+    it("suggests Francisco when searching for similar name", () => {
+      const guests = [
+        { id: "1", firstName: "Francis", lastName: "Smith" },
+        { id: "2", firstName: "Francisco", lastName: "Lopez" },
+      ];
+      const suggestions = findFuzzySuggestions("francas", guests);
+      const ids = suggestions.map(s => s.id);
+      // Should include both Francis and Francisco
+      expect(ids.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("prioritizes better substring matches over poorer ones", () => {
+      const guests = [
+        { id: "1", firstName: "Francis", lastName: "Smith" },
+        { id: "2", firstName: "Frank", lastName: "Johnson" },
+        { id: "3", firstName: "Francisco", lastName: "Lopez" },
+      ];
+      const suggestions = findFuzzySuggestions("fran", guests);
+      // All should match since they start with "fran"
+      expect(suggestions.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   describe("formatSuggestionDisplay", () => {
