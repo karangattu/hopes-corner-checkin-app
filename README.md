@@ -266,3 +266,7 @@ If something goes wrong and you need to revert:
 1. Update Firebase secrets back to the old Supabase credentials
 2. Redeploy Firebase Functions
 3. The app will resume using the old database
+
+### Wikipedia Knowledge base
+
+This wikipedia knowledge base for this app can be found [in this link](https://deepwiki.com/karangattu/hopes-corner-checkin-app/)
