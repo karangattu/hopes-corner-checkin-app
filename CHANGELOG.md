@@ -1,10 +1,12 @@
 # CHANGELOG
 
-## 0.0.4 · 2025-12-18
+## 0.0.4 · 2025-12-22
 
 ### ✨ New Features
 
 - **Linked Guests**: Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.
+- **Guest Warnings**: Staff can now add warnings to guest profiles that display prominently during check-in.
+- **Ban guests for specific services**: Staff can now ban guests from specific services (showers, laundry, bicycles, meals) without a full ban. Service-specific bans are indicated during guest search and check-in.
 
 ## 0.0.3 · 2025-11-28
 

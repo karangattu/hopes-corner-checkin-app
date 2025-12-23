@@ -11,13 +11,28 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 export const CHANGELOG = [
   {
     version: "0.0.4",
-    date: "December 18, 2025",
+    date: "December 22, 2025",
     highlights: [
       {
         type: "feature",
         title: "Linked Guests",
         description: "Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.",
       },
+      {
+        type: "fix",
+        title: "Shower Slot Availability",
+        description: "Fixed an issue where blocked shower slots were not correctly reducing available capacity in the Services dashboard.",
+      },
+      {
+        type: "feature",
+        title: "Guest Warnings",
+        description: "Staff can now add warnings to guest profiles to flag important information. Warnings are visible during guest search and check-in.",
+      },
+      {
+        type: "feature",
+        title: "Ban guests for specific services",
+        description: "Staff can now ban guests from specific services (showers, laundry, bicycles, meals) without a full ban. Service-specific bans are indicated during guest search and check-in.",
+      }
     ],
   },
   {
