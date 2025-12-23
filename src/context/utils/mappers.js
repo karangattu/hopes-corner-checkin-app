@@ -184,6 +184,17 @@ export const mapGuestProxyRow = (row) => ({
   createdAt: row.created_at,
 });
 
+export const mapGuestWarningRow = (row) => ({
+  id: row.id,
+  guestId: row.guest_id,
+  message: row.message,
+  severity: Number(row.severity) || 1,
+  issuedBy: row.issued_by || null,
+  active: row.active === true || row.active === 't' || row.active === 'TRUE' || row.active === 'true',
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
 export const mapBlockedSlotRow = (row) => ({
   id: row.id,
   serviceType: row.service_type,

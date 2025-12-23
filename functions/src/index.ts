@@ -112,6 +112,7 @@ export const supabaseProxy = onCall(
       const allowedTables = [
         "guests",
         "guest_proxies",
+        "guest_warnings",
         "meal_attendance",
         "shower_reservations",
         "laundry_bookings",

@@ -39,39 +39,22 @@ const MEAL_TYPE_LABELS = {
 const MealsChart = ({ days, selectedMealTypes = [] }) => {
   const chartRef = useRef(null);
 
-  if (!days || days.length === 0) {
-    return (
-      <div className="bg-white border rounded-lg p-8 text-center text-gray-500">
-        <Utensils size={32} className="mx-auto mb-2 opacity-50" />
-        <p>No meal data available for the selected date range</p>
-      </div>
-    );
-  }
-
   // Filter data to only include days with activity
-  const filteredDays = useMemo(() =>
-    days.filter((day) => {
+  const filteredDays = useMemo(() => {
+    if (!days || days.length === 0) return [];
+    return days.filter((day) => {
       const dayTotal = selectedMealTypes.reduce(
         (sum, type) => sum + (day.mealsByType?.[type] || 0),
         0,
       );
       return dayTotal > 0;
-    }),
-    [days, selectedMealTypes]
-  );
-
-  if (filteredDays.length === 0) {
-    return (
-      <div className="bg-white border rounded-lg p-8 text-center text-gray-500">
-        <Utensils size={32} className="mx-auto mb-2 opacity-50" />
-        <p>No meal activity for the selected date range</p>
-      </div>
-    );
-  }
+    });
+  }, [days, selectedMealTypes]);
 
   const chartData = useMemo(
-    () =>
-      filteredDays.map((day) => ({
+    () => {
+      if (filteredDays.length === 0) return [];
+      return filteredDays.map((day) => ({
         date: formatDateForDisplay(day.date, {
           month: "short",
           day: "numeric",
@@ -84,7 +67,8 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
         extras: day.mealsByType?.extras || 0,
         dayWorker: day.mealsByType?.dayWorker || 0,
         lunchBags: day.mealsByType?.lunchBags || 0,
-      })),
+      }));
+    },
     [filteredDays]
   );
 
@@ -137,6 +121,24 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
     },
     [selectedMealTypes]
   );
+
+  if (!days || days.length === 0) {
+    return (
+      <div className="bg-white border rounded-lg p-8 text-center text-gray-500">
+        <Utensils size={32} className="mx-auto mb-2 opacity-50" />
+        <p>No meal data available for the selected date range</p>
+      </div>
+    );
+  }
+
+  if (filteredDays.length === 0) {
+    return (
+      <div className="bg-white border rounded-lg p-8 text-center text-gray-500">
+        <Utensils size={32} className="mx-auto mb-2 opacity-50" />
+        <p>No meal activity for the selected date range</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border rounded-lg p-4 space-y-4">

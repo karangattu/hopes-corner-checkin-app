@@ -28,37 +28,21 @@ import { formatDateForDisplay } from "../../utils/date";
  * @param {number} props.target - Optional monthly target
  */
 const HolidaysChart = ({ days = [], target = null }) => {
-  if (!days || days.length === 0) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <div className="text-center text-gray-500">
-          <Gift size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">
-            No holiday service data available
-          </p>
-          <p className="text-sm mt-1">
-            Holiday service records will appear here once logged
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const chartData = days.map((day) => ({
+  const chartData = days ? days.map((day) => ({
     date: day.date,
     dateFormatted: formatDateForDisplay(day.date, {
       month: "short",
       day: "numeric",
     }),
     holidays: day.holidays || 0,
-  }));
+  })) : [];
 
   const totalHolidays = chartData.reduce((sum, d) => sum + d.holidays, 0);
   const avgPerDay = totalHolidays / (chartData.length || 1);
-  const peakDay = chartData.reduce(
+  const peakDay = chartData.length > 0 ? chartData.reduce(
     (max, d) => (d.holidays > max.holidays ? d : max),
     chartData[0],
-  );
+  ) : null;
 
   // Identify special event days (days with unusually high counts)
   const eventThreshold = avgPerDay * 2;
@@ -100,6 +84,22 @@ const HolidaysChart = ({ days = [], target = null }) => {
     },
     [eventThreshold]
   );
+
+  if (!days || days.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <div className="text-center text-gray-500">
+          <Gift size={48} className="mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium">
+            No holiday service data available
+          </p>
+          <p className="text-sm mt-1">
+            Holiday service records will appear here once logged
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

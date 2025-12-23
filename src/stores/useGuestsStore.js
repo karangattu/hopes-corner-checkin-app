@@ -13,7 +13,7 @@ import {
   computeIsGuestBanned,
   normalizeDateInputToISO,
 } from '../context/utils/normalizers';
-import { mapGuestRow, mapGuestProxyRow } from '../context/utils/mappers';
+import { mapGuestRow, mapGuestProxyRow, mapGuestWarningRow } from '../context/utils/mappers';
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
@@ -30,6 +30,8 @@ export const useGuestsStore = create(
         // State
         guests: [],
         guestProxies: [], // Linked guest relationships
+        // Guest warnings persisted in Supabase
+        warnings: [],
 
         // Helper functions
         migrateGuestData: (guestList) => {
@@ -849,10 +851,129 @@ export const useGuestsStore = create(
           }
         },
 
+        // Load guest warnings from Supabase
+        loadGuestWarningsFromSupabase: async () => {
+          if (!isSupabaseEnabled() || !supabase) return;
+          try {
+            const warningsData = await fetchAllPaginated(supabase, {
+              table: 'guest_warnings',
+              select: 'id, guest_id, message, severity, issued_by, active, created_at, updated_at',
+              orderBy: 'created_at',
+              ascending: false,
+              pageSize: 1000,
+              mapper: (r) => mapGuestWarningRow(r),
+            });
+
+            set((state) => {
+              state.warnings = warningsData || [];
+            });
+          } catch (error) {
+            console.error('Failed to load guest warnings from Supabase:', error);
+          }
+        },
+
         // Clear all guests
         clearGuests: () => {
           set((state) => {
             state.guests = [];
+          });
+        },
+
+        // Get warnings for a guest
+        getWarningsForGuest: (guestId) => {
+          const { warnings } = get();
+          if (!guestId) return [];
+          return (warnings || []).filter((w) => w.guestId === guestId && w.active);
+        },
+
+        // Add a warning for a guest (persisted to Supabase when enabled)
+        addGuestWarning: async (guestId, { message, severity = 1, issuedBy = null } = {}) => {
+          if (!guestId) throw new Error('guestId is required');
+          if (!message || !String(message).trim()) throw new Error('Warning message is required');
+
+          const payload = {
+            guest_id: guestId,
+            message: String(message).trim(),
+            severity: Number(severity) || 1,
+            issued_by: issuedBy || null,
+            active: true,
+          };
+
+          // Optimistic local update
+          const localWarning = {
+            id: `local-${Date.now()}`,
+            guestId,
+            message: payload.message,
+            severity: payload.severity,
+            issuedBy: payload.issued_by,
+            active: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          set((state) => {
+            state.warnings = [localWarning, ...(state.warnings || [])];
+          });
+
+          if (isSupabaseEnabled() && supabase) {
+            try {
+              const { data, error } = await supabase
+                .from('guest_warnings')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) throw error;
+
+              const mapped = mapGuestWarningRow(data);
+
+              // Replace local with persisted
+              set((state) => {
+                state.warnings = [mapped, ...(state.warnings || []).filter((w) => !String(w.id).startsWith('local-'))];
+              });
+
+              return mapped;
+            } catch (error) {
+              console.error('Failed to persist guest warning:', error);
+              enhancedToast.error('Unable to save warning. It will remain locally until sync.');
+              return localWarning;
+            }
+          }
+
+          return localWarning;
+        },
+
+        // Remove (delete) a guest warning by ID
+        removeGuestWarning: async (warningId) => {
+          if (!warningId) return false;
+
+          const existing = (get().warnings || []).find((w) => w.id === warningId);
+          if (!existing) return false;
+
+          // Optimistic remove
+          set((state) => {
+            state.warnings = (state.warnings || []).filter((w) => w.id !== warningId);
+          });
+
+          if (isSupabaseEnabled() && supabase && !String(warningId).startsWith('local-')) {
+            try {
+              const { error } = await supabase.from('guest_warnings').delete().eq('id', warningId);
+              if (error) throw error;
+            } catch (error) {
+              console.error('Failed to delete guest warning from Supabase:', error);
+              enhancedToast.error('Unable to delete warning from server');
+              // Note: we won't re-add automatically; user can reload or re-sync
+              return false;
+            }
+          }
+
+          return true;
+        },
+
+        // Clear warnings (useful for tests)
+        clearGuestWarnings: () => {
+          set((state) => {
+            state.warnings = [];
           });
         },
 

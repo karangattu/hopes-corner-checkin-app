@@ -25,35 +25,21 @@ import { CHART_COLORS } from "./ChartTheme";
  * @param {number} props.target - Optional monthly target
  */
 const HaircutsChart = ({ days = [], target = null }) => {
-  if (!days || days.length === 0) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <div className="text-center text-gray-500">
-          <Scissors size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium">No haircut data available</p>
-          <p className="text-sm mt-1">
-            Haircut records will appear here once logged
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const chartData = days.map((day) => ({
+  const chartData = days ? days.map((day) => ({
     date: day.date,
     dateFormatted: new Date(day.date).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     }),
     haircuts: day.haircuts || 0,
-  }));
+  })) : [];
 
   const totalHaircuts = chartData.reduce((sum, d) => sum + d.haircuts, 0);
   const avgPerDay = totalHaircuts / (chartData.length || 1);
-  const peakDay = chartData.reduce(
+  const peakDay = chartData.length > 0 ? chartData.reduce(
     (max, d) => (d.haircuts > max.haircuts ? d : max),
     chartData[0],
-  );
+  ) : null;
 
   const targetProgress = target ? (totalHaircuts / target) * 100 : null;
 
@@ -84,6 +70,20 @@ const HaircutsChart = ({ days = [], target = null }) => {
     },
     []
   );
+
+  if (!days || days.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8">
+        <div className="text-center text-gray-500">
+          <Scissors size={48} className="mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium">No haircut data available</p>
+          <p className="text-sm mt-1">
+            Haircut records will appear here once logged
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

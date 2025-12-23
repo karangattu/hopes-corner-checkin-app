@@ -477,6 +477,7 @@ export const initializeStoresFromSupabase = async () => {
     await Promise.all([
       useGuestsStore.getState().loadFromSupabase(),
       useGuestsStore.getState().loadGuestProxiesFromSupabase(),
+      useGuestsStore.getState().loadGuestWarningsFromSupabase(),
       useMealsStore.getState().loadFromSupabase(),
       useServicesStore.getState().loadFromSupabase(),
       useDonationsStore.getState().loadFromSupabase(),

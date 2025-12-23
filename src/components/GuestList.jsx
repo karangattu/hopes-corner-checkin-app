@@ -27,6 +27,7 @@ import {
   UserPlus,
   X,
   AlertCircle,
+  AlertTriangle,
   Plus,
   PlusCircle,
   Eraser,
@@ -46,7 +47,6 @@ import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 import GuestCreateForm from "./guest/GuestCreateForm";
 import LinkedGuestsManager from "./guest/LinkedGuestsManager";
-import LinkedGuestsBadge from "./guest/LinkedGuestsBadge";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
@@ -90,6 +90,10 @@ const GuestList = () => {
   const getLinkedGuests = useGuestsStore((state) => state.getLinkedGuests);
   const linkGuests = useGuestsStore((state) => state.linkGuests);
   const unlinkGuests = useGuestsStore((state) => state.unlinkGuests);
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
+  const addGuestWarning = useGuestsStore((state) => state.addGuestWarning);
+  const removeGuestWarning = useGuestsStore((state) => state.removeGuestWarning);
+
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -134,6 +138,15 @@ const GuestList = () => {
   });
   const [banError, setBanError] = useState("");
   const [banSubmittingId, setBanSubmittingId] = useState(null);
+
+  // Warning editor state
+  const [warningEditor, setWarningEditor] = useState({
+    guestId: null,
+    message: "",
+    severity: 1,
+  });
+  const [warningSubmitting, setWarningSubmitting] = useState(false);
+  const [showWarningForm, setShowWarningForm] = useState(null); // guestId or null
 
   const [editingGuestId, setEditingGuestId] = useState(null);
   const [linkingGuestId, setLinkingGuestId] = useState(null);
@@ -560,6 +573,74 @@ const GuestList = () => {
       toast.error(message);
     } finally {
       setBanSubmittingId(null);
+    }
+  };
+
+  // ============ Warning Handlers ============
+  const openWarningForm = (guestId) => {
+    setShowWarningForm(guestId);
+    setWarningEditor({
+      guestId,
+      message: "",
+      severity: 1,
+    });
+  };
+
+  const closeWarningForm = () => {
+    setShowWarningForm(null);
+    setWarningEditor({
+      guestId: null,
+      message: "",
+      severity: 1,
+    });
+  };
+
+  const handleWarningFieldChange = (field, value) => {
+    setWarningEditor((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleAddWarning = async (event) => {
+    event.preventDefault();
+    if (!warningEditor.guestId || !warningEditor.message.trim()) {
+      toast.error("Please enter a warning message");
+      haptics.error();
+      return;
+    }
+
+    setWarningSubmitting(true);
+    try {
+      await addGuestWarning(warningEditor.guestId, {
+        message: warningEditor.message.trim(),
+        severity: warningEditor.severity,
+      });
+      haptics.success();
+      toast.success("Warning added");
+      closeWarningForm();
+    } catch (error) {
+      const message = error?.message || "Unable to add warning.";
+      haptics.error();
+      toast.error(message);
+    } finally {
+      setWarningSubmitting(false);
+    }
+  };
+
+  const handleRemoveWarning = async (warningId) => {
+    if (!warningId) return;
+    haptics.buttonPress();
+    try {
+      const success = await removeGuestWarning(warningId);
+      if (success) {
+        haptics.success();
+        toast.success("Warning removed");
+      }
+    } catch (error) {
+      const message = error?.message || "Unable to remove warning.";
+      haptics.error();
+      toast.error(message);
     }
   };
 
@@ -1238,6 +1319,20 @@ const GuestList = () => {
                         {linkedCount}
                       </span>
                     ) : null;
+                  })()}
+
+                  {/* Warning badge - amber color (shows count) */}
+                  {(() => {
+                    const warnings = getWarningsForGuest(guest.id) || [];
+                    const count = warnings.length;
+                    if (count === 0) return null;
+                    const latest = warnings[0];
+                    return (
+                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-amber-700 bg-amber-50 rounded-full border border-amber-200 shadow-sm`} title={latest.message}>
+                        <AlertCircle size={compact ? 8 : 10} className="text-amber-700" />
+                        {count}
+                      </span>
+                    );
                   })()}
                   {todayServices.length > 0 && (
                     <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-1.5"} ml-2`}>
@@ -1919,6 +2014,143 @@ const GuestList = () => {
                 </p>
               </div>
             )}
+
+            {/* Warnings Section */}
+            {editingGuestId !== guest.id && (
+              <div className="mb-4">
+                {(() => {
+                  const guestWarnings = getWarningsForGuest(guest.id) || [];
+                  const hasWarnings = guestWarnings.length > 0;
+                  const isFormOpen = showWarningForm === guest.id;
+
+                  return (
+                    <div className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                          <AlertTriangle size={16} className="text-amber-600" />
+                          Warnings {hasWarnings && `(${guestWarnings.length})`}
+                        </h4>
+                        {!isFormOpen && (
+                          <button
+                            type="button"
+                            onClick={() => openWarningForm(guest.id)}
+                            className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300"
+                          >
+                            <Plus size={14} />
+                            Add Warning
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Add warning form */}
+                      {isFormOpen && (
+                        <form onSubmit={handleAddWarning} className="mb-4 p-3 bg-white rounded-md border border-amber-200 space-y-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
+                              Warning Message*
+                            </label>
+                            <textarea
+                              value={warningEditor.message}
+                              onChange={(e) => handleWarningFieldChange("message", e.target.value)}
+                              className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+                              rows={2}
+                              placeholder="Enter warning details..."
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
+                              Severity
+                            </label>
+                            <select
+                              value={warningEditor.severity}
+                              onChange={(e) => handleWarningFieldChange("severity", Number(e.target.value))}
+                              className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+                            >
+                              <option value={1}>Low</option>
+                              <option value={2}>Medium</option>
+                              <option value={3}>High</option>
+                            </select>
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={closeWarningForm}
+                              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                              disabled={warningSubmitting}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-3 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={warningSubmitting || !warningEditor.message.trim()}
+                            >
+                              {warningSubmitting ? "Saving..." : "Add Warning"}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+
+                      {/* Display existing warnings */}
+                      {hasWarnings ? (
+                        <div className="space-y-2">
+                          {guestWarnings.map((warning) => (
+                            <div
+                              key={warning.id}
+                              className={`p-3 rounded-md border ${
+                                warning.severity >= 3
+                                  ? "bg-red-50 border-red-200"
+                                  : warning.severity === 2
+                                    ? "bg-orange-50 border-orange-200"
+                                    : "bg-yellow-50 border-yellow-200"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                                      warning.severity >= 3
+                                        ? "bg-red-100 text-red-800"
+                                        : warning.severity === 2
+                                          ? "bg-orange-100 text-orange-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                    }`}>
+                                      {warning.severity >= 3 ? "High" : warning.severity === 2 ? "Medium" : "Low"}
+                                    </span>
+                                    {warning.createdAt && (
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(warning.createdAt).toLocaleDateString("en-US", {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        })}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-800">{warning.message}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveWarning(warning.id)}
+                                  className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  title="Remove warning"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : !isFormOpen && (
+                        <p className="text-sm text-amber-700">No active warnings for this guest.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <div>
                 {(() => {
@@ -2044,25 +2276,6 @@ const GuestList = () => {
                   );
                 })()}
               </div>
-
-              {/* Linked guests for quick meal assignment */}
-              {(() => {
-                const linkedGuestsForMeal = getLinkedGuests(guest.id);
-                if (linkedGuestsForMeal.length === 0) return null;
-
-                return (
-                  <LinkedGuestsBadge
-                    linkedGuests={linkedGuestsForMeal}
-                    onSelectGuest={(linkedGuest) => {
-                      // Navigate to the linked guest
-                      haptics.buttonPress();
-                      setSearchTerm(linkedGuest.preferredName || linkedGuest.name);
-                      setExpandedGuest(linkedGuest.id);
-                      toast.success(`Switched to ${linkedGuest.preferredName || linkedGuest.name}`);
-                    }}
-                  />
-                );
-              })()}
 
               <div className="flex flex-wrap gap-2 items-center">
                 <button
