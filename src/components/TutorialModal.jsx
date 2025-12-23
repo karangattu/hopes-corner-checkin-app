@@ -28,146 +28,114 @@ const TutorialModal = ({ isOpen, onClose }) => {
       content: (
         <div className="space-y-3">
           <p>
-            This app helps volunteers manage guest check-ins, services like showers 
-            and laundry, and track overall attendance at Hope's Corner.
+            This app helps you quickly and easily check guests in when they arrive 
+            at Hope's Corner.
           </p>
           <p className="text-sm text-gray-600">
-            Let's walk through the main features so you can get started quickly!
+            Let's walk through how to use the check-in system!
           </p>
         </div>
       ),
     },
     {
-      title: "Guest Check-In",
-      icon: UserPlus,
-      iconColor: "text-emerald-500",
-      bgColor: "bg-emerald-50",
-      content: (
-        <div className="space-y-3">
-          <p>
-            The <strong>Check In</strong> tab is where you'll register guests when they arrive.
-          </p>
-          <ul className="text-sm space-y-2 text-gray-700">
-            <li className="flex items-start gap-2">
-              <Search size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-              <span>Search for existing guests by name - if they're new, you can add them</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-              <span>Click on a guest's name to check them in for today's service</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Lightbulb size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>If you misspell a name, we'll suggest similar matches!</span>
-            </li>
-          </ul>
-        </div>
-      ),
-    },
-    {
-      title: "Managing Services",
-      icon: ClipboardList,
-      iconColor: "text-purple-500",
-      bgColor: "bg-purple-50",
-      content: (
-        <div className="space-y-3">
-          <p>
-            The <strong>Services</strong> tab manages showers, laundry, and other guest services.
-          </p>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-blue-50 rounded-lg p-3">
-              <ShowerHead size={18} className="text-blue-500 mb-1" />
-              <span className="font-medium text-blue-800">Showers</span>
-              <p className="text-xs text-blue-600 mt-1">Book time slots for guests. Track who's waiting.</p>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-3">
-              <WashingMachine size={18} className="text-purple-500 mb-1" />
-              <span className="font-medium text-purple-800">Laundry</span>
-              <p className="text-xs text-purple-600 mt-1">On-site or off-site. Track with bag numbers.</p>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      title: "Shower Queue Tips",
-      icon: ShowerHead,
+      title: "Search for a Guest",
+      icon: Search,
       iconColor: "text-blue-500",
       bgColor: "bg-blue-50",
       content: (
         <div className="space-y-3">
           <p>
-            Managing the shower queue is easy:
+            Start by typing a guest's name in the search box.
           </p>
           <ul className="text-sm space-y-2 text-gray-700">
             <li className="flex items-start gap-2">
-              <Clock size={16} className="mt-0.5 flex-shrink-0 text-blue-500" />
-              <span>Guests can be waitlisted if all slots are full - they'll see their position in line</span>
+              <Search size={16} className="mt-0.5 flex-shrink-0 text-blue-600" />
+              <span>Type any part of their name - first, last, or preferred name</span>
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-500" />
-              <span>Mark showers as "Done" when finished so the next person can go</span>
+              <Lightbulb size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>If you misspell a name, we'll suggest similar matches!</span>
             </li>
             <li className="flex items-start gap-2">
-              <RefreshCw size={16} className="mt-0.5 flex-shrink-0 text-purple-500" />
-              <span>Waitlisted guests are automatically promoted when slots open</span>
+              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
+              <span>We'll find existing guests in the system</span>
             </li>
           </ul>
         </div>
       ),
     },
     {
-      title: "Laundry Tracking",
-      icon: WashingMachine,
+      title: "Check In the Guest",
+      icon: CheckCircle2,
+      iconColor: "text-emerald-500",
+      bgColor: "bg-emerald-50",
+      content: (
+        <div className="space-y-3">
+          <p>
+            Once you find the guest, click to check them in.
+          </p>
+          <ul className="text-sm space-y-2 text-gray-700">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
+              <span>Click on their name from the search results</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Clock size={16} className="mt-0.5 flex-shrink-0 text-blue-500" />
+              <span>They're now checked in for today's service</span>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      title: "Add a New Guest",
+      icon: UserPlus,
       iconColor: "text-purple-500",
       bgColor: "bg-purple-50",
       content: (
         <div className="space-y-3">
           <p>
-            Keep track of laundry with these features:
+            If a guest is not in the system, you can add them quickly.
           </p>
           <ul className="text-sm space-y-2 text-gray-700">
             <li className="flex items-start gap-2">
-              <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-              <span><strong>On-site:</strong> Washer → Dryer → Done → Picked Up</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="w-4 h-4 rounded-full bg-purple-500 text-white text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-              <span><strong>Off-site:</strong> Waiting → Transported → Returned → Picked Up</span>
+              <UserPlus size={16} className="mt-0.5 flex-shrink-0 text-purple-600" />
+              <span>Click "Add Guest" to create a new entry</span>
             </li>
             <li className="flex items-start gap-2">
               <FileText size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>Assign bag numbers to help match laundry to guests</span>
+              <span>Fill in their name and any other details they provide</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
+              <span>They'll be checked in once you save them</span>
             </li>
           </ul>
-          <p className="text-xs text-purple-600 bg-purple-100 rounded-lg p-2">
-            💡 Shower and laundry share a common waiver - if signed for one, it covers both!
-          </p>
         </div>
       ),
     },
     {
-      title: "Admin",
-      icon: BarChart3,
+      title: "View Guest History",
+      icon: ClipboardList,
       iconColor: "text-indigo-500",
       bgColor: "bg-indigo-50",
       content: (
         <div className="space-y-3">
           <p>
-            The <strong>Admin</strong> tab (if you have access) provides:
+            You can view and update guest information as needed.
           </p>
           <ul className="text-sm space-y-2 text-gray-700">
             <li className="flex items-start gap-2">
-              <BarChart3 size={16} className="mt-0.5 flex-shrink-0 text-indigo-500" />
-              <span>Daily and monthly attendance reports</span>
+              <Clock size={16} className="mt-0.5 flex-shrink-0 text-indigo-600" />
+              <span>See when they've checked in previously</span>
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-500" />
-              <span>Service utilization statistics</span>
+              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
+              <span>Update their contact info or notes</span>
             </li>
             <li className="flex items-start gap-2">
-              <FileText size={16} className="mt-0.5 flex-shrink-0 text-blue-500" />
-              <span>Export data for reporting purposes</span>
+              <FileText size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>Keep important information current</span>
             </li>
           </ul>
         </div>
@@ -207,21 +175,16 @@ const TutorialModal = ({ isOpen, onClose }) => {
       content: (
         <div className="space-y-3">
           <p>
-            That's the basics! Here's a quick recap:
+            You now have everything you need to check guests in!
           </p>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="bg-emerald-100 rounded-lg p-2">
-              <UserPlus size={20} className="mx-auto text-emerald-600 mb-1" />
-              <span className="text-emerald-800">Check In</span>
-            </div>
-            <div className="bg-purple-100 rounded-lg p-2">
-              <ClipboardList size={20} className="mx-auto text-purple-600 mb-1" />
-              <span className="text-purple-800">Services</span>
-            </div>
-            <div className="bg-indigo-100 rounded-lg p-2">
-              <BarChart3 size={20} className="mx-auto text-indigo-600 mb-1" />
-              <span className="text-indigo-800">Reports</span>
-            </div>
+          <div className="bg-emerald-100 rounded-lg p-3 text-sm text-emerald-900">
+            <strong>Quick summary:</strong>
+            <ul className="mt-2 space-y-1">
+              <li>• Search for guests by name</li>
+              <li>• Click to check them in</li>
+              <li>• Add new guests when needed</li>
+              <li>• View and update guest info</li>
+            </ul>
           </div>
           <p className="text-sm text-gray-600 text-center pt-2">
             If you need help later, click the <strong>"Need help?"</strong> button anytime!

@@ -30,7 +30,7 @@ describe("TutorialModal", () => {
     fireEvent.click(screen.getByText("Next"));
 
     // Should be on step 2
-    expect(screen.getByText("Guest Check-In")).toBeInTheDocument();
+    expect(screen.getByText("Search for a Guest")).toBeInTheDocument();
   });
 
   it("should navigate to previous step when Back button is clicked", () => {
@@ -38,7 +38,7 @@ describe("TutorialModal", () => {
 
     // Go to step 2
     fireEvent.click(screen.getByText("Next"));
-    expect(screen.getByText("Guest Check-In")).toBeInTheDocument();
+    expect(screen.getByText("Search for a Guest")).toBeInTheDocument();
 
     // Click Back
     fireEvent.click(screen.getByText("Back"));
@@ -76,8 +76,8 @@ describe("TutorialModal", () => {
   it("should show Get Started button on last step", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to last step (8 steps total, so click Next 7 times)
-    for (let i = 0; i < 7; i++) {
+    // Navigate to last step (7 steps total, so click Next 6 times)
+    for (let i = 0; i < 6; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
@@ -89,8 +89,8 @@ describe("TutorialModal", () => {
     const onClose = vi.fn();
     render(<TutorialModal isOpen={true} onClose={onClose} />);
 
-    // Navigate to last step
-    for (let i = 0; i < 7; i++) {
+    // Navigate to last step (6 clicks to reach step 7)
+    for (let i = 0; i < 6; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
@@ -107,37 +107,37 @@ describe("TutorialModal", () => {
     const dots = screen.getAllByRole("button", { name: /Go to step/ });
     fireEvent.click(dots[2]);
 
-    // Should be on step 3 - Managing Services
-    expect(screen.getByText("Managing Services")).toBeInTheDocument();
+    // Should be on step 3 - Check In the Guest
+    expect(screen.getByText("Check In the Guest")).toBeInTheDocument();
   });
 
-  it("should display tutorial content about showers", () => {
+  it("should display tutorial content about check-in process", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to services step
-    fireEvent.click(screen.getByText("Next"));
+    // Navigate to check-in step
     fireEvent.click(screen.getByText("Next"));
 
-    expect(screen.getByText(/Showers/)).toBeInTheDocument();
-    expect(screen.getByText(/Laundry/)).toBeInTheDocument();
+    expect(screen.getByText("Search for a Guest")).toBeInTheDocument();
+    expect(screen.getByText(/Type any part of their name/)).toBeInTheDocument();
   });
 
-  it("should mention common waiver in laundry tracking step", () => {
+  it("should display content about adding new guests", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to laundry tracking step (step 5)
-    for (let i = 0; i < 4; i++) {
+    // Navigate to add guest step (step 4)
+    for (let i = 0; i < 3; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
-    expect(screen.getByText(/common waiver/i)).toBeInTheDocument();
+    expect(screen.getByText("Add a New Guest")).toBeInTheDocument();
+    expect(screen.getByText(/Click "Add Guest" to create a new entry/)).toBeInTheDocument();
   });
 
   it("should display keyboard shortcuts info", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to keyboard shortcuts step (step 7)
-    for (let i = 0; i < 6; i++) {
+    // Navigate to keyboard shortcuts step (step 6)
+    for (let i = 0; i < 5; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
