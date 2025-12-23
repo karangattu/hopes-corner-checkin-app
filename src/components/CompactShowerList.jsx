@@ -17,6 +17,7 @@ const CompactShowerList = ({ onGuestClick }) => {
 
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const todayString = todayPacificDateString();
 
   const formatTimeLabel = (timeStr) => {
@@ -85,8 +86,9 @@ const CompactShowerList = ({ onGuestClick }) => {
         };
       });
 
-    const active = booked.filter(b => b.status !== "done");
+    const active = booked.filter(b => b.status !== "done" && b.status !== "cancelled");
     const done = booked.filter(b => b.status === "done");
+    const cancelled = booked.filter(b => b.status === "cancelled");
 
     const waitlisted = todaysRecords
       .filter(r => r.status === "waitlisted")
@@ -107,7 +109,7 @@ const CompactShowerList = ({ onGuestClick }) => {
 
     const totalCapacity = (allShowerSlots?.length || 0) * 2;
 
-    return { active, done, waitlisted, totalCapacity };
+    return { active, done, cancelled, waitlisted, totalCapacity };
   }, [showerRecords, guests, allShowerSlots, todayString]);
 
   const getStatusBadge = (status) => {
@@ -117,6 +119,13 @@ const CompactShowerList = ({ onGuestClick }) => {
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
             <CheckCircle size={12} />
             Done
+          </span>
+        );
+      case "cancelled":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            <AlertCircle size={12} />
+            Cancelled
           </span>
         );
       case "in_progress":
@@ -136,7 +145,7 @@ const CompactShowerList = ({ onGuestClick }) => {
     }
   };
 
-  if (showerData.active.length === 0 && showerData.done.length === 0 && showerData.waitlisted.length === 0) {
+  if (showerData.active.length === 0 && showerData.done.length === 0 && showerData.cancelled.length === 0 && showerData.waitlisted.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -223,6 +232,45 @@ const CompactShowerList = ({ onGuestClick }) => {
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
+                      {booking.timeLabel}
+                    </span>
+                    <span className="font-medium text-gray-700 text-sm truncate">
+                      {booking.name}
+                    </span>
+                  </div>
+                  {getStatusBadge(booking.status)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cancelled Showers Section */}
+      {showerData.cancelled.length > 0 && (
+        <div className="border-t border-red-200 bg-red-50">
+          <button
+            type="button"
+            onClick={() => setShowCancelled(!showCancelled)}
+            className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <AlertCircle size={14} />
+              Cancelled ({showerData.cancelled.length})
+            </span>
+            {showCancelled ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          
+          {showCancelled && (
+            <div className="divide-y divide-red-200/50 bg-white">
+              {showerData.cancelled.map((booking) => (
+                <div
+                  key={booking.id}
+                  onClick={() => onGuestClick?.(booking.guestId, booking.id)}
+                  className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-red-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-xs font-medium text-red-600 w-16 flex-shrink-0">
                       {booking.timeLabel}
                     </span>
                     <span className="font-medium text-gray-700 text-sm truncate">

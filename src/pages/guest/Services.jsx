@@ -3541,6 +3541,7 @@ const Services = () => {
                       try {
                         cancelShowerRecord(record.id);
                         toast.success("Booking cancelled");
+                        setSelectedShowerRecord(null);
                       } catch (error) {
                         toast.error(error.message);
                       }
