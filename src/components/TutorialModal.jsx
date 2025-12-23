@@ -14,6 +14,9 @@ import {
   Lightbulb,
   FileText,
   Clock,
+  Utensils,
+  Link,
+  Ban,
 } from "lucide-react";
 
 const TutorialModal = ({ isOpen, onClose }) => {
@@ -65,23 +68,27 @@ const TutorialModal = ({ isOpen, onClose }) => {
       ),
     },
     {
-      title: "Check In the Guest",
-      icon: CheckCircle2,
-      iconColor: "text-emerald-500",
-      bgColor: "bg-emerald-50",
+      title: "Quick Add Meals",
+      icon: Utensils,
+      iconColor: "text-green-500",
+      bgColor: "bg-green-50",
       content: (
         <div className="space-y-3">
           <p>
-            Once you find the guest, click to check them in.
+            After searching for a guest, quickly log meal services.
           </p>
           <ul className="text-sm space-y-2 text-gray-700">
             <li className="flex items-start gap-2">
+              <Utensils size={16} className="mt-0.5 flex-shrink-0 text-green-600" />
+              <span>Click the <strong>1</strong> or <strong>2</strong> button to log meals</span>
+            </li>
+            <li className="flex items-start gap-2">
               <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-              <span>Click on their name from the search results</span>
+              <span>Only one meal entry per guest per day is allowed</span>
             </li>
             <li className="flex items-start gap-2">
               <Clock size={16} className="mt-0.5 flex-shrink-0 text-blue-500" />
-              <span>They're now checked in for today's service</span>
+              <span>Guests with recent meals show a green "RECENT" badge</span>
             </li>
           </ul>
         </div>
@@ -115,27 +122,54 @@ const TutorialModal = ({ isOpen, onClose }) => {
       ),
     },
     {
-      title: "View Guest History",
-      icon: ClipboardList,
+      title: "Link Guests Together",
+      icon: Link,
       iconColor: "text-indigo-500",
       bgColor: "bg-indigo-50",
       content: (
         <div className="space-y-3">
           <p>
-            You can view and update guest information as needed.
+            Link guests who are related or share information.
           </p>
           <ul className="text-sm space-y-2 text-gray-700">
             <li className="flex items-start gap-2">
-              <Clock size={16} className="mt-0.5 flex-shrink-0 text-indigo-600" />
-              <span>See when they've checked in previously</span>
+              <Link size={16} className="mt-0.5 flex-shrink-0 text-indigo-600" />
+              <span>Click the expand button (▼) on a guest card</span>
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-              <span>Update their contact info or notes</span>
+              <UserPlus size={16} className="mt-0.5 flex-shrink-0 text-purple-600" />
+              <span>Click <strong>"Link Guest"</strong> to connect related guests</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Lightbulb size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>Linked guests show a count badge on their card</span>
+            </li>
+          </ul>
+        </div>
+      ),
+    },
+    {
+      title: "Ban Guests (Administrators)",
+      icon: Ban,
+      iconColor: "text-red-500",
+      bgColor: "bg-red-50",
+      content: (
+        <div className="space-y-3">
+          <p>
+            Restrict guest access to specific services or all services.
+          </p>
+          <ul className="text-sm space-y-2 text-gray-700">
+            <li className="flex items-start gap-2">
+              <Ban size={16} className="mt-0.5 flex-shrink-0 text-red-600" />
+              <span>Click the expand button (▼) on a guest card</span>
             </li>
             <li className="flex items-start gap-2">
               <FileText size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>Keep important information current</span>
+              <span>Click <strong>"Ban"</strong> to set restrictions with an end date and reason</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <Lightbulb size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>Ban specific services (meals, showers, laundry, bicycle) or all services</span>
             </li>
           </ul>
         </div>
@@ -175,14 +209,15 @@ const TutorialModal = ({ isOpen, onClose }) => {
       content: (
         <div className="space-y-3">
           <p>
-            You now have everything you need to check guests in!
+            You now have everything you need to manage guests!
           </p>
           <div className="bg-emerald-100 rounded-lg p-3 text-sm text-emerald-900">
             <strong>Quick summary:</strong>
             <ul className="mt-2 space-y-1">
               <li>• Search for guests by name</li>
-              <li>• Click to check them in</li>
-              <li>• Add new guests when needed</li>
+              <li>• Quick add meals with 1 or 2 buttons</li>
+              <li>• Link related guests together</li>
+              <li>• Ban guests when needed (admin)</li>
               <li>• View and update guest info</li>
             </ul>
           </div>

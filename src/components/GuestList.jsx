@@ -50,6 +50,7 @@ import LinkedGuestsManager from "./guest/LinkedGuestsManager";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
+import { isActiveGuest, getLastMealLabel } from "../utils/guestActivity";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -1331,6 +1332,19 @@ const GuestList = () => {
                       <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-amber-700 bg-amber-50 rounded-full border border-amber-200 shadow-sm`} title={latest.message}>
                         <AlertCircle size={compact ? 8 : 10} className="text-amber-700" />
                         {count}
+                      </span>
+                    );
+                  })()}
+
+                  {/* Recent guest badge - green color (meal in last 7 days) */}
+                  {(() => {
+                    const isRecent = isActiveGuest(guest.id, mealRecords);
+                    if (!isRecent) return null;
+                    const lastMealLabel = getLastMealLabel(guest.id, mealRecords);
+                    return (
+                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-green-700 bg-green-50 rounded-full border border-green-200 shadow-sm`} title={`Last meal: ${lastMealLabel}`}>
+                        <Utensils size={compact ? 8 : 10} className="text-green-700" />
+                        <span>RECENT</span>
                       </span>
                     );
                   })()}

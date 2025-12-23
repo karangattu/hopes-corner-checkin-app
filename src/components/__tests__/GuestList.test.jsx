@@ -944,4 +944,185 @@ describe("GuestList", () => {
       });
     });
   });
+
+  describe("Recent guest badge", () => {
+    it("displays RECENT badge for guest with meal in last 7 days", async () => {
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+        mealRecords: [
+          {
+            guestId: "g1",
+            date: threeDaysAgo.toISOString(),
+            count: 1,
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      
+      // Trigger search to show the guest
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Alice" } });
+      
+      // Wait for the guest name to appear
+      await screen.findByText("Alice Smith");
+      
+      // The RECENT badge should be visible
+      expect(screen.getByText("RECENT")).toBeInTheDocument();
+      
+      // The badge should have a title with last meal info
+      const recentBadge = screen.getByText("RECENT");
+      expect(recentBadge.parentElement).toHaveAttribute("title");
+      expect(recentBadge.parentElement.getAttribute("title")).toContain("Last meal");
+    });
+
+    it("does not display RECENT badge for guest with no meals", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Bob Jones",
+            firstName: "Bob",
+            lastName: "Jones",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [],
+      };
+
+      render(<GuestList />);
+      
+      // Trigger search to show the guest
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Bob" } });
+      
+      // Wait for the guest name to appear
+      await screen.findByText("Bob Jones");
+      
+      // The RECENT badge should NOT be visible
+      expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
+    });
+
+    it("does not display RECENT badge for guest with meal older than 7 days", async () => {
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Carol Davis",
+            firstName: "Carol",
+            lastName: "Davis",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+        mealRecords: [
+          {
+            guestId: "g1",
+            date: tenDaysAgo.toISOString(),
+            count: 1,
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      
+      // Trigger search to show the guest
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Carol" } });
+      
+      // Wait for the guest name to appear
+      await screen.findByText("Carol Davis");
+      
+      // The RECENT badge should NOT be visible
+      expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
+    });
+
+    it("shows badge correctly distinguishes recent vs old guests", async () => {
+      const today = new Date();
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Alice Smith",
+            firstName: "Alice",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+          {
+            id: "g2",
+            name: "Bob Johnson",
+            firstName: "Bob",
+            lastName: "Johnson",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [
+          {
+            guestId: "g1",
+            date: today.toISOString(),
+            count: 1,
+          },
+          {
+            guestId: "g2",
+            date: tenDaysAgo.toISOString(),
+            count: 1,
+          },
+        ],
+      };
+
+      render(<GuestList />);
+      
+      // Search for Alice (has recent meal)
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Alice" } });
+      
+      // Wait for Alice to appear
+      await screen.findByText("Alice Smith");
+      
+      // Alice should have the RECENT badge
+      expect(screen.getByText("RECENT")).toBeInTheDocument();
+      
+      // Clear search and search for Bob (meal is too old)
+      fireEvent.change(search, { target: { value: "" } });
+      fireEvent.change(search, { target: { value: "Bob" } });
+      
+      // Wait for Bob to appear
+      await screen.findByText("Bob Johnson");
+      
+      // Bob should NOT have the RECENT badge
+      expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
+    });
+  });
 });

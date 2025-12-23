@@ -76,8 +76,8 @@ describe("TutorialModal", () => {
   it("should show Get Started button on last step", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to last step (7 steps total, so click Next 6 times)
-    for (let i = 0; i < 6; i++) {
+    // Navigate to last step (8 steps total, so click Next 7 times)
+    for (let i = 0; i < 7; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
@@ -89,8 +89,8 @@ describe("TutorialModal", () => {
     const onClose = vi.fn();
     render(<TutorialModal isOpen={true} onClose={onClose} />);
 
-    // Navigate to last step (6 clicks to reach step 7)
-    for (let i = 0; i < 6; i++) {
+    // Navigate to last step (7 clicks to reach step 8)
+    for (let i = 0; i < 7; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
@@ -103,12 +103,12 @@ describe("TutorialModal", () => {
   it("should allow navigation via progress dots", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Click on step 3 dot (index 2)
+    // Click on step 3 dot (index 2) - Quick Add Meals
     const dots = screen.getAllByRole("button", { name: /Go to step/ });
     fireEvent.click(dots[2]);
 
-    // Should be on step 3 - Check In the Guest
-    expect(screen.getByText("Check In the Guest")).toBeInTheDocument();
+    // Should be on step 3 - Quick Add Meals
+    expect(screen.getByText("Quick Add Meals")).toBeInTheDocument();
   });
 
   it("should display tutorial content about check-in process", () => {
@@ -124,7 +124,7 @@ describe("TutorialModal", () => {
   it("should display content about adding new guests", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to add guest step (step 4)
+    // Navigate to add guests step (step 4, index 3)
     for (let i = 0; i < 3; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
@@ -136,8 +136,8 @@ describe("TutorialModal", () => {
   it("should display keyboard shortcuts info", () => {
     render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
 
-    // Navigate to keyboard shortcuts step (step 6)
-    for (let i = 0; i < 5; i++) {
+    // Navigate to keyboard shortcuts step (step 7)
+    for (let i = 0; i < 6; i++) {
       fireEvent.click(screen.getByText("Next"));
     }
 
@@ -163,5 +163,40 @@ describe("TutorialModal", () => {
 
     // Should be back on step 1
     expect(screen.getByText("Welcome to Hope's Corner!")).toBeInTheDocument();
+  });
+
+  it("should display content about quick adding meals", () => {
+    render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
+
+    // Navigate to quick add meals step (step 3)
+    fireEvent.click(screen.getByText("Next"));
+    fireEvent.click(screen.getByText("Next"));
+
+    expect(screen.getByText("Quick Add Meals")).toBeInTheDocument();
+    expect(screen.getByText(/Click the.*button to log meals/)).toBeInTheDocument();
+  });
+
+  it("should display content about linking guests", () => {
+    render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
+
+    // Navigate to link guests step (step 5)
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByText("Next"));
+    }
+
+    expect(screen.getByText("Link Guests Together")).toBeInTheDocument();
+    expect(screen.getByText(/Click the expand button/)).toBeInTheDocument();
+  });
+
+  it("should display content about banning guests", () => {
+    render(<TutorialModal isOpen={true} onClose={vi.fn()} />);
+
+    // Navigate to ban guests step (step 6)
+    for (let i = 0; i < 5; i++) {
+      fireEvent.click(screen.getByText("Next"));
+    }
+
+    expect(screen.getByText("Ban Guests (Administrators)")).toBeInTheDocument();
+    expect(screen.getByText(/Restrict guest access/)).toBeInTheDocument();
   });
 });
