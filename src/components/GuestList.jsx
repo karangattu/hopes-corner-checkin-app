@@ -1498,39 +1498,38 @@ const GuestList = () => {
                       pacificDateStringFrom(record.date) === today
                   );
                   const alreadyHasMeal = !!todayMealRecord;
-                  const mealCount = todayMealRecord?.mealCount || 0;
+                  const mealCount = todayMealRecord?.count || 0;
+
+                  if (alreadyHasMeal) {
+                    return (
+                      <button
+                        disabled={true}
+                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-not-allowed`}
+                        title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
+                      >
+                        <Check
+                          size={compact ? 12 : 14}
+                          className="text-emerald-600"
+                        />
+                        <span>{mealCount} Meal{mealCount > 1 ? "s" : ""}</span>
+                      </button>
+                    );
+                  }
 
                   return [1, 2].map((count) => (
                     <button
                       key={count}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!alreadyHasMeal) {
-                          handleMealSelection(guest.id, count);
-                        }
+                        handleMealSelection(guest.id, count);
                       }}
-                      disabled={alreadyHasMeal}
-                      className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn ${alreadyHasMeal
-                        ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95"
-                        }`}
-                      title={
-                        alreadyHasMeal
-                          ? `Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`
-                          : `Quick log ${count} meal${count > 1 ? "s" : ""}`
-                      }
+                      className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95`}
+                      title={`Quick log ${count} meal${count > 1 ? "s" : ""}`}
                     >
-                      {alreadyHasMeal ? (
-                        <Check
-                          size={compact ? 12 : 14}
-                          className="text-emerald-500"
-                        />
-                      ) : (
-                        <Utensils
-                          size={compact ? 12 : 14}
-                          className="group-hover/btn:scale-110 transition-transform"
-                        />
-                      )}
+                      <Utensils
+                        size={compact ? 12 : 14}
+                        className="group-hover/btn:scale-110 transition-transform"
+                      />
                       <span>{count}</span>
                     </button>
                   ));
@@ -2177,45 +2176,56 @@ const GuestList = () => {
                   const alreadyHasMeal =
                     pendingMealGuests.has(guest.id) || !!todayMealRecord;
                   const isPendingMeal = pendingMealGuests.has(guest.id);
-                  const mealCount = todayMealRecord?.mealCount || 0;
+                  const mealCount = todayMealRecord?.count || 0;
 
                   return (
                     <div className="flex flex-wrap gap-2">
                       <div className="space-x-1 relative">
-                        {[1, 2].map((count) => {
-                          const isDisabled =
-                            isBannedFromMeals || alreadyHasMeal || isPendingMeal;
+                        {alreadyHasMeal ? (
+                          <button
+                            disabled={true}
+                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
+                              ? "bg-red-100 text-red-500 cursor-not-allowed"
+                              : "bg-emerald-50 text-emerald-700 cursor-not-allowed border border-emerald-200"
+                            }`}
+                            title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
+                          >
+                            <SpringIcon>
+                              <Check size={16} className="text-emerald-600" />
+                            </SpringIcon>
+                            {mealCount} Meal{mealCount > 1 ? "s" : ""}
+                          </button>
+                        ) : (
+                          [1, 2].map((count) => {
+                            const isDisabled = isBannedFromMeals || isPendingMeal;
 
-                          return (
-                            <button
-                              key={count}
-                              onClick={() =>
-                                handleMealSelection(guest.id, count)
-                              }
-                              disabled={isDisabled}
-                              className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
-                                ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                : alreadyHasMeal
-                                  ? "bg-gray-200 text-gray-500 cursor-not-allowed opacity-50"
+                            return (
+                              <button
+                                key={count}
+                                onClick={() =>
+                                  handleMealSelection(guest.id, count)
+                                }
+                                disabled={isDisabled}
+                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
+                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
                                   : isPendingMeal
                                     ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
                                     : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                                }`}
-                              title={
-                                isBannedFromMeals
-                                  ? banTooltip
-                                  : alreadyHasMeal
-                                    ? `Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`
+                                  }`}
+                                title={
+                                  isBannedFromMeals
+                                    ? banTooltip
                                     : `Give ${count} meal${count > 1 ? "s" : ""}`
-                              }
-                            >
-                              <SpringIcon>
-                                {alreadyHasMeal ? <Check size={16} className="text-emerald-600" /> : <Utensils size={16} />}
-                              </SpringIcon>
-                              {count} Meal{count > 1 ? "s" : ""}
-                            </button>
-                          );
-                        })}
+                                }
+                              >
+                                <SpringIcon>
+                                  <Utensils size={16} />
+                                </SpringIcon>
+                                {count} Meal{count > 1 ? "s" : ""}
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
 
                       {alreadyHasMeal && !isBannedFromMeals && (
@@ -2292,51 +2302,6 @@ const GuestList = () => {
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={async () => {
-                    if (isBanned) {
-                      haptics.error();
-                      if (banTooltip) toast.error(banTooltip);
-                      return;
-                    }
-                    const actionKey = `haircut-${guest.id}`;
-                    if (pendingActions.has(actionKey)) return;
-
-                    haptics.buttonPress();
-                    setPendingActions((prev) => new Set(prev).add(actionKey));
-                    try {
-                      const rec = await addHaircutRecord(guest.id);
-                      if (rec) {
-                        haptics.success();
-                        toast.success("Haircut logged");
-                      }
-                    } catch {
-                      haptics.error();
-                    } finally {
-                      setPendingActions((prev) => {
-                        const next = new Set(prev);
-                        next.delete(actionKey);
-                        return next;
-                      });
-                    }
-                  }}
-                  disabled={isBanned || pendingActions.has(`haircut-${guest.id}`)}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
-                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                    : pendingActions.has(`haircut-${guest.id}`)
-                      ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                      : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
-                    }`}
-                  title={isBanned ? banTooltip : "Log haircut for today"}
-                >
-                  <Scissors size={16} />
-                  <span className="hidden sm:inline">
-                    {pendingActions.has(`haircut-${guest.id}`)
-                      ? "Saving..."
-                      : "Haircut"}
-                  </span>
-                </button>
-
                 {(() => {
                   const today = todayPacificDateString();
                   const haircutAction = actionHistory.find(
@@ -2346,56 +2311,91 @@ const GuestList = () => {
                       pacificDateStringFrom(new Date(action.timestamp)) ===
                       today,
                   );
-
-                  if (!haircutAction) return null;
+                  const alreadyHasHaircut = !!haircutAction;
+                  const isPendingHaircut = pendingActions.has(`haircut-${guest.id}`);
 
                   return (
-                    <button
-                      onClick={async () => {
-                        haptics.undo();
-                        const success = await undoAction(haircutAction.id);
-                        if (success) {
-                          haptics.success();
-                          toast.success("Haircut undone");
-                        } else {
-                          haptics.error();
-                        }
-                      }}
-                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                      title="Undo haircut"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
+                    <>
+                      {alreadyHasHaircut ? (
+                        <button
+                          disabled={true}
+                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-pink-50 text-pink-700 cursor-not-allowed border border-pink-200"
+                          title="Haircut already logged today"
+                        >
+                          <Check size={16} className="text-pink-600" />
+                          <span className="hidden sm:inline">Haircut</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (isBanned) {
+                              haptics.error();
+                              if (banTooltip) toast.error(banTooltip);
+                              return;
+                            }
+                            const actionKey = `haircut-${guest.id}`;
+                            if (pendingActions.has(actionKey)) return;
+
+                            haptics.buttonPress();
+                            setPendingActions((prev) => new Set(prev).add(actionKey));
+                            try {
+                              const rec = await addHaircutRecord(guest.id);
+                              if (rec) {
+                                haptics.success();
+                                toast.success("Haircut logged");
+                              }
+                            } catch {
+                              haptics.error();
+                            } finally {
+                              setPendingActions((prev) => {
+                                const next = new Set(prev);
+                                next.delete(actionKey);
+                                return next;
+                              });
+                            }
+                          }}
+                          disabled={isBanned || isPendingHaircut}
+                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                            ? "bg-red-100 text-red-500 cursor-not-allowed"
+                            : isPendingHaircut
+                              ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                              : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                            }`}
+                          title={isBanned ? banTooltip : "Log haircut for today"}
+                        >
+                          <Scissors size={16} />
+                          <span className="hidden sm:inline">
+                            {isPendingHaircut
+                              ? "Saving..."
+                              : "Haircut"}
+                          </span>
+                        </button>
+                      )}
+
+                      {alreadyHasHaircut && (
+                        <button
+                          onClick={async () => {
+                            haptics.undo();
+                            const success = await undoAction(haircutAction.id);
+                            if (success) {
+                              haptics.success();
+                              toast.success("Haircut undone");
+                            } else {
+                              haptics.error();
+                            }
+                          }}
+                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                          title="Undo haircut"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                    </>
                   );
                 })()}
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={() => {
-                    if (isBanned) {
-                      haptics.error();
-                      if (banTooltip) toast.error(banTooltip);
-                      return;
-                    }
-                    haptics.buttonPress();
-                    const rec = addHolidayRecord(guest.id);
-                    if (rec) {
-                      haptics.success();
-                      toast.success("Holiday logged");
-                    }
-                  }}
-                  disabled={isBanned}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
-                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                    : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
-                    }`}
-                  title={isBanned ? banTooltip : "Log holiday service for today"}
-                >
-                  <Gift size={16} />
-                  <span className="hidden sm:inline">Holiday</span>
-                </button>
-
                 {(() => {
                   const today = todayPacificDateString();
                   const holidayAction = actionHistory.find(
@@ -2405,67 +2405,70 @@ const GuestList = () => {
                       pacificDateStringFrom(new Date(action.timestamp)) ===
                       today,
                   );
-
-                  if (!holidayAction) return null;
+                  const alreadyHasHoliday = !!holidayAction;
 
                   return (
-                    <button
-                      onClick={async () => {
-                        haptics.undo();
-                        const success = await undoAction(holidayAction.id);
-                        if (success) {
-                          haptics.success();
-                          toast.success("Holiday undone");
-                        } else {
-                          haptics.error();
-                        }
-                      }}
-                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                      title="Undo holiday"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
+                    <>
+                      {alreadyHasHoliday ? (
+                        <button
+                          disabled={true}
+                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-amber-50 text-amber-700 cursor-not-allowed border border-amber-200"
+                          title="Holiday already logged today"
+                        >
+                          <Check size={16} className="text-amber-600" />
+                          <span className="hidden sm:inline">Holiday</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (isBanned) {
+                              haptics.error();
+                              if (banTooltip) toast.error(banTooltip);
+                              return;
+                            }
+                            haptics.buttonPress();
+                            const rec = addHolidayRecord(guest.id);
+                            if (rec) {
+                              haptics.success();
+                              toast.success("Holiday logged");
+                            }
+                          }}
+                          disabled={isBanned}
+                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                            ? "bg-red-100 text-red-500 cursor-not-allowed"
+                            : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                            }`}
+                          title={isBanned ? banTooltip : "Log holiday service for today"}
+                        >
+                          <Gift size={16} />
+                          <span className="hidden sm:inline">Holiday</span>
+                        </button>
+                      )}
+
+                      {alreadyHasHoliday && (
+                        <button
+                          onClick={async () => {
+                            haptics.undo();
+                            const success = await undoAction(holidayAction.id);
+                            if (success) {
+                              haptics.success();
+                              toast.success("Holiday undone");
+                            } else {
+                              haptics.error();
+                            }
+                          }}
+                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                          title="Undo holiday"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                    </>
                   );
                 })()}
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={() => {
-                    if (isBanned) {
-                      haptics.error();
-                      if (banTooltip) toast.error(banTooltip);
-                      return;
-                    }
-                    if (!guest.bicycleDescription?.trim()) {
-                      haptics.warning();
-                      toast.error(
-                        "Please add a bicycle description to this guest's profile before logging repairs.",
-                      );
-                      return;
-                    }
-                    haptics.buttonPress();
-                    setBicyclePickerGuest(guest);
-                  }}
-                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
-                    ? "bg-red-100 text-red-500 cursor-not-allowed"
-                    : !guest.bicycleDescription?.trim()
-                      ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                      : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
-                    }`}
-                  title={
-                    isBanned
-                      ? banTooltip
-                      : !guest.bicycleDescription?.trim()
-                        ? "Add bicycle description to guest profile first"
-                        : "Log bicycle repair for today"
-                  }
-                  disabled={isBanned || !guest.bicycleDescription?.trim()}
-                >
-                  <Bike size={16} />
-                  <span className="hidden sm:inline">Bicycle</span>
-                </button>
-
                 {(() => {
                   const today = todayPacificDateString();
                   const bicycleAction = actionHistory.find(
@@ -2475,26 +2478,77 @@ const GuestList = () => {
                       pacificDateStringFrom(new Date(action.timestamp)) ===
                       today,
                   );
-
-                  if (!bicycleAction) return null;
+                  const alreadyHasBicycle = !!bicycleAction;
+                  const hasBicycleDesc = guest.bicycleDescription?.trim();
 
                   return (
-                    <button
-                      onClick={async () => {
-                        haptics.undo();
-                        const success = await undoAction(bicycleAction.id);
-                        if (success) {
-                          haptics.success();
-                          toast.success("Bicycle repair undone");
-                        } else {
-                          haptics.error();
-                        }
-                      }}
-                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                      title="Undo bicycle repair"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
+                    <>
+                      {alreadyHasBicycle ? (
+                        <button
+                          disabled={true}
+                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-sky-50 text-sky-700 cursor-not-allowed border border-sky-200"
+                          title="Bicycle repair already logged today"
+                        >
+                          <Check size={16} className="text-sky-600" />
+                          <span className="hidden sm:inline">Bicycle</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (isBanned) {
+                              haptics.error();
+                              if (banTooltip) toast.error(banTooltip);
+                              return;
+                            }
+                            if (!hasBicycleDesc) {
+                              haptics.warning();
+                              toast.error(
+                                "Please add a bicycle description to this guest's profile before logging repairs.",
+                              );
+                              return;
+                            }
+                            haptics.buttonPress();
+                            setBicyclePickerGuest(guest);
+                          }}
+                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                            ? "bg-red-100 text-red-500 cursor-not-allowed"
+                            : !hasBicycleDesc
+                              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                              : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                            }`}
+                          title={
+                            isBanned
+                              ? banTooltip
+                              : !hasBicycleDesc
+                                ? "Add bicycle description to guest profile first"
+                                : "Log bicycle repair for today"
+                          }
+                          disabled={isBanned || !hasBicycleDesc}
+                        >
+                          <Bike size={16} />
+                          <span className="hidden sm:inline">Bicycle</span>
+                        </button>
+                      )}
+
+                      {alreadyHasBicycle && (
+                        <button
+                          onClick={async () => {
+                            haptics.undo();
+                            const success = await undoAction(bicycleAction.id);
+                            if (success) {
+                              haptics.success();
+                              toast.success("Bicycle repair undone");
+                            } else {
+                              haptics.error();
+                            }
+                          }}
+                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                          title="Undo bicycle repair"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                    </>
                   );
                 })()}
               </div>

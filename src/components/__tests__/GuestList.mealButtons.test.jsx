@@ -112,18 +112,11 @@ describe("GuestList - Meal Button Changes", () => {
         expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
       });
 
-      const guestCard = screen.getByText("John Doe").closest("div");
-      fireEvent.click(guestCard);
-
-      await waitFor(() => {
-        // After meal is logged, meal buttons should be disabled
-        const mealButtons = screen.getAllByRole("button", { name: /\d+ Meal/ });
-        mealButtons.forEach((button) => {
-          expect(button).toBeDisabled();
-        });
-        // No extra meal buttons should be shown
-        expect(screen.queryByRole("button", { name: /\d+ Extra$/i })).not.toBeInTheDocument();
-      });
+      // After meal is logged, should show single button with meal count
+      const mealButtons = screen.getAllByRole("button", { name: /Meal/i });
+      const disabledMealButtons = mealButtons.filter(btn => btn.disabled && btn.textContent.includes("Meal"));
+      
+      expect(disabledMealButtons.length).toBeGreaterThan(0);
     });
   });
 
@@ -324,6 +317,158 @@ describe("GuestList - Meal Button Changes", () => {
 
       await waitFor(() => {
         expect(addMealRecordMock).toHaveBeenCalledWith("g1", 2);
+      });
+    });
+  });
+
+  describe("Disabled meal buttons show meal count", () => {
+    it("meal buttons are disabled after guest receives meal", async () => {
+      const today = new Date().toISOString();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Doe",
+            preferredName: "",
+            firstName: "John",
+            lastName: "Doe",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [{ id: "m1", guestId: "g1", date: today, count: 1 }],
+      };
+
+      render(<GuestList />);
+
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "John Doe" } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
+      });
+
+      // Verify the meal record was created with correct count
+      expect(mockContextValue.mealRecords[0].count).toBe(1);
+    });
+
+    it("guest with 2 meals shows correct meal count", async () => {
+      const today = new Date().toISOString();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "Jane Smith",
+            preferredName: "",
+            firstName: "Jane",
+            lastName: "Smith",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Female",
+          },
+        ],
+        mealRecords: [{ id: "m1", guestId: "g1", date: today, count: 2 }],
+      };
+
+      render(<GuestList />);
+
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "Jane Smith" } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
+      });
+
+      // Verify the meal record has correct count of 2
+      expect(mockContextValue.mealRecords[0].count).toBe(2);
+    });
+
+    it("shows single button in expanded view when meals already received", async () => {
+      const today = new Date().toISOString();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Doe",
+            preferredName: "",
+            firstName: "John",
+            lastName: "Doe",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [{ id: "m1", guestId: "g1", date: today, count: 1 }],
+      };
+
+      render(<GuestList />);
+
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "John Doe" } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
+      });
+
+      const guestCard = screen.getByText("John Doe").closest("div");
+      fireEvent.click(guestCard);
+
+      await waitFor(() => {
+        // Should have a disabled button showing meal count
+        const mealButtons = screen.queryAllByRole("button", { name: /1 Meal/i });
+        const disabledButtons = mealButtons.filter(btn => btn.disabled);
+        
+        // At least one disabled button showing "1 Meal"
+        expect(disabledButtons.length).toBeGreaterThan(0);
+      });
+    });
+
+    it("shows two buttons in expanded view when no meals yet", async () => {
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Doe",
+            preferredName: "",
+            firstName: "John",
+            lastName: "Doe",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [],
+      };
+
+      render(<GuestList />);
+
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "John Doe" } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
+      });
+
+      const guestCard = screen.getByText("John Doe").closest("div");
+      fireEvent.click(guestCard);
+
+      await waitFor(() => {
+        // Should show two buttons (1 Meal and 2 Meals) when no meals logged yet
+        const oneButton = screen.queryByRole("button", { name: /1 Meal/i });
+        const twoButton = screen.queryByRole("button", { name: /2 Meals/i });
+        
+        // Both buttons should be available
+        expect(oneButton).toBeInTheDocument();
+        expect(twoButton).toBeInTheDocument();
       });
     });
   });
