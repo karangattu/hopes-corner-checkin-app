@@ -33,26 +33,15 @@ const CheckIn = () => {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 md:p-8 text-white shadow-lg">
-        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,white)]" />
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/20 blur-2xl" />
-        
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
-              <Search size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                Guest Search & Check-In
-              </h1>
-              <p className="text-blue-100 text-sm md:text-base mt-0.5">
-                Find existing guests or register new arrivals
-              </p>
-            </div>
-          </div>
+      {/* Header - Matching Services Management style */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold mb-1 flex items-center gap-2 text-emerald-800">
+            <Search /> Guest Search & Check-In
+          </h1>
+          <p className="text-gray-500">
+            Find existing guests or register new arrivals
+          </p>
         </div>
       </div>
 

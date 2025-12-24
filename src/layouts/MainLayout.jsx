@@ -108,7 +108,10 @@ const MainLayout = ({ children }) => {
 
             <div className="md:hidden" />
 
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-4">
+              <span className="px-3 py-1.5 rounded-lg bg-yellow-400 text-black font-semibold text-sm shadow-md">
+                {headerRoleDisplay}
+              </span>
               <button
                 onClick={() => setShowTutorial(true)}
                 className="flex items-center gap-1.5 px-3 py-1 rounded text-emerald-100 hover:text-white hover:bg-emerald-700 text-sm transition-colors"
@@ -117,12 +120,9 @@ const MainLayout = ({ children }) => {
                 <HelpCircle size={16} />
                 <span>Need help?</span>
               </button>
-              <span className="text-emerald-100 text-sm">
-                {user?.name} {headerRoleDisplay}
-              </span>
               <button
                 onClick={logout}
-                className="px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-sm"
+                className="px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-sm transition-colors"
               >
                 Logout
               </button>
