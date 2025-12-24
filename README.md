@@ -84,7 +84,8 @@ Supabase credentials are stored securely in Firebase Functions and never exposed
 
 2. **Provision the tables**: See [Supabase schema documentation](./docs/supabase/schema.sql) or create these tables:
    - `guests`, `meal_attendance`, `shower_reservations`, `laundry_bookings`, `bicycle_repairs`
-   - `holiday_visits`, `haircut_visits`, `items_distributed`, `donations`, `app_settings`
+   - `holiday_visits`, `haircut_visits`, `items_distributed`, `donations`, `la_plaza_donations`
+   - `service_waivers`, `guest_proxies`, `guest_warnings`, `blocked_slots`, `sync_state`, `app_settings`
 
 3. **Store credentials in Firebase secrets**:
 
@@ -130,7 +131,7 @@ If you need to migrate your data from an existing Supabase project to a new one,
 
 1. Go to your **old** Supabase project → **Table Editor**
 2. For each table, click the table name → **Export** → **Download as CSV**
-3. Repeat for all tables:
+3. **Repeat for all tables:**
    - `guests`
    - `meal_attendance`
    - `shower_reservations`
@@ -141,7 +142,11 @@ If you need to migrate your data from an existing Supabase project to a new one,
    - `items_distributed`
    - `donations`
    - `la_plaza_donations`
-   - `guest_waivers`
+   - `service_waivers` (formerly referenced as `guest_waivers`)
+   - `guest_proxies`
+   - `guest_warnings`
+   - `blocked_slots`
+   - `sync_state`
    - `app_settings`
 
 #### Option B: Using pg_dump (Recommended for larger datasets)
