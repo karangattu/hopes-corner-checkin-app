@@ -4,11 +4,12 @@ import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 
 /**
- * CompactShowerList - A simplified read-only view of today's shower bookings
+ * CompactShowerList - A simplified read-only view of shower bookings
  * Shows guest name, time slot, and status in a compact format for quick reference
  * @param {Function} onGuestClick - Callback when a guest row is clicked, receives (guestId, recordId)
+ * @param {string} viewDate - The date to view showers for (defaults to today)
  */
-const CompactShowerList = ({ onGuestClick }) => {
+const CompactShowerList = ({ onGuestClick, viewDate }) => {
   const {
     showerRecords,
     guests,
@@ -18,7 +19,7 @@ const CompactShowerList = ({ onGuestClick }) => {
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
-  const todayString = todayPacificDateString();
+  const todayString = viewDate || todayPacificDateString();
 
   const formatTimeLabel = (timeStr) => {
     if (!timeStr) return "—";

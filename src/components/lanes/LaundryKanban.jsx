@@ -6,7 +6,6 @@ import {
   CheckCircle2Icon,
   Clock,
   Trash2,
-  GripVertical,
   Wind,
   Package,
   AlertTriangle,
@@ -39,7 +38,7 @@ const LaundryKanban = ({
     Boolean(String(record?.bagNumber ?? "").trim().length);
 
   const requiresBagPrompt = (record, newStatus) =>
-    !record?.offsite &&
+    record?.laundryType !== "offsite" &&
     record?.status === LAUNDRY_STATUS.WAITING &&
     newStatus !== LAUNDRY_STATUS.WAITING &&
     !hasBagNumber(record);
@@ -152,8 +151,8 @@ const LaundryKanban = ({
   };
 
   // Separate on-site and off-site records
-  const onsiteRecords = laundryRecords.filter((r) => !r.offsite);
-  const offsiteRecords = laundryRecords.filter((r) => r.offsite);
+  const onsiteRecords = laundryRecords.filter((r) => r.laundryType !== "offsite");
+  const offsiteRecords = laundryRecords.filter((r) => r.laundryType === "offsite");
 
   const groupedOnsiteRecords = {
     [LAUNDRY_STATUS.WAITING]: onsiteRecords.filter(
@@ -329,31 +328,13 @@ const LaundryKanban = ({
             : "border-gray-200 hover:border-gray-300"
         }`}
       >
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-start gap-2 flex-1 min-w-0">
-            <GripVertical
-              size={14}
-              className="text-gray-400 flex-shrink-0 mt-0.5"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-xs text-gray-900 leading-tight truncate" title={nameDetails.displayName}>
-                {nameDetails.primaryName}
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                {nameDetails.hasPreferred && (
-                  <div className="text-[9px] text-gray-500 truncate">
-                    {nameDetails.legalName}
-                  </div>
-                )}
-                {!isOffsite && record.time && (
-                  <span className="flex-shrink-0 text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                    {formatSlotTime(record.time)}
-                  </span>
-                )}
-              </div>
+        <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-xs text-gray-900 leading-tight break-words line-clamp-2" title={nameDetails.displayName}>
+              {nameDetails.primaryName}
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {/* Show waiver indicator for non-completed records */}
             {!isCompleted && (
               <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
@@ -361,15 +342,24 @@ const LaundryKanban = ({
             <button
               type="button"
               onClick={() => toggleCard(record.id)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
               aria-label={`${
                 isExpanded ? "Collapse" : "Expand"
               } laundry details for ${nameDetails.primaryName}`}
             >
-              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           </div>
         </div>
+
+        {/* Secondary info line */}
+        {(nameDetails.hasPreferred || (!isOffsite && record.time)) && (
+          <div className="text-[9px] text-gray-500 mb-2 line-clamp-1">
+            {nameDetails.hasPreferred && nameDetails.legalName}
+            {nameDetails.hasPreferred && !isOffsite && record.time && " • "}
+            {!isOffsite && record.time && formatSlotTime(record.time)}
+          </div>
+        )}
 
         <div className="space-y-2">
           {record.bagNumber && (

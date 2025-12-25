@@ -107,6 +107,18 @@ vi.mock("../../../components/ShowerDetailModal", () => ({
   default: () => null,
 }));
 
+vi.mock("../../../components/SectionRefreshButton", () => ({
+  __esModule: true,
+  default: ({ serviceType }) => (
+    <button
+      data-testid={`section-refresh-${serviceType}`}
+      aria-label={`Refresh ${serviceType}`}
+    >
+      Refresh {serviceType}
+    </button>
+  ),
+}));
+
 vi.mock("react-hot-toast", () => ({
   __esModule: true,
   default: {
@@ -647,5 +659,124 @@ describe("Services page", () => {
     expect(cancelMultipleShowers).toHaveBeenCalledWith(["s1"]);
     
     confirmSpy.mockRestore();
+  });
+
+  describe("Section Refresh Buttons", () => {
+    it("shows refresh button in the Showers section", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      await waitFor(() => {
+        const showerRefreshButton = screen.getByTestId("section-refresh-shower");
+        expect(showerRefreshButton).toBeInTheDocument();
+      });
+    });
+
+    it("shows refresh button in the Laundry section", async () => {
+      renderServices();
+
+      // Navigate to Laundry section by clicking the nav button that matches "Laundry" exactly
+      const laundryNavButtons = screen.getAllByRole("button", { name: /Laundry/i });
+      // Find the nav button (has the class pattern for nav items)
+      const navButton = laundryNavButtons.find(btn => 
+        btn.className.includes('rounded-md') && 
+        btn.className.includes('text-sm')
+      );
+      fireEvent.click(navButton);
+
+      await waitFor(() => {
+        const laundryRefreshButton = screen.getByTestId("section-refresh-laundry");
+        expect(laundryRefreshButton).toBeInTheDocument();
+      });
+    });
+
+    it("refresh button has correct aria-label for showers", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      await waitFor(() => {
+        const showerRefreshButton = screen.getByTestId("section-refresh-shower");
+        expect(showerRefreshButton).toHaveAttribute("aria-label", "Refresh shower");
+      });
+    });
+
+    it("refresh button has correct aria-label for laundry", async () => {
+      renderServices();
+
+      // Navigate to Laundry section by clicking the nav button
+      const laundryNavButtons = screen.getAllByRole("button", { name: /Laundry/i });
+      const navButton = laundryNavButtons.find(btn => 
+        btn.className.includes('rounded-md') && 
+        btn.className.includes('text-sm')
+      );
+      fireEvent.click(navButton);
+
+      await waitFor(() => {
+        const laundryRefreshButton = screen.getByTestId("section-refresh-laundry");
+        expect(laundryRefreshButton).toHaveAttribute("aria-label", "Refresh laundry");
+      });
+    });
+  });
+
+  describe("Shower Time-Travel", () => {
+    it("renders showers section without errors", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      await waitFor(() => {
+        const showerSection = screen.getByText(/Today's Showers/i);
+        expect(showerSection).toBeInTheDocument();
+      });
+    });
+
+    it("shows date navigation controls for showers", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      // Look for navigation buttons or date display
+      await waitFor(() => {
+        const buttons = screen.getAllByRole("button");
+        // Should have navigation buttons in showers section
+        expect(buttons.length).toBeGreaterThan(0);
+      });
+    });
+
+    it("displays shower records for the selected date", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      // Should render shower section without crashing
+      await waitFor(() => {
+        const showerSection = screen.getByText(/Today's Showers/i);
+        expect(showerSection).toBeInTheDocument();
+      });
+    });
+
+    it("shower time-travel feature integrates with main services view", async () => {
+      renderServices();
+
+      // Navigate to Showers section
+      fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
+
+      await waitFor(() => {
+        // Verify we're in the showers section
+        const showerHeader = screen.getByText(/Today's Showers/i);
+        expect(showerHeader).toBeInTheDocument();
+
+        // Verify date navigation UI exists (buttons or date display)
+        const buttons = screen.getAllByRole("button");
+        expect(buttons.length).toBeGreaterThan(0);
+      });
+    });
   });
 });

@@ -154,7 +154,8 @@ describe("GuestList - Meal Button Changes", () => {
       fireEvent.click(guestCard);
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: /Complete Check-in/i })).toBeInTheDocument();
+        const completeButtons = screen.queryAllByRole("button", { name: /Complete Check-in/i });
+        expect(completeButtons.length).toBeGreaterThan(0);
       });
     });
 
@@ -191,8 +192,9 @@ describe("GuestList - Meal Button Changes", () => {
       fireEvent.click(guestCard);
 
       await waitFor(() => {
-        const completeButton = screen.getByRole("button", { name: /Complete Check-in/i });
-        fireEvent.click(completeButton);
+        const completeButtons = screen.getAllByRole("button", { name: /Complete Check-in/i });
+        expect(completeButtons.length).toBeGreaterThan(0);
+        fireEvent.click(completeButtons[0]); // Click the first one (the prominent button)
       });
 
       await waitFor(() => {

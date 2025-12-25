@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
@@ -6,6 +6,54 @@ import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
   const { setActiveTab, setActiveServiceSection } = useAppContext();
+
+  // Auto-refresh service slots every 2 minutes when page is in focus
+  useEffect(() => {
+    let refreshInterval;
+
+    const startAutoRefresh = () => {
+      // Set up interval for every 2 minutes
+      refreshInterval = setInterval(() => {
+        if (navigator.onLine) {
+          // Trigger sync by dispatching a storage event that SyncContext listens for
+          const now = Date.now().toString();
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: "hopes-corner-sync-trigger",
+              newValue: now,
+            })
+          );
+        }
+      }, 2 * 60 * 1000); // 2 minutes
+    };
+
+    const stopAutoRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        startAutoRefresh();
+      }
+    };
+
+    // Start auto-refresh if page is visible
+    if (!document.hidden) {
+      startAutoRefresh();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopAutoRefresh();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const handleShowerClick = () => {
     setActiveServiceSection("showers");

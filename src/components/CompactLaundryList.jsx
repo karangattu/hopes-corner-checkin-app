@@ -2,13 +2,16 @@ import React, { useMemo, useState, useCallback } from "react";
 import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+import { CompactWaiverIndicator } from "./ui/CompactWaiverIndicator";
 
 /**
  * CompactLaundryList - A simplified read-only view of laundry bookings for a specific date
  * Shows guest name, time slot, and status in a compact format for quick reference
  * Can view today's laundry or travel back in time to see laundry from past dates
+ * @param {string} viewDate - Optional date to view (YYYY-MM-DD format), defaults to today
+ * @param {Function} onGuestClick - Optional callback when a guest row is clicked, receives (guestId, recordId)
  */
-const CompactLaundryList = ({ viewDate = null }) => {
+const CompactLaundryList = ({ viewDate = null, onGuestClick }) => {
   const {
     laundryRecords,
     guests,
@@ -240,7 +243,8 @@ const CompactLaundryList = ({ viewDate = null }) => {
           {laundryData.onsiteActive.map((booking) => (
             <div 
               key={booking.id}
-              className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50"
+              onClick={() => onGuestClick?.(booking.guestId, booking.id)}
+              className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-purple-50 cursor-pointer" : "hover:bg-gray-50"} transition-colors`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
@@ -255,7 +259,10 @@ const CompactLaundryList = ({ viewDate = null }) => {
                   )}
                 </div>
               </div>
-              {getStatusBadge(booking.status)}
+              <div className="flex items-center gap-2">
+                <CompactWaiverIndicator guestId={booking.guestId} serviceType="laundry" />
+                {getStatusBadge(booking.status)}
+              </div>
             </div>
           ))}
         </div>
@@ -281,7 +288,8 @@ const CompactLaundryList = ({ viewDate = null }) => {
               {laundryData.onsiteDone.map((booking) => (
                 <div 
                   key={booking.id}
-                  className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-emerald-50"
+                  onClick={() => onGuestClick?.(booking.guestId, booking.id)}
+                  className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer" : "hover:bg-emerald-50"} transition-colors`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
@@ -324,7 +332,8 @@ const CompactLaundryList = ({ viewDate = null }) => {
               {laundryData.offsiteActive.map((item) => (
                 <div 
                   key={item.id}
-                  className="px-4 py-2.5 flex items-center justify-between gap-3"
+                  onClick={() => onGuestClick?.(item.guestId, item.id)}
+                  className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-blue-100 cursor-pointer" : ""} transition-colors`}
                 >
                   <div className="min-w-0 flex-1">
                     <span className="font-medium text-blue-900 text-sm truncate block">
@@ -334,13 +343,17 @@ const CompactLaundryList = ({ viewDate = null }) => {
                       <span className="text-xs text-blue-600">Bag #{item.bagNumber}</span>
                     )}
                   </div>
-                  {getStatusBadge(item.status)}
+                  <div className="flex items-center gap-2">
+                    <CompactWaiverIndicator guestId={item.guestId} serviceType="laundry" />
+                    {getStatusBadge(item.status)}
+                  </div>
                 </div>
               ))}
               {laundryData.offsiteDone.map((item) => (
                 <div 
                   key={item.id}
-                  className="px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30"
+                  onClick={() => onGuestClick?.(item.guestId, item.id)}
+                  className={`px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer" : ""} transition-colors`}
                 >
                   <div className="min-w-0 flex-1">
                     <span className="font-medium text-emerald-900 text-sm truncate block">

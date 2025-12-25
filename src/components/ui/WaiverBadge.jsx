@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, X, Check, ShowerHead, WashingMachine, Bike, ExternalLink, CheckCircle } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useAppContext } from "../../context/useAppContext";
 import toast from "react-hot-toast";
 
@@ -136,6 +137,12 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
     ? "Bicycle program waiver required"
     : "Services waiver required (covers shower & laundry)";
 
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setShowModal(false);
+    }
+  };
+
   return (
     <>
       {/* Badge */}
@@ -149,9 +156,14 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
         <span className="sm:hidden">⚠️</span>
       </button>
 
-      {/* Modal Dialog */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+      {/* Modal Dialog - Rendered as Portal to avoid z-index issues with parent modals */}
+      {showModal && createPortal(
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+          onClick={handleBackdropClick}
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl my-auto">
             {/* Close button */}
             <button
@@ -317,7 +329,8 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

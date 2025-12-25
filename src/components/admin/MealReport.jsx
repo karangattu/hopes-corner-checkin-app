@@ -671,44 +671,81 @@ const MealReport = () => {
     if (!data) return null;
 
     return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">{data.month}</p>
-        <div className="space-y-1 text-sm">
-          <p className="text-blue-600">Guest Meals: {data.guestMeals}</p>
-          <p className="text-orange-600">Extras: {data.extras}</p>
-          <p className="text-purple-600">RV Meals: {data.rvMeals}</p>
-          <p className="text-green-600">Day Worker: {data.dayWorkerMeals}</p>
-          <p className="text-pink-600">Shelter: {data.shelterMeals}</p>
-          <p className="text-indigo-600">
-            United Effort: {data.unitedEffortMeals}
-          </p>
-          {data.ageGroups && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 mb-1">
-                Unique Guest Age Groups
-              </p>
-              <p className="text-blue-600">
-                Adults: {data.ageGroups["Adult 18-59"]}
-              </p>
-              <p className="text-green-600">
-                Children: {data.ageGroups["Child 0-17"]}
-              </p>
-              <p className="text-orange-600">
-                Seniors: {data.ageGroups["Senior 60+"]}
-              </p>
+      <div className="bg-white p-5 border-2 border-gray-300 rounded-xl shadow-xl max-w-sm z-50 relative">
+        {/* Header */}
+        <p className="font-bold text-lg text-gray-900 mb-3 pb-2 border-b-2 border-gray-200">
+          {data.month}
+        </p>
+
+        {/* Meal Categories */}
+        <div className="space-y-2 mb-4">
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-blue-700">Guest Meals:</span>
+            <span className="font-bold text-blue-700">{data.guestMeals}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-orange-700">Extras:</span>
+            <span className="font-bold text-orange-700">{data.extras}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-purple-700">RV Meals:</span>
+            <span className="font-bold text-purple-700">{data.rvMeals}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-green-700">Day Worker:</span>
+            <span className="font-bold text-green-700">{data.dayWorkerMeals}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-pink-700">Shelter:</span>
+            <span className="font-bold text-pink-700">{data.shelterMeals}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-indigo-700">United Effort:</span>
+            <span className="font-bold text-indigo-700">{data.unitedEffortMeals}</span>
+          </div>
+        </div>
+
+        {/* Age Groups */}
+        {data.ageGroups && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+              Guest Age Groups
+            </p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Adults:</span>
+                <span className="font-bold text-gray-900">{data.ageGroups["Adult 18-59"]}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Children:</span>
+                <span className="font-bold text-gray-900">{data.ageGroups["Child 0-17"]}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-700">Seniors:</span>
+                <span className="font-bold text-gray-900">{data.ageGroups["Senior 60+"]}</span>
+              </div>
             </div>
-          )}
-          <p className="font-semibold text-gray-800 mt-2 pt-2 border-t">
-            Total: {data.totalMeals}
-          </p>
-          <p className="text-gray-700">
-            Avg Meals / Service Day:{" "}
-            {Math.round(data.avgMealsPerServiceDay || 0)}
-          </p>
-          <p className="text-gray-600">Unique Guests: {data.uniqueGuests}</p>
-          <p className="text-gray-500 text-xs mt-1">
-            Days: {data.validDaysCount}
-          </p>
+          </div>
+        )}
+
+        {/* Summary Statistics */}
+        <div className="pt-3 border-t-2 border-gray-300 space-y-2">
+          <div className="flex justify-between text-sm font-bold">
+            <span className="text-gray-900">Total Meals:</span>
+            <span className="text-gray-900 bg-yellow-100 px-2 py-1 rounded">{data.totalMeals}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-700">Avg / Service Day:</span>
+            <span className="font-bold text-gray-900">{Math.round(data.avgMealsPerServiceDay || 0)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-700">Unique Guests:</span>
+            <span className="font-bold text-gray-900">{data.uniqueGuests}</span>
+          </div>
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>Service Days:</span>
+            <span className="font-semibold text-gray-800">{data.validDaysCount}</span>
+          </div>
         </div>
       </div>
     );
@@ -1424,7 +1461,11 @@ const MealReport = () => {
                           offset: -5,
                         }}
                       />
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip 
+                        content={<CustomTooltip />} 
+                        position={{ y: -20 }}
+                        wrapperStyle={{ outline: "none" }}
+                      />
                       <Legend wrapperStyle={{ paddingTop: "20px" }} />
                       <Bar
                         yAxisId="left"

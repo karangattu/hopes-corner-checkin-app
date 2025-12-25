@@ -109,7 +109,7 @@ const LastRefreshedIndicator = () => {
     const interval = setInterval(() => {
       updateLastSyncTime();
       setTick((t) => t + 1); // Force re-render to update relative time
-    }, 30000);
+    }, 10000);
 
     // Also listen for storage events (in case sync happens in another tab)
     const handleStorageChange = (e) => {

@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Truck,
   Edit3,
+  BrushCleaning,
   RotateCcw,
   X,
   XCircle,
@@ -95,6 +96,7 @@ import CompactShowerList from "../../components/CompactShowerList";
 import CompactLaundryList from "../../components/CompactLaundryList";
 import ShowerDetailModal from "../../components/ShowerDetailModal";
 import SlotBlockManager from "../../components/SlotBlockManager";
+import SectionRefreshButton from "../../components/SectionRefreshButton";
 
 const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
@@ -383,6 +385,54 @@ const Services = () => {
     };
   }, []);
 
+  // Auto-refresh service slots every 2 minutes when page is in focus
+  useEffect(() => {
+    let refreshInterval;
+
+    const startAutoRefresh = () => {
+      // Set up interval for every 2 minutes
+      refreshInterval = setInterval(() => {
+        if (navigator.onLine) {
+          // Trigger sync by dispatching a storage event that SyncContext listens for
+          const now = Date.now().toString();
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: "hopes-corner-sync-trigger",
+              newValue: now,
+            })
+          );
+        }
+      }, 2 * 60 * 1000); // 2 minutes
+    };
+
+    const stopAutoRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        startAutoRefresh();
+      }
+    };
+
+    // Start auto-refresh if page is visible
+    if (!document.hidden) {
+      startAutoRefresh();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopAutoRefresh();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   const [showerLaundryFilter, setShowerLaundryFilter] = useState(
     () => savedFilters?.showerLaundryFilter ?? "any",
   );
@@ -429,6 +479,40 @@ const Services = () => {
   // Helper to go to next laundry date (go forward 1 day at a time, but not past today)
   const goToNextLaundryDate = useCallback(() => {
     setLaundryViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      const newDateString = `${newYear}-${newMonth}-${newDay}`;
+      // Don't go past today
+      if (newDateString > today) {
+        return today;
+      }
+      return newDateString;
+    });
+  }, [today]);
+
+  // Shower time-travel feature: allow staff to view and manage showers from past dates
+  const [showerViewDate, setShowerViewDate] = useState(today);
+
+  // Helper to go to previous shower date (go back 1 day at a time through history)
+  const goToPreviousShowerDate = useCallback(() => {
+    setShowerViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() - 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      return `${newYear}-${newMonth}-${newDay}`;
+    });
+  }, []);
+
+  // Helper to go to next shower date (go forward 1 day at a time, but not past today)
+  const goToNextShowerDate = useCallback(() => {
+    setShowerViewDate((prevDate) => {
       const [year, month, day] = prevDate.split("-").map(Number);
       const currentDate = new Date(year, month - 1, day);
       currentDate.setDate(currentDate.getDate() + 1);
@@ -491,7 +575,7 @@ const Services = () => {
   );
 
   const todayShowerRecords = showerRecords.filter(
-    (record) => pacificDateStringFrom(record.date) === todayShorthand,
+    (record) => pacificDateStringFrom(record.date) === showerViewDate,
   );
   const todayWaitlisted = todayShowerRecords
     .filter((r) => {
@@ -2019,9 +2103,10 @@ const Services = () => {
               <button
                 type="button"
                 onClick={resetMealReportTypes}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
+                aria-label="Reset defaults"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-200 hover:text-blue-600"
               >
-                <RotateCcw size={12} /> Reset defaults
+                <BrushCleaning size={16} /> Reset defaults
               </button>
               <button
                 type="button"
@@ -3441,6 +3526,11 @@ const Services = () => {
                   <StatusIcon size={14} />
                   {statusInfo.label}
                 </span>
+                {!isDone && (
+                  <div className="ml-2">
+                    <WaiverBadge guestId={record.guestId} serviceType="shower" />
+                  </div>
+                )}
                 {hasLaundryToday && (
                   <span className="bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1">
                     <WashingMachine size={12} />
@@ -3664,10 +3754,13 @@ const Services = () => {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <ShowerHead className="text-blue-600" size={20} />
-              <span>Today's Showers</span>
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <ShowerHead className="text-blue-600" size={20} />
+                <span>Today's Showers</span>
+              </h2>
+              <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
+            </div>
             {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
               <button
                 onClick={handleEndShowerDay}
@@ -3679,10 +3772,57 @@ const Services = () => {
             )}
           </div>
           
+          {/* Date Navigation for Shower Time Travel */}
+          {showerViewDate !== today && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1">
+                  <History size={16} className="text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">
+                    Viewing Showers from {formatServiceDayLabel(showerViewDate)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowerViewDate(today)}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+                >
+                  Back to Today
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Date Navigation Buttons */}
+          <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
+            <button
+              type="button"
+              onClick={goToPreviousShowerDate}
+              className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1"
+            >
+              <ChevronLeft size={16} />
+              Previous Day
+            </button>
+            
+            <div className="text-center text-sm font-medium text-gray-600">
+              {formatServiceDayLabel(showerViewDate)}
+            </div>
+            
+            <button
+              type="button"
+              onClick={goToNextShowerDate}
+              disabled={showerViewDate >= today}
+              className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next Day
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          
           {/* Slot Block Manager - Only visible to admin/staff */}
           <SlotBlockManager serviceType="shower" />
           
-          <CompactShowerList onGuestClick={handleShowerGuestClick} />
+          <CompactShowerList onGuestClick={handleShowerGuestClick} viewDate={showerViewDate} />
 
           {/* Modal for detailed view */}
           {selectedShowerRecord && (
@@ -3785,10 +3925,13 @@ const Services = () => {
           <div className="p-4 lg:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <ShowerHead className="text-blue-600" size={20} />
-                  <span>Today's Showers</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ShowerHead className="text-blue-600" size={20} />
+                    <span>Today's Showers</span>
+                  </h2>
+                  <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Manage the flow of guests, update statuses, and keep
                   essentials stocked.
@@ -3809,6 +3952,53 @@ const Services = () => {
                   completed
                 </span>
               </div>
+            </div>
+
+            {/* Date Navigation for Shower Time Travel */}
+            {showerViewDate !== today && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <History size={16} className="text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">
+                      Viewing Showers from {formatServiceDayLabel(showerViewDate)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowerViewDate(today)}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+                  >
+                    Back to Today
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Date Navigation Buttons */}
+            <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
+              <button
+                type="button"
+                onClick={goToPreviousShowerDate}
+                className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Previous Day
+              </button>
+              
+              <div className="text-center text-sm font-medium text-gray-600">
+                {formatServiceDayLabel(showerViewDate)}
+              </div>
+              
+              <button
+                type="button"
+                onClick={goToNextShowerDate}
+                disabled={showerViewDate >= today}
+                className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next Day
+                <ChevronRight size={16} />
+              </button>
             </div>
 
             {/* Tab Navigation */}
@@ -4122,10 +4312,13 @@ const Services = () => {
           <div className="p-4 lg:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <WashingMachine className="text-purple-600" size={20} />
-                  <span>Today's Laundry</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <WashingMachine className="text-purple-600" size={20} />
+                    <span>Today's Laundry</span>
+                  </h2>
+                  <SectionRefreshButton serviceType="laundry" size="sm" variant="ghost" />
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Monitor bag progress, adjust slots, and update statuses in one
                   place.
@@ -4237,7 +4430,13 @@ const Services = () => {
                   </button>
                 </div>
 
-                <CompactLaundryList viewDate={laundryViewDate} />
+                <CompactLaundryList 
+                  viewDate={laundryViewDate} 
+                  onGuestClick={() => {
+                    // When clicking in compact view, switch to kanban for full interaction
+                    setLaundryViewMode("kanban");
+                  }}
+                />
               </div>
             )}
           </div>

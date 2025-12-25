@@ -39,6 +39,7 @@ import {
   Lightbulb,
   Link,
   Check,
+  BrushCleaning,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { useGuestsStore } from "../stores/useGuestsStore";
@@ -1209,7 +1210,9 @@ const GuestList = () => {
     // Check if guest is banned from specific services
     const hasProgramSpecificBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
     const isBannedFromMeals = isBanned && (!hasProgramSpecificBans || guest.bannedFromMeals);
-    // Note: isBannedFromShower, isBannedFromLaundry, isBannedFromBicycle are checked in their respective components (Services.jsx, etc.)
+    const isBannedFromShower = isBanned && (!hasProgramSpecificBans || guest.bannedFromShower);
+    const isBannedFromLaundry = isBanned && (!hasProgramSpecificBans || guest.bannedFromLaundry);
+    const isBannedFromBicycle = isBanned && (!hasProgramSpecificBans || guest.bannedFromBicycle);
     
     const isBanEditorOpen = banEditor.guestId === guest.id;
     const banFormMinValue = isBanEditorOpen
@@ -1502,17 +1505,34 @@ const GuestList = () => {
 
                   if (alreadyHasMeal) {
                     return (
-                      <button
-                        disabled={true}
-                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-not-allowed`}
-                        title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
-                      >
-                        <Check
-                          size={compact ? 12 : 14}
-                          className="text-emerald-600"
-                        />
-                        <span>{mealCount} Meal{mealCount > 1 ? "s" : ""}</span>
-                      </button>
+                      <>
+                        <button
+                          disabled={true}
+                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-not-allowed`}
+                          title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
+                        >
+                          <Check
+                            size={compact ? 12 : 14}
+                            className="text-emerald-600"
+                          />
+                          <span>{mealCount} Meal{mealCount > 1 ? "s" : ""}</span>
+                        </button>
+                        {/* Complete Check-in Button */}
+                        <button
+                          onClick={() => {
+                            haptics.buttonPress();
+                            setSearchTerm("");
+                            setExpandedGuest(null);
+                            searchInputRef.current?.focus();
+                            toast.success("Ready for next guest");
+                          }}
+                          className={`flex items-center justify-center ${compact ? "h-8 px-3" : "h-11 px-3"} rounded-lg font-bold transition-all shadow-sm bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95`}
+                          title="Complete check-in and search for next guest"
+                          aria-label="Complete check-in"
+                        >
+                          <BrushCleaning size={compact ? 16 : 20} />
+                        </button>
+                      </>
                     );
                   }
 
@@ -1548,6 +1568,7 @@ const GuestList = () => {
         </div>
         {expandedGuest === guest.id && (
           <div className="border-t border-emerald-200 p-4 bg-white">
+
             <div className="flex justify-end gap-2 mb-3">
               {editingGuestId !== guest.id && (
                 <>
@@ -2495,9 +2516,10 @@ const GuestList = () => {
                       ) : (
                         <button
                           onClick={() => {
-                            if (isBanned) {
+                            if (isBannedFromBicycle) {
                               haptics.error();
-                              if (banTooltip) toast.error(banTooltip);
+                              const bicycleBanTooltip = `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`;
+                              if (bicycleBanTooltip) toast.error(bicycleBanTooltip);
                               return;
                             }
                             if (!hasBicycleDesc) {
@@ -2510,20 +2532,20 @@ const GuestList = () => {
                             haptics.buttonPress();
                             setBicyclePickerGuest(guest);
                           }}
-                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromBicycle
                             ? "bg-red-100 text-red-500 cursor-not-allowed"
                             : !hasBicycleDesc
                               ? "bg-gray-100 text-gray-500 cursor-not-allowed"
                               : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
                             }`}
                           title={
-                            isBanned
-                              ? banTooltip
+                            isBannedFromBicycle
+                              ? `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
                               : !hasBicycleDesc
                                 ? "Add bicycle description to guest profile first"
                                 : "Log bicycle repair for today"
                           }
-                          disabled={isBanned || !hasBicycleDesc}
+                          disabled={isBannedFromBicycle || !hasBicycleDesc}
                         >
                           <Bike size={16} />
                           <span className="hidden sm:inline">Bicycle</span>
@@ -2556,9 +2578,15 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 {(() => {
                   const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
-                  const isDisabled = isBanned || hasShowerToday;
-                  const tooltipText = isBanned
-                    ? banTooltip
+                  const isDisabled = isBannedFromShower || hasShowerToday;
+                  
+                  // Build shower-specific ban tooltip
+                  const showerBanTooltip = isBannedFromShower
+                    ? `${guest.preferredName || guest.name || "Guest"} is banned from Showers${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
+                    : "";
+                  
+                  const tooltipText = isBannedFromShower
+                    ? showerBanTooltip
                     : hasShowerToday
                       ? "Already has a shower booked today"
                       : "Book a shower";
@@ -2575,7 +2603,7 @@ const GuestList = () => {
                         setShowerPickerGuest(guest);
                       }}
                       disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromShower
                         ? "bg-red-100 text-red-500 cursor-not-allowed"
                         : hasShowerToday
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -2629,9 +2657,15 @@ const GuestList = () => {
               <div className="flex flex-wrap gap-2 items-center">
                 {(() => {
                   const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
-                  const isDisabled = isBanned || hasLaundryToday;
-                  const tooltipText = isBanned
-                    ? banTooltip
+                  const isDisabled = isBannedFromLaundry || hasLaundryToday;
+                  
+                  // Build laundry-specific ban tooltip
+                  const laundryBanTooltip = isBannedFromLaundry
+                    ? `${guest.preferredName || guest.name || "Guest"} is banned from Laundry${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
+                    : "";
+                  
+                  const tooltipText = isBannedFromLaundry
+                    ? laundryBanTooltip
                     : hasLaundryToday
                       ? "Already has laundry booked today"
                       : "Book laundry";
@@ -2648,7 +2682,7 @@ const GuestList = () => {
                         setLaundryPickerGuest(guest);
                       }}
                       disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromLaundry
                         ? "bg-red-100 text-red-500 cursor-not-allowed"
                         : hasLaundryToday
                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
