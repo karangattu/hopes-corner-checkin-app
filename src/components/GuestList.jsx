@@ -1908,12 +1908,12 @@ const GuestList = () => {
                     <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
                       <span className="text-blue-500 font-medium">💙</span>
                       <span>
-                        Please ask: "Do you have stable housing right now?" Select the option that best describes their current situation.
+                        Please ask: "Where did you sleep last night?" Select the option that best describes their current situation.
                         <span className="block mt-1 text-[11px] text-gray-600">
-                          Spanish: “¿Tiene una vivienda estable en este momento?”
+                          Spanish: “¿Dónde durmió anoche?”
                         </span>
                         <span className="block mt-0.5 text-[11px] text-gray-600">
-                          Mandarin: “您现在有稳定的住处吗？” (Pinyin: Nín xiànzài yǒu wěndìng de zhùchù ma?)
+                          Mandarin: “您昨晚睡在哪里？” (Pinyin: Nín zuówǎn shuì zài nǎlǐ?)
                         </span>
                       </span>
                     </p>
