@@ -4,6 +4,8 @@ import GuestList from "../GuestList";
 
 const createDefaultContext = () => ({
   guests: [],
+  guestsWithShowerToday: new Set(),
+  guestsWithLaundryToday: new Set(),
   mealRecords: [],
   extraMealRecords: [],
   showerRecords: [],
@@ -29,6 +31,10 @@ const createDefaultContext = () => ({
   removeGuest: vi.fn(),
   banGuest: vi.fn(),
   clearGuestBan: vi.fn(),
+  guestNeedsWaiverReminder: vi.fn().mockResolvedValue(false),
+  dismissWaiver: vi.fn().mockResolvedValue(true),
+  hasActiveWaiver: vi.fn().mockReturnValue(true),
+  transferMealRecords: vi.fn(),
 });
 
 let mockContextValue = createDefaultContext();
@@ -36,6 +42,20 @@ let mockContextValue = createDefaultContext();
 vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => mockContextValue,
 }));
+
+// Mock date utils to control "today"
+vi.mock("../../utils/date", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    todayPacificDateString: () => "2025-12-26",
+    pacificDateStringFrom: (date) => {
+      if (!date) return "";
+      if (typeof date === 'string') return date.substring(0, 10);
+      return date.toISOString().substring(0, 10);
+    }
+  };
+});
 
 describe("GuestList - Meal Button Changes", () => {
   beforeEach(() => {
@@ -84,7 +104,7 @@ describe("GuestList - Meal Button Changes", () => {
     });
 
     it("disables meal buttons after guest receives meal", async () => {
-      const today = new Date().toISOString();
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -112,17 +132,27 @@ describe("GuestList - Meal Button Changes", () => {
         expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
       });
 
-      // After meal is logged, should show single button with meal count
-      const mealButtons = screen.getAllByRole("button", { name: /Meal/i });
-      const disabledMealButtons = mealButtons.filter(btn => btn.disabled && btn.textContent.includes("Meal"));
-      
-      expect(disabledMealButtons.length).toBeGreaterThan(0);
+      // After meal is logged, should show single DIV (not button) with meal count and checkmark
+      // It has default cursor and opacity-60, so it looks disabled.
+      // We search by title since it provides the best descriptive text.
+      // Use getAllByTitle since it may appear in both compact and full views
+      const bookedIndicators = screen.getAllByTitle(/Already received 1 meal.*today/i);
+      expect(bookedIndicators.length).toBeGreaterThanOrEqual(1);
+      const bookedIndicator = bookedIndicators[0];
+      expect(bookedIndicator).toBeInTheDocument();
+      // Check if it's a DIV in the compact view
+      const divIndicators = bookedIndicators.filter(el => el.tagName === "DIV");
+      expect(divIndicators.length).toBeGreaterThanOrEqual(1);
+
+      // Ensure the clickable buttons are GONE (not just disabled, but replaced)
+      expect(screen.queryByRole("button", { name: /1 Meal$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /2 Meals$/i })).not.toBeInTheDocument();
     });
   });
 
   describe("Complete Check-in button", () => {
     it("shows Complete Check-in button after guest has received meals", async () => {
-      const today = new Date().toISOString();
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -160,7 +190,7 @@ describe("GuestList - Meal Button Changes", () => {
     });
 
     it("resets search field when Complete Check-in is clicked", async () => {
-      const today = new Date().toISOString();
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -324,8 +354,8 @@ describe("GuestList - Meal Button Changes", () => {
   });
 
   describe("Disabled meal buttons show meal count", () => {
-    it("meal buttons are disabled after guest receives meal", async () => {
-      const today = new Date().toISOString();
+    it("meal buttons are replaced by status indicator after guest receives meal", async () => {
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -353,12 +383,15 @@ describe("GuestList - Meal Button Changes", () => {
         expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
       });
 
-      // Verify the meal record was created with correct count
-      expect(mockContextValue.mealRecords[0].count).toBe(1);
+      // Verify the status indicator exists
+      // Use getAllByTitle since it may appear in both compact and full views
+      const indicators = screen.getAllByTitle(/Already received 1 meal.*today/i);
+      expect(indicators.length).toBeGreaterThanOrEqual(1);
+      expect(indicators[0]).toBeInTheDocument();
     });
 
-    it("guest with 2 meals shows correct meal count", async () => {
-      const today = new Date().toISOString();
+    it("guest with 2 meals shows correct meal count on status indicator", async () => {
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -386,12 +419,12 @@ describe("GuestList - Meal Button Changes", () => {
         expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
       });
 
-      // Verify the meal record has correct count of 2
-      expect(mockContextValue.mealRecords[0].count).toBe(2);
+      const indicator = screen.getByTitle(/Already received 2 meals.*today/i);
+      expect(indicator).toBeInTheDocument();
     });
 
-    it("shows single button in expanded view when meals already received", async () => {
-      const today = new Date().toISOString();
+    it("shows status indicator in expanded view when meals already received", async () => {
+      const today = "2025-12-26";
       mockContextValue = {
         ...createDefaultContext(),
         guests: [
@@ -422,14 +455,10 @@ describe("GuestList - Meal Button Changes", () => {
       const guestCard = screen.getByText("John Doe").closest("div");
       fireEvent.click(guestCard);
 
-      await waitFor(() => {
-        // Should have a disabled button showing meal count
-        const mealButtons = screen.queryAllByRole("button", { name: /1 Meal/i });
-        const disabledButtons = mealButtons.filter(btn => btn.disabled);
-        
-        // At least one disabled button showing "1 Meal"
-        expect(disabledButtons.length).toBeGreaterThan(0);
-      });
+      // Get all indicators with this title and find the one in the expanded view
+      const indicators = await screen.findAllByTitle(/Already received 1 meal.*today/i);
+      expect(indicators.length).toBeGreaterThanOrEqual(1);
+      expect(indicators[0]).toBeInTheDocument();
     });
 
     it("shows two buttons in expanded view when no meals yet", async () => {
@@ -467,7 +496,7 @@ describe("GuestList - Meal Button Changes", () => {
         // Should show two buttons (1 Meal and 2 Meals) when no meals logged yet
         const oneButton = screen.queryByRole("button", { name: /1 Meal/i });
         const twoButton = screen.queryByRole("button", { name: /2 Meals/i });
-        
+
         // Both buttons should be available
         expect(oneButton).toBeInTheDocument();
         expect(twoButton).toBeInTheDocument();
