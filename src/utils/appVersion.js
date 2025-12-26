@@ -19,6 +19,11 @@ export const CHANGELOG = [
         description: "Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.",
       },
       {
+        type: "feature",
+        title: "Quick Add Shower & Laundry in Guest List",
+        description: "Staff can now quickly add shower and laundry bookings directly from the guest list search results. No need to navigate away from guest search - just click the service icons next to each guest.",
+      },
+      {
         type: "fix",
         title: "Shower Slot Availability",
         description: "Fixed an issue where blocked shower slots were not correctly reducing available capacity in the Services dashboard.",
