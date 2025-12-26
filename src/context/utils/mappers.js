@@ -19,34 +19,118 @@ export const mapShowerStatusToDb = (status) => {
   return status === "awaiting" ? "booked" : status;
 };
 
-export const mapGuestRow = (row) => ({
-  id: row.id,
-  guestId: row.external_id,
-  firstName: toTitleCase(row.first_name || ""),
-  lastName: toTitleCase(row.last_name || ""),
-  name: toTitleCase(
+/**
+ * DATA INTEGRITY: Validate that a guest row has all required fields
+ * Logs a warning if critical data is missing to help detect corruption
+ * @param {object} row - Database row from guests table
+ * @returns {object} Validation result with isValid flag and issues array
+ */
+export const validateGuestRow = (row) => {
+  const issues = [];
+  
+  if (!row) {
+    return { isValid: false, issues: ['Row is null or undefined'] };
+  }
+  
+  if (!row.id) {
+    issues.push('Missing id (primary key)');
+  }
+  
+  if (!row.external_id) {
+    issues.push('Missing external_id (guest ID)');
+  }
+  
+  // Critical: first_name is required
+  if (!row.first_name || !row.first_name.trim()) {
+    issues.push(`Missing or empty first_name (id: ${row.id}, external_id: ${row.external_id})`);
+  }
+  
+  // Critical: full_name is required
+  if (!row.full_name || !row.full_name.trim()) {
+    issues.push(`Missing or empty full_name (id: ${row.id}, external_id: ${row.external_id})`);
+  }
+  
+  // last_name can technically be empty but should be logged
+  if (!row.last_name || !row.last_name.trim()) {
+    issues.push(`Missing or empty last_name (id: ${row.id}, external_id: ${row.external_id})`);
+  }
+  
+  return {
+    isValid: issues.length === 0,
+    issues,
+  };
+};
+
+/**
+ * Maps a database guest row to the application's guest object format.
+ * CRITICAL: This function now validates required fields and logs warnings
+ * for potential data corruption issues (guests becoming "Unknown Guest").
+ * 
+ * @param {object} row - Database row from guests table
+ * @returns {object} Mapped guest object
+ */
+export const mapGuestRow = (row) => {
+  // DATA INTEGRITY CHECK: Validate critical fields
+  const validation = validateGuestRow(row);
+  if (!validation.isValid) {
+    console.error(
+      '[DATA INTEGRITY WARNING] Guest row has missing/empty critical fields:',
+      validation.issues,
+      '\nRow data:', JSON.stringify(row, null, 2)
+    );
+    // Track this for potential alerting/monitoring
+    if (typeof window !== 'undefined' && window.__guestDataIntegrityIssues) {
+      window.__guestDataIntegrityIssues.push({
+        timestamp: new Date().toISOString(),
+        guestId: row?.id,
+        externalId: row?.external_id,
+        issues: validation.issues,
+      });
+    }
+  }
+
+  const firstName = toTitleCase(row.first_name || "");
+  const lastName = toTitleCase(row.last_name || "");
+  const fullName = toTitleCase(
     row.full_name || `${row.first_name || ""} ${row.last_name || ""}`,
-  ),
-  preferredName: normalizePreferredName(row.preferred_name),
-  housingStatus: normalizeHousingStatus(row.housing_status),
-  age: row.age_group,
-  gender: row.gender,
-  location: row.location || "Mountain View",
-  notes: row.notes || "",
-  bicycleDescription: normalizeBicycleDescription(row.bicycle_description),
-  bannedAt: row.banned_at,
-  bannedUntil: row.banned_until,
-  banReason: row.ban_reason || "",
-  isBanned: computeIsGuestBanned(row.banned_until),
-  // Program-specific bans - if all are false/null but isBanned is true, it's a blanket ban
-  bannedFromBicycle: row.banned_from_bicycle || false,
-  bannedFromMeals: row.banned_from_meals || false,
-  bannedFromShower: row.banned_from_shower || false,
-  bannedFromLaundry: row.banned_from_laundry || false,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  docId: row.id,
-});
+  );
+
+  // Additional safety check: if all name fields are empty, this is a critical issue
+  if (!firstName && !lastName && !fullName) {
+    console.error(
+      '[CRITICAL DATA INTEGRITY] Guest has completely empty name fields! This guest will appear as "Unknown Guest".',
+      'id:', row?.id, 'external_id:', row?.external_id,
+      '\nFull row:', JSON.stringify(row, null, 2)
+    );
+  }
+
+  return {
+    id: row.id,
+    guestId: row.external_id,
+    firstName,
+    lastName,
+    name: fullName,
+    preferredName: normalizePreferredName(row.preferred_name),
+    housingStatus: normalizeHousingStatus(row.housing_status),
+    age: row.age_group,
+    gender: row.gender,
+    location: row.location || "Mountain View",
+    notes: row.notes || "",
+    bicycleDescription: normalizeBicycleDescription(row.bicycle_description),
+    bannedAt: row.banned_at,
+    bannedUntil: row.banned_until,
+    banReason: row.ban_reason || "",
+    isBanned: computeIsGuestBanned(row.banned_until),
+    // Program-specific bans - if all are false/null but isBanned is true, it's a blanket ban
+    bannedFromBicycle: row.banned_from_bicycle || false,
+    bannedFromMeals: row.banned_from_meals || false,
+    bannedFromShower: row.banned_from_shower || false,
+    bannedFromLaundry: row.banned_from_laundry || false,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    docId: row.id,
+  };
+};
 
 export const mapMealRow = (row) => {
   const recordedAt = row.recorded_at || row.created_at || null;

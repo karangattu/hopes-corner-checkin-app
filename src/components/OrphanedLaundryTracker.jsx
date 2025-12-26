@@ -181,13 +181,36 @@ const OrphanedLaundryTracker = () => {
   // Mark laundry as picked up
   const handleMarkPickedUp = useCallback(
     async (record) => {
-      const newStatus = record.isOffsite
-        ? LAUNDRY_STATUS?.OFFSITE_PICKED_UP
-        : LAUNDRY_STATUS?.PICKED_UP;
+      let newStatus;
+
+      if (record.isOffsite) {
+        // For offsite laundry, transition through the stages instead of jumping to picked up
+        switch (record.status) {
+          case LAUNDRY_STATUS?.PENDING:
+            newStatus = LAUNDRY_STATUS?.TRANSPORTED;
+            break;
+          case LAUNDRY_STATUS?.TRANSPORTED:
+            newStatus = LAUNDRY_STATUS?.RETURNED;
+            break;
+          case LAUNDRY_STATUS?.RETURNED:
+            newStatus = LAUNDRY_STATUS?.OFFSITE_PICKED_UP;
+            break;
+          default:
+            newStatus = LAUNDRY_STATUS?.OFFSITE_PICKED_UP;
+        }
+      } else {
+        // For onsite laundry, mark as picked up directly
+        newStatus = LAUNDRY_STATUS?.PICKED_UP;
+      }
 
       const success = await updateLaundryStatus(record.id, newStatus);
       if (success) {
-        toast.success(`${record.guestName}'s laundry marked as picked up`);
+        const statusLabel = 
+          newStatus === LAUNDRY_STATUS?.TRANSPORTED ? "Transported" :
+          newStatus === LAUNDRY_STATUS?.RETURNED ? "Returned" :
+          newStatus === LAUNDRY_STATUS?.OFFSITE_PICKED_UP ? "Picked up" :
+          "Picked up";
+        toast.success(`${record.guestName}'s laundry marked as ${statusLabel}`);
       } else {
         toast.error("Failed to update laundry status");
       }
@@ -539,7 +562,11 @@ const OrphanedLaundryTracker = () => {
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm hover:shadow-md"
                       >
                         <CheckCircle size={16} />
-                        Mark as Picked Up
+                        {record.isOffsite && record.status === LAUNDRY_STATUS?.PENDING
+                          ? "Mark as Transported"
+                          : record.isOffsite && record.status === LAUNDRY_STATUS?.TRANSPORTED
+                          ? "Mark as Returned"
+                          : "Mark as Picked Up"}
                       </button>
                     </div>
                   </div>

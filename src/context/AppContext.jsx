@@ -1206,6 +1206,46 @@ export const AppProvider = ({ children }) => {
       lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
     }
 
+    // DATA INTEGRITY: Validate that we have a valid first name
+    // This prevents creating guests that would appear as "Unknown Guest"
+    if (!firstName) {
+      console.error(
+        '[DATA INTEGRITY] Attempted to create guest without first name:',
+        JSON.stringify(guest, null, 2)
+      );
+      throw new Error('First name is required. Cannot create guest without a name.');
+    }
+
+    // DATA INTEGRITY: Ensure last name has at least something
+    if (!lastName) {
+      console.warn(
+        '[DATA INTEGRITY] Creating guest with empty last name, using first letter of first name:',
+        { firstName, originalGuest: guest }
+      );
+      lastName = firstName.charAt(0).toUpperCase();
+    }
+
+    // DATA INTEGRITY: Prevent duplicate guests with exact same first and last name
+    // Case-insensitive comparison to prevent "Stephen S" and "stephen s" duplicates
+    const normalizedFirstName = firstName.toLowerCase().trim();
+    const normalizedLastName = lastName.toLowerCase().trim();
+    const existingDuplicate = guests.find((g) => {
+      const existingFirst = (g.firstName || '').toLowerCase().trim();
+      const existingLast = (g.lastName || '').toLowerCase().trim();
+      return existingFirst === normalizedFirstName && existingLast === normalizedLastName;
+    });
+
+    if (existingDuplicate) {
+      const existingName = `${existingDuplicate.firstName} ${existingDuplicate.lastName}`.trim();
+      console.error(
+        '[DATA INTEGRITY] Attempted to create duplicate guest:',
+        { newGuest: { firstName, lastName }, existingGuest: existingDuplicate }
+      );
+      throw new Error(
+        `A guest named "${existingName}" already exists. Please use a different name or find the existing guest.`
+      );
+    }
+
     const requiredFields = ["location", "age", "gender"];
     for (const field of requiredFields) {
       if (
@@ -2098,6 +2138,49 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateGuest = async (id, updates) => {
+    // DATA INTEGRITY: Validate name updates to prevent "Unknown Guest" corruption
+    const validateNameUpdates = (updates, originalGuest) => {
+      const issues = [];
+      
+      // Check firstName - if being updated, must not be empty
+      if (updates.firstName !== undefined) {
+        const newFirstName = (updates.firstName || '').trim();
+        if (!newFirstName) {
+          issues.push('firstName cannot be empty');
+        }
+      }
+      
+      // Check lastName - if being updated, must not be empty
+      if (updates.lastName !== undefined) {
+        const newLastName = (updates.lastName || '').trim();
+        if (!newLastName) {
+          issues.push('lastName cannot be empty');
+        }
+      }
+      
+      // Check name (full name) - if being updated, must not be empty
+      if (updates.name !== undefined) {
+        const newName = (updates.name || '').trim();
+        if (!newName) {
+          issues.push('name (full name) cannot be empty');
+        }
+      }
+      
+      // Log if there's a potential issue
+      if (issues.length > 0) {
+        console.error(
+          '[DATA INTEGRITY] Attempted to update guest with empty name field(s):',
+          issues,
+          '\nGuest ID:', id,
+          '\nOriginal guest:', JSON.stringify(originalGuest, null, 2),
+          '\nUpdates:', JSON.stringify(updates, null, 2)
+        );
+        return { isValid: false, issues };
+      }
+      
+      return { isValid: true, issues: [] };
+    };
+
     const normalizedUpdates = {
       ...updates,
       bicycleDescription:
@@ -2110,6 +2193,16 @@ export const AppProvider = ({ children }) => {
     }
     const target = guests.find((g) => g.id === id);
     const originalGuest = target ? { ...target } : null;
+
+    // DATA INTEGRITY: Validate name updates before proceeding
+    const nameValidation = validateNameUpdates(normalizedUpdates, originalGuest);
+    if (!nameValidation.isValid) {
+      enhancedToast.error(
+        `Cannot update guest: ${nameValidation.issues.join(', ')}. Name fields cannot be empty.`
+      );
+      return false;
+    }
+
     setGuests((prev) =>
       prev.map((guest) =>
         guest.id === id ? { ...guest, ...normalizedUpdates } : guest,
@@ -2146,6 +2239,28 @@ export const AppProvider = ({ children }) => {
         payload.external_id = normalizedUpdates.guestId;
 
       if (Object.keys(payload).length === 0) return true;
+
+      // DATA INTEGRITY: Double-check payload doesn't have empty name fields
+      if (payload.first_name !== undefined && !payload.first_name.trim()) {
+        console.error('[DATA INTEGRITY] Blocking update with empty first_name in payload');
+        enhancedToast.error('Cannot save: first name cannot be empty');
+        if (originalGuest) {
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? originalGuest : guest)),
+          );
+        }
+        return false;
+      }
+      if (payload.full_name !== undefined && !payload.full_name.trim()) {
+        console.error('[DATA INTEGRITY] Blocking update with empty full_name in payload');
+        enhancedToast.error('Cannot save: full name cannot be empty');
+        if (originalGuest) {
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? originalGuest : guest)),
+          );
+        }
+        return false;
+      }
 
       try {
         const { data, error } = await supabase
@@ -2323,6 +2438,47 @@ export const AppProvider = ({ children }) => {
         throw new Error("Unable to clear ban. Please try again.");
       }
     }
+
+    return true;
+  };
+
+  /**
+   * Transfer meal records from one guest to another
+   * Used when deleting a guest who has meal records
+   */
+  const transferMealRecords = async (sourceGuestId, targetGuestId) => {
+    if (!sourceGuestId || !targetGuestId) return false;
+
+    const mealsToTransfer = mealRecords.filter((r) => r.guestId === sourceGuestId) || [];
+    
+    if (mealsToTransfer.length === 0) return true; // Nothing to transfer
+
+    if (supabaseEnabled && supabase) {
+      try {
+        // Update all meal records in Supabase
+        for (const meal of mealsToTransfer) {
+          const { error } = await supabase
+            .from("meal_attendance")
+            .update({ guest_id: targetGuestId })
+            .eq("id", meal.id);
+
+          if (error) {
+            console.error("Failed to transfer meal record:", error, meal.id);
+            return false;
+          }
+        }
+      } catch (error) {
+        console.error("Error during meal transfer:", error);
+        return false;
+      }
+    }
+
+    // Update local state
+    setMealRecords(
+      mealRecords.map((r) =>
+        r.guestId === sourceGuestId ? { ...r, guestId: targetGuestId } : r
+      )
+    );
 
     return true;
   };
@@ -5730,6 +5886,8 @@ export const AppProvider = ({ children }) => {
     isSlotBlocked,
     // Slot refresh for real-time availability
     refreshServiceSlots,
+    // Meal transfer for guest deletion
+    transferMealRecords,
   }), [
     // State dependencies
     guests,

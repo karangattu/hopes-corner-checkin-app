@@ -419,7 +419,7 @@ const AttendanceBatchUpload = () => {
     let guestExists = true;
     if (!isSpecialId && guestIdProvided) {
       const guest = guests.find(
-        (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+        (g) => String(g.id) === String(guestId) || g.guestId === guestId || g.external_id === guestId,
       );
       guestExists = guest !== undefined;
     }
@@ -958,6 +958,7 @@ const AttendanceBatchUpload = () => {
         // Validate headers
         const requiredNorm = [
           "attendance_id",
+          "guest_id",
           "count",
           "program",
           "date_submitted",

@@ -5,12 +5,16 @@ const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export const toTitleCase = (str) => {
   if (!str || typeof str !== "string") return "";
+  // Preserve single spaces between words (for middle names like "John Michael")
+  // Only collapse multiple consecutive spaces into one
   return str
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 0)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
+    .replace(/\s+/g, ' ') // Collapse multiple spaces to single space
+    .split(' ')
+    .map((word) => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ')
     .trim();
 };
 

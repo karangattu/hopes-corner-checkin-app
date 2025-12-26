@@ -202,13 +202,116 @@ describe("GuestList", () => {
     const deleteButton = await screen.findByText(/delete/i);
     await user.click(deleteButton);
 
+    // When guest has meal records, should show transfer modal instead
+    expect(
+      await screen.findByText("Transfer Meal Records"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/meal record/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/that need to be transferred/),
+    ).toBeInTheDocument();
+  });
+
+  it("transfers meal records to another guest when transfer is confirmed", async () => {
+    const user = userEvent.setup();
+    const transferMealRecordsMock = vi.fn().mockResolvedValue(true);
+    const removeGuestMock = vi.fn().mockResolvedValue(undefined);
+
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        {
+          id: "g1",
+          name: "John Doe",
+          firstName: "John",
+          lastName: "Doe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Male",
+        },
+        {
+          id: "g2",
+          name: "Jane Smith",
+          firstName: "Jane",
+          lastName: "Smith",
+          housingStatus: "Housed",
+          location: "San Jose",
+          age: "Adult 18-59",
+          gender: "Female",
+        },
+      ],
+      mealRecords: [{ id: "m1", guestId: "g1", date: "2025-10-24" }],
+      transferMealRecords: transferMealRecordsMock,
+      removeGuest: removeGuestMock,
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    fireEvent.change(search, { target: { value: "John" } });
+
+    const guestCard = await screen.findByText("John Doe");
+    await user.click(guestCard);
+
+    const deleteButton = await screen.findByText(/delete/i);
+    await user.click(deleteButton);
+
+    // Modal should appear
+    expect(
+      await screen.findByText("Transfer Meal Records"),
+    ).toBeInTheDocument();
+
+    // Select target guest
+    const selectElement = screen.getByDisplayValue("-- Select a guest --");
+    await user.selectOptions(selectElement, "g2");
+
+    // Click transfer button
+    const transferButton = screen.getByText(/Transfer & Delete/i);
+    await user.click(transferButton);
+
+    // Verify transferMealRecords was called with correct arguments
+    expect(transferMealRecordsMock).toHaveBeenCalledWith("g1", "g2");
+    expect(removeGuestMock).toHaveBeenCalledWith("g1");
+  });
+
+  it("does not show transfer modal if guest has no meal records", async () => {
+    const user = userEvent.setup();
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        {
+          id: "g1",
+          name: "John Doe",
+          firstName: "John",
+          lastName: "Doe",
+          housingStatus: "Unhoused",
+          location: "Mountain View",
+          age: "Adult 18-59",
+          gender: "Male",
+        },
+      ],
+      mealRecords: [], // No meals for this guest
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/search by name/i);
+    fireEvent.change(search, { target: { value: "John" } });
+
+    const guestCard = await screen.findByText("John Doe");
+    await user.click(guestCard);
+
+    const deleteButton = await screen.findByText(/delete/i);
+    await user.click(deleteButton);
+
+    // Should show delete confirmation instead of transfer modal
     expect(
       await screen.findByText("Delete Guest Profile?"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/This will permanently delete/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/1 meal record$/)).toBeInTheDocument();
+      screen.queryByText("Transfer Meal Records"),
+    ).not.toBeInTheDocument();
   });
 
   it("closes delete confirmation modal when cancel is clicked", async () => {

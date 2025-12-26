@@ -135,6 +135,46 @@ export const useGuestsStore = create(
             lastName = toTitleCase(nameParts.slice(1).join(' ') || '');
           }
 
+          // DATA INTEGRITY: Validate that we have a valid first name
+          // This prevents creating guests that would appear as "Unknown Guest"
+          if (!firstName) {
+            console.error(
+              '[DATA INTEGRITY] Attempted to create guest without first name:',
+              JSON.stringify(guest, null, 2)
+            );
+            throw new Error('First name is required. Cannot create guest without a name.');
+          }
+
+          // DATA INTEGRITY: Ensure last name has at least something
+          if (!lastName) {
+            console.warn(
+              '[DATA INTEGRITY] Creating guest with empty last name, using first letter of first name:',
+              { firstName, originalGuest: guest }
+            );
+            lastName = firstName.charAt(0).toUpperCase();
+          }
+
+          // DATA INTEGRITY: Prevent duplicate guests with exact same first and last name
+          // Case-insensitive comparison to prevent "Stephen S" and "stephen s" duplicates
+          const normalizedFirstName = firstName.toLowerCase().trim();
+          const normalizedLastName = lastName.toLowerCase().trim();
+          const existingDuplicate = guests.find((g) => {
+            const existingFirst = (g.firstName || '').toLowerCase().trim();
+            const existingLast = (g.lastName || '').toLowerCase().trim();
+            return existingFirst === normalizedFirstName && existingLast === normalizedLastName;
+          });
+
+          if (existingDuplicate) {
+            const existingName = `${existingDuplicate.firstName} ${existingDuplicate.lastName}`.trim();
+            console.error(
+              '[DATA INTEGRITY] Attempted to create duplicate guest:',
+              { newGuest: { firstName, lastName }, existingGuest: existingDuplicate }
+            );
+            throw new Error(
+              `A guest named "${existingName}" already exists. Please use a different name or find the existing guest.`
+            );
+          }
+
           const requiredFields = ['location', 'age', 'gender'];
           for (const field of requiredFields) {
             if (
@@ -220,6 +260,50 @@ export const useGuestsStore = create(
         updateGuest: async (id, updates) => {
           const { guests } = get();
 
+          // DATA INTEGRITY: Prevent name fields from being set to empty values
+          // This helps prevent the "Unknown Guest" data corruption issue
+          const validateNameUpdates = (updates, originalGuest) => {
+            const issues = [];
+            
+            // Check firstName - if being updated, must not be empty
+            if (updates.firstName !== undefined) {
+              const newFirstName = (updates.firstName || '').trim();
+              if (!newFirstName) {
+                issues.push('firstName cannot be empty');
+              }
+            }
+            
+            // Check lastName - if being updated, must not be empty
+            if (updates.lastName !== undefined) {
+              const newLastName = (updates.lastName || '').trim();
+              if (!newLastName) {
+                issues.push('lastName cannot be empty');
+              }
+            }
+            
+            // Check name (full name) - if being updated, must not be empty
+            if (updates.name !== undefined) {
+              const newName = (updates.name || '').trim();
+              if (!newName) {
+                issues.push('name (full name) cannot be empty');
+              }
+            }
+            
+            // Log if there's a potential issue with partial name updates
+            if (issues.length > 0) {
+              console.error(
+                '[DATA INTEGRITY] Attempted to update guest with empty name field(s):',
+                issues,
+                '\nGuest ID:', id,
+                '\nOriginal guest:', JSON.stringify(originalGuest, null, 2),
+                '\nUpdates:', JSON.stringify(updates, null, 2)
+              );
+              return { isValid: false, issues };
+            }
+            
+            return { isValid: true, issues: [] };
+          };
+
           const normalizedUpdates = {
             ...updates,
             bicycleDescription:
@@ -233,6 +317,15 @@ export const useGuestsStore = create(
 
           const target = guests.find((g) => g.id === id);
           const originalGuest = target ? { ...target } : null;
+
+          // DATA INTEGRITY: Validate name updates before proceeding
+          const nameValidation = validateNameUpdates(normalizedUpdates, originalGuest);
+          if (!nameValidation.isValid) {
+            enhancedToast.error(
+              `Cannot update guest: ${nameValidation.issues.join(', ')}. Name fields cannot be empty.`
+            );
+            return false;
+          }
 
           set((state) => {
             const guestIndex = state.guests.findIndex((g) => g.id === id);
@@ -274,6 +367,34 @@ export const useGuestsStore = create(
               payload.external_id = normalizedUpdates.guestId;
 
             if (Object.keys(payload).length === 0) return true;
+
+            // DATA INTEGRITY: Double-check payload doesn't have empty name fields
+            if (payload.first_name !== undefined && !payload.first_name.trim()) {
+              console.error('[DATA INTEGRITY] Blocking update with empty first_name in payload');
+              enhancedToast.error('Cannot save: first name cannot be empty');
+              if (originalGuest) {
+                set((state) => {
+                  const guestIndex = state.guests.findIndex((g) => g.id === id);
+                  if (guestIndex !== -1) {
+                    state.guests[guestIndex] = originalGuest;
+                  }
+                });
+              }
+              return false;
+            }
+            if (payload.full_name !== undefined && !payload.full_name.trim()) {
+              console.error('[DATA INTEGRITY] Blocking update with empty full_name in payload');
+              enhancedToast.error('Cannot save: full name cannot be empty');
+              if (originalGuest) {
+                set((state) => {
+                  const guestIndex = state.guests.findIndex((g) => g.id === id);
+                  if (guestIndex !== -1) {
+                    state.guests[guestIndex] = originalGuest;
+                  }
+                });
+              }
+              return false;
+            }
 
             try {
               const { data, error } = await supabase

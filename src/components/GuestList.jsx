@@ -80,6 +80,7 @@ const GuestList = () => {
     setBicyclePickerGuest,
     actionHistory,
     undoAction,
+    transferMealRecords,
   } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
@@ -111,6 +112,15 @@ const GuestList = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState({
     isOpen: false,
     guest: null,
+    mealCount: 0,
+    showerCount: 0,
+    laundryCount: 0,
+  });
+  const [mealTransferModal, setMealTransferModal] = useState({
+    isOpen: false,
+    sourceGuest: null,
+    mealCount: 0,
+    selectedTargetGuest: null,
   });
   const [createFormData, setCreateFormData] = useState({
     firstName: "",
@@ -648,11 +658,16 @@ const GuestList = () => {
 
   const toTitleCase = (str) => {
     if (!str || typeof str !== "string") return "";
+    // Preserve single spaces between words (for middle names like "John Michael")
+    // Only collapse multiple consecutive spaces into one
     return str
-      .toLowerCase()
-      .split(" ")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
+      .replace(/\s+/g, ' ') // Collapse multiple spaces to single space
+      .split(' ')
+      .map((word) => {
+        if (!word) return '';
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
+      .join(' ')
       .trim();
   };
 
@@ -1141,6 +1156,18 @@ const GuestList = () => {
       (r) => r.guestId === guest.id,
     ).length;
 
+    // If guest has meal records, show transfer modal instead of delete confirmation
+    if (guestMealCount > 0) {
+      setMealTransferModal({
+        isOpen: true,
+        sourceGuest: guest,
+        mealCount: guestMealCount,
+        selectedTargetGuest: null,
+      });
+      return;
+    }
+
+    // If no meal records, show normal delete confirmation
     setDeleteConfirmation({
       isOpen: true,
       guest,
@@ -1148,6 +1175,45 @@ const GuestList = () => {
       showerCount: guestShowerCount,
       laundryCount: guestLaundryCount,
     });
+  };
+
+  const handleTransferMeals = async () => {
+    const { sourceGuest, selectedTargetGuest, mealCount } = mealTransferModal;
+    
+    if (!selectedTargetGuest) {
+      toast.error("Please select a guest to transfer meals to");
+      return;
+    }
+
+    try {
+      // Transfer meals using the context function
+      const success = await transferMealRecords(sourceGuest.id, selectedTargetGuest.id);
+
+      if (!success) {
+        toast.error("Failed to transfer meals");
+        return;
+      }
+
+      toast.success(
+        `✓ Transferred ${mealCount} meal record${mealCount === 1 ? "" : "s"} to ${selectedTargetGuest.name}`
+      );
+
+      // Close transfer modal and proceed with deletion
+      setMealTransferModal({
+        isOpen: false,
+        sourceGuest: null,
+        mealCount: 0,
+        selectedTargetGuest: null,
+      });
+
+      // Now delete the guest
+      removeGuest(sourceGuest.id);
+      toast.success(`Guest ${sourceGuest.name} deleted`);
+      if (expandedGuest === sourceGuest.id) setExpandedGuest(null);
+    } catch (error) {
+      console.error("Error transferring meals:", error);
+      toast.error("Failed to transfer meals");
+    }
   };
 
   const confirmDelete = () => {
@@ -2750,6 +2816,72 @@ const GuestList = () => {
         showerCount={deleteConfirmation.showerCount}
         laundryCount={deleteConfirmation.laundryCount}
       />
+      
+      {/* Meal Transfer Modal */}
+      {mealTransferModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <AlertTriangle size={24} className="text-amber-600" />
+              Transfer Meal Records
+            </h2>
+            
+            <p className="text-gray-600 mb-4">
+              <strong>{mealTransferModal.sourceGuest?.name}</strong> has <strong>{mealTransferModal.mealCount}</strong> meal record{mealTransferModal.mealCount === 1 ? "" : "s"} that need to be transferred before deletion.
+            </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Transfer to:
+              </label>
+              <select
+                value={mealTransferModal.selectedTargetGuest?.id || ""}
+                onChange={(e) => {
+                  const targetGuest = guests.find((g) => g.id === e.target.value);
+                  setMealTransferModal((prev) => ({
+                    ...prev,
+                    selectedTargetGuest: targetGuest,
+                  }));
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              >
+                <option value="">-- Select a guest --</option>
+                {guests
+                  .filter((g) => g.id !== mealTransferModal.sourceGuest?.id)
+                  .map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name || `${g.firstName} ${g.lastName}`}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setMealTransferModal({
+                    isOpen: false,
+                    sourceGuest: null,
+                    mealCount: 0,
+                    selectedTargetGuest: null,
+                  })
+                }
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTransferMeals}
+                disabled={!mealTransferModal.selectedTargetGuest}
+                className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                Transfer & Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex flex-col gap-4">
         {/* Enhanced Search Bar */}
         <div className="relative group">

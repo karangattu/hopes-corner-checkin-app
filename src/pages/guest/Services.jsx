@@ -254,6 +254,7 @@ const Services = () => {
     (guestId) => {
       const guest = guests.find((g) => g.id === guestId) || null;
       const fallback = "Unknown Guest";
+      const isOrphaned = !guest && guestId; // Has guestId but no matching guest
       const legalName =
         guest?.name ||
         `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
@@ -266,6 +267,15 @@ const Services = () => {
       const displayName = hasPreferred
         ? `${preferredName} (${legalName})`
         : legalName;
+      
+      // Log orphaned records for debugging
+      if (isOrphaned) {
+        console.warn(
+          '[DATA INTEGRITY] Orphaned record detected - guest not found:',
+          { guestId, message: 'This record references a guest that no longer exists' }
+        );
+      }
+      
       return {
         guest,
         legalName,
@@ -274,6 +284,7 @@ const Services = () => {
         primaryName,
         displayName,
         sortKey: legalName.toLowerCase(),
+        isOrphaned, // Flag to identify orphaned records in UI
       };
     },
     [guests],
@@ -3136,28 +3147,47 @@ const Services = () => {
                     extraMealRecords.some((er) => er.id === rec.id)
                   );
                   const isNewGuest = newGuestIds.has(rec.guestId);
+                  const guestDetails = getGuestNameDetails(rec.guestId);
+                  const isOrphaned = guestDetails.isOrphaned;
                   return (
                     <div
                       key={rec.id}
-                      className="group relative overflow-visible rounded-2xl border border-emerald-200/60 bg-white/70 backdrop-blur-sm p-4 shadow-sm transition hover:shadow-md hover:border-emerald-300 hover:bg-white/90"
+                      className={`group relative overflow-visible rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${
+                        isOrphaned 
+                          ? 'border-red-300 bg-red-50/70 hover:border-red-400 hover:bg-red-50/90' 
+                          : 'border-emerald-200/60 bg-white/70 hover:border-emerald-300 hover:bg-white/90'
+                      } backdrop-blur-sm`}
                     >
-                      <div className="absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-emerald-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className={`absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b ${
+                        isOrphaned 
+                          ? 'from-red-400 to-orange-400' 
+                          : 'from-emerald-400 to-teal-400'
+                      } opacity-0 group-hover:opacity-100 transition-opacity`} />
 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         {/* Guest Info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-sm">
+                            <div className={`flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br ${
+                              isOrphaned 
+                                ? 'from-red-400 to-orange-500' 
+                                : 'from-emerald-400 to-teal-500'
+                            } flex items-center justify-center shadow-sm`}>
                               <span className="text-xs font-bold text-white">
                                 {index + 1}
                               </span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="truncate font-semibold text-gray-900 text-sm">
-                                {getGuestName(rec.guestId)}
+                              <h3 className={`truncate font-semibold text-sm ${isOrphaned ? 'text-red-700' : 'text-gray-900'}`}>
+                                {guestDetails.displayName}
                               </h3>
                             </div>
-                            {isNewGuest && !isExtraGuestMeal && (
+                            {isOrphaned && (
+                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200" title="This meal record references a guest that no longer exists in the system">
+                                ⚠️ Orphaned Record
+                              </span>
+                            )}
+                            {isNewGuest && !isExtraGuestMeal && !isOrphaned && (
                               <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
                                 ✨ New Guest
                               </span>
