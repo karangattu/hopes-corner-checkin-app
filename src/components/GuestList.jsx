@@ -232,6 +232,55 @@ const GuestList = () => {
   const listRef = useRef(null);
   const listContainerRef = useRef(null);
   const guestCardRefs = useRef({});
+  const focusTimersRef = useRef(new Map());
+
+  const focusGuestCard = useCallback((guestId) => {
+    if (!guestId) return;
+
+    const attemptFocus = () => {
+      const card = guestCardRefs.current[guestId];
+      if (card && typeof card.focus === "function") {
+        card.focus();
+        const existingTimer = focusTimersRef.current.get(guestId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          focusTimersRef.current.delete(guestId);
+        }
+        return true;
+      }
+      return false;
+    };
+
+    const schedule = () => {
+      if (attemptFocus()) {
+        return;
+      }
+      const existingTimer = focusTimersRef.current.get(guestId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+      const timeoutId = window.setTimeout(schedule, 50);
+      focusTimersRef.current.set(guestId, timeoutId);
+    };
+
+    requestAnimationFrame(schedule);
+  }, []);
+
+  const resetCardFocus = useCallback(() => {
+    setSelectedGuestIndex(-1);
+    setExpandedGuest(null);
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, [setExpandedGuest]);
+
+  useEffect(() => {
+    const timers = focusTimersRef.current;
+    return () => {
+      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1231,7 +1280,7 @@ const GuestList = () => {
   const renderGuestCard = (guest, index, options = {}) => {
     if (!guest) return null;
 
-    const { style, key: keyOverride, ref: refOverride, compact = false } = options;
+    const { style, key: keyOverride, compact = false } = options;
     const lastService = latestServiceByGuest.get(String(guest.id));
     const ServiceIcon = lastService?.icon;
     const formattedDate = lastService
@@ -1330,12 +1379,64 @@ const GuestList = () => {
       animationStyle = resolvedStyle;
     }
 
+    const storeGuestCardRef = (el) => {
+      if (el) {
+        guestCardRefs.current[guest.id] = el;
+      } else {
+        delete guestCardRefs.current[guest.id];
+      }
+    };
+
+    const handleCardKeyDown = (event) => {
+      if (event.currentTarget !== event.target) {
+        return;
+      }
+      const key = event.key;
+      if (key === "Enter") {
+        event.preventDefault();
+        toggleExpanded(guest.id);
+        return;
+      }
+      if (key === "r" || key === "R") {
+        event.preventDefault();
+        resetCardFocus();
+        return;
+      }
+      if ((key === "ArrowDown" || key === "ArrowUp") && sortedGuests.length) {
+        event.preventDefault();
+        const nextIndex =
+          key === "ArrowDown"
+            ? index + 1 < sortedGuests.length
+              ? index + 1
+              : 0
+            : index > 0
+              ? index - 1
+              : sortedGuests.length - 1;
+        setSelectedGuestIndex(nextIndex);
+        focusGuestCard(sortedGuests[nextIndex].id);
+        return;
+      }
+      const mealKey =
+        key === "1" || key === "Numpad1"
+          ? 1
+          : key === "2" || key === "Numpad2"
+            ? 2
+            : null;
+      if (mealKey) {
+        event.preventDefault();
+        handleMealSelection(guest.id, mealKey);
+      }
+    };
+
     return (
       <Animated.div
         key={keyOverride ?? `guest-${guest.id}`}
-        ref={refOverride}
+        ref={storeGuestCardRef}
+        tabIndex={-1}
         style={animationStyle}
         className={containerClass}
+        onFocus={() => setSelectedGuestIndex(index)}
+        onKeyDown={handleCardKeyDown}
       >
         {/* Keyboard navigation indicator - left accent bar */}
         {isSelected && (
@@ -2975,31 +3076,36 @@ return (
               setSelectedGuestIndex(-1);
             }}
             onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                shouldShowCreateOption &&
-                !showCreateForm
-              ) {
-                e.preventDefault();
-                handleShowCreateForm();
-              } else if (e.key === "ArrowDown" && filteredGuests.length > 0) {
+              const key = e.key;
+              const displayedResults = sortedGuests;
+              const hasResults = displayedResults.length > 0;
+
+              if (key === "Enter") {
+                if (shouldShowCreateOption && !showCreateForm) {
+                  e.preventDefault();
+                  handleShowCreateForm();
+                } else if (
+                  selectedGuestIndex >= 0 &&
+                  displayedResults[selectedGuestIndex]
+                ) {
+                  e.preventDefault();
+                  toggleExpanded(displayedResults[selectedGuestIndex].id);
+                } else if (hasResults) {
+                  e.preventDefault();
+                  setSelectedGuestIndex(0);
+                  focusGuestCard(displayedResults[0].id);
+                }
+              } else if (key === "ArrowDown" && hasResults) {
                 e.preventDefault();
                 setSelectedGuestIndex((prev) =>
-                  prev < filteredGuests.length - 1 ? prev + 1 : 0,
+                  prev < displayedResults.length - 1 ? prev + 1 : 0,
                 );
-              } else if (e.key === "ArrowUp" && filteredGuests.length > 0) {
+              } else if (key === "ArrowUp" && hasResults) {
                 e.preventDefault();
                 setSelectedGuestIndex((prev) =>
-                  prev > 0 ? prev - 1 : filteredGuests.length - 1,
+                  prev > 0 ? prev - 1 : displayedResults.length - 1,
                 );
-              } else if (
-                e.key === "Enter" &&
-                selectedGuestIndex >= 0 &&
-                filteredGuests[selectedGuestIndex]
-              ) {
-                e.preventDefault();
-                toggleExpanded(filteredGuests[selectedGuestIndex].id);
-              } else if (e.key === "Escape") {
+              } else if (key === "Escape") {
                 setSelectedGuestIndex(-1);
                 setSearchTerm("");
               }
@@ -3030,13 +3136,20 @@ return (
       {/* Keyboard shortcuts hint - more compact */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-2">
         <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Ctrl+K</kbd>
-        <span>Focus</span>
+        <span>Focus search</span>
         <span className="text-gray-300">•</span>
         <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">↑↓</kbd>
-        <span>Navigate</span>
+        <span>Navigate results</span>
         <span className="text-gray-300">•</span>
         <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Enter</kbd>
-        <span>Select/Create</span>
+        <span>Open first card / Expand</span>
+        <span className="text-gray-300">•</span>
+        <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">1</kbd>
+        <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">2</kbd>
+        <span>Log meals while card selected</span>
+        <span className="text-gray-300">•</span>
+        <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">R</kbd>
+        <span>Reset card / back to search</span>
         <span className="text-gray-300">•</span>
         <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Esc</kbd>
         <span>Clear</span>
@@ -3282,9 +3395,6 @@ return (
             ) : (
               sortedGuests.map((guest, i) =>
                 renderGuestCard(guest, i, {
-                  ref: (el) => {
-                    if (el) guestCardRefs.current[guest.id] = el;
-                  },
                   key: `guest-${guest.id}-${searchTerm}`,
                   style: trail[i],
                   compact: isCompact,
