@@ -4,6 +4,41 @@ import { useAppContext } from "../context/useAppContext";
 import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return "";
+  const [hoursStr, minutesStr] = String(timeStr).split(":");
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+  const date = new Date();
+  date.setHours(hours);
+  date.setMinutes(minutes, 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatLaundrySlotLabel = (range) => {
+  if (!range) return "";
+  const [startRaw, endRaw] = String(range).split(" - ");
+  const formattedStart = formatTimeLabel(startRaw?.trim());
+  const formattedEnd = formatTimeLabel(endRaw?.trim());
+
+  if (!formattedEnd) {
+    return formattedStart;
+  }
+
+  const [startTime, startPeriod] = formattedStart.split(" ");
+  const [endTime, endPeriod] = formattedEnd.split(" ");
+
+  if (startPeriod && endPeriod && startPeriod === endPeriod) {
+    return `${startTime} - ${endTime} ${startPeriod}`;
+  }
+
+  return `${formattedStart} - ${formattedEnd}`;
+};
+
 /**
  * ServiceStatusOverview - A compact at-a-glance view of today's shower and laundry capacity
  * Designed for check-in users to quickly see availability without searching for a guest
@@ -14,8 +49,10 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
     showerRecords,
     laundryRecords,
     allShowerSlots,
+    allLaundrySlots,
     blockedSlots,
     settings,
+    LAUNDRY_STATUS,
   } = useAppContext();
   const { user } = useAuth();
 
@@ -122,6 +159,84 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
     };
   }, [laundryRecords, blockedSlots, settings, todayString]);
 
+  const nextAvailableShowerSlot = useMemo(() => {
+    if (!allShowerSlots?.length || showerStats.available === 0) return null;
+
+    const inactiveStatuses = new Set(["waitlisted", "cancelled", "done"]);
+    const todayActiveRecords = (showerRecords || []).filter(
+      (record) =>
+        pacificDateStringFrom(record.date) === todayString &&
+        !inactiveStatuses.has(record.status),
+    );
+
+    const blockedShowerSlots = new Set(
+      (blockedSlots || [])
+        .filter((slot) => slot.serviceType === "shower" && slot.date === todayString)
+        .map((slot) => slot.slotTime),
+    );
+
+    const slotCounts = todayActiveRecords.reduce((acc, record) => {
+      if (!record.time) return acc;
+      acc[record.time] = (acc[record.time] || 0) + 1;
+      return acc;
+    }, {});
+
+    for (const slot of allShowerSlots) {
+      if (!slot) continue;
+      if (blockedShowerSlots.has(slot)) continue;
+      if ((slotCounts[slot] || 0) < 2) {
+        return slot;
+      }
+    }
+
+    return null;
+  }, [allShowerSlots, blockedSlots, showerRecords, todayString, showerStats.available]);
+
+  const nextAvailableLaundrySlot = useMemo(() => {
+    if (!allLaundrySlots?.length || laundryStats.onsiteAvailable === 0) return null;
+
+    const activeLaundryStatuses = new Set([
+      LAUNDRY_STATUS?.WAITING,
+      LAUNDRY_STATUS?.WASHER,
+      LAUNDRY_STATUS?.DRYER,
+    ]);
+
+    const todayLaundryRecords = (laundryRecords || []).filter(
+      (record) =>
+        pacificDateStringFrom(record.date) === todayString &&
+        record.laundryType === "onsite" &&
+        activeLaundryStatuses.has(record.status),
+    );
+
+    const bookedLaundrySlots = new Set(
+      todayLaundryRecords.map((record) => record.time).filter(Boolean),
+    );
+
+    const blockedLaundrySlots = new Set(
+      (blockedSlots || [])
+        .filter((slot) => slot.serviceType === "laundry" && slot.date === todayString)
+        .map((slot) => slot.slotTime),
+    );
+
+    for (const slot of allLaundrySlots) {
+      if (!slot) continue;
+      if (blockedLaundrySlots.has(slot)) continue;
+      if (!bookedLaundrySlots.has(slot)) {
+        return slot;
+      }
+    }
+
+    return null;
+  }, [allLaundrySlots, blockedSlots, laundryRecords, todayString, LAUNDRY_STATUS, laundryStats.onsiteAvailable]);
+
+  const nextShowerSlotLabel = nextAvailableShowerSlot
+    ? `Next slot: ${formatTimeLabel(nextAvailableShowerSlot)}`
+    : "Waitlist only";
+
+  const nextLaundrySlotLabel = nextAvailableLaundrySlot
+    ? `Next slot: ${formatLaundrySlotLabel(nextAvailableLaundrySlot)}`
+    : "Fully booked today";
+
   // Check if user can click cards (staff or admin)
   const canClickCards = user?.role && ["staff", "admin"].includes(user.role);
 
@@ -167,6 +282,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
               {showerStats.available > 0 ? showerStats.available : showerStats.waitlisted}
             </span>
           </div>
+          <p className="mt-2 text-xs text-gray-500">{nextShowerSlotLabel}</p>
         </div>
 
         {/* Laundry Status */}
@@ -204,6 +320,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
               {laundryStats.onsiteAvailable}
             </span>
           </div>
+          <p className="mt-2 text-xs text-gray-500">{nextLaundrySlotLabel}</p>
         </div>
       </div>
     </div>
