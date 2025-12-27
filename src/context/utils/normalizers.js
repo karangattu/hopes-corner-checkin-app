@@ -2,6 +2,19 @@ import { pacificDateStringFrom } from "../../utils/date";
 import { HOUSING_STATUSES } from "../constants";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const PACIFIC_TIME_ZONE = "America/Los_Angeles";
+const GMT_OFFSET_REGEX = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/;
+
+const parseGmtOffsetMinutes = (value) => {
+  if (!value) return 0;
+  const match = GMT_OFFSET_REGEX.exec(value.trim());
+  if (!match) return 0;
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return sign * (hours * 60 + minutes);
+};
 
 export const toTitleCase = (str) => {
   if (!str || typeof str !== "string") return "";
@@ -104,35 +117,37 @@ export const normalizeDateInputToISO = (value) => {
   if (DATE_ONLY_REGEX.test(raw)) {
     const [year, month, day] = raw.split("-").map(Number);
     if ([year, month, day].some(Number.isNaN)) return null;
-    // Get current Pacific time instead of using hardcoded noon UTC
     const now = new Date();
-    const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+    const pacificTime = new Date(
+      now.toLocaleString("en-US", { timeZone: PACIFIC_TIME_ZONE }),
+    );
     const hours = pacificTime.getHours();
     const minutes = pacificTime.getMinutes();
     const seconds = pacificTime.getSeconds();
-    
-    // Determine timezone offset (PST = -8, PDT = -7)
-    const formatPacificHours = (utcDate) => {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/Los_Angeles',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).formatToParts(utcDate);
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      return parseInt(hour, 10);
-    };
-    
-    // Find the UTC offset by testing which UTC time gives us midnight in Pacific
-    let utcOffset = 8; // Default to PST
-    const check7am = formatPacificHours(new Date(Date.UTC(year, month - 1, day, 7, 0, 0)));
-    if (check7am === 23) utcOffset = 8; // 07:00 UTC = 23:00 previous day in PST (offset = 8)
-    else utcOffset = 7; // PDT (offset = 7)
-    
-    // Convert Pacific time to UTC by subtracting the offset
-    const isoDate = new Date(Date.UTC(year, month - 1, day, hours - utcOffset, minutes, seconds));
-    if (Number.isNaN(isoDate.getTime())) return null;
-    return isoDate.toISOString();
+    const milliseconds = pacificTime.getMilliseconds();
+
+    const offsetDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    if (Number.isNaN(offsetDate.getTime())) return null;
+
+    const timezoneParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: PACIFIC_TIME_ZONE,
+      timeZoneName: "shortOffset",
+    }).formatToParts(offsetDate);
+    const timezoneName = timezoneParts.find((part) => part.type === "timeZoneName")?.value;
+    const timezoneOffsetMinutes = parseGmtOffsetMinutes(timezoneName);
+
+    const utcTimestamp = Date.UTC(
+      year,
+      month - 1,
+      day,
+      hours,
+      minutes,
+      seconds,
+      milliseconds,
+    ) - timezoneOffsetMinutes * 60 * 1000;
+
+    if (Number.isNaN(utcTimestamp)) return null;
+    return new Date(utcTimestamp).toISOString();
   }
 
   const parsed = new Date(raw);

@@ -11,7 +11,7 @@ DECLARE
     'Veggie Protein',
     'Deli Foods',
     'Pastries',
-    'School lunch'
+    'School Lunch'
   ];
   val text;
 BEGIN

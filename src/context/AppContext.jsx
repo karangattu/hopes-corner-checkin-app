@@ -258,12 +258,12 @@ export const AppProvider = ({ children }) => {
 
       // Check if this is a program-specific ban
       const banFieldKey = SERVICE_BAN_MAP[serviceLabel.toLowerCase()];
-      const hasProgramSpecificBans = 
-        guest.bannedFromBicycle || 
-        guest.bannedFromMeals || 
-        guest.bannedFromShower || 
+      const hasProgramSpecificBans =
+        guest.bannedFromBicycle ||
+        guest.bannedFromMeals ||
+        guest.bannedFromShower ||
         guest.bannedFromLaundry;
-      
+
       // If program-specific bans exist, only block if this specific service is banned
       if (hasProgramSpecificBans) {
         // If a specific ban field exists for this service and it's false, allow the service
@@ -2141,7 +2141,7 @@ export const AppProvider = ({ children }) => {
     // DATA INTEGRITY: Validate name updates to prevent "Unknown Guest" corruption
     const validateNameUpdates = (updates, originalGuest) => {
       const issues = [];
-      
+
       // Check firstName - if being updated, must not be empty
       if (updates.firstName !== undefined) {
         const newFirstName = (updates.firstName || '').trim();
@@ -2149,7 +2149,7 @@ export const AppProvider = ({ children }) => {
           issues.push('firstName cannot be empty');
         }
       }
-      
+
       // Check lastName - if being updated, must not be empty
       if (updates.lastName !== undefined) {
         const newLastName = (updates.lastName || '').trim();
@@ -2157,7 +2157,7 @@ export const AppProvider = ({ children }) => {
           issues.push('lastName cannot be empty');
         }
       }
-      
+
       // Check name (full name) - if being updated, must not be empty
       if (updates.name !== undefined) {
         const newName = (updates.name || '').trim();
@@ -2165,7 +2165,7 @@ export const AppProvider = ({ children }) => {
           issues.push('name (full name) cannot be empty');
         }
       }
-      
+
       // Log if there's a potential issue
       if (issues.length > 0) {
         console.error(
@@ -2177,7 +2177,7 @@ export const AppProvider = ({ children }) => {
         );
         return { isValid: false, issues };
       }
-      
+
       return { isValid: true, issues: [] };
     };
 
@@ -2295,9 +2295,9 @@ export const AppProvider = ({ children }) => {
 
   const banGuest = async (
     guestId,
-    { 
-      bannedUntil, 
-      banReason = "", 
+    {
+      bannedUntil,
+      banReason = "",
       bannedAt: bannedAtOverride,
       // Program-specific bans - if all false, it's a blanket ban from all services
       bannedFromBicycle = false,
@@ -2450,7 +2450,7 @@ export const AppProvider = ({ children }) => {
     if (!sourceGuestId || !targetGuestId) return false;
 
     const mealsToTransfer = mealRecords.filter((r) => r.guestId === sourceGuestId) || [];
-    
+
     if (mealsToTransfer.length === 0) return true; // Nothing to transfer
 
     if (supabaseEnabled && supabase) {
@@ -3511,14 +3511,14 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     const loadBlockedSlots = async () => {
       const today = todayPacificDateString();
-      
+
       if (supabaseEnabled && supabase) {
         try {
           const { data, error } = await supabase
             .from("blocked_slots")
             .select("id,service_type,slot_time,date,created_at,created_by")
             .gte("date", today);
-          
+
           if (error) {
             console.error("Error loading blocked slots from Supabase:", error);
             // Fall back to localStorage
@@ -3537,7 +3537,7 @@ export const AppProvider = ({ children }) => {
         loadFromLocalStorage();
       }
     };
-    
+
     const loadFromLocalStorage = () => {
       try {
         const stored = localStorage.getItem(BLOCKED_SLOTS_STORAGE_KEY);
@@ -3554,7 +3554,7 @@ export const AppProvider = ({ children }) => {
         console.error("Error loading blocked slots from localStorage:", e);
       }
     };
-    
+
     loadBlockedSlots();
   }, [supabaseEnabled, mapBlockedSlotRow]);
 
@@ -3575,10 +3575,10 @@ export const AppProvider = ({ children }) => {
       date,
       createdAt: new Date().toISOString(),
     };
-    
+
     // Optimistically update local state
     setBlockedSlots(prev => [...prev, newSlot]);
-    
+
     // Persist to Supabase if enabled
     if (supabaseEnabled && supabase) {
       try {
@@ -3591,7 +3591,7 @@ export const AppProvider = ({ children }) => {
           })
           .select()
           .single();
-        
+
         if (error) {
           // If it's a duplicate, that's okay - slot is already blocked
           if (error.code !== '23505') {
@@ -3603,7 +3603,7 @@ export const AppProvider = ({ children }) => {
         } else if (data) {
           // Update with actual Supabase ID
           const mapped = mapBlockedSlotRow(data);
-          setBlockedSlots(prev => 
+          setBlockedSlots(prev =>
             prev.map(s => s.id === newSlot.id ? mapped : s)
           );
           return mapped;
@@ -3613,18 +3613,18 @@ export const AppProvider = ({ children }) => {
         throw e;
       }
     }
-    
+
     return newSlot;
   }, [supabaseEnabled, mapBlockedSlotRow]);
 
   const unblockSlot = useCallback(async (serviceType, slotTime, date) => {
     // Optimistically update local state
-    setBlockedSlots(prev => 
-      prev.filter(slot => 
+    setBlockedSlots(prev =>
+      prev.filter(slot =>
         !(slot.serviceType === serviceType && slot.slotTime === slotTime && slot.date === date)
       )
     );
-    
+
     // Delete from Supabase if enabled
     if (supabaseEnabled && supabase) {
       try {
@@ -3634,7 +3634,7 @@ export const AppProvider = ({ children }) => {
           .eq("service_type", serviceType)
           .eq("slot_time", slotTime)
           .eq("date", date);
-        
+
         if (error) {
           console.error("Error unblocking slot in Supabase:", error);
           // Note: We don't revert here since the slot might not exist in Supabase
@@ -4639,10 +4639,11 @@ export const AppProvider = ({ children }) => {
     // Normalize updates if they exist
     const cleanUpdates = {};
     if (updates.type !== undefined) {
-      if (!isValidDonationType(updates.type)) {
+      const normalizedType = normalizeDonation(updates.type);
+      if (!isValidDonationType(normalizedType)) {
         throw new Error(`Invalid donation type. Allowed: ${DONATION_TYPES.join(", ")}`);
       }
-      cleanUpdates.type = normalizeDonation(updates.type);
+      cleanUpdates.type = normalizedType;
     }
     if (updates.itemName !== undefined) cleanUpdates.itemName = normalizeDonation(updates.itemName);
     if (updates.trays !== undefined) cleanUpdates.trays = Number(updates.trays) || 0;

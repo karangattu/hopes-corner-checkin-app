@@ -54,11 +54,23 @@ const createBannedGuest = async (result, overrides = {}) => {
       age: overrides.age || "Adult 18-59",
       gender: overrides.gender || "Male",
       housingStatus: overrides.housingStatus || "Unhoused",
-      banReason: overrides.banReason || "Testing ban",
-      bannedUntil: overrides.bannedUntil || createFutureISO(),
     });
   });
-  return guest;
+
+  const banPayload = {
+    bannedUntil: overrides.bannedUntil || createFutureISO(),
+    banReason: overrides.banReason || "Testing ban",
+    bannedFromBicycle: overrides.bannedFromBicycle || false,
+    bannedFromMeals: overrides.bannedFromMeals || false,
+    bannedFromShower: overrides.bannedFromShower || false,
+    bannedFromLaundry: overrides.bannedFromLaundry || false,
+  };
+
+  await act(async () => {
+    await result.current.banGuest(guest.id, banPayload);
+  });
+
+  return result.current.guests.find((g) => g.id === guest.id);
 };
 
 describe("Guest ban enforcement", () => {
@@ -144,6 +156,45 @@ describe("Guest ban enforcement", () => {
       expect(stateValue.length).toBe(0);
     },
   );
+
+  it("allows meal logging when guest is only banned from showers", async () => {
+    const { result } = renderHook(() => useAppContext(), {
+      wrapper: AppWrapper,
+    });
+
+    const bannedGuest = await createBannedGuest(result, {
+      bannedFromShower: true,
+    });
+
+    let mealError = null;
+    let mealRecord = null;
+    await act(async () => {
+      try {
+        mealRecord = await result.current.addMealRecord(bannedGuest.id, 1);
+      } catch (err) {
+        mealError = err;
+      }
+    });
+
+    expect(mealError).toBeNull();
+    expect(mealRecord).toBeTruthy();
+    expect(result.current.mealRecords).toHaveLength(1);
+    expect(result.current.mealRecords[0].guestId).toBe(bannedGuest.id);
+
+    let showerError = null;
+    await act(async () => {
+      try {
+        await result.current.addShowerRecord(
+          bannedGuest.id,
+          result.current.allShowerSlots[0],
+        );
+      } catch (err) {
+        showerError = err;
+      }
+    });
+
+    expect(showerError).toBeInstanceOf(Error);
+  });
 
   it("allows non-banned guests to add meal records", async () => {
     const { result } = renderHook(() => useAppContext(), {

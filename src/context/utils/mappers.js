@@ -27,34 +27,34 @@ export const mapShowerStatusToDb = (status) => {
  */
 export const validateGuestRow = (row) => {
   const issues = [];
-  
+
   if (!row) {
     return { isValid: false, issues: ['Row is null or undefined'] };
   }
-  
+
   if (!row.id) {
     issues.push('Missing id (primary key)');
   }
-  
+
   if (!row.external_id) {
     issues.push('Missing external_id (guest ID)');
   }
-  
+
   // Critical: first_name is required
   if (!row.first_name || !row.first_name.trim()) {
     issues.push(`Missing or empty first_name (id: ${row.id}, external_id: ${row.external_id})`);
   }
-  
+
   // Critical: full_name is required
   if (!row.full_name || !row.full_name.trim()) {
     issues.push(`Missing or empty full_name (id: ${row.id}, external_id: ${row.external_id})`);
   }
-  
+
   // last_name can technically be empty but should be logged
   if (!row.last_name || !row.last_name.trim()) {
     issues.push(`Missing or empty last_name (id: ${row.id}, external_id: ${row.external_id})`);
   }
-  
+
   return {
     isValid: issues.length === 0,
     issues,
@@ -236,7 +236,7 @@ export const mapItemRow = (row) => ({
 export const mapDonationRow = (row) => {
   return {
     id: row.id,
-    type: row.donation_type,
+    type: toTitleCase(row.donation_type),
     itemName: row.item_name,
     trays: Number(row.trays) || 0,
     weightLbs: Number(row.weight_lbs) || 0,

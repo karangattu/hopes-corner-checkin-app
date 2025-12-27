@@ -2612,7 +2612,7 @@ const GuestList = () => {
                             }`}
                           >
                             <Plus size={14} />
-                            <span>+{extraCount} Extra</span>
+                            <span>{extraCount} Extra</span>
                           </button>
                         ))}
                       </div>

@@ -386,7 +386,7 @@ describe("GuestList - Meal Button Changes", () => {
       const guestCard = screen.getByText("John Doe").closest("div");
       fireEvent.click(guestCard);
 
-      const extraOneButton = await screen.findByRole("button", { name: "+1 Extra" });
+      const extraOneButton = await screen.findByRole("button", { name: "1 Extra" });
       fireEvent.click(extraOneButton);
 
       await waitFor(() => {
