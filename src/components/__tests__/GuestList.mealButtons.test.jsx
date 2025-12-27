@@ -351,6 +351,48 @@ describe("GuestList - Meal Button Changes", () => {
         expect(addMealRecordMock).toHaveBeenCalledWith("g1", 2);
       });
     });
+
+    it("calls addExtraMealRecord when extra meal button is clicked", async () => {
+      const today = "2025-12-26";
+      const addExtraMealRecordMock = vi.fn();
+      mockContextValue = {
+        ...createDefaultContext(),
+        guests: [
+          {
+            id: "g1",
+            name: "John Doe",
+            preferredName: "",
+            firstName: "John",
+            lastName: "Doe",
+            housingStatus: "Unhoused",
+            location: "Mountain View",
+            age: "Adult 18-59",
+            gender: "Male",
+          },
+        ],
+        mealRecords: [{ id: "m1", guestId: "g1", date: today, count: 1 }],
+        addExtraMealRecord: addExtraMealRecordMock,
+      };
+
+      render(<GuestList />);
+
+      const search = screen.getByPlaceholderText(/search by name/i);
+      fireEvent.change(search, { target: { value: "John Doe" } });
+
+      await waitFor(() => {
+        expect(screen.getByText(/1 guest.*found/i)).toBeInTheDocument();
+      });
+
+      const guestCard = screen.getByText("John Doe").closest("div");
+      fireEvent.click(guestCard);
+
+      const extraOneButton = await screen.findByRole("button", { name: "+1 Extra" });
+      fireEvent.click(extraOneButton);
+
+      await waitFor(() => {
+        expect(addExtraMealRecordMock).toHaveBeenCalledWith("g1", 1);
+      });
+    });
   });
 
   describe("Disabled meal buttons show meal count", () => {

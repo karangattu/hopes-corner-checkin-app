@@ -21,6 +21,7 @@ const createDefaultContext = () => ({
   setShowerPickerGuest: () => {},
   setLaundryPickerGuest: () => {},
   addMealRecord: () => {},
+  addExtraMealRecord: () => {},
   addGuest: () => {},
   setBicyclePickerGuest: () => {},
   addHaircutRecord: () => {},

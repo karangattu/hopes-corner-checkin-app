@@ -76,6 +76,7 @@ const GuestList = () => {
     setShowerPickerGuest,
     setLaundryPickerGuest,
     addMealRecord,
+    addExtraMealRecord,
     addGuest,
     setBicyclePickerGuest,
     actionHistory,
@@ -137,6 +138,7 @@ const GuestList = () => {
   const [duplicateWarning, setDuplicateWarning] = useState("");
 
   const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
+  const [pendingExtraMealGuests, setPendingExtraMealGuests] = useState(new Set());
   const [pendingActions, setPendingActions] = useState(new Set());
   const [banEditor, setBanEditor] = useState({
     guestId: null,
@@ -528,6 +530,36 @@ const GuestList = () => {
     } catch (error) {
       haptics.error();
       toast.error(`Error logging meals: ${error.message}`);
+    }
+  };
+
+  const handleAddExtraMeals = async (guestId, count, guestName = "guest") => {
+    if (!guestId || pendingExtraMealGuests.has(guestId)) return;
+    const friendlyName = guestName || "guest";
+
+    try {
+      haptics.buttonPress();
+      setPendingExtraMealGuests((prev) => {
+        const next = new Set(prev);
+        next.add(guestId);
+        return next;
+      });
+      const record = await addExtraMealRecord(guestId, count);
+      if (record) {
+        haptics.success();
+        toast.success(
+          `${count} extra meal${count > 1 ? "s" : ""} logged for ${friendlyName}!`,
+        );
+      }
+    } catch (error) {
+      haptics.error();
+      toast.error(`Error adding extra meals: ${error?.message || "Unable to save extra meals"}`);
+    } finally {
+      setPendingExtraMealGuests((prev) => {
+        const next = new Set(prev);
+        next.delete(guestId);
+        return next;
+      });
     }
   };
 
@@ -2439,6 +2471,7 @@ const GuestList = () => {
             const alreadyHasMeal =
               pendingMealGuests.has(guest.id) || !!todayMealRecord;
             const isPendingMeal = pendingMealGuests.has(guest.id);
+            const hasPendingExtraMeal = pendingExtraMealGuests.has(guest.id);
             const mealCount = todayMealRecord?.count || 0;
 
             return (
@@ -2557,6 +2590,33 @@ const GuestList = () => {
                       </span>
                       <span className="sm:hidden">Next</span>
                     </button>
+                    {!isBannedFromMeals && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {[1, 2].map((extraCount) => (
+                          <button
+                            key={extraCount}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleAddExtraMeals(
+                                guest.id,
+                                extraCount,
+                                guest.preferredName || guest.name,
+                              );
+                            }}
+                            disabled={hasPendingExtraMeal}
+                            title={`Add ${extraCount} extra meal${extraCount > 1 ? "s" : ""}`}
+                            className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${hasPendingExtraMeal
+                              ? "bg-emerald-200 text-emerald-800 cursor-wait animate-pulse"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 shadow-sm"
+                            }`}
+                          >
+                            <Plus size={14} />
+                            <span>+{extraCount} Extra</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

@@ -29,7 +29,7 @@ export const DONATION_TYPES = [
   "Veggie Protein",
   "Deli Foods",
   "Pastries",
-  "School lunch",
+  "School Lunch",
 ];
 
 export const BICYCLE_REPAIR_STATUS = {
