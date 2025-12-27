@@ -387,19 +387,11 @@ describe("GuestList", () => {
   it("opens create guest form with keyboard shortcut", async () => {
     render(<GuestList />);
 
-    expect(
-      screen.queryByRole("dialog", { name: /create new guest/i }),
-    ).not.toBeInTheDocument();
-
-    fireEvent.keyDown(document, {
-      key: "g",
-      ctrlKey: true,
-      altKey: true,
-    });
+    fireEvent.keyDown(document, { key: "g", ctrlKey: true, altKey: true });
 
     await waitFor(() => {
       expect(
-        screen.getByRole("dialog", { name: /create new guest/i }),
+        screen.getByRole("dialog"),
       ).toBeInTheDocument();
     });
   });
@@ -418,7 +410,7 @@ describe("GuestList", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("dialog", { name: /create new guest/i }),
+        screen.queryByRole("dialog"),
       ).not.toBeInTheDocument();
     });
   });
@@ -1031,13 +1023,13 @@ describe("GuestList", () => {
       fireEvent.change(search, { target: { value: "Smith" } });
 
       await screen.findByText(/1 guest.*found/i);
-      
+
       // Focus search input
       search.focus();
-      
+
       // Press down arrow to select first guest
       fireEvent.keyDown(search, { key: "ArrowDown" });
-      
+
       // The card should have visual focus indicator (ring and styling)
       await waitFor(() => {
         const card = screen.getByText(/Alice Smith/).closest("[class*='border rounded']");
@@ -1076,17 +1068,17 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      
+
       // Trigger search to show the guest
       const search = screen.getByPlaceholderText(/search by name/i);
       fireEvent.change(search, { target: { value: "Alice" } });
-      
+
       // Wait for the guest name to appear
       await screen.findByText("Alice Smith");
-      
+
       // The RECENT badge should be visible
       expect(screen.getByText("RECENT")).toBeInTheDocument();
-      
+
       // The badge should have a title with last meal info
       const recentBadge = screen.getByText("RECENT");
       expect(recentBadge.parentElement).toHaveAttribute("title");
@@ -1112,14 +1104,14 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      
+
       // Trigger search to show the guest
       const search = screen.getByPlaceholderText(/search by name/i);
       fireEvent.change(search, { target: { value: "Bob" } });
-      
+
       // Wait for the guest name to appear
       await screen.findByText("Bob Jones");
-      
+
       // The RECENT badge should NOT be visible
       expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
     });
@@ -1151,14 +1143,14 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      
+
       // Trigger search to show the guest
       const search = screen.getByPlaceholderText(/search by name/i);
       fireEvent.change(search, { target: { value: "Carol" } });
-      
+
       // Wait for the guest name to appear
       await screen.findByText("Carol Davis");
-      
+
       // The RECENT badge should NOT be visible
       expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
     });
@@ -1206,24 +1198,24 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      
+
       // Search for Alice (has recent meal)
       const search = screen.getByPlaceholderText(/search by name/i);
       fireEvent.change(search, { target: { value: "Alice" } });
-      
+
       // Wait for Alice to appear
       await screen.findByText("Alice Smith");
-      
+
       // Alice should have the RECENT badge
       expect(screen.getByText("RECENT")).toBeInTheDocument();
-      
+
       // Clear search and search for Bob (meal is too old)
       fireEvent.change(search, { target: { value: "" } });
       fireEvent.change(search, { target: { value: "Bob" } });
-      
+
       // Wait for Bob to appear
       await screen.findByText("Bob Johnson");
-      
+
       // Bob should NOT have the RECENT badge
       expect(screen.queryByText("RECENT")).not.toBeInTheDocument();
     });

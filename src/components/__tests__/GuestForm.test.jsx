@@ -8,7 +8,10 @@ const mockAddGuest = vi.fn();
 
 vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => ({
-    addGuest: mockAddGuest,
+    addGuest: (data) => {
+      console.log("mockAddGuest called with:", JSON.stringify(data, null, 2));
+      return mockAddGuest(data);
+    },
   }),
 }));
 
@@ -63,9 +66,9 @@ describe("GuestCreateForm", () => {
           createError={""}
           duplicateWarning={""}
           onChange={handleChange}
-          onNameBlur={() => {}}
+          onNameBlur={() => { }}
           onSubmit={handleSubmit}
-          onCancel={() => {}}
+          onCancel={() => { }}
           onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
           firstNameRef={{ current: null }}
         />
@@ -120,9 +123,9 @@ describe("GuestCreateForm", () => {
           createError={""}
           duplicateWarning={""}
           onChange={handleChange}
-          onNameBlur={() => {}}
+          onNameBlur={() => { }}
           onSubmit={handleSubmit}
-          onCancel={() => {}}
+          onCancel={() => { }}
           onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
           firstNameRef={{ current: null }}
         />
@@ -132,7 +135,7 @@ describe("GuestCreateForm", () => {
     render(<ErrWrapper />);
 
     const dialog = screen.getByRole('dialog');
-    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    const submitButton = within(dialog).getByRole('button', { name: /save guest/i });
     await user.click(submitButton);
 
     // There is no guest registered because no names provided
@@ -192,9 +195,9 @@ describe("GuestCreateForm", () => {
             createError={""}
             duplicateWarning={""}
             onChange={handleChange}
-            onNameBlur={() => {}}
+            onNameBlur={() => { }}
             onSubmit={handleSubmit}
-            onCancel={() => {}}
+            onCancel={() => { }}
             onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
             firstNameRef={{ current: null }}
           />
@@ -207,12 +210,12 @@ describe("GuestCreateForm", () => {
     await user.type(screen.getByLabelText(/first name/i), "John");
     await user.type(screen.getByLabelText(/last name/i), "Doe");
     await user.selectOptions(screen.getByLabelText(/housing status/i), "Housed");
-    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
-    await user.selectOptions(screen.getByLabelText(/gender/i), "Male");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "1. Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Male (M)");
     await user.type(screen.getByLabelText(/notes/i), "Test notes");
     await user.type(screen.getByLabelText(/bicycle description/i), "Red bicycle");
     const dialog = screen.getByRole('dialog');
-    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    const submitButton = within(dialog).getByRole('button', { name: /save guest/i });
     await user.click(submitButton);
 
     await waitFor(() => expect(mockAddGuest).toHaveBeenCalledWith({
@@ -274,9 +277,9 @@ describe("GuestCreateForm", () => {
           createError={""}
           duplicateWarning={""}
           onChange={handleChange}
-          onNameBlur={() => {}}
+          onNameBlur={() => { }}
           onSubmit={handleSubmit}
-          onCancel={() => {}}
+          onCancel={() => { }}
           onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
           firstNameRef={{ current: null }}
         />
@@ -289,10 +292,10 @@ describe("GuestCreateForm", () => {
     const lastNameInput = screen.getByLabelText(/last name/i);
     await user.type(firstNameInput, "Jane");
     await user.type(lastNameInput, "Smith");
-    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
-    await user.selectOptions(screen.getByLabelText(/gender/i), "Female");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "1. Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Female (F)");
     const dialog = screen.getByRole('dialog');
-    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    const submitButton = within(dialog).getByRole('button', { name: /save guest/i });
     await user.click(submitButton);
 
     await waitFor(() => {
@@ -339,9 +342,9 @@ describe("GuestCreateForm", () => {
           createError={""}
           duplicateWarning={""}
           onChange={handleChange}
-          onNameBlur={() => {}}
+          onNameBlur={() => { }}
           onSubmit={handleSubmit}
-          onCancel={() => {}}
+          onCancel={() => { }}
           onLocationChange={(val) => setFormData((prev) => ({ ...prev, location: val }))}
           firstNameRef={{ current: null }}
         />
@@ -354,13 +357,13 @@ describe("GuestCreateForm", () => {
     await user.type(screen.getByLabelText(/first name/i), "Test");
     await user.type(screen.getByLabelText(/last name/i), "User");
     await user.selectOptions(screen.getByLabelText(/housing status/i), "Housed");
-    await user.selectOptions(screen.getByLabelText(/age group/i), "Adult 18-59");
-    await user.selectOptions(screen.getByLabelText(/gender/i), "Male");
+    await user.selectOptions(screen.getByLabelText(/age group/i), "1. Adult 18-59");
+    await user.selectOptions(screen.getByLabelText(/gender/i), "Male (M)");
     await user.type(screen.getByLabelText(/notes/i), "Test notes");
 
     // Submit form
     const dialog = screen.getByRole('dialog');
-    const submitButton = within(dialog).getByRole('button', { name: /^create guest$/i });
+    const submitButton = within(dialog).getByRole('button', { name: /save guest/i });
     await user.click(submitButton);
 
     // Verify the function was called with correct data
