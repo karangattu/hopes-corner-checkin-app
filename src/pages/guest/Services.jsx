@@ -782,18 +782,20 @@ const Services = () => {
     [LAUNDRY_STATUS],
   );
 
-  const filteredShowers = [...(todayBookedShowers || [])]
-    .filter((r) => {
-      if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
-        return false;
-      if (
-        showerLaundryFilter === "without" &&
-        laundryGuestIdsSet.has(r.guestId)
-      )
-        return false;
-      return true;
-    })
-    .sort((a, b) => {
+  const filteredShowers = [...(todayBookedShowers || [])].filter((r) => {
+    if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
+      return false;
+    if (
+      showerLaundryFilter === "without" &&
+      laundryGuestIdsSet.has(r.guestId)
+    )
+      return false;
+    return true;
+  });
+
+  const sortShowersForDisplay = (records) => {
+    const list = [...records];
+    list.sort((a, b) => {
       if (showerSort === "name") {
         const an = getGuestNameDetails(a.guestId).sortKey;
         const bn = getGuestNameDetails(b.guestId).sortKey;
@@ -810,6 +812,8 @@ const Services = () => {
         return parseTimeToMinutes(b.time) - parseTimeToMinutes(a.time);
       return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
     });
+    return list;
+  };
 
   const filteredLaundry = [...(todayLaundryWithGuests || [])]
     .sort((a, b) => {
@@ -818,12 +822,18 @@ const Services = () => {
       );
     });
 
-  const activeShowers = filteredShowers.filter(
-    (record) => record.status !== "done",
+  const activeShowers = sortShowersForDisplay(
+    filteredShowers.filter((record) => record.status !== "done"),
   );
-  const completedShowers = filteredShowers.filter(
-    (record) => record.status === "done",
-  );
+  
+  // Sort completed showers by when they were actually completed (lastUpdated timestamp)
+  // This maintains the order they were completed in the default view
+  const completedShowers = [...filteredShowers.filter((record) => record.status === "done")]
+    .sort((a, b) => {
+      const aTime = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
+      const bTime = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
+      return aTime - bTime;
+    });
 
   const completedLaundryStatuses = useMemo(
     () =>

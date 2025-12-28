@@ -84,11 +84,34 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
           timeLabel: formatTimeLabel(record.time),
           status: record.status,
           createdAt: record.createdAt,
+          lastUpdated: record.lastUpdated,
         };
       });
 
     const active = booked.filter(b => b.status !== "done" && b.status !== "cancelled");
-    const done = booked.filter(b => b.status === "done");
+    
+    // Sort done showers by when they were actually completed (lastUpdated timestamp)
+    // This maintains the order they were completed in the default view
+    const done = todaysRecords
+      .filter(r => r.status === "done")
+      .sort((a, b) => {
+        const aTime = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
+        const bTime = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
+        return aTime - bTime;
+      })
+      .map(record => {
+        return {
+          id: record.id,
+          guestId: record.guestId,
+          name: getGuestDisplayName(record.guestId),
+          time: record.time,
+          timeLabel: formatTimeLabel(record.time),
+          status: record.status,
+          createdAt: record.createdAt,
+          lastUpdated: record.lastUpdated,
+        };
+      });
+    
     const cancelled = booked.filter(b => b.status === "cancelled");
 
     const waitlisted = todaysRecords
