@@ -234,4 +234,126 @@ describe("CompactShowerList", () => {
     render(<CompactShowerList />);
     expect(screen.getByText("Quick View")).toBeInTheDocument();
   });
+
+  it("sorts completed showers by lastUpdated timestamp (completion order)", () => {
+    mockContext.showerRecords = [
+      {
+        id: "shower-1",
+        guestId: "guest-1",
+        time: "08:00",
+        date: "2025-01-15T08:00:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:00:00Z",
+        lastUpdated: "2025-01-15T09:30:00Z", // Completed third
+      },
+      {
+        id: "shower-2",
+        guestId: "guest-2",
+        time: "08:30",
+        date: "2025-01-15T08:30:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:05:00Z",
+        lastUpdated: "2025-01-15T08:45:00Z", // Completed first
+      },
+      {
+        id: "shower-3",
+        guestId: "guest-3",
+        time: "09:00",
+        date: "2025-01-15T09:00:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:10:00Z",
+        lastUpdated: "2025-01-15T09:15:00Z", // Completed second
+      },
+    ];
+
+    render(<CompactShowerList />);
+
+    // Expand Done Showers to see the order
+    const doneButton = screen.getByText(/Done Showers/);
+    fireEvent.click(doneButton);
+
+    // Get all guest names within the done section
+    const names = screen.getAllByText(/Doe|Smith|Wilson/);
+    
+    // Jane Smith (completed first at 08:45) should appear first
+    // Bob Wilson (completed second at 09:15) should appear second
+    // John Doe (completed third at 09:30) should appear last
+    expect(names[0]).toHaveTextContent("Jane Smith");
+    expect(names[1]).toHaveTextContent("Bob Wilson");
+    expect(names[2]).toHaveTextContent("John Doe");
+  });
+
+  it("handles completed showers without lastUpdated timestamp", () => {
+    mockContext.showerRecords = [
+      {
+        id: "shower-1",
+        guestId: "guest-1",
+        time: "08:00",
+        date: "2025-01-15T08:00:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:00:00Z",
+        lastUpdated: "2025-01-15T09:00:00Z", // Has lastUpdated
+      },
+      {
+        id: "shower-2",
+        guestId: "guest-2",
+        time: "08:30",
+        date: "2025-01-15T08:30:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:05:00Z",
+        // No lastUpdated - should sort to beginning (time 0)
+      },
+    ];
+
+    render(<CompactShowerList />);
+
+    // Expand Done Showers
+    const doneButton = screen.getByText(/Done Showers/);
+    fireEvent.click(doneButton);
+
+    const names = screen.getAllByText(/Doe|Smith/);
+    
+    // Jane Smith (no lastUpdated, defaults to 0) should appear first
+    // John Doe (has lastUpdated) should appear second
+    expect(names[0]).toHaveTextContent("Jane Smith");
+    expect(names[1]).toHaveTextContent("John Doe");
+  });
+
+  it("shows waitlisted showers in Done section after completion in order of lastUpdated", () => {
+    // Simulate scenario where guests were initially waitlisted then completed
+    mockContext.showerRecords = [
+      {
+        id: "shower-1",
+        guestId: "guest-1",
+        time: "08:00",
+        date: "2025-01-15T08:00:00Z",
+        status: "done",
+        createdAt: "2025-01-15T06:30:00Z", // Originally waitlisted early
+        lastUpdated: "2025-01-15T10:00:00Z", // But completed late
+      },
+      {
+        id: "shower-2",
+        guestId: "guest-2",
+        time: "08:30",
+        date: "2025-01-15T08:30:00Z",
+        status: "done",
+        createdAt: "2025-01-15T07:00:00Z", // Originally booked later
+        lastUpdated: "2025-01-15T08:45:00Z", // But completed early
+      },
+    ];
+
+    render(<CompactShowerList />);
+
+    // Expand Done Showers
+    const doneButton = screen.getByText(/Done Showers/);
+    fireEvent.click(doneButton);
+
+    const names = screen.getAllByText(/Doe|Smith/);
+    
+    // Sorted by completion time (lastUpdated), not by booking time (createdAt)
+    // Jane Smith (completed at 08:45) should appear first
+    // John Doe (completed at 10:00) should appear second
+    expect(names[0]).toHaveTextContent("Jane Smith");
+    expect(names[1]).toHaveTextContent("John Doe");
+  });
 });
