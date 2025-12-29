@@ -1,7 +1,41 @@
 /**
  * Flexible name search utility for guests with middle names
  * Handles cases where middle names may be part of firstName field
+ * 
+ * Use pre-computed search index for O(1) lookups
  */
+
+import { createSearchIndex, searchWithIndex, getCachedNameParts } from './guestSearchIndex';
+
+// Cache for the search index
+let cachedIndex = null;
+let cachedGuestsRef = null;
+
+/**
+ * Get or create the search index for a guests list
+ * Uses reference equality to detect when guests array changes
+ * @param {Array} guests - Array of guest objects
+ * @returns {Object} Search index
+ */
+const getSearchIndex = (guests) => {
+  // If guests reference hasn't changed, return cached index
+  if (cachedGuestsRef === guests && cachedIndex) {
+    return cachedIndex;
+  }
+  
+  // Create new index
+  cachedIndex = createSearchIndex(guests);
+  cachedGuestsRef = guests;
+  return cachedIndex;
+};
+
+/**
+ * Clear the search index cache (useful for testing)
+ */
+export const clearSearchIndexCache = () => {
+  cachedIndex = null;
+  cachedGuestsRef = null;
+};
 
 /**
  * Extract and normalize all name parts including potential middle names
@@ -11,25 +45,15 @@
  * @returns {Object} Object with normalized name parts and tokens
  */
 export const extractNameParts = (firstName = "", lastName = "") => {
-  const firstNameNormalized = firstName.trim().toLowerCase();
-  const lastNameNormalized = lastName.trim().toLowerCase();
-
-  // Split firstName into parts (could include middle names)
-  const firstNameParts = firstNameNormalized
-    .split(/\s+/)
-    .filter((part) => part.length > 0);
-
-  // All searchable tokens: all parts of firstName + lastName
-  const allTokens = [...firstNameParts, lastNameNormalized].filter(
-    (token) => token.length > 0
-  );
-
+  // Use optimized cached version
+  const cached = getCachedNameParts(firstName, lastName, "");
+  
   return {
-    firstName: firstNameNormalized,
-    lastName: lastNameNormalized,
-    firstNameParts, // Array of name parts (potentially middle names)
-    allTokens, // All searchable tokens
-    fullName: `${firstNameNormalized} ${lastNameNormalized}`.trim(),
+    firstName: cached.firstName,
+    lastName: cached.lastName,
+    firstNameParts: cached.firstTokens,
+    allTokens: cached.allTokens,
+    fullName: cached.fullName,
   };
 };
 
@@ -151,6 +175,8 @@ export const scoreNameMatch = (query, nameParts) => {
 
 /**
  * Filter and rank guests by flexible name search
+ * Use pre-computed search index for fast lookups
+ * 
  * @param {string} searchQuery - Raw search query
  * @param {Array} guests - Array of guest objects
  * @returns {Array} Sorted array of guests matching the query (deduplicated)
@@ -158,13 +184,23 @@ export const scoreNameMatch = (query, nameParts) => {
 export const flexibleNameSearch = (searchQuery, guests) => {
   const queryRaw = searchQuery.trim();
   if (!queryRaw) return [];
+  if (!guests || guests.length === 0) return [];
 
   const query = queryRaw.toLowerCase().replace(/\s+/g, " ");
   const queryTokens = query.split(" ").filter((t) => t.length > 0);
 
   if (queryTokens.length === 0) return [];
 
-  // Use a Map to track guests by ID to avoid duplicates
+  // Use optimized index-based search for larger guest lists
+  if (guests.length >= 50) {
+    const index = getSearchIndex(guests);
+    return searchWithIndex(queryRaw, index, {
+      maxResults: 100,
+      earlyTerminationThreshold: 20,
+    });
+  }
+
+  // For smaller lists, use the original algorithm (simpler, no index overhead)
   const guestMap = new Map();
 
   const scored = guests
