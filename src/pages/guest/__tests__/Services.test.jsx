@@ -424,51 +424,7 @@ describe("Services page", () => {
     expect(clearActionHistory).toHaveBeenCalledTimes(1);
   });
 
-  // Skipped because detailed view with filters is no longer accessible from UI
-  // The compact view with modal is now the primary interface
-  it.skip("restores and persists shower filter selections", async () => {
-    const savedFilters = {
-      showerLaundryFilter: "with",
-      showerSort: "name",
-      showCompletedShowers: true,
-      laundryTypeFilter: "any",
-      laundryStatusFilter: "any",
-      laundrySort: "time-asc",
-      showCompletedLaundry: false,
-      bicycleViewMode: "kanban",
-      laundryViewMode: "list",
-    };
 
-    window.localStorage.setItem(
-      FILTER_STORAGE_KEY,
-      JSON.stringify(savedFilters),
-    );
-
-    renderServices();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
-
-    // Note: Detailed view toggle was removed, so this test no longer applies
-    const laundrySelect = await screen.findByDisplayValue("With Laundry");
-
-    // Verify initial restoration
-    expect(laundrySelect.value).toBe("with");
-
-    // Now change it and verify persistence
-    fireEvent.change(laundrySelect, { target: { value: "without" } });
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("No Laundry")).toBeInTheDocument();
-    });
-
-    // Check that localStorage was updated
-    await waitFor(() => {
-      const stored = window.localStorage.getItem(FILTER_STORAGE_KEY);
-      expect(stored).toBeTruthy();
-      const parsed = JSON.parse(stored);
-      expect(parsed.showerLaundryFilter).toBe("without");
-    });
-  });
 
   it("navigates to showers via the timeline quick add control", async () => {
     renderServices();
