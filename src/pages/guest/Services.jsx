@@ -464,6 +464,9 @@ const Services = () => {
   // Laundry time-travel feature: allow staff to view and manage laundry from past dates
   const [laundryViewDate, setLaundryViewDate] = useState(today);
 
+  // Bicycle time-travel feature: allow staff to view and manage bicycle repairs from past dates
+  const [bicycleViewDate, setBicycleViewDate] = useState(today);
+
   // Format date for display
   const formatServiceDayLabel = (dateString) => {
     const date = new Date(dateString + "T12:00:00");
@@ -524,6 +527,37 @@ const Services = () => {
   // Helper to go to next shower date (go forward 1 day at a time, but not past today)
   const goToNextShowerDate = useCallback(() => {
     setShowerViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      const newDateString = `${newYear}-${newMonth}-${newDay}`;
+      // Don't go past today
+      if (newDateString > today) {
+        return today;
+      }
+      return newDateString;
+    });
+  }, [today]);
+
+  // Helper to go to previous bicycle date (go back 1 day at a time through history)
+  const goToPreviousBicycleDate = useCallback(() => {
+    setBicycleViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() - 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      return `${newYear}-${newMonth}-${newDay}`;
+    });
+  }, []);
+
+  // Helper to go to next bicycle date (go forward 1 day at a time, but not past today)
+  const goToNextBicycleDate = useCallback(() => {
+    setBicycleViewDate((prevDate) => {
       const [year, month, day] = prevDate.split("-").map(Number);
       const currentDate = new Date(year, month - 1, day);
       currentDate.setDate(currentDate.getDate() + 1);
@@ -1168,13 +1202,13 @@ const Services = () => {
     (record) => pacificDateStringFrom(record.date || "") === selectedDate,
   );
 
-  const todayBicycleRepairs = (bicycleRecords || []).filter(
-    (r) => pacificDateStringFrom(r.date || "") === today,
+  const selectedDateBicycleRepairs = (bicycleRecords || []).filter(
+    (r) => pacificDateStringFrom(r.date || "") === bicycleViewDate,
   );
 
   const renderBicycleRepairsSection = () => (
     <BicycleRepairsSection
-      todayBicycleRepairs={todayBicycleRepairs}
+      bicycleRepairs={selectedDateBicycleRepairs}
       bicycleViewMode={bicycleViewMode}
       onChangeViewMode={setBicycleViewMode}
       guests={guests}
@@ -1186,6 +1220,11 @@ const Services = () => {
       onToggleCompletedCard={toggleCompletedBicycleCard}
       BICYCLE_REPAIR_STATUS={BICYCLE_REPAIR_STATUS}
       getGuestNameDetails={getGuestNameDetails}
+      bicycleViewDate={bicycleViewDate}
+      onPreviousDate={goToPreviousBicycleDate}
+      onNextDate={goToNextBicycleDate}
+      formatServiceDayLabel={formatServiceDayLabel}
+      today={today}
     />
   );
 
@@ -1754,7 +1793,7 @@ const Services = () => {
       completedLaundry={completedLaundry}
       todayWaitlisted={todayWaitlisted}
       todayLaundryWithGuests={todayLaundryWithGuests}
-      todayBicycleRepairs={todayBicycleRepairs}
+      todayBicycleRepairs={selectedDateBicycleRepairs}
       timelineEvents={timelineEvents}
       selectedGuestMealRecords={selectedGuestMealRecords}
       setActiveSection={setActiveSection}

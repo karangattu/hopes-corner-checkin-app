@@ -132,3 +132,173 @@ describe("LaundryKanban bag enforcement", () => {
     expect(props.updateLaundryStatus).not.toHaveBeenCalled();
   });
 });
+
+describe("LaundryKanban time tracking tooltip", () => {
+  const guest = { id: "guest-1", name: "Jane Doe" };
+
+  const setup = (overrides = {}) => {
+    const props = {
+      laundryRecords: [],
+      guests: [guest],
+      updateLaundryStatus: vi.fn().mockResolvedValue(true),
+      updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
+      cancelLaundryRecord: vi.fn(),
+      ...overrides,
+    };
+
+    render(<LaundryKanban {...props} />);
+    return props;
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("displays time tracker element for non-completed records with timestamps", () => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const thirtyMinsAgo = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.WAITING,
+      bagNumber: "",
+      laundryType: "onsite",
+      createdAt: oneHourAgo,
+      lastUpdated: thirtyMinsAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.getByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).toBeInTheDocument();
+  });
+
+  it("does not display time tracker for completed records", () => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.PICKED_UP,
+      bagNumber: "42",
+      laundryType: "onsite",
+      createdAt: oneHourAgo,
+      lastUpdated: oneHourAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.queryByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).not.toBeInTheDocument();
+  });
+
+  it("shows tooltip with dropoff and status time information", () => {
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.WASHER,
+      bagNumber: "42",
+      laundryType: "onsite",
+      createdAt: twoHoursAgo,
+      lastUpdated: oneHourAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.getByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).toHaveAttribute("title");
+    expect(timeTracker.getAttribute("title")).toContain("Dropoff:");
+    expect(timeTracker.getAttribute("title")).toContain("In current status:");
+  });
+
+  it("displays time tracker for offsite records in non-completed status", () => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.PENDING,
+      bagNumber: "",
+      laundryType: "offsite",
+      createdAt: oneHourAgo,
+      lastUpdated: oneHourAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.getByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).toBeInTheDocument();
+  });
+
+  it("does not display time tracker for offsite picked-up records", () => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.OFFSITE_PICKED_UP,
+      bagNumber: "",
+      laundryType: "offsite",
+      createdAt: oneHourAgo,
+      lastUpdated: oneHourAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.queryByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).not.toBeInTheDocument();
+  });
+
+  it("handles records without timestamps gracefully", () => {
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.WAITING,
+      bagNumber: "",
+      laundryType: "onsite",
+      createdAt: null,
+      lastUpdated: null,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    // Should not crash and should not show time tracker without timestamps
+    const timeTracker = screen.queryByTestId(`laundry-time-tracker-${record.id}`);
+    expect(timeTracker).not.toBeInTheDocument();
+  });
+
+  it("shows different time formats based on elapsed time", () => {
+    const now = new Date();
+    // 45 minutes ago - should show just minutes
+    const fortyFiveMinsAgo = new Date(now.getTime() - 45 * 60 * 1000).toISOString();
+
+    const record = {
+      id: "laundry-1",
+      guestId: guest.id,
+      status: LAUNDRY_STATUS.WAITING,
+      bagNumber: "",
+      laundryType: "onsite",
+      createdAt: fortyFiveMinsAgo,
+      lastUpdated: fortyFiveMinsAgo,
+    };
+
+    setup({ laundryRecords: [record] });
+
+    const timeTracker = screen.getByTestId(`laundry-time-tracker-${record.id}`);
+    // Text should include the time format (45m or similar)
+    expect(timeTracker.textContent).toMatch(/\d+m/);
+  });
+});

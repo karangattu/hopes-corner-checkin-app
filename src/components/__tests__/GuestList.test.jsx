@@ -31,6 +31,7 @@ const createDefaultContext = () => ({
   guestNeedsWaiverReminder: vi.fn().mockResolvedValue(false),
   dismissWaiver: vi.fn().mockResolvedValue(true),
   hasActiveWaiver: vi.fn().mockReturnValue(true),
+  isDataLoaded: true,
 });
 
 let mockContextValue = createDefaultContext();

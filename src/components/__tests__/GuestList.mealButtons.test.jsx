@@ -35,6 +35,7 @@ const createDefaultContext = () => ({
   dismissWaiver: vi.fn().mockResolvedValue(true),
   hasActiveWaiver: vi.fn().mockReturnValue(true),
   transferMealRecords: vi.fn(),
+  isDataLoaded: true,
 });
 
 let mockContextValue = createDefaultContext();

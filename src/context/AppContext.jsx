@@ -96,6 +96,8 @@ const STORAGE_KEYS = {
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
   const [settings, setSettings] = useState(() => createDefaultSettings());
+  // Track whether initial data has been loaded from either cache or cloud
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [mealRecords, setMealRecords] = useState([]);
   const [rvMealRecords, setRvMealRecords] = useState([]);
@@ -835,8 +837,13 @@ export const AppProvider = ({ children }) => {
           });
           setSettings(nextSettings);
         }
+        
+        // Mark data as loaded after cloud fetch completes
+        setIsDataLoaded(true);
       } catch (error) {
         console.error("Failed to load Supabase data:", error);
+        // Even on error, mark as loaded so UI can proceed with cached data
+        setIsDataLoaded(true);
       }
     };
 
@@ -930,8 +937,14 @@ export const AppProvider = ({ children }) => {
 
         const savedLunchBags = storedValues[STORAGE_KEYS.lunchBagRecords];
         if (savedLunchBags) setLunchBagRecords(savedLunchBags);
+        
+        // Mark data as loaded after persistent store load completes
+        // (this runs before cloud fetch, so if there's cached data, UI shows it immediately)
+        setIsDataLoaded(true);
       } catch (error) {
         console.error("Error loading data from persistent storage:", error);
+        // Even on error, mark as loaded so cloud fetch can proceed
+        setIsDataLoaded(true);
       }
     };
 
@@ -5747,6 +5760,7 @@ export const AppProvider = ({ children }) => {
   const value = useMemo(() => ({
     // State
     guests,
+    isDataLoaded,
     mealRecords,
     rvMealRecords,
     shelterMealRecords,

@@ -9,10 +9,53 @@ import {
   Wind,
   Package,
   AlertTriangle,
+  Timer,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
 import { CompactWaiverIndicator } from "../ui/CompactWaiverIndicator";
+
+/**
+ * Calculates and formats time elapsed from an ISO timestamp to now
+ * @param {string|null} isoTimestamp - ISO format timestamp
+ * @returns {string|null} - Human-readable time elapsed, e.g., "2h 15m", "45m", "< 1m"
+ */
+const formatTimeElapsed = (isoTimestamp) => {
+  if (!isoTimestamp) return null;
+
+  try {
+    const timestamp = new Date(isoTimestamp);
+    if (isNaN(timestamp.getTime())) return null;
+
+    const now = new Date();
+    const diffMs = now - timestamp;
+
+    // Don't show negative times (future timestamps)
+    if (diffMs < 0) return null;
+
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMinutes / 60);
+    const remainingMinutes = diffMinutes % 60;
+
+    if (diffMinutes < 1) {
+      return "< 1m";
+    } else if (diffHours < 1) {
+      return `${diffMinutes}m`;
+    } else if (diffHours < 24) {
+      return remainingMinutes > 0 
+        ? `${diffHours}h ${remainingMinutes}m` 
+        : `${diffHours}h`;
+    } else {
+      const days = Math.floor(diffHours / 24);
+      const remainingHours = diffHours % 24;
+      return remainingHours > 0 
+        ? `${days}d ${remainingHours}h` 
+        : `${days}d`;
+    }
+  } catch {
+    return null;
+  }
+};
 
 const LaundryKanban = ({
   laundryRecords,
@@ -376,6 +419,23 @@ const LaundryKanban = ({
             <div className="text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1">
               <span className="font-semibold text-blue-700">
                 Off-site laundry
+              </span>
+            </div>
+          )}
+
+          {/* Time tracking indicator - show for non-completed records */}
+          {!isCompleted && (record.createdAt || record.lastUpdated) && (
+            <div 
+              className="flex items-center gap-1.5 text-[10px] text-gray-500 bg-gray-50 rounded px-2 py-1 cursor-help"
+              title={`Dropoff: ${record.createdAt ? formatTimeElapsed(record.createdAt) + " ago" : "N/A"}\nIn current status: ${record.lastUpdated ? formatTimeElapsed(record.lastUpdated) + " ago" : "N/A"}`}
+              data-testid={`laundry-time-tracker-${record.id}`}
+            >
+              <Timer size={10} className="text-gray-400 flex-shrink-0" />
+              <span>
+                {formatTimeElapsed(record.createdAt) || "—"}
+                {record.lastUpdated && record.lastUpdated !== record.createdAt && (
+                  <span className="text-gray-400"> • {formatTimeElapsed(record.lastUpdated)} in status</span>
+                )}
               </span>
             </div>
           )}

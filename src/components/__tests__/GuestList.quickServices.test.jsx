@@ -37,6 +37,7 @@ const createDefaultContext = () => ({
     dismissWaiver: vi.fn().mockResolvedValue(true),
     hasActiveWaiver: vi.fn().mockReturnValue(true),
     transferMealRecords: vi.fn(),
+    isDataLoaded: true,
 });
 
 let mockContextValue = createDefaultContext();
@@ -49,7 +50,7 @@ vi.mock("../../context/useAppContext", () => ({
 vi.mock("../../stores/useGuestsStore", () => ({
     useGuestsStore: (selector) => {
         const state = {
-            guestProxies: {},
+            guestProxies: [],
             getLinkedGuests: () => [],
             linkGuests: vi.fn(),
             unlinkGuests: vi.fn(),

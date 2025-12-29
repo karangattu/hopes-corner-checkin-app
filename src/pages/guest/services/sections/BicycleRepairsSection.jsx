@@ -4,13 +4,15 @@ import {
   Bike,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2Icon,
 } from "lucide-react";
 import BicycleKanban from "../../../../components/lanes/BicycleKanban";
 import { BICYCLE_REPAIR_TYPES } from "../utils";
 
 const BicycleRepairsSection = ({
-  todayBicycleRepairs,
+  bicycleRepairs,
   bicycleViewMode,
   onChangeViewMode,
   guests,
@@ -22,14 +24,22 @@ const BicycleRepairsSection = ({
   onToggleCompletedCard,
   BICYCLE_REPAIR_STATUS,
   getGuestNameDetails,
+  bicycleViewDate,
+  onPreviousDate,
+  onNextDate,
+  formatServiceDayLabel,
+  today,
 }) => {
   const sortedBicycleRepairs = useMemo(
     () =>
-      [...(todayBicycleRepairs || [])].sort(
+      [...(bicycleRepairs || [])].sort(
         (a, b) => (b.priority || 0) - (a.priority || 0),
       ),
-    [todayBicycleRepairs],
+    [bicycleRepairs],
   );
+
+  const isViewingToday = bicycleViewDate === today;
+  const isViewingPast = bicycleViewDate < today;
 
   return (
     <div className="space-y-6">
@@ -37,11 +47,58 @@ const BicycleRepairsSection = ({
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Bike className="text-sky-600" size={22} />
-            <span>Today's Bicycle Repairs</span>
+            <span>{isViewingToday ? "Today's" : ""} Bicycle Repairs</span>
           </h2>
+          {/* Date navigation controls */}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={onPreviousDate}
+              className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+              aria-label="Previous day"
+              title="Go to previous day"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className={`text-sm font-medium ${isViewingPast ? 'text-amber-600' : 'text-gray-700'}`}>
+              {formatServiceDayLabel(bicycleViewDate)}
+              {isViewingPast && (
+                <span className="ml-1.5 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                  Past
+                </span>
+              )}
+            </span>
+            <button
+              onClick={onNextDate}
+              disabled={isViewingToday}
+              className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Next day"
+              title={isViewingToday ? "Already viewing today" : "Go to next day"}
+            >
+              <ChevronRight size={18} />
+            </button>
+            {isViewingPast && (
+              <button
+                onClick={() => {
+                  // Reset to today by calling onNextDate enough times or directly setting
+                  // We'll call the parent to handle this more directly
+                  let current = bicycleViewDate;
+                  while (current < today) {
+                    onNextDate();
+                    const [y, m, d] = current.split("-").map(Number);
+                    const date = new Date(y, m - 1, d);
+                    date.setDate(date.getDate() + 1);
+                    current = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  }
+                }}
+                className="ml-2 text-xs font-medium text-sky-600 hover:text-sky-700 hover:underline"
+              >
+                Jump to Today
+              </button>
+            )}
+          </div>
           <p className="text-xs text-gray-500 mt-1">
-            {todayBicycleRepairs.length} repair
-            {todayBicycleRepairs.length !== 1 ? "s" : ""} logged today
+            {bicycleRepairs.length} repair
+            {bicycleRepairs.length !== 1 ? "s" : ""} logged {isViewingToday ? "today" : "on this day"}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
@@ -70,7 +127,7 @@ const BicycleRepairsSection = ({
 
       {bicycleViewMode === "kanban" ? (
         <BicycleKanban
-          bicycleRecords={todayBicycleRepairs}
+          bicycleRecords={bicycleRepairs}
           guests={guests}
           updateBicycleRecord={updateBicycleRecord}
           deleteBicycleRecord={deleteBicycleRecord}
@@ -91,8 +148,7 @@ const BicycleRepairsSection = ({
           </div>
           {sortedBicycleRepairs.length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-8">
-              No bicycle repairs logged today. Use the Bicycle button when
-              searching for a guest to add one.
+              No bicycle repairs logged {isViewingToday ? "today" : "on this day"}. {isViewingToday ? "Use the Bicycle button when searching for a guest to add one." : "Navigate to today to add new repairs."}
             </p>
           ) : (
             <ul className="space-y-3">

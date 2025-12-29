@@ -31,6 +31,7 @@ const createDefaultContext = () => ({
   guestNeedsWaiverReminder: () => false,
   dismissWaiver: () => {},
   hasActiveWaiver: () => true,
+  isDataLoaded: true,
 });
 
 let mockContextValue = createDefaultContext();

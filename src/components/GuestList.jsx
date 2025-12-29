@@ -66,6 +66,7 @@ const MAX_VISIBLE_ROWS = 12;
 const GuestList = () => {
   const {
     guests,
+    isDataLoaded,
     mealRecords,
     extraMealRecords,
     showerRecords,
@@ -89,14 +90,34 @@ const GuestList = () => {
 
   // Guest proxy (linked guests) store functions and state
   // guestProxies subscription ensures component re-renders when linked guests change
-  // eslint-disable-next-line no-unused-vars
   const guestProxies = useGuestsStore((state) => state.guestProxies);
-  const getLinkedGuests = useGuestsStore((state) => state.getLinkedGuests);
   const linkGuests = useGuestsStore((state) => state.linkGuests);
   const unlinkGuests = useGuestsStore((state) => state.unlinkGuests);
   const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const addGuestWarning = useGuestsStore((state) => state.addGuestWarning);
   const removeGuestWarning = useGuestsStore((state) => state.removeGuestWarning);
+
+  // Wrapper for getLinkedGuests that uses AppContext guests for consistency
+  // This fixes the issue where newly linked guests couldn't receive meals because
+  // the store's getLinkedGuests was returning guests from Zustand's guest array
+  // instead of AppContext's guest array
+  const getLinkedGuests = useCallback(
+    (guestId) => {
+      if (!guestId) return [];
+      // Get linked guest IDs from the store's proxy relationships
+      const linkedGuestIds = new Set();
+      (guestProxies || []).forEach((proxy) => {
+        if (proxy.guestId === guestId) {
+          linkedGuestIds.add(proxy.proxyId);
+        } else if (proxy.proxyId === guestId) {
+          linkedGuestIds.add(proxy.guestId);
+        }
+      });
+      // Return guest objects from AppContext's guests array (not Zustand store)
+      return (guests || []).filter((g) => linkedGuestIds.has(g.id));
+    },
+    [guestProxies, guests]
+  );
 
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -222,12 +243,15 @@ const GuestList = () => {
   }, [laundryRecords]);
 
   // Detect when initial load is complete
+  // Only consider loaded when isDataLoaded is true (from AppContext)
+  // This prevents showing "Ready to search" before data has actually loaded
   useEffect(() => {
-    if (guests && guests.length >= 0) {
-      const timer = setTimeout(() => setIsInitialLoad(false), 500);
+    if (isDataLoaded) {
+      // Small delay to allow UI to settle after data load
+      const timer = setTimeout(() => setIsInitialLoad(false), 300);
       return () => clearTimeout(timer);
     }
-  }, [guests]);
+  }, [isDataLoaded]);
 
   const searchInputRef = useRef(null);
   const createFirstNameRef = useRef(null);
