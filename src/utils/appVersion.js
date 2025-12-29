@@ -10,6 +10,37 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // Changelog entries - add new entries at the top
 export const CHANGELOG = [
   {
+    version: "0.0.5",
+    date: "December 28, 2025",
+    highlights: [
+      {
+        type: "performance",
+        title: "Faster Guest Searching",
+        description: "Made searching for guests much quicker, especially when there are many guests in the system. The app now finds people faster without slowing down.",
+      },
+      {
+        type: "performance",
+        title: "Better Search Memory",
+        description: "The app remembers search information to avoid having to look everything up again each time.",
+      },
+      {
+        type: "performance",
+        title: "Smarter Fuzzy Matching",
+        description: "Improved the way the app finds guests even when names aren't spelled exactly right, using less computer memory in the process.",
+      },
+      {
+        type: "feature",
+        title: "Search by Initials",
+        description: "You can now search using just the first letters of names. For example, typing \"JS\" will find \"John Smith\", or \"JMS\" will find \"John Michael Smith\".",
+      },
+      {
+        type: "feature",
+        title: "Better Name Matching",
+        description: "The search now works better with middle names, multiple words in names, and finds people even if you type their name parts in a different order.",
+      }
+    ],
+  },
+  {
     version: "0.0.4",
     date: "December 22, 2025",
     highlights: [

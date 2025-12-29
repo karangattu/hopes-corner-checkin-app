@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 0.0.5 · 2025-12-28
+
+### Performance Improvements
+
+- **Faster Guest Searching**: Made searching for guests much quicker, especially when there are many guests in the system. The app now finds people faster without slowing down.
+- **Better Search Memory**: The app remembers search information to avoid having to look everything up again each time.
+- **Smarter Fuzzy Matching**: Improved the way the app finds guests even when names aren't spelled exactly right, using less computer memory in the process.
+
+### ✨ New Features
+
+- **Search by Initials**: You can now search using just the first letters of names. For example, typing "JS" will find "John Smith", or "JMS" will find "John Michael Smith".
+- **Better Name Matching**: The search now works better with middle names, multiple words in names, and finds people even if you type their name parts in a different order.
+
 ## 0.0.4 · 2025-12-22
 
 ### ✨ New Features
