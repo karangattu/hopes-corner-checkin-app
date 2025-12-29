@@ -110,12 +110,19 @@ const OrphanedLaundryTracker = () => {
             : legalName;
         const isOffsite = record.laundryType === "offsite" || record.offsite;
 
+        // Use the original dropoff/creation timestamp as the authoritative "service" date when available.
+        // Some records may update `date` when moving stages; prefer `createdAt`/`created_at` to show when
+        // the guest first gave their laundry.
+        const dropoffSource = record.createdAt || record.created_at || record.date;
+
         return {
           ...record,
           guestName: displayName,
           guestLegalName: legalName,
-          daysSince: getDaysSince(record.date),
-          dateLabel: formatDateLabel(record.date),
+          // Days since the guest dropped off their laundry
+          daysSince: getDaysSince(dropoffSource),
+          // Display the dropoff date in the list
+          dateLabel: formatDateLabel(dropoffSource),
           isOffsite,
         };
       });
@@ -426,7 +433,7 @@ const OrphanedLaundryTracker = () => {
                         </p>
                         <p className="flex items-center gap-2">
                           <Calendar size={12} className="text-gray-400" />
-                          <span className="font-medium">Service Date:</span> {record.dateLabel}
+                          <span className="font-medium">Dropoff Date:</span> {record.dateLabel}
                         </p>
                         {record.bagNumber && (
                           <p className="flex items-center gap-2">
@@ -436,7 +443,7 @@ const OrphanedLaundryTracker = () => {
                         )}
                         <p className="flex items-center gap-2">
                           <Clock size={12} className="text-gray-400" />
-                          <span className="font-medium">Days Since Service:</span>{" "}
+                          <span className="font-medium">Days Since Dropoff:</span>{" "}
                           <span className={record.daysSince >= 7 ? "text-red-600 font-bold" : ""}>
                             {record.daysSince} day{record.daysSince !== 1 ? "s" : ""}
                           </span>
