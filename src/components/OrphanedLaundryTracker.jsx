@@ -13,9 +13,6 @@ import {
   User,
   Hash,
   Search,
-  Filter,
-  ArrowUpDown,
-  X,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
@@ -34,9 +31,6 @@ const OrphanedLaundryTracker = () => {
     updateLaundryStatus,
   } = useAppContext();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("days-desc"); // days-desc, days-asc, name, bag
-  const [typeFilter, setTypeFilter] = useState("all"); // all, onsite, offsite
   const [expandedRows, setExpandedRows] = useState({});
 
   const todayString = todayPacificDateString();
@@ -135,48 +129,16 @@ const OrphanedLaundryTracker = () => {
     formatDateLabel,
   ]);
 
-  // Apply filters and sorting
+  // Show all orphaned laundry, sorted oldest-first by default
   const filteredAndSortedLaundry = useMemo(() => {
-    let result = [...orphanedLaundry];
+    const result = [...orphanedLaundry];
 
-    // Apply type filter
-    if (typeFilter === "onsite") {
-      result = result.filter((r) => !r.isOffsite);
-    } else if (typeFilter === "offsite") {
-      result = result.filter((r) => r.isOffsite);
-    }
-
-    // Apply search
-    if (searchTerm.trim()) {
-      const search = searchTerm.toLowerCase().trim();
-      result = result.filter(
-        (r) =>
-          r.guestName.toLowerCase().includes(search) ||
-          (r.bagNumber && String(r.bagNumber).toLowerCase().includes(search))
-      );
-    }
-
-    // Apply sorting
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "days-desc":
-          return b.daysSince - a.daysSince;
-        case "days-asc":
-          return a.daysSince - b.daysSince;
-        case "name":
-          return a.guestName.localeCompare(b.guestName);
-        case "bag": {
-          const bagA = a.bagNumber || "";
-          const bagB = b.bagNumber || "";
-          return String(bagA).localeCompare(String(bagB));
-        }
-        default:
-          return b.daysSince - a.daysSince;
-      }
-    });
+    // Default to oldest-first sorting by days since service
+    result.sort((a, b) => b.daysSince - a.daysSince);
 
     return result;
-  }, [orphanedLaundry, typeFilter, searchTerm, sortBy]);
+  }, [orphanedLaundry]);
+
 
   // Mark laundry as picked up
   const handleMarkPickedUp = useCallback(
@@ -385,80 +347,14 @@ const OrphanedLaundryTracker = () => {
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by guest name or bag number..."
-              className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
 
-          {/* Type Filter */}
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-gray-400" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <option value="all">All Types</option>
-              <option value="onsite">On-site Only</option>
-              <option value="offsite">Off-site Only</option>
-            </select>
-          </div>
-
-          {/* Sort */}
-          <div className="flex items-center gap-2">
-            <ArrowUpDown size={14} className="text-gray-400" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <option value="days-desc">Oldest First</option>
-              <option value="days-asc">Newest First</option>
-              <option value="name">By Name</option>
-              <option value="bag">By Bag #</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
       {/* List */}
       <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
         {filteredAndSortedLaundry.length === 0 ? (
           <div className="p-8 text-center">
             <Search size={32} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-gray-500 text-sm">No matching laundry found</p>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm("");
-                setTypeFilter("all");
-              }}
-              className="mt-2 text-xs text-amber-600 hover:text-amber-700 font-medium"
-            >
-              Clear filters
-            </button>
+            <p className="text-gray-500 text-sm">No laundry found</p>
           </div>
         ) : (
           filteredAndSortedLaundry.map((record) => {
