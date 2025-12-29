@@ -264,9 +264,13 @@ describe("GuestList", () => {
       await screen.findByText("Transfer Meal Records"),
     ).toBeInTheDocument();
 
-    // Select target guest
-    const selectElement = screen.getByDisplayValue("-- Select a guest --");
-    await user.selectOptions(selectElement, "g2");
+    // Search and select target guest using the searchable input
+    const transferSearchInput = screen.getByPlaceholderText(/Search guests by name/i);
+    await user.type(transferSearchInput, "Jane");
+    
+    // Click on Jane Smith in the dropdown
+    const janeOption = await screen.findByText("Jane Smith");
+    await user.click(janeOption);
 
     // Click transfer button
     const transferButton = screen.getByText(/Transfer & Delete/i);

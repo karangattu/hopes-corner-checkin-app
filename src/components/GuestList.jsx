@@ -143,6 +143,7 @@ const GuestList = () => {
     sourceGuest: null,
     mealCount: 0,
     selectedTargetGuest: null,
+    searchTerm: "",
   });
   const [createFormData, setCreateFormData] = useState({
     firstName: "",
@@ -1282,6 +1283,7 @@ const GuestList = () => {
         sourceGuest: guest,
         mealCount: guestMealCount,
         selectedTargetGuest: null,
+        searchTerm: "",
       });
       return;
     }
@@ -1323,6 +1325,7 @@ const GuestList = () => {
         sourceGuest: null,
         mealCount: 0,
         selectedTargetGuest: null,
+        searchTerm: "",
       });
 
       // Now delete the guest
@@ -3108,26 +3111,76 @@ const GuestList = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Transfer to:
               </label>
-              <select
-                value={mealTransferModal.selectedTargetGuest?.id || ""}
-                onChange={(e) => {
-                  const targetGuest = guests.find((g) => g.id === e.target.value);
-                  setMealTransferModal((prev) => ({
-                    ...prev,
-                    selectedTargetGuest: targetGuest,
-                  }));
-                }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              >
-                <option value="">-- Select a guest --</option>
-                {guests
-                  .filter((g) => g.id !== mealTransferModal.sourceGuest?.id)
-                  .map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name || `${g.firstName} ${g.lastName}`}
-                    </option>
-                  ))}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search guests by name..."
+                  value={mealTransferModal.searchTerm}
+                  onChange={(e) =>
+                    setMealTransferModal((prev) => ({
+                      ...prev,
+                      searchTerm: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+                {mealTransferModal.searchTerm && (
+                  <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white shadow-lg z-10">
+                    {guests
+                      .filter((g) => g.id !== mealTransferModal.sourceGuest?.id)
+                      .filter((g) => {
+                        const searchLower = mealTransferModal.searchTerm.toLowerCase();
+                        const firstName = (g.firstName || "").toLowerCase();
+                        const lastName = (g.lastName || "").toLowerCase();
+                        const fullName = `${firstName} ${lastName}`;
+                        return (
+                          firstName.includes(searchLower) ||
+                          lastName.includes(searchLower) ||
+                          fullName.includes(searchLower)
+                        );
+                      })
+                      .slice(0, 10)
+                      .map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => {
+                            setMealTransferModal((prev) => ({
+                              ...prev,
+                              selectedTargetGuest: g,
+                              searchTerm: "",
+                            }));
+                          }}
+                          className="w-full px-4 py-2 text-left hover:bg-emerald-50 transition-colors text-sm"
+                        >
+                          {g.name || `${g.firstName} ${g.lastName}`}
+                        </button>
+                      ))}
+                    {guests
+                      .filter((g) => g.id !== mealTransferModal.sourceGuest?.id)
+                      .filter((g) => {
+                        const searchLower = mealTransferModal.searchTerm.toLowerCase();
+                        const firstName = (g.firstName || "").toLowerCase();
+                        const lastName = (g.lastName || "").toLowerCase();
+                        const fullName = `${firstName} ${lastName}`;
+                        return (
+                          firstName.includes(searchLower) ||
+                          lastName.includes(searchLower) ||
+                          fullName.includes(searchLower)
+                        );
+                      }).length === 0 && (
+                      <div className="px-4 py-2 text-sm text-gray-500">
+                        No guests found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {mealTransferModal.selectedTargetGuest && (
+                <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm text-emerald-800">
+                  Selected: <strong>{mealTransferModal.selectedTargetGuest.name || `${mealTransferModal.selectedTargetGuest.firstName} ${mealTransferModal.selectedTargetGuest.lastName}`}</strong>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
@@ -3138,6 +3191,7 @@ const GuestList = () => {
                     sourceGuest: null,
                     mealCount: 0,
                     selectedTargetGuest: null,
+                    searchTerm: "",
                   })
                 }
                 className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
