@@ -104,7 +104,8 @@ const LaundryBooking = () => {
   }, [selectedLaundryType]);
 
   const isSlotBooked = useCallback(
-    (slotTime) => laundrySlots.some((slot) => slot.time === slotTime),
+    (slotTime) => 
+      laundrySlots.some((slot) => slot.time === slotTime),
     [laundrySlots],
   );
 
@@ -168,6 +169,8 @@ const LaundryBooking = () => {
     laundrySlots.forEach((slot) => {
       if (!slot.time) return;
       if (slot.laundryType && slot.laundryType !== "onsite") return;
+      // Don't show assignment info for cancelled slots - they should appear unavailable
+      if (slot.status === LAUNDRY_STATUS?.CANCELLED) return;
       const guest = guests?.find((g) => g.id === slot.guestId);
       const matchingRecord = laundryRecords?.find(
         (record) =>
