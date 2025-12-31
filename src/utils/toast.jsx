@@ -8,98 +8,97 @@ import {
 } from "lucide-react";
 import { bulkOperationManager } from "./bulkOperationContext";
 
+// Toast configuration for different types
+const toastConfig = {
+  success: {
+    icon: <CheckCircle size={16} className="text-green-500" />,
+    style: {
+      background: "#f0fdf4", // green-50
+      border: "1px solid #bbf7d0", // green-200
+      color: "#166534", // green-800
+    },
+    ariaLabel: "Success notification",
+    defaultDuration: 3000,
+  },
+  error: {
+    icon: <XCircle size={16} className="text-red-500" />,
+    style: {
+      background: "#fef2f2", // red-50
+      border: "1px solid #fecaca", // red-200
+      color: "#991b1b", // red-800
+    },
+    ariaLabel: "Error notification",
+    defaultDuration: 4000,
+  },
+  warning: {
+    icon: <AlertTriangle size={16} className="text-amber-500" />,
+    style: {
+      background: "#fffbeb", // amber-50
+      border: "1px solid #fde68a", // amber-200
+      color: "#92400e", // amber-800
+    },
+    ariaLabel: "Warning notification",
+    defaultDuration: 3500,
+  },
+  info: {
+    icon: <Info size={16} className="text-blue-500" />,
+    style: {
+      background: "#eff6ff", // blue-50
+      border: "1px solid #bfdbfe", // blue-200
+      color: "#1e40af", // blue-800
+    },
+    ariaLabel: "Information notification",
+    defaultDuration: 3000,
+  },
+  loading: {
+    icon: <AlertCircle size={16} className="text-gray-500 animate-spin" />,
+    style: {
+      background: "#f9fafb", // gray-50
+      border: "1px solid #e5e7eb", // gray-200
+      color: "#374151", // gray-700
+    },
+    ariaLabel: "Loading notification",
+    defaultDuration: Infinity,
+  },
+};
+
 // Enhanced toast with context-specific icons and colors
+// Uses standard toast methods for reliable auto-dismiss behavior
 const createToast = (type, message, options = {}) => {
   // Suppress toasts during bulk operations unless explicitly forced
   if (bulkOperationManager.shouldSuppressToast() && !options.force) {
     return null;
   }
-  const config = {
-    success: {
-      icon: <CheckCircle size={16} className="text-green-500" />,
-      style: {
-        background: "#f0fdf4", // green-50
-        border: "1px solid #bbf7d0", // green-200
-        color: "#166534", // green-800
-      },
-      ariaLabel: "Success notification",
+  
+  const typeConfig = toastConfig[type] || toastConfig.info;
+  const duration = options.duration ?? typeConfig.defaultDuration;
+  
+  // Use native toast methods for reliable auto-dismiss
+  // These integrate better with react-hot-toast's internal timing
+  const toastOptions = {
+    duration,
+    position: options.position || "top-center",
+    style: typeConfig.style,
+    icon: typeConfig.icon,
+    ariaProps: {
+      role: "status",
+      "aria-live": "polite",
     },
-    error: {
-      icon: <XCircle size={16} className="text-red-500" />,
-      style: {
-        background: "#fef2f2", // red-50
-        border: "1px solid #fecaca", // red-200
-        color: "#991b1b", // red-800
-      },
-      ariaLabel: "Error notification",
-    },
-    warning: {
-      icon: <AlertTriangle size={16} className="text-amber-500" />,
-      style: {
-        background: "#fffbeb", // amber-50
-        border: "1px solid #fde68a", // amber-200
-        color: "#92400e", // amber-800
-      },
-      ariaLabel: "Warning notification",
-    },
-    info: {
-      icon: <Info size={16} className="text-blue-500" />,
-      style: {
-        background: "#eff6ff", // blue-50
-        border: "1px solid #bfdbfe", // blue-200
-        color: "#1e40af", // blue-800
-      },
-      ariaLabel: "Information notification",
-    },
-    loading: {
-      icon: <AlertCircle size={16} className="text-gray-500 animate-spin" />,
-      style: {
-        background: "#f9fafb", // gray-50
-        border: "1px solid #e5e7eb", // gray-200
-        color: "#374151", // gray-700
-      },
-      ariaLabel: "Loading notification",
-    },
+    ...options,
   };
-
-  const typeConfig = config[type] || config.info;
-
-  return toast.custom(
-    (t) => (
-      <div
-        className={`${
-          t.visible ? "animate-enter" : "animate-leave"
-        } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
-        style={typeConfig.style}
-        role="alert"
-        aria-label={typeConfig.ariaLabel}
-        aria-live="polite"
-      >
-        <div className="flex-1 w-0 p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0 pt-0.5">{typeConfig.icon}</div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium">{message}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex border-l border-gray-200">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-600 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            aria-label="Dismiss notification"
-          >
-            <XCircle size={16} />
-          </button>
-        </div>
-      </div>
-    ),
-    {
-      duration: options.duration || 4000,
-      position: options.position || "top-right",
-      ...options,
-    },
-  );
+  
+  // Map to appropriate toast method for better lifecycle handling
+  switch (type) {
+    case "success":
+      return toast.success(message, toastOptions);
+    case "error":
+      return toast.error(message, toastOptions);
+    case "loading":
+      return toast.loading(message, toastOptions);
+    default:
+      // For warning/info, use toast() with custom styling
+      return toast(message, toastOptions);
+  }
 };
 
 // Enhanced toast methods with accessibility and context

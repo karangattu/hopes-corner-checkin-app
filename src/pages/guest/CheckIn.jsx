@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
+import MealServiceTimer from "../../components/MealServiceTimer";
 import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
@@ -91,6 +92,8 @@ const CheckIn = () => {
             Find existing guests or register new arrivals
           </p>
         </div>
+        {/* Meal Service Timer - subtle indicator for volunteers */}
+        <MealServiceTimer />
       </div>
 
       {/* Service Status Overview - At-a-glance availability */}

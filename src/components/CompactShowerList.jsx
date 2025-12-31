@@ -1,7 +1,158 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, memo } from "react";
 import { ShowerHead, Clock, CheckCircle, ChevronDown, ChevronUp, AlertCircle, Eye } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+
+// Memoized helper functions outside component to prevent recreation
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return "—";
+  const [hoursStr, minutesStr] = String(timeStr).split(":");
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+  const date = new Date();
+  date.setHours(hours);
+  date.setMinutes(minutes, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+};
+
+const toMinutes = (timeStr) => {
+  if (!timeStr) return Number.POSITIVE_INFINITY;
+  const [h, m] = String(timeStr).split(":");
+  return parseInt(h, 10) * 60 + parseInt(m, 10);
+};
+
+// Memoized status badge component
+const StatusBadge = memo(({ status }) => {
+  switch (status) {
+    case "done":
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+          <CheckCircle size={12} />
+          Done
+        </span>
+      );
+    case "cancelled":
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <AlertCircle size={12} />
+          Cancelled
+        </span>
+      );
+    case "in_progress":
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <Clock size={12} />
+          In Progress
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+          <Clock size={12} />
+          Booked
+        </span>
+      );
+  }
+});
+StatusBadge.displayName = "StatusBadge";
+
+// Memoized row component for better list performance
+const ShowerRow = memo(({ booking, onGuestClick }) => {
+  const handleClick = useCallback(() => {
+    onGuestClick?.(booking.guestId, booking.id);
+  }, [onGuestClick, booking.guestId, booking.id]);
+
+  return (
+    <div
+      onClick={handleClick}
+      className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
+          {booking.timeLabel}
+        </span>
+        <span className="font-medium text-gray-900 text-sm truncate">
+          {booking.name}
+        </span>
+      </div>
+      <StatusBadge status={booking.status} />
+    </div>
+  );
+});
+ShowerRow.displayName = "ShowerRow";
+
+// Memoized done shower row
+const DoneShowerRow = memo(({ booking, onGuestClick }) => {
+  const handleClick = useCallback(() => {
+    onGuestClick?.(booking.guestId, booking.id);
+  }, [onGuestClick, booking.guestId, booking.id]);
+
+  return (
+    <div
+      onClick={handleClick}
+      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-emerald-50 cursor-pointer transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
+          {booking.timeLabel}
+        </span>
+        <span className="font-medium text-gray-700 text-sm truncate">
+          {booking.name}
+        </span>
+      </div>
+      <StatusBadge status={booking.status} />
+    </div>
+  );
+});
+DoneShowerRow.displayName = "DoneShowerRow";
+
+// Memoized cancelled shower row
+const CancelledShowerRow = memo(({ booking, onGuestClick }) => {
+  const handleClick = useCallback(() => {
+    onGuestClick?.(booking.guestId, booking.id);
+  }, [onGuestClick, booking.guestId, booking.id]);
+
+  return (
+    <div
+      onClick={handleClick}
+      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-red-50 cursor-pointer transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="text-xs font-medium text-red-600 w-16 flex-shrink-0">
+          {booking.timeLabel}
+        </span>
+        <span className="font-medium text-gray-700 text-sm truncate">
+          {booking.name}
+        </span>
+      </div>
+      <StatusBadge status={booking.status} />
+    </div>
+  );
+});
+CancelledShowerRow.displayName = "CancelledShowerRow";
+
+// Memoized waitlist row
+const WaitlistRow = memo(({ guest, onGuestClick }) => {
+  const handleClick = useCallback(() => {
+    onGuestClick?.(guest.guestId, guest.id);
+  }, [onGuestClick, guest.guestId, guest.id]);
+
+  return (
+    <div
+      onClick={handleClick}
+      className="px-4 py-2 flex items-center gap-3 hover:bg-amber-100 cursor-pointer transition-colors"
+    >
+      <span className="text-xs font-bold text-amber-600 w-6">
+        #{guest.position}
+      </span>
+      <span className="font-medium text-amber-900 text-sm truncate">
+        {guest.name}
+      </span>
+    </div>
+  );
+});
+WaitlistRow.displayName = "WaitlistRow";
 
 /**
  * CompactShowerList - A simplified read-only view of shower bookings
@@ -9,7 +160,7 @@ import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
  * @param {Function} onGuestClick - Callback when a guest row is clicked, receives (guestId, recordId)
  * @param {string} viewDate - The date to view showers for (defaults to today)
  */
-const CompactShowerList = ({ onGuestClick, viewDate }) => {
+const CompactShowerList = memo(({ onGuestClick, viewDate }) => {
   const {
     showerRecords,
     guests,
@@ -21,49 +172,42 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
   const [showCancelled, setShowCancelled] = useState(false);
   const todayString = viewDate || todayPacificDateString();
 
-  const formatTimeLabel = (timeStr) => {
-    if (!timeStr) return "—";
-    const [hoursStr, minutesStr] = String(timeStr).split(":");
-    const hours = Number(hoursStr);
-    const minutes = Number(minutesStr);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes, 0, 0);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  };
+  // Create a stable guest lookup map for efficient name resolution
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach(g => map.set(g.id, g));
+    return map;
+  }, [guests]);
 
-  const toMinutes = (timeStr) => {
-    if (!timeStr) return Number.POSITIVE_INFINITY;
-    const [h, m] = String(timeStr).split(":");
-    return parseInt(h, 10) * 60 + parseInt(m, 10);
-  };
+  // Helper function to get guest name - uses memoized map for performance
+  const getGuestDisplayName = useCallback((guestId) => {
+    const guest = guestMap.get(guestId);
+    if (!guest) return "Unknown Guest";
 
-  // Group bookings by time slot and sort by creation time within each slot
-  const showerData = useMemo(() => {
-    // Helper function to get guest name - matches the logic from Services.jsx
-    const getGuestDisplayName = (guestId) => {
-      const guest = guests?.find(g => g.id === guestId);
-      if (!guest) return "Unknown Guest";
+    const fallback = "Unknown Guest";
+    const legalName =
+      guest.name ||
+      `${guest.firstName || ""} ${guest.lastName || ""}`.trim() ||
+      fallback;
+    const preferredName = (guest.preferredName || "").trim();
+    const hasPreferred =
+      Boolean(preferredName) &&
+      preferredName.toLowerCase() !== legalName.toLowerCase();
+    const primaryName = hasPreferred ? preferredName : legalName;
 
-      const fallback = "Unknown Guest";
-      const legalName =
-        guest.name ||
-        `${guest.firstName || ""} ${guest.lastName || ""}`.trim() ||
-        fallback;
-      const preferredName = (guest.preferredName || "").trim();
-      const hasPreferred =
-        Boolean(preferredName) &&
-        preferredName.toLowerCase() !== legalName.toLowerCase();
-      const primaryName = hasPreferred ? preferredName : legalName;
+    return primaryName;
+  }, [guestMap]);
 
-      return primaryName;
-    };
-
-    const todaysRecords = (showerRecords || []).filter(
+  // Filter today's records first - this is a lightweight operation
+  const todaysRecords = useMemo(() => {
+    return (showerRecords || []).filter(
       (record) => pacificDateStringFrom(record.date) === todayString
     );
+  }, [showerRecords, todayString]);
 
+  // Group bookings by time slot and sort by creation time within each slot
+  // Separate useMemo for processed data to minimize recalculation
+  const showerData = useMemo(() => {
     const booked = todaysRecords
       .filter(r => r.status !== "waitlisted")
       .sort((a, b) => {
@@ -75,18 +219,16 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return aTime - bTime;
       })
-      .map(record => {
-        return {
-          id: record.id,
-          guestId: record.guestId,
-          name: getGuestDisplayName(record.guestId),
-          time: record.time,
-          timeLabel: formatTimeLabel(record.time),
-          status: record.status,
-          createdAt: record.createdAt,
-          lastUpdated: record.lastUpdated,
-        };
-      });
+      .map(record => ({
+        id: record.id,
+        guestId: record.guestId,
+        name: getGuestDisplayName(record.guestId),
+        time: record.time,
+        timeLabel: formatTimeLabel(record.time),
+        status: record.status,
+        createdAt: record.createdAt,
+        lastUpdated: record.lastUpdated,
+      }));
 
     const active = booked.filter(b => b.status !== "done" && b.status !== "cancelled");
     
@@ -99,18 +241,16 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         const bTime = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
         return aTime - bTime;
       })
-      .map(record => {
-        return {
-          id: record.id,
-          guestId: record.guestId,
-          name: getGuestDisplayName(record.guestId),
-          time: record.time,
-          timeLabel: formatTimeLabel(record.time),
-          status: record.status,
-          createdAt: record.createdAt,
-          lastUpdated: record.lastUpdated,
-        };
-      });
+      .map(record => ({
+        id: record.id,
+        guestId: record.guestId,
+        name: getGuestDisplayName(record.guestId),
+        time: record.time,
+        timeLabel: formatTimeLabel(record.time),
+        status: record.status,
+        createdAt: record.createdAt,
+        lastUpdated: record.lastUpdated,
+      }));
     
     const cancelled = booked.filter(b => b.status === "cancelled");
 
@@ -121,53 +261,23 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return aTime - bTime;
       })
-      .map((record, index) => {
-        return {
-          id: record.id,
-          guestId: record.guestId,
-          name: getGuestDisplayName(record.guestId),
-          position: index + 1,
-          createdAt: record.createdAt,
-        };
-      });
+      .map((record, index) => ({
+        id: record.id,
+        guestId: record.guestId,
+        name: getGuestDisplayName(record.guestId),
+        position: index + 1,
+        createdAt: record.createdAt,
+      }));
 
     const totalCapacity = (allShowerSlots?.length || 0) * 2;
 
     return { active, done, cancelled, waitlisted, totalCapacity };
-  }, [showerRecords, guests, allShowerSlots, todayString]);
+  }, [todaysRecords, getGuestDisplayName, allShowerSlots]);
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "done":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-            <CheckCircle size={12} />
-            Done
-          </span>
-        );
-      case "cancelled":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-            <AlertCircle size={12} />
-            Cancelled
-          </span>
-        );
-      case "in_progress":
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-            <Clock size={12} />
-            In Progress
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-            <Clock size={12} />
-            Booked
-          </span>
-        );
-    }
-  };
+  // Memoized toggle handlers
+  const toggleWaitlist = useCallback(() => setShowWaitlist(prev => !prev), []);
+  const toggleDone = useCallback(() => setShowDone(prev => !prev), []);
+  const toggleCancelled = useCallback(() => setShowCancelled(prev => !prev), []);
 
   if (showerData.active.length === 0 && showerData.done.length === 0 && showerData.cancelled.length === 0 && showerData.waitlisted.length === 0) {
     return (
@@ -213,21 +323,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
           </div>
         )}
         {showerData.active.map((booking) => (
-          <div
-            key={booking.id}
-            onClick={() => onGuestClick?.(booking.guestId, booking.id)}
-            className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
-                {booking.timeLabel}
-              </span>
-              <span className="font-medium text-gray-900 text-sm truncate">
-                {booking.name}
-              </span>
-            </div>
-            {getStatusBadge(booking.status)}
-          </div>
+          <ShowerRow key={booking.id} booking={booking} onGuestClick={onGuestClick} />
         ))}
       </div>
 
@@ -236,7 +332,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         <div className="border-t border-emerald-200 bg-emerald-50">
           <button
             type="button"
-            onClick={() => setShowDone(!showDone)}
+            onClick={toggleDone}
             className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
           >
             <span className="flex items-center gap-2">
@@ -249,21 +345,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
           {showDone && (
             <div className="divide-y divide-emerald-200/50 bg-white">
               {showerData.done.map((booking) => (
-                <div
-                  key={booking.id}
-                  onClick={() => onGuestClick?.(booking.guestId, booking.id)}
-                  className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-emerald-50 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
-                      {booking.timeLabel}
-                    </span>
-                    <span className="font-medium text-gray-700 text-sm truncate">
-                      {booking.name}
-                    </span>
-                  </div>
-                  {getStatusBadge(booking.status)}
-                </div>
+                <DoneShowerRow key={booking.id} booking={booking} onGuestClick={onGuestClick} />
               ))}
             </div>
           )}
@@ -275,7 +357,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         <div className="border-t border-red-200 bg-red-50">
           <button
             type="button"
-            onClick={() => setShowCancelled(!showCancelled)}
+            onClick={toggleCancelled}
             className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
           >
             <span className="flex items-center gap-2">
@@ -288,21 +370,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
           {showCancelled && (
             <div className="divide-y divide-red-200/50 bg-white">
               {showerData.cancelled.map((booking) => (
-                <div
-                  key={booking.id}
-                  onClick={() => onGuestClick?.(booking.guestId, booking.id)}
-                  className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-red-50 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-xs font-medium text-red-600 w-16 flex-shrink-0">
-                      {booking.timeLabel}
-                    </span>
-                    <span className="font-medium text-gray-700 text-sm truncate">
-                      {booking.name}
-                    </span>
-                  </div>
-                  {getStatusBadge(booking.status)}
-                </div>
+                <CancelledShowerRow key={booking.id} booking={booking} onGuestClick={onGuestClick} />
               ))}
             </div>
           )}
@@ -314,7 +382,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
         <div className="border-t border-amber-200 bg-amber-50">
           <button
             type="button"
-            onClick={() => setShowWaitlist(!showWaitlist)}
+            onClick={toggleWaitlist}
             className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-amber-700 hover:bg-amber-100 transition-colors"
           >
             <span className="flex items-center gap-2">
@@ -327,18 +395,7 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
           {showWaitlist && (
             <div className="divide-y divide-amber-200/50">
               {showerData.waitlisted.map((guest) => (
-                <div
-                  key={guest.id}
-                  onClick={() => onGuestClick?.(guest.guestId, guest.id)}
-                  className="px-4 py-2 flex items-center gap-3 hover:bg-amber-100 cursor-pointer transition-colors"
-                >
-                  <span className="text-xs font-bold text-amber-600 w-6">
-                    #{guest.position}
-                  </span>
-                  <span className="font-medium text-amber-900 text-sm truncate">
-                    {guest.name}
-                  </span>
-                </div>
+                <WaitlistRow key={guest.id} guest={guest} onGuestClick={onGuestClick} />
               ))}
             </div>
           )}
@@ -346,6 +403,8 @@ const CompactShowerList = ({ onGuestClick, viewDate }) => {
       )}
     </div>
   );
-};
+});
+
+CompactShowerList.displayName = "CompactShowerList";
 
 export default CompactShowerList;
