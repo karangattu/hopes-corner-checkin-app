@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import MealReport from "../MealReport";
 
@@ -20,17 +20,27 @@ vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContextValue,
 }));
 
+// Use fixed dates in 2025 - the component filters by current year,
+// so we need to mock the system date to 2025 for tests to work
+const TEST_YEAR = 2025;
+const TEST_MONTH = 11; // December (0-indexed)
+
 describe("MealReport - Service Day Filters and Pie Chart", () => {
   beforeEach(() => {
     mockContextValue = createDefaultContext();
+    // Mock system time to December 2025 so the component's date filtering works
+    // Use shouldAdvanceTime to allow async operations to work
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2025, 11, 15, 12, 0, 0)); // Dec 15, 2025
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("Lunch Bags removal from pie chart", () => {
     it("does not include Lunch Bags in meal distribution pie chart", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      const testDate = new Date(TEST_YEAR, TEST_MONTH, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -82,12 +92,7 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
     });
 
     it("shows other meal types but not Lunch Bags in pie chart legend", async () => {
-      const today = new Date();
-      const testDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        15
-      ).toISOString();
+      const testDate = new Date(TEST_YEAR, TEST_MONTH, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -115,12 +120,7 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
 
   describe("Service day filter interactivity", () => {
     it("allows clicking on service day buttons to toggle days", async () => {
-      const today = new Date();
-      const testDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        15
-      ).toISOString();
+      const testDate = new Date(TEST_YEAR, TEST_MONTH, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -150,12 +150,7 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
     });
 
     it("allows toggling all days and selecting again", async () => {
-      const today = new Date();
-      const testDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        15
-      ).toISOString();
+      const testDate = new Date(TEST_YEAR, TEST_MONTH, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -206,12 +201,7 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
     });
 
     it("toggles day selection on and off", async () => {
-      const today = new Date();
-      const testDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        15
-      ).toISOString();
+      const testDate = new Date(TEST_YEAR, TEST_MONTH, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -247,16 +237,9 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
 
   describe("Service day trends chart legend", () => {
     it("shows clickable legend items for service days in trends chart", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
-      const mondayDate = new Date(currentYear, currentMonth, 2).toISOString();
-      const wednesdayDate = new Date(
-        currentYear,
-        currentMonth,
-        4
-      ).toISOString();
+      // Use December 2, 2025 (Tuesday) and December 4, 2025 (Thursday) - not service days, but that's okay for this test
+      const mondayDate = new Date(TEST_YEAR, TEST_MONTH, 1, 12, 0, 0).toISOString();
+      const wednesdayDate = new Date(TEST_YEAR, TEST_MONTH, 3, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -283,16 +266,9 @@ describe("MealReport - Service Day Filters and Pie Chart", () => {
     });
 
     it("updates chart when clicking legend day buttons", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
+      // Find a Monday in December 2025 - Dec 1, 2025 is a Monday
       const getMondayDate = () => {
-        const date = new Date(currentYear, currentMonth, 1);
-        while (date.getDay() !== 1) {
-          date.setDate(date.getDate() + 1);
-        }
-        return date.toISOString();
+        return new Date(TEST_YEAR, TEST_MONTH, 1, 12, 0, 0).toISOString();
       };
 
       mockContextValue = {

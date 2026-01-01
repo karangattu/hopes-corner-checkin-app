@@ -610,6 +610,9 @@ where
   );
 
 -- Helper functions for waivers
+-- has_active_waiver: checks if a guest has an acknowledged waiver for THIS calendar year
+-- When staff confirms a waiver is signed, dismiss_waiver() sets dismissed_at = now()
+-- So an "active" waiver is one where dismissed_at IS NOT NULL (was acknowledged) AND dismissed_at >= year_start
 create or replace function public.has_active_waiver(
   p_guest_id uuid,
   p_service_type text
@@ -617,14 +620,15 @@ create or replace function public.has_active_waiver(
 declare
   v_year_start timestamptz;
 begin
-  v_year_start := date_trunc('year', now())::date;
+  v_year_start := date_trunc('year', now());
+  -- A waiver is "active" if it was dismissed (acknowledged) this year
   return exists (
     select 1
     from public.service_waivers sw
     where sw.guest_id = p_guest_id
       and sw.service_type = p_service_type
-      and sw.dismissed_at is null
-      and sw.created_at >= v_year_start
+      and sw.dismissed_at is not null
+      and sw.dismissed_at >= v_year_start
   );
 end;
 $$ language plpgsql stable;

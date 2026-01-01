@@ -13,11 +13,38 @@ createRoot(document.getElementById("root")).render(
       <App />
       <Toaster
         position="top-center"
-        toastOptions={{
-          duration: 2000,
-          success: { duration: 1500 },
-          error: { duration: 4000 },
+        containerStyle={{
+          top: 60, // Account for header
         }}
+        toastOptions={{
+          // Default duration for all toasts
+          duration: 3000,
+          // Override per toast type
+          success: { 
+            duration: 2000,
+            style: {
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              color: "#166534",
+            },
+          },
+          error: { 
+            duration: 4000,
+            style: {
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              color: "#991b1b",
+            },
+          },
+          // Style for custom toasts (warning, info)
+          style: {
+            maxWidth: "400px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+          },
+        }}
+        // Ensure toasts are properly removed
+        gutter={8}
       />
     </ErrorBoundary>
   </StrictMode>,

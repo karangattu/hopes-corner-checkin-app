@@ -3366,6 +3366,48 @@ const Services = () => {
     </div>
   );
 
+  // Shared End Service Day component for consistent UI across sections
+  const EndServiceDayActions = ({ onEndShowerDay, onEndLaundryDay, showShower = false, showLaundry = false }) => {
+    const isAdmin = user?.role === "admin" || user?.role === "board" || user?.role === "staff";
+    if (!isAdmin || (!showShower && !showLaundry)) return null;
+    
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-red-100 rounded-lg">
+            <XCircle size={20} className="text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-red-900">End Service Day</h3>
+            <p className="text-xs text-red-700">
+              Cancel all remaining bookings to close for the day
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {showShower && (
+            <button
+              onClick={onEndShowerDay}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-300 rounded-lg hover:bg-red-100 hover:border-red-400 transition-all"
+            >
+              <ShowerHead size={16} />
+              End Showers
+            </button>
+          )}
+          {showLaundry && (
+            <button
+              onClick={onEndLaundryDay}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-300 rounded-lg hover:bg-red-100 hover:border-red-400 transition-all"
+            >
+              <WashingMachine size={16} />
+              End Laundry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderShowersSection = () => {
     const slotDetails = allShowerSlots.map((slotTime) => {
       const bookings = todayBookedShowers.filter(
@@ -3840,16 +3882,15 @@ const Services = () => {
               </h2>
               <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
             </div>
-            {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
-              <button
-                onClick={handleEndShowerDay}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-all"
-              >
-                <XCircle size={14} />
-                End Service Day
-              </button>
-            )}
           </div>
+          
+          {/* End Service Day - Consistent placement at top of section */}
+          <EndServiceDayActions 
+            onEndShowerDay={handleEndShowerDay} 
+            onEndLaundryDay={handleEndLaundryDay}
+            showShower={true} 
+            showLaundry={false} 
+          />
           
           {/* Date Navigation for Shower Time Travel */}
           {showerViewDate !== today && (
@@ -4020,7 +4061,7 @@ const Services = () => {
                 {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
                   <button
                     onClick={handleEndShowerDay}
-                    className="flex items-center gap-2 px-3 py-1.5 font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-all"
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-all"
                   >
                     <XCircle size={14} />
                     End Service Day
@@ -4383,7 +4424,15 @@ const Services = () => {
 
   const renderLaundrySection = () => {
     return (
-      <>
+      <div className="space-y-6">
+        {/* End Service Day - Consistent placement at top of section */}
+        <EndServiceDayActions 
+          onEndShowerDay={handleEndShowerDay} 
+          onEndLaundryDay={handleEndLaundryDay}
+          showShower={false} 
+          showLaundry={true} 
+        />
+
         {/* Pending Pickup - Orphaned Laundry from Previous Days */}
         <OrphanedLaundryTracker />
 
@@ -4405,15 +4454,6 @@ const Services = () => {
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                  {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
-                    <button
-                      onClick={handleEndLaundryDay}
-                      className="flex items-center gap-2 px-3 py-1.5 font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-all"
-                    >
-                      <XCircle size={14} />
-                      End Service Day
-                    </button>
-                  )}
                   <span className="bg-purple-100 text-purple-700 font-medium px-3 py-1 rounded-full">
                     {todayLaundryWithGuests.length} records
                   </span>
@@ -4520,7 +4560,7 @@ const Services = () => {
             )}
           </div>
         </div>
-      </>
+      </div>
     );
   };
 

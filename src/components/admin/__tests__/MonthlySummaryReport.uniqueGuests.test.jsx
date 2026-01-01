@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import MonthlySummaryReport from "../MonthlySummaryReport";
 
@@ -23,17 +23,27 @@ vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContextValue,
 }));
 
+// Use fixed dates in 2025 - the component filters by current year,
+// so we need to mock the system date to 2025 for tests to work
+const TEST_YEAR = 2025;
+
 describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
   beforeEach(() => {
     mockContextValue = createDefaultContext();
+    // Mock system time to December 2025 so the component's reportYear = 2025
+    // Use shouldAdvanceTime to allow async operations to work
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2025, 11, 15, 12, 0, 0)); // Dec 15, 2025
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("Unique Guests column", () => {
     it("renders Unique Guests column header", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -60,12 +70,10 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("displays correct unique guest count when same guest has multiple meals", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate1 = new Date(currentYear, currentMonth, 10).toISOString();
-      const testDate2 = new Date(currentYear, currentMonth, 15).toISOString();
-      const testDate3 = new Date(currentYear, currentMonth, 20).toISOString();
+      // Use December 2025
+      const testDate1 = new Date(TEST_YEAR, 11, 10, 12, 0, 0).toISOString();
+      const testDate2 = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
+      const testDate3 = new Date(TEST_YEAR, 11, 20, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -98,10 +106,8 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("counts unique guests correctly across multiple guests", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -133,10 +139,9 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("calculates year-to-date unique guests correctly", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const month1Date = new Date(currentYear, 0, 15).toISOString();
-      const month2Date = new Date(currentYear, 1, 15).toISOString();
+      // Use January and February 2025
+      const month1Date = new Date(TEST_YEAR, 0, 15, 12, 0, 0).toISOString();
+      const month2Date = new Date(TEST_YEAR, 1, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -168,10 +173,8 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
 
   describe("New Guests column", () => {
     it("renders New Guests column header", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -196,10 +199,8 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("identifies guest with first meal as new guest", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -226,14 +227,9 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("does not count returning guest as new", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const previousMonth = currentMonth > 0 ? currentMonth - 1 : 11;
-      const previousYear = currentMonth > 0 ? currentYear : currentYear - 1;
-
-      const oldDate = new Date(previousYear, previousMonth, 15).toISOString();
-      const newDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use November 2025 (previous month) and December 2025 (current month)
+      const oldDate = new Date(TEST_YEAR, 10, 15, 12, 0, 0).toISOString();
+      const newDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -261,12 +257,10 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("counts multiple new guests correctly", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate1 = new Date(currentYear, currentMonth, 10).toISOString();
-      const testDate2 = new Date(currentYear, currentMonth, 15).toISOString();
-      const testDate3 = new Date(currentYear, currentMonth, 20).toISOString();
+      // Use December 2025
+      const testDate1 = new Date(TEST_YEAR, 11, 10, 12, 0, 0).toISOString();
+      const testDate2 = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
+      const testDate3 = new Date(TEST_YEAR, 11, 20, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -297,11 +291,10 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("calculates year-to-date new guests as sum of monthly new guests", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const month1Date = new Date(currentYear, 0, 15).toISOString();
-      const month2Date = new Date(currentYear, 1, 15).toISOString();
-      const month3Date = new Date(currentYear, 2, 15).toISOString();
+      // Use January, February, March 2025
+      const month1Date = new Date(TEST_YEAR, 0, 15, 12, 0, 0).toISOString();
+      const month2Date = new Date(TEST_YEAR, 1, 15, 12, 0, 0).toISOString();
+      const month3Date = new Date(TEST_YEAR, 2, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -335,10 +328,8 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
 
   describe("Column positioning", () => {
     it("displays Unique Guests and New Guests columns after Saturday column", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
@@ -376,10 +367,8 @@ describe("MonthlySummaryReport - Unique Guests and New Guests Columns", () => {
     });
 
     it("displays columns with correct background colors", async () => {
-      const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-      const testDate = new Date(currentYear, currentMonth, 15).toISOString();
+      // Use December 2025
+      const testDate = new Date(TEST_YEAR, 11, 15, 12, 0, 0).toISOString();
 
       mockContextValue = {
         ...createDefaultContext(),
