@@ -539,9 +539,9 @@ describe("Services page", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Click End Service Day in Showers
+    // Click End Showers button (new UI has separate buttons for Showers/Laundry)
     const endDayBtn = await screen.findByRole("button", {
-      name: /End Service Day/i,
+      name: /End Showers/i,
     });
     
     // Mock window.confirm
@@ -600,9 +600,9 @@ describe("Services page", () => {
     // Navigate to Showers section
     fireEvent.click(screen.getByRole("button", { name: /^Showers$/i }));
 
-    // Verify End Service Day button is visible for staff
+    // Verify End Showers button is visible for staff (new UI has separate buttons)
     const endDayBtn = await screen.findByRole("button", {
-      name: /End Service Day/i,
+      name: /End Showers/i,
     });
     expect(endDayBtn).toBeInTheDocument();
     

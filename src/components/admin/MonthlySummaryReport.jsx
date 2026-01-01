@@ -368,13 +368,29 @@ const MonthlySummaryReport = () => {
   const [showColumnGuide, setShowColumnGuide] = useState(false);
   const columnGuideId = "monthly-summary-column-guide";
 
+  // Year selector state - allows viewing previous years' data
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Generate available years for the dropdown (current year back to 2023 or earliest data year)
+  const availableYears = useMemo(() => {
+    const years = [];
+    const startYear = 2023; // Reasonable start year for data
+    for (let year = currentYear; year >= startYear; year--) {
+      years.push(year);
+    }
+    return years;
+  }, [currentYear]);
+
   const reportMetadata = useMemo(() => {
     const now = new Date();
+    const isCurrentYear = selectedYear === currentYear;
     return {
-      reportYear: now.getFullYear(),
-      currentMonth: now.getMonth(),
+      reportYear: selectedYear,
+      // If viewing current year, only show up to current month. If viewing past year, show all 12 months.
+      currentMonth: isCurrentYear ? now.getMonth() : 11,
     };
-  }, []);
+  }, [selectedYear, currentYear]);
 
   const reportYear = reportMetadata.reportYear;
   const currentMonth = reportMetadata.currentMonth;
@@ -1168,7 +1184,7 @@ const MonthlySummaryReport = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <Calendar className="text-blue-600" size={24} />
             <div>
@@ -1180,13 +1196,33 @@ const MonthlySummaryReport = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Download size={16} />
-            Meals Monthly Report
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Year Selector */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="year-selector" className="text-sm font-medium text-gray-700">
+                Year:
+              </label>
+              <select
+                id="year-selector"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Download size={16} />
+              Meals Monthly Report
+            </button>
+          </div>
         </div>
 
         {summaryInsights.length > 0 ? (
