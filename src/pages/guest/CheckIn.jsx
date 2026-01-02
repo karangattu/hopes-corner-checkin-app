@@ -3,6 +3,7 @@ import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
 import MealServiceTimer from "../../components/MealServiceTimer";
+import TodayStats from "../../components/TodayStats";
 import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
@@ -84,13 +85,16 @@ const CheckIn = () => {
     <div className="space-y-6 md:space-y-8">
       {/* Header - Matching Services Management style */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold mb-1 flex items-center gap-2 text-emerald-800">
             <Search /> Guest Search & Check-In
           </h1>
-          <p className="text-gray-500">
-            Find existing guests or register new arrivals
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <p className="text-gray-500">
+              Find existing guests or register new arrivals
+            </p>
+            <TodayStats />
+          </div>
         </div>
         {/* Meal Service Timer - subtle indicator for volunteers */}
         <MealServiceTimer />

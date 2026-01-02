@@ -109,8 +109,8 @@ const MainLayout = ({ children }) => {
             <div className="md:hidden" />
 
             <div className="hidden md:flex items-center gap-4">
-              <span className="px-3 py-1.5 rounded-lg bg-yellow-400 text-black font-semibold text-sm shadow-md">
-                {headerRoleDisplay}
+              <span className="px-2.5 py-1 rounded text-emerald-100 text-xs font-medium border border-emerald-600/30 bg-emerald-800/40">
+                Role: {headerRoleDisplay.replace(/[()]/g, '')}
               </span>
               <button
                 onClick={() => setShowTutorial(true)}
