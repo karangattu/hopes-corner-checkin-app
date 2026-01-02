@@ -2356,7 +2356,7 @@ const Services = () => {
         </div>
 
         {/* Stats Overview Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="relative">
               <div className="flex items-center justify-between">
@@ -2410,6 +2410,25 @@ const Services = () => {
               </p>
               <p className="mt-1 text-sm text-gray-600">
                 {totalNewGuests > 0 ? `${totalNewGuests} new` : 'returning guests'}
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm transition hover:shadow-md">
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-orange-100 p-3">
+                  <Users size={24} className="text-orange-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                  Proxy Pickups
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-orange-900">
+                {mergedGuestMeals.filter(r => r.pickedUpByProxyId).length}
+              </p>
+              <p className="mt-1 text-sm text-orange-700">
+                meals picked up by authorized proxies
               </p>
             </div>
           </div>
@@ -3246,6 +3265,11 @@ const Services = () => {
                                 ★ Extra
                               </span>
                             )}
+                            {rec.pickedUpByProxyId && (
+                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200" title={`Picked up by proxy: ${getGuestNameDetails(rec.pickedUpByProxyId).displayName}`}>
+                                🤝 Proxy Pickup
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 ml-11">
                             <Clock size={12} className="text-gray-400" />
@@ -3255,6 +3279,11 @@ const Services = () => {
                                 minute: "2-digit",
                               })}
                             </span>
+                            {rec.pickedUpByProxyId && (
+                              <span className="text-xs text-orange-600">
+                                via {getGuestNameDetails(rec.pickedUpByProxyId).primaryName}
+                              </span>
+                            )}
                             {rec.pendingSync && (
                               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 animate-pulse">
                                 ⟳ Syncing

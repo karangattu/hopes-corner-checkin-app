@@ -237,6 +237,7 @@ create index if not exists guests_external_id_idx
 create table if not exists public.meal_attendance (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete set null,
+  picked_up_by_guest_id uuid references public.guests(id) on delete set null,  -- Tracks who physically picked up the meal (linked/proxy guest)
   meal_type public.meal_type_enum not null default 'guest',
   quantity smallint not null check (quantity > 0),
   served_on date not null,

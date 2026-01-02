@@ -308,7 +308,10 @@ describe("GuestList - Meal Button Changes", () => {
       fireEvent.click(oneMealButton);
 
       await waitFor(() => {
-        expect(addMealRecordMock).toHaveBeenCalledWith("g1", 1);
+        expect(addMealRecordMock).toHaveBeenCalled();
+        const args = addMealRecordMock.mock.calls[0];
+        expect(args[0]).toBe("g1");
+        expect(args[1]).toBe(1);
       });
     });
 
@@ -349,7 +352,10 @@ describe("GuestList - Meal Button Changes", () => {
       fireEvent.click(twoMealsButton);
 
       await waitFor(() => {
-        expect(addMealRecordMock).toHaveBeenCalledWith("g1", 2);
+        expect(addMealRecordMock).toHaveBeenCalled();
+        const args = addMealRecordMock.mock.calls[0];
+        expect(args[0]).toBe("g1");
+        expect(args[1]).toBe(2);
       });
     });
 

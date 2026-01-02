@@ -24,7 +24,8 @@ export const useMealsStore = create(
           haircutRecords: [],
 
           // Meal Actions
-          addMealRecord: async (guestId, quantity = 1) => {
+          // pickedUpByGuestId: optional - tracks who physically picked up the meal (for linked/proxy guests)
+          addMealRecord: async (guestId, quantity = 1, pickedUpByGuestId = null) => {
             if (!guestId) throw new Error('Guest ID is required');
 
             const todayStr = todayPacificDateString();
@@ -34,7 +35,13 @@ export const useMealsStore = create(
                 guest_id: guestId,
                 quantity,
                 meal_date: todayStr,
+                picked_up_by_guest_id: pickedUpByGuestId || null,
               };
+              
+              // Add proxy tracking if a different guest picked up the meal
+              if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                payload.picked_up_by_guest_id = pickedUpByGuestId;
+              }
 
               const { data, error } = await supabase
                 .from('meal_attendance')
@@ -57,6 +64,7 @@ export const useMealsStore = create(
             const fallbackRecord = {
               id: `local-meal-${Date.now()}`,
               guestId,
+              pickedUpByGuestId: pickedUpByGuestId !== guestId ? pickedUpByGuestId : null,
               quantity,
               date: todayStr,
               createdAt: new Date().toISOString(),
@@ -65,6 +73,8 @@ export const useMealsStore = create(
             set((state) => {
               state.mealRecords.push(fallbackRecord);
             });
+            // Debug: ensure pickedUpByGuestId is normalized (null if equals guestId)
+            // console.log('DEBUG addMealRecord fallbackRecord:', fallbackRecord);
             return fallbackRecord;
           },
 

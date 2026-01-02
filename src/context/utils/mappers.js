@@ -150,9 +150,13 @@ export const mapMealRow = (row) => {
     ? new Date(`${row.served_on}T12:00:00Z`).toISOString()
     : null;
 
+  const picked = row.picked_up_by_guest_id || null;
   return {
     id: row.id,
     guestId: row.guest_id,
+    // Support both property names for historical compatibility and UI usage
+    pickedUpByGuestId: picked,
+    pickedUpByProxyId: picked,
     count: row.quantity || 1,
     date: recordedAt || fallbackDate,
     recordedAt,

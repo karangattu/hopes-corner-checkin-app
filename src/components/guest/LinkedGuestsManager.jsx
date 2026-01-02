@@ -11,6 +11,19 @@ const MAX_LINKED_GUESTS = 3;
  * Component to manage linked guests (proxies) for a specific guest.
  * Allows linking and unlinking guests who pick up meals for each other.
  */
+/**
+ * @param {Object} props
+ * @param {Object} props.guest - The primary guest who is picking up meals
+ * @param {Array} props.allGuests - All guests in the system
+ * @param {Array} props.linkedGuests - Guests linked to the primary guest
+ * @param {Function} props.onLinkGuest - Callback to link a guest
+ * @param {Function} props.onUnlinkGuest - Callback to unlink a guest
+ * @param {Function} props.onAssignMeals - Callback to assign meals (guestId, count, pickedUpByGuestId)
+ * @param {Array} props.mealRecords - All meal records
+ * @param {Array} props.actionHistory - Action history for undo
+ * @param {Function} props.onUndoAction - Callback to undo an action
+ * @param {boolean} props.isLoading - Loading state
+ */
 const LinkedGuestsManager = ({
   guest,
   allGuests,
@@ -186,17 +199,18 @@ const LinkedGuestsManager = ({
                     <div className="flex gap-1">
                       {[1, 2].map((count) => {
                         const isDisabled = alreadyHasMeal;
-                        return (
+                          return (
                           <button
                             key={count}
-                            onClick={() => onAssignMeals(linkedGuest.id, count)}
+                            // Pass primary guest.id as pickedUpByGuestId to track who picked up the meal
+                            onClick={() => onAssignMeals(linkedGuest.id, count, guest.id)}
                             disabled={isDisabled || isLoading}
                             className={`px-2 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1 ${
                               alreadyHasMeal
                                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                                 : "bg-green-100 text-green-700 hover:bg-green-200"
                             }`}
-                            title={alreadyHasMeal ? "Guest already received meals today" : `Give ${count} meal${count > 1 ? "s" : ""}`}
+                            title={alreadyHasMeal ? "Guest already received meals today" : `Give ${count} meal${count > 1 ? "s" : ""} (picked up by ${guest.preferredName || guest.name})`}
                           >
                             <Utensils size={12} />
                             {count}

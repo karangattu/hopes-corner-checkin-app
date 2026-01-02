@@ -2508,7 +2508,8 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const addMealRecord = async (guestId, count, dateOverride = null) => {
+  // pickedUpByGuestId: optional - tracks who physically picked up the meal (for linked/proxy guests)
+  const addMealRecord = async (guestId, count, dateOverride = null, pickedUpByGuestId = null) => {
     const endPerf = performanceMonitor.startMeasurement('addMealRecord');
     try {
       const timestamp = dateOverride || new Date().toISOString();
@@ -2534,6 +2535,11 @@ export const AppProvider = ({ children }) => {
             served_on: timestamp.slice(0, 10),
             recorded_at: timestamp,
           };
+          
+          // Add proxy tracking if a different guest picked up the meal
+          if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+            payload.picked_up_by_guest_id = pickedUpByGuestId;
+          }
 
           // Use offline-aware wrapper
           const result = await addMealWithOffline(payload, navigator.onLine);
@@ -2551,6 +2557,8 @@ export const AppProvider = ({ children }) => {
               type: "guest",
               pendingSync: true,
               queueId: result.queueId,
+              pickedUpByGuestId: pickedUpByGuestId || null,
+              pickedUpByProxyId: pickedUpByGuestId || null,
             };
 
             setMealRecords((prev) => [...prev, localRecord]);
@@ -2559,7 +2567,7 @@ export const AppProvider = ({ children }) => {
               id: Date.now() + Math.random(),
               type: "MEAL_ADDED",
               timestamp,
-              data: { recordId: localRecord.id, guestId, count },
+              data: { recordId: localRecord.id, guestId, count, pickedUpByGuestId: pickedUpByGuestId || null },
               description: `Added ${count} meal${count > 1 ? "s" : ""} for guest (pending sync)`,
             };
             setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
@@ -2603,6 +2611,8 @@ export const AppProvider = ({ children }) => {
         servedOn: timestamp.slice(0, 10),
         createdAt: timestamp,
         type: "guest",
+        pickedUpByGuestId: pickedUpByGuestId || null,
+        pickedUpByProxyId: pickedUpByGuestId || null,
       };
 
       setMealRecords((prev) => [...prev, record]);

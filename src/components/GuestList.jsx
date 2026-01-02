@@ -537,7 +537,8 @@ const GuestList = () => {
   };
 
 
-  const handleMealSelection = (guestId, count) => {
+  // pickedUpByGuestId is optional - used when a linked/proxy guest picks up meals for another
+  const handleMealSelection = (guestId, count, pickedUpByGuestId = null) => {
     if (pendingMealGuests.has(guestId)) return;
     const today = todayPacificDateString();
     const alreadyHasMeal = mealRecords.some(
@@ -561,10 +562,12 @@ const GuestList = () => {
         next.add(guestId);
         return next;
       });
-      const rec = addMealRecord(guestId, count);
+      // Pass pickedUpByGuestId to track who physically picked up the meal (for linked guests metrics)
+      const rec = addMealRecord(guestId, count, null, pickedUpByGuestId);
       if (rec) {
         haptics.success();
-        toast.success(`${count} meal${count > 1 ? "s" : ""} logged for guest!`);
+        const proxyNote = pickedUpByGuestId ? " (picked up by linked guest)" : "";
+        toast.success(`${count} meal${count > 1 ? "s" : ""} logged for guest!${proxyNote}`);
       }
     } catch (error) {
       haptics.error();

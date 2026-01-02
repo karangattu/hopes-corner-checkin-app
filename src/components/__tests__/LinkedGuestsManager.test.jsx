@@ -252,4 +252,197 @@ describe("LinkedGuestsManager", () => {
     
     expect(screen.getByText("1/3")).toBeInTheDocument();
   });
+
+  describe("Meal Proxy Tracking", () => {
+    const linkedGuests = [
+      { id: "g2", name: "Jane Smith", preferredName: "" },
+      { id: "g3", name: "Bob Wilson", preferredName: "Bobby" },
+    ];
+
+    it("shows meal buttons for linked guests when onAssignMeals is provided", () => {
+      const onAssignMeals = vi.fn();
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+        />
+      );
+      
+      // Should show meal buttons (1 and 2) for each non-banned linked guest
+      const mealButtons = screen.getAllByRole("button", { name: /1|2/ });
+      // 2 linked guests × 2 buttons each = 4 buttons
+      expect(mealButtons.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it("calls onAssignMeals with primary guest ID as pickedUpByGuestId when meal button clicked", async () => {
+      const user = userEvent.setup();
+      const onAssignMeals = vi.fn();
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+          mealRecords={[]}
+        />
+      );
+      
+      // Find meal buttons for Jane Smith (first linked guest)
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const mealButtons = janeRow.querySelectorAll('button');
+      const mealButton1 = Array.from(mealButtons).find(btn => btn.textContent?.includes('1'));
+      
+      if (mealButton1) {
+        await user.click(mealButton1);
+        
+        // Should be called with (linkedGuestId, count, primaryGuestId as proxy)
+        expect(onAssignMeals).toHaveBeenCalledWith("g2", 1, "g1");
+      }
+    });
+
+    it("passes correct proxy ID when giving 2 meals", async () => {
+      const user = userEvent.setup();
+      const onAssignMeals = vi.fn();
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+          mealRecords={[]}
+        />
+      );
+      
+      // Find meal button for "2" for Jane Smith
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const mealButtons = janeRow.querySelectorAll('button');
+      const mealButton2 = Array.from(mealButtons).find(btn => btn.textContent?.includes('2'));
+      
+      if (mealButton2) {
+        await user.click(mealButton2);
+        
+        // Should be called with (linkedGuestId, 2, primaryGuestId as proxy)
+        expect(onAssignMeals).toHaveBeenCalledWith("g2", 2, "g1");
+      }
+    });
+
+    it("disables meal buttons for banned linked guests", () => {
+      const onAssignMeals = vi.fn();
+      const linkedGuestsWithBanned = [
+        { id: "g2", name: "Jane Smith", preferredName: "", isBanned: true },
+      ];
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuestsWithBanned}
+          onAssignMeals={onAssignMeals}
+        />
+      );
+      
+      // Should NOT show meal buttons for banned guests
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const mealButtonsInRow = janeRow?.querySelectorAll('button[class*="bg-green"]');
+      
+      // No meal buttons should be present for banned guests
+      expect(mealButtonsInRow?.length || 0).toBe(0);
+    });
+
+    it("disables meal buttons when guest already has meal today", () => {
+      const onAssignMeals = vi.fn();
+      const todayMealRecords = [
+        { 
+          id: "meal-1", 
+          guestId: "g2", // Jane already has a meal
+          date: new Date().toISOString(),
+          count: 1 
+        },
+      ];
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+          mealRecords={todayMealRecords}
+        />
+      );
+      
+      // Jane's meal buttons should be disabled
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const disabledMealButtons = janeRow?.querySelectorAll('button[disabled]');
+      
+      // Should have disabled meal buttons
+      expect(disabledMealButtons?.length).toBeGreaterThan(0);
+    });
+
+    it("shows tooltip indicating proxy pickup when hovering meal button", () => {
+      const onAssignMeals = vi.fn();
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+          mealRecords={[]}
+        />
+      );
+      
+      // Find meal button for Jane
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const mealButtons = janeRow?.querySelectorAll('button');
+      const mealButton1 = Array.from(mealButtons || []).find(btn => btn.textContent?.includes('1'));
+      
+      // Check for title attribute indicating proxy pickup
+      expect(mealButton1?.getAttribute('title')).toContain('picked up by');
+    });
+
+    it("does not show meal buttons when onAssignMeals is not provided", () => {
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={undefined}
+        />
+      );
+      
+      // Should not show any green meal buttons
+      const greenButtons = document.querySelectorAll('button[class*="bg-green-100"]');
+      expect(greenButtons.length).toBe(0);
+    });
+
+    it("correctly handles multiple linked guests with different meal states", () => {
+      const onAssignMeals = vi.fn();
+      const todayMealRecords = [
+        { 
+          id: "meal-1", 
+          guestId: "g2", // Jane already has a meal
+          date: new Date().toISOString(),
+          count: 1 
+        },
+        // g3 (Bobby) has no meal today
+      ];
+      
+      render(
+        <LinkedGuestsManager
+          {...defaultProps}
+          linkedGuests={linkedGuests}
+          onAssignMeals={onAssignMeals}
+          mealRecords={todayMealRecords}
+        />
+      );
+      
+      // Jane's buttons should be disabled
+      const janeRow = screen.getByText("Jane Smith").closest('div[class*="flex items-center justify-between"]');
+      const janeDisabledButtons = janeRow?.querySelectorAll('button[disabled]');
+      expect(janeDisabledButtons?.length).toBeGreaterThan(0);
+      
+      // Bobby's buttons should be enabled (he has no meal)
+      const bobbyRow = screen.getByText("Bobby").closest('div[class*="flex items-center justify-between"]');
+      const bobbyEnabledMealButtons = bobbyRow?.querySelectorAll('button:not([disabled])[class*="bg-green"]');
+      expect(bobbyEnabledMealButtons?.length).toBeGreaterThan(0);
+    });
+  });
 });
