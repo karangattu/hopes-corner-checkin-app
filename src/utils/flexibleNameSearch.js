@@ -7,25 +7,57 @@
 
 import { createSearchIndex, searchWithIndex, getCachedNameParts } from './guestSearchIndex';
 
-// Cache for the search index
+// Cache for the search index with content-aware invalidation
 let cachedIndex = null;
 let cachedGuestsRef = null;
+let cachedGuestCount = 0;
+let cachedGuestIdSet = new Set();
 
 /**
  * Get or create the search index for a guests list
- * Uses reference equality to detect when guests array changes
+ * Uses both reference equality and content-based comparison to detect when guests array changes
+ * This prevents stale cache issues when guests are added/modified but array reference doesn't change
  * @param {Array} guests - Array of guest objects
  * @returns {Object} Search index
  */
 const getSearchIndex = (guests) => {
-  // If guests reference hasn't changed, return cached index
-  if (cachedGuestsRef === guests && cachedIndex) {
-    return cachedIndex;
+  // Quick check: if reference is the same AND guest count matches, likely still valid
+  const currentGuestCount = guests.length;
+  const isSameRef = cachedGuestsRef === guests;
+  const isSameCount = cachedGuestCount === currentGuestCount;
+  
+  // If reference and count are the same, check if guest IDs match (content validation)
+  if (isSameRef && isSameCount && cachedIndex) {
+    // Build current ID set for comparison
+    const currentIdSet = new Set(guests.map(g => g.id));
+    
+    // Check if all cached IDs are still present
+    let allIdsMatch = currentIdSet.size === cachedGuestIdSet.size;
+    if (allIdsMatch) {
+      for (const id of cachedGuestIdSet) {
+        if (!currentIdSet.has(id)) {
+          allIdsMatch = false;
+          break;
+        }
+      }
+    }
+    
+    // If IDs match, cache is still valid
+    if (allIdsMatch) {
+      return cachedIndex;
+    }
+    
+    // IDs don't match - cache is stale, rebuild below
+    console.log('[Search Index] Cache invalidated: guest ID mismatch detected');
   }
   
   // Create new index
+  console.log('[Search Index] Building new search index for', currentGuestCount, 'guests');
   cachedIndex = createSearchIndex(guests);
   cachedGuestsRef = guests;
+  cachedGuestCount = currentGuestCount;
+  cachedGuestIdSet = new Set(guests.map(g => g.id));
+  
   return cachedIndex;
 };
 

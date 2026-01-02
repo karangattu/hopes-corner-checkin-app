@@ -374,8 +374,9 @@ describe('Guest Data Integrity', () => {
       // Name should still work from full_name
       expect(mapped.name).toBe('Jane Smith');
       
-      // But first_name is corrupted
-      expect(mapped.firstName).toBe('');
+      // But first_name is corrupted - we now synthesize a firstName from full_name to
+      // keep guests searchable, so expect it to be populated from the full_name.
+      expect(mapped.firstName).toBe('Jane');
       
       // Should still log a warning
       expect(consoleErrorSpy).toHaveBeenCalled();

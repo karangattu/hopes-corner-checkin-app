@@ -89,11 +89,23 @@ export const mapGuestRow = (row) => {
     }
   }
 
-  const firstName = toTitleCase(row.first_name || "");
-  const lastName = toTitleCase(row.last_name || "");
+  const firstNameFromRow = toTitleCase(row.first_name || "");
+  const lastNameFromRow = toTitleCase(row.last_name || "");
   const fullName = toTitleCase(
     row.full_name || `${row.first_name || ""} ${row.last_name || ""}`,
   );
+
+  let firstName = firstNameFromRow;
+  let lastName = lastNameFromRow;
+  if (!firstName || !lastName) {
+    const fallbackParts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (!firstName && fallbackParts.length > 0) {
+      firstName = fallbackParts[0];
+    }
+    if (!lastName && fallbackParts.length > 1) {
+      lastName = fallbackParts.slice(1).join(" ");
+    }
+  }
 
   // Additional safety check: if all name fields are empty, this is a critical issue
   if (!firstName && !lastName && !fullName) {

@@ -1,18 +1,23 @@
 import React, { useMemo } from "react";
 import { Utensils, Users } from "lucide-react";
-import { useMealsStore } from "../stores/useMealsStore";
+import { useAppContext } from "../context/useAppContext";
+import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 
 /**
  * Displays a subtle count of meals and guests served today
  * Non-intrusive indicator for staff awareness
  */
 const TodayStats = () => {
-  const getTodayMeals = useMealsStore((state) => state.getTodayMeals);
-  const todayMeals = getTodayMeals();
+  const { mealRecords = [] } = useAppContext();
+  const today = todayPacificDateString();
+  const todayMeals = useMemo(
+    () => (mealRecords || []).filter((r) => pacificDateStringFrom(r.date) === today),
+    [mealRecords, today],
+  );
 
   const stats = useMemo(() => {
-    const totalMeals = todayMeals.reduce((sum, record) => sum + (record.quantity || 1), 0);
-    const uniqueGuests = new Set(todayMeals.map(record => record.guestId)).size;
+    const totalMeals = todayMeals.reduce((sum, record) => sum + (record.quantity || record.count || 1), 0);
+    const uniqueGuests = new Set(todayMeals.map((record) => record.guestId)).size;
     return { totalMeals, uniqueGuests };
   }, [todayMeals]);
 

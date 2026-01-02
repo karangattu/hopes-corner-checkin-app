@@ -19,6 +19,7 @@ import {
   AGE_GROUPS,
   GENDERS,
 } from '../context/constants';
+import { clearSearchIndexCache } from '../utils/flexibleNameSearch';
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 const MAX_LINKED_GUESTS = 3;
@@ -236,6 +237,8 @@ export const useGuestsStore = create(
             set((state) => {
               state.guests.push(mapped);
             });
+            // Clear search cache after adding guest
+            clearSearchIndexCache();
             return mapped;
           }
 
@@ -254,6 +257,8 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests.push(fallbackGuest);
           });
+          // Clear search cache after adding guest
+          clearSearchIndexCache();
           return fallbackGuest;
         },
 
@@ -414,6 +419,8 @@ export const useGuestsStore = create(
                     state.guests[guestIndex] = mapped;
                   }
                 });
+                // Clear search cache after updating guest
+                clearSearchIndexCache();
               }
             } catch (error) {
               console.error('Failed to update guest in Supabase:', error);
@@ -440,6 +447,8 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests = state.guests.filter((g) => g.id !== id);
           });
+          // Clear search cache after removing guest
+          clearSearchIndexCache();
 
           if (isSupabaseEnabled() && supabase && target) {
             const { error } = await supabase.from('guests').delete().eq('id', id);
@@ -861,6 +870,8 @@ export const useGuestsStore = create(
                 );
                 state.guests = [...filtered, ...insertedRecords];
               });
+              // Clear search cache after bulk import
+              clearSearchIndexCache();
             }
 
             const failedCount = newGuests.length - insertedRecords.length;
@@ -910,6 +921,9 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests = [...state.guests, ...newGuests];
           });
+          
+          // Clear search cache after bulk import
+          clearSearchIndexCache();
 
           return {
             importedGuests: newGuests,
@@ -967,6 +981,10 @@ export const useGuestsStore = create(
                 housingStatus: normalizeHousingStatus(g.housingStatus),
               }));
             });
+            
+            // Clear search cache after loading guests from Supabase
+            // This ensures the search index is rebuilt with the latest data
+            clearSearchIndexCache();
           } catch (error) {
             console.error('Failed to load guests from Supabase:', error);
           }
@@ -998,6 +1016,8 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests = [];
           });
+          // Clear search cache when clearing all guests
+          clearSearchIndexCache();
         },
 
         // Get warnings for a guest
