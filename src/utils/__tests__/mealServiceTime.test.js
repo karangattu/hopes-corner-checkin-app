@@ -47,14 +47,14 @@ describe("mealServiceTime utility", () => {
       });
     });
 
-    it("returns 8-9 AM for Friday", () => {
+    it("returns 7:30-8:30 AM for Friday", () => {
       const friday = new Date(2024, 0, 12); // January 12, 2024 is a Friday
       const info = getMealServiceInfo(friday);
       expect(info).toEqual({
-        startHour: 8,
-        startMinute: 0,
-        endHour: 9,
-        endMinute: 0,
+        startHour: 7,
+        startMinute: 30,
+        endHour: 8,
+        endMinute: 30,
       });
     });
 

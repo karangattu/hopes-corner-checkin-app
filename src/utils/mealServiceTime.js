@@ -4,7 +4,8 @@
  * Calculates meal service timing for Hope's Corner.
  * 
  * Schedule (Pacific Time):
- * - Monday, Wednesday, Friday: 8:00 AM - 9:00 AM
+ * - Monday, Wednesday: 8:00 AM - 9:00 AM
+ * - Friday: 7:30 AM - 8:30 AM
  * - Saturday: 8:00 AM - 10:00 AM
  * - Tuesday, Thursday, Sunday: No service
  */
@@ -23,7 +24,7 @@ export function getMealServiceInfo(date = new Date()) {
   // 2 = Tuesday (no service)
   // 3 = Wednesday (8-9 AM)
   // 4 = Thursday (no service)
-  // 5 = Friday (8-9 AM)
+  // 5 = Friday (7:30-8:30 AM)
   // 6 = Saturday (8-10 AM)
   
   const serviceSchedule = {
@@ -32,7 +33,7 @@ export function getMealServiceInfo(date = new Date()) {
     2: null, // Tuesday - no service
     3: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Wednesday
     4: null, // Thursday - no service
-    5: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Friday
+    5: { startHour: 7, startMinute: 30, endHour: 8, endMinute: 30 }, // Friday
     6: { startHour: 8, startMinute: 0, endHour: 10, endMinute: 0 }, // Saturday
   };
   
