@@ -407,18 +407,6 @@ describe("MonthlySummaryReport", () => {
     expect(screen.getByText("New Laundry Guests")).toBeInTheDocument();
   });
 
-  it("renders proxy pickups trend chart", () => {
-    // Put some proxy data to ensure chart would have points
-    setupMockContext({
-      mealRecords: [
-        { date: "2025-01-06T12:00:00Z", count: 1, guestId: "g1", pickedUpByProxyId: "proxy-1" },
-      ],
-    });
-
-    render(<MonthlySummaryReport />);
-
-    expect(screen.getByTestId("proxy-trend")).toBeInTheDocument();
-  });
 
   it("exports bicycle summary via the dedicated button", () => {
     setupMockContext({

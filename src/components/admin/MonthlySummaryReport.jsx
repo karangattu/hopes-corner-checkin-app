@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
 import { isBicycleStatusCountable } from "../../utils/bicycles";
+import TrendLineRecharts from "../charts/TrendLineRecharts";
 
 const MONTH_NAMES = [
   "January",
@@ -355,6 +356,20 @@ const TooltipHeader = ({ column }) => {
   );
 };
 
+const SummaryCard = ({ insight }) => (
+  <div className="flex flex-1 flex-col justify-between gap-1.5 rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+      <Lightbulb size={12} className="text-amber-500 flex-shrink-0" aria-hidden="true" />
+      <span className="truncate">{insight.title}</span>
+    </div>
+    <div>
+      <p className="text-2xl font-semibold text-gray-900 leading-tight">{insight.value}</p>
+      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{insight.context}</p>
+    </div>
+    <p className="text-xs text-gray-600 leading-snug line-clamp-2">{insight.description}</p>
+  </div>
+);
+
 /**
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
  *
@@ -662,7 +677,6 @@ const MonthlySummaryReport = () => {
     const proxyChange = lastMonthPickups - prevMonthPickups;
     const proxyPercent = prevMonthPickups > 0 ? Math.round((proxyChange / prevMonthPickups) * 100) : (proxyChange > 0 ? 100 : 0);
     const proxyContext = `Last month: ${formatNumber(lastMonthPickups)} (${proxyChange === 0 ? 'no change' : proxyChange > 0 ? `up ${proxyPercent}% vs previous month` : `down ${Math.abs(proxyPercent)}% vs previous month`})`;
-
     return [
       {
         title: "YTD Hot Meals",
@@ -1263,74 +1277,13 @@ const MonthlySummaryReport = () => {
           </div>
         </div>
 
-        {summaryInsights.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {summaryInsights.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {summaryInsights.map((insight) => (
-              <div
-                key={insight.title}
-                className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 min-h-[120px]"
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
-                  <Lightbulb size={16} aria-hidden="true" />
-                  <span>{insight.title}</span>
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-gray-900">
-                  {insight.value}
-                </p>
-                <p className="mt-1 text-xs text-gray-600">{insight.context}</p>
-                <p className="mt-2 text-sm text-gray-700">{insight.description}</p>
-              </div>
+              <SummaryCard key={insight.title} insight={insight} />
             ))}
-
-            {/* Proxy pickups trend chart */}
-            <div className="rounded-lg border bg-white p-3 min-h-[120px]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
-                  <span>Proxy Pickups (Trend)</span>
-                </div>
-                <div className="text-xs text-gray-500">Year-to-date</div>
-              </div>
-              <div className="mt-3 h-28">
-                {typeof TrendLineRecharts !== "undefined" ? (
-                  <TrendLineRecharts
-                    days={(monthlyData.months || []).map((row, idx) => ({
-                      date: new Date(reportYear, idx, 1).toISOString(),
-                      proxyPickups: row.proxyPickups || 0,
-                    }))}
-                    metrics={["proxyPickups"]}
-                  />
-                ) : (
-                  // Lightweight inline sparkline fallback for test environments
-                  (() => {
-                    const values = (monthlyData.months || []).map((r) => r.proxyPickups || 0);
-                    const max = Math.max(1, ...values);
-                    const min = Math.min(0, ...values);
-                    const width = 200;
-                    const height = 60;
-                    const points = values.map((v, i) => {
-                      const x = (i / Math.max(1, values.length - 1)) * width;
-                      const y = height - ((v - min) / (max - min || 1)) * height;
-                      return `${x},${y}`;
-                    }).join(" ");
-
-                    return (
-                      <div data-testid="proxy-trend" className="h-full w-full flex items-center">
-                        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-                          <polyline
-                            fill="none"
-                            stroke="#f59e0b"
-                            strokeWidth="2"
-                            points={points}
-                          />
-                        </svg>
-                      </div>
-                    );
-                  })()
-                )}
-              </div>
-            </div>
           </div>
-        ) : null}
+        )}
 
         {/* Table */}
         <div className="mt-6 overflow-x-auto">
@@ -1691,7 +1644,7 @@ const MonthlySummaryReport = () => {
                     <div className="font-semibold text-gray-900">
                       {row.unduplicatedLaundryUsers.toLocaleString()}
                     </div>
-                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-600">
+                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-700">
                       <div>Adult · {row.laundryAdult.toLocaleString()}</div>
                       <div>Senior · {row.laundrySenior.toLocaleString()}</div>
                       <div>Child · {row.laundryChild.toLocaleString()}</div>
@@ -1699,7 +1652,7 @@ const MonthlySummaryReport = () => {
                   </td>
                   <td
                     data-column="new-laundry-guests"
-                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold text-gray-900"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
                     {row.newLaundryGuests.toLocaleString()}
                   </td>
