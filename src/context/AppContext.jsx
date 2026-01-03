@@ -708,7 +708,7 @@ export const AppProvider = ({ children }) => {
           fetchAllPaginated(supabase, {
             table: "meal_attendance",
             select:
-              "id,guest_id,quantity,served_on,meal_type,recorded_at,created_at",
+              "id,guest_id,quantity,served_on,meal_type,recorded_at,created_at,picked_up_by_guest_id",
             orderBy: "created_at",
             ascending: false,
             pageSize: 1000,
@@ -837,7 +837,7 @@ export const AppProvider = ({ children }) => {
           });
           setSettings(nextSettings);
         }
-        
+
         // Mark data as loaded after cloud fetch completes
         setIsDataLoaded(true);
       } catch (error) {
@@ -937,7 +937,7 @@ export const AppProvider = ({ children }) => {
 
         const savedLunchBags = storedValues[STORAGE_KEYS.lunchBagRecords];
         if (savedLunchBags) setLunchBagRecords(savedLunchBags);
-        
+
         // Mark data as loaded after persistent store load completes
         // (this runs before cloud fetch, so if there's cached data, UI shows it immediately)
         setIsDataLoaded(true);
@@ -2535,7 +2535,7 @@ export const AppProvider = ({ children }) => {
             served_on: timestamp.slice(0, 10),
             recorded_at: timestamp,
           };
-          
+
           // Add proxy tracking if a different guest picked up the meal
           if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
             payload.picked_up_by_guest_id = pickedUpByGuestId;
