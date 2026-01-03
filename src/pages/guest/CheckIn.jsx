@@ -113,7 +113,7 @@ const CheckIn = () => {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Find or Add Guests</h2>
               <p className="text-sm text-gray-500">
-                Type a name to search • Press Enter to create if not found
+                Type a name to search • Type first AND last name, then press Enter to create
               </p>
             </div>
           </div>

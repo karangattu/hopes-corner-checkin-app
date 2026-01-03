@@ -106,6 +106,19 @@ const MEAL_COLUMN_DEFINITIONS = [
     isNumeric: true,
   },
   {
+    key: "proxyPickups",
+    label: "Proxy Pickups",
+    description:
+      "Meals picked up by a different guest on behalf of the intended guest (proxy/alternative pickups). Counts reflect the number of meals picked up by proxies, not unique guests.",
+    align: "right",
+    headerBg: "bg-amber-50",
+    cellBg: "bg-amber-50",
+    totalCellBg: "bg-amber-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
     key: "fridayMeals",
     label: "Friday",
     description:
@@ -242,6 +255,7 @@ const MEAL_TABLE_GROUPS = [
       "saturdayMeals",
       "uniqueGuests",
       "newGuests",
+      "proxyPickups",
       "onsiteHotMeals",
     ],
   },
@@ -491,6 +505,11 @@ const MonthlySummaryReport = () => {
         filterRecords(unitedEffortMealRecords, reportYear, month),
       );
 
+      // Proxy pickups: meals where someone else picked up on behalf of the guest
+      const proxyPickups = sumQuantities(
+        filterRecords(mealRecords, reportYear, month).filter((r) => r.pickedUpByProxyId),
+      );
+
       const totalHotMeals =
         mondayMeals +
         wednesdayMeals +
@@ -564,6 +583,7 @@ const MonthlySummaryReport = () => {
         rvWedSat,
         rvMonThu,
         lunchBags,
+        proxyPickups,
         totalHotMeals,
         totalWithLunchBags,
         onsiteHotMeals,
@@ -593,6 +613,7 @@ const MonthlySummaryReport = () => {
       rvWedSat: months.reduce((sum, m) => sum + m.rvWedSat, 0),
       rvMonThu: months.reduce((sum, m) => sum + m.rvMonThu, 0),
       lunchBags: months.reduce((sum, m) => sum + m.lunchBags, 0),
+      proxyPickups: months.reduce((sum, m) => sum + (m.proxyPickups || 0), 0),
       totalHotMeals: months.reduce((sum, m) => sum + m.totalHotMeals, 0),
       totalWithLunchBags: months.reduce(
         (sum, m) => sum + m.totalWithLunchBags,
@@ -635,6 +656,13 @@ const MonthlySummaryReport = () => {
         ? Math.round((lunchBagCount / totalMealsWithLunch) * 100)
         : 0;
 
+    const ytdProxyPickups = monthlyData.totals.proxyPickups || 0;
+    const lastMonthPickups = months[months.length - 1]?.proxyPickups || 0;
+    const prevMonthPickups = months.length > 1 ? months[months.length - 2]?.proxyPickups || 0 : 0;
+    const proxyChange = lastMonthPickups - prevMonthPickups;
+    const proxyPercent = prevMonthPickups > 0 ? Math.round((proxyChange / prevMonthPickups) * 100) : (proxyChange > 0 ? 100 : 0);
+    const proxyContext = `Last month: ${formatNumber(lastMonthPickups)} (${proxyChange === 0 ? 'no change' : proxyChange > 0 ? `up ${proxyPercent}% vs previous month` : `down ${Math.abs(proxyPercent)}% vs previous month`})`;
+
     return [
       {
         title: "YTD Hot Meals",
@@ -655,6 +683,13 @@ const MonthlySummaryReport = () => {
         context: `${formatNumber(lunchBagCount)} lunch bags year-to-date`,
         description:
           "Portion of all meals that Volunteers pack every shift.",
+      },
+      {
+        title: "Proxy Pickups",
+        value: formatNumber(ytdProxyPickups),
+        context: proxyContext,
+        description:
+          "Number of meals picked up by a different guest (proxy pickup). Use this to monitor trends in proxy pickups.",
       },
     ];
   }, [monthlyData]);
@@ -1041,6 +1076,7 @@ const MonthlySummaryReport = () => {
         Saturday: row.saturdayMeals,
         "Unique Guests": row.uniqueGuests,
         "New Guests": row.newGuests,
+        "Proxy Pickups": row.proxyPickups || 0,
         "Onsite Hot Meals": row.onsiteHotMeals,
         "Day Worker Center": row.dayWorkerMeals,
         "Extra Meals": row.extraMeals,
@@ -1050,6 +1086,7 @@ const MonthlySummaryReport = () => {
         "TOTAL HOT MEALS": row.totalHotMeals,
         "Total w/ Lunch Bags": row.totalWithLunchBags,
       })),
+
       // Add totals row
       {
         Month: monthlyData.totals.month,
@@ -1059,6 +1096,7 @@ const MonthlySummaryReport = () => {
         Saturday: monthlyData.totals.saturdayMeals,
         "Unique Guests": monthlyData.totals.uniqueGuests,
         "New Guests": monthlyData.totals.newGuests,
+        "Proxy Pickups": monthlyData.totals.proxyPickups || 0,
         "Onsite Hot Meals": monthlyData.totals.onsiteHotMeals,
         "Day Worker Center": monthlyData.totals.dayWorkerMeals,
         "Extra Meals": monthlyData.totals.extraMeals,
@@ -1226,11 +1264,11 @@ const MonthlySummaryReport = () => {
         </div>
 
         {summaryInsights.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {summaryInsights.map((insight) => (
               <div
                 key={insight.title}
-                className="rounded-lg border border-blue-100 bg-blue-50/70 p-4"
+                className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 min-h-[120px]"
               >
                 <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
                   <Lightbulb size={16} aria-hidden="true" />
@@ -1243,6 +1281,54 @@ const MonthlySummaryReport = () => {
                 <p className="mt-2 text-sm text-gray-700">{insight.description}</p>
               </div>
             ))}
+
+            {/* Proxy pickups trend chart */}
+            <div className="rounded-lg border bg-white p-3 min-h-[120px]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-700">
+                  <span>Proxy Pickups (Trend)</span>
+                </div>
+                <div className="text-xs text-gray-500">Year-to-date</div>
+              </div>
+              <div className="mt-3 h-28">
+                {typeof TrendLineRecharts !== "undefined" ? (
+                  <TrendLineRecharts
+                    days={(monthlyData.months || []).map((row, idx) => ({
+                      date: new Date(reportYear, idx, 1).toISOString(),
+                      proxyPickups: row.proxyPickups || 0,
+                    }))}
+                    metrics={["proxyPickups"]}
+                  />
+                ) : (
+                  // Lightweight inline sparkline fallback for test environments
+                  (() => {
+                    const values = (monthlyData.months || []).map((r) => r.proxyPickups || 0);
+                    const max = Math.max(1, ...values);
+                    const min = Math.min(0, ...values);
+                    const width = 200;
+                    const height = 60;
+                    const points = values.map((v, i) => {
+                      const x = (i / Math.max(1, values.length - 1)) * width;
+                      const y = height - ((v - min) / (max - min || 1)) * height;
+                      return `${x},${y}`;
+                    }).join(" ");
+
+                    return (
+                      <div data-testid="proxy-trend" className="h-full w-full flex items-center">
+                        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                          <polyline
+                            fill="none"
+                            stroke="#f59e0b"
+                            strokeWidth="2"
+                            points={points}
+                          />
+                        </svg>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            </div>
           </div>
         ) : null}
 

@@ -58,7 +58,7 @@ describe('GuestList warnings badge', () => {
 
     render(<GuestList />);
 
-    const search = screen.getByPlaceholderText(/search by name/i);
+    const search = screen.getByLabelText(/search guests by name/i);
     fireEvent.change(search, { target: { value: 'Warning' } });
 
     const badge = await screen.findByTitle('Test note');

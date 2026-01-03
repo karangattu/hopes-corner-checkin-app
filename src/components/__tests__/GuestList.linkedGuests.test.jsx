@@ -125,7 +125,7 @@ describe("GuestList - Linked Guests Fix", () => {
       render(<GuestList />);
 
       // Search for the primary guest
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByLabelText(/search guests by name/i);
       fireEvent.change(search, { target: { value: "John" } });
 
       // Wait for results to render
@@ -143,7 +143,7 @@ describe("GuestList - Linked Guests Fix", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByLabelText(/search guests by name/i);
       fireEvent.change(search, { target: { value: "John" } });
 
       await waitFor(() => {

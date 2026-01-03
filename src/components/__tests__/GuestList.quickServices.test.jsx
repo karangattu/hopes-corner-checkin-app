@@ -94,7 +94,7 @@ describe("GuestList Quick Services", () => {
         };
 
         render(<GuestList />);
-        const search = screen.getByPlaceholderText(/search by name/i);
+        const search = screen.getByLabelText(/search guests by name/i);
         fireEvent.change(search, { target: { value: "John" } });
 
         expect(await screen.findByText("John Doe")).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("GuestList Quick Services", () => {
         const user = userEvent.setup();
         render(<GuestList />);
 
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByLabelText(/search guests by name/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         const showerBtn = screen.getByTitle("Book Shower");
@@ -134,7 +134,7 @@ describe("GuestList Quick Services", () => {
         const user = userEvent.setup();
         render(<GuestList />);
 
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByLabelText(/search guests by name/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         const laundryBtn = screen.getByTitle("Book Laundry");

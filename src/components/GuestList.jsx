@@ -3223,7 +3223,7 @@ const GuestList = () => {
             </div>
             <input
               type="text"
-              placeholder="Search by name or initials (e.g., 'John Smith' or 'JS')..."
+              placeholder="Search by name or type first AND last name to create new guest..."
               aria-label="Search guests by name"
               value={searchTerm}
               onChange={(e) => {
@@ -3418,6 +3418,11 @@ const GuestList = () => {
                   <p className="text-gray-600 max-w-sm">
                     Try adjusting your search terms or add more letters to narrow down results
                   </p>
+                  {!hasMinimumNameParts && searchTerm.trim().length > 0 && (
+                    <div className="mt-4 p-3 bg-white rounded-lg border border-amber-200 text-sm text-gray-700">
+                      <strong className="text-amber-700">💡 Tip:</strong> Type the guest's first AND last name, then press Enter to create a new guest profile.
+                    </div>
+                  )}
                 </div>
               </div>
 
