@@ -25,11 +25,11 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
   const [dismissing, setDismissing] = useState(false);
   const [waiverStep, setWaiverStep] = useState("initial"); // 'initial', 'submitted', or 'confirmed'
 
-  const { guestNeedsWaiverReminder, dismissWaiver, hasActiveWaiver } = useAppContext();
+  const { guestNeedsWaiverReminder, dismissWaiver, hasActiveWaiver, waiverVersion } = useAppContext();
 
   // Determine if this is a bicycle waiver (separate from shower/laundry)
   const isBicycleWaiver = serviceType === "bicycle";
-  
+
   // Shower and laundry share a common waiver, bicycle is separate
   const isShowerLaundryWaiver = serviceType === "shower" || serviceType === "laundry";
 
@@ -40,27 +40,27 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
       try {
         // Check if the guest needs a waiver for this specific service
         const needsForThisService = await guestNeedsWaiverReminder(guestId, serviceType);
-        
+
         if (!needsForThisService) {
           setNeedsWaiver(false);
           setLoading(false);
           return;
         }
-        
+
         // For bicycle, just check this service (separate waiver)
         if (isBicycleWaiver) {
           setNeedsWaiver(true);
           setLoading(false);
           return;
         }
-        
+
         // Since shower and laundry share a common waiver, check if the OTHER service
         // already has an active (dismissed) waiver this year
         const otherService = serviceType === "shower" ? "laundry" : "shower";
-        const hasOtherWaiver = hasActiveWaiver 
+        const hasOtherWaiver = hasActiveWaiver
           ? await hasActiveWaiver(guestId, otherService)
           : false;
-        
+
         // If the other service has an active waiver, this service doesn't need one
         if (hasOtherWaiver) {
           setNeedsWaiver(false);
@@ -78,13 +78,13 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
     if (guestId && serviceType) {
       checkWaiver();
     }
-  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver, isBicycleWaiver]);
+  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver, isBicycleWaiver, waiverVersion]);
 
   const handleDismiss = async () => {
     setDismissing(true);
     try {
       const success = await dismissWaiver(guestId, serviceType, "signed_by_staff");
-      
+
       if (success) {
         // For shower/laundry, also dismiss the other service type since they share a waiver
         if (isShowerLaundryWaiver) {
@@ -99,7 +99,7 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
           // Bicycle has its own waiver
           toast.success("Bicycle program waiver confirmed for this year");
         }
-        
+
         setNeedsWaiver(false);
         setShowModal(false);
         setWaiverStep("initial");
@@ -115,10 +115,10 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
 
   const handleOpenWaiverLink = () => {
     // Use different waiver URLs based on service type
-    const waiverUrl = isBicycleWaiver 
+    const waiverUrl = isBicycleWaiver
       ? "https://hopes-corner-bicycle-waiver.vercel.app/"
       : "https://hopes-corner-waiver-submission-next.vercel.app/";
-    
+
     window.open(waiverUrl, "waiver_window");
     // Move to the "submitted" step after opening the link
     setWaiverStep("submitted");
@@ -130,10 +130,10 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
 
   const serviceName = serviceType === "shower" ? "Shower" : serviceType === "laundry" ? "Laundry" : "Bicycle";
   const waiverTitle = isBicycleWaiver ? "Bicycle Program Waiver" : "Services Waiver";
-  const waiverDescription = isBicycleWaiver 
+  const waiverDescription = isBicycleWaiver
     ? "Confirm bicycle waiver is signed for this year"
     : "Confirm waiver is signed for this year";
-  const badgeTitle = isBicycleWaiver 
+  const badgeTitle = isBicycleWaiver
     ? "Bicycle program waiver required"
     : "Services waiver required (covers shower & laundry)";
 
@@ -158,7 +158,7 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
 
       {/* Modal Dialog - Rendered as Portal to avoid z-index issues with parent modals */}
       {showModal && createPortal(
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
           onClick={handleBackdropClick}
           role="dialog"
@@ -204,7 +204,7 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
                       This guest has used {serviceName.toLowerCase()} services. They need to sign the waiver form.
                     </p>
                   </div>
-                  
+
                   {/* Service-specific notice */}
                   {isBicycleWaiver ? (
                     <div className="bg-sky-50 border border-sky-200 rounded-md p-4 mb-6">
@@ -240,7 +240,7 @@ export const WaiverBadge = ({ guestId, serviceType, onDismissed }) => {
                       </div>
                     </div>
                   )}
-                  
+
                   <p className="text-xs text-gray-500 mb-6 text-center">
                     This waiver requirement will reset on January 1st of next year.
                   </p>

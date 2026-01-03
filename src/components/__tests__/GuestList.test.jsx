@@ -28,6 +28,7 @@ const createDefaultContext = () => ({
   addHolidayRecord: vi.fn(),
   updateGuest: vi.fn(),
   removeGuest: vi.fn(),
+  transferAllGuestRecords: vi.fn().mockResolvedValue(true),
   guestNeedsWaiverReminder: vi.fn().mockResolvedValue(false),
   dismissWaiver: vi.fn().mockResolvedValue(true),
   hasActiveWaiver: vi.fn().mockReturnValue(true),
@@ -217,7 +218,7 @@ describe("GuestList", () => {
 
   it("transfers meal records to another guest when transfer is confirmed", async () => {
     const user = userEvent.setup();
-    const transferMealRecordsMock = vi.fn().mockResolvedValue(true);
+    const transferAllGuestRecordsMock = vi.fn().mockResolvedValue(true);
     const removeGuestMock = vi.fn().mockResolvedValue(undefined);
 
     mockContextValue = {
@@ -245,7 +246,7 @@ describe("GuestList", () => {
         },
       ],
       mealRecords: [{ id: "m1", guestId: "g1", date: "2025-10-24" }],
-      transferMealRecords: transferMealRecordsMock,
+      transferAllGuestRecords: transferAllGuestRecordsMock,
       removeGuest: removeGuestMock,
     };
 
@@ -267,7 +268,7 @@ describe("GuestList", () => {
     // Search and select target guest using the searchable input
     const transferSearchInput = screen.getByPlaceholderText(/Search guests by name/i);
     await user.type(transferSearchInput, "Jane");
-    
+
     // Click on Jane Smith in the dropdown
     const janeOption = await screen.findByText("Jane Smith");
     await user.click(janeOption);
@@ -276,8 +277,8 @@ describe("GuestList", () => {
     const transferButton = screen.getByText(/Transfer & Delete/i);
     await user.click(transferButton);
 
-    // Verify transferMealRecords was called with correct arguments
-    expect(transferMealRecordsMock).toHaveBeenCalledWith("g1", "g2");
+    // Verify transferAllGuestRecords was called with correct arguments
+    expect(transferAllGuestRecordsMock).toHaveBeenCalledWith("g1", "g2");
     expect(removeGuestMock).toHaveBeenCalledWith("g1");
   });
 
@@ -563,8 +564,8 @@ describe("GuestList", () => {
       await user.click(lastNameButtonEl);
       expect(lastNameButtonEl.className).toContain("bg-blue-600");
     });
-  
-});
 
-// Balance: extra closing pair to satisfy parser (added during automated test fix)
+  });
+
+  // Balance: extra closing pair to satisfy parser (added during automated test fix)
 });

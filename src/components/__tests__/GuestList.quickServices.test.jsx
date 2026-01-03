@@ -36,7 +36,7 @@ const createDefaultContext = () => ({
     guestNeedsWaiverReminder: vi.fn().mockResolvedValue(false),
     dismissWaiver: vi.fn().mockResolvedValue(true),
     hasActiveWaiver: vi.fn().mockReturnValue(true),
-    transferMealRecords: vi.fn(),
+    transferAllGuestRecords: vi.fn(),
     isDataLoaded: true,
 });
 

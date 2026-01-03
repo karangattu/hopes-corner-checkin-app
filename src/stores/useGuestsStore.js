@@ -269,7 +269,7 @@ export const useGuestsStore = create(
           // This helps prevent the "Unknown Guest" data corruption issue
           const validateNameUpdates = (updates, originalGuest) => {
             const issues = [];
-            
+
             // Check firstName - if being updated, must not be empty
             if (updates.firstName !== undefined) {
               const newFirstName = (updates.firstName || '').trim();
@@ -277,7 +277,7 @@ export const useGuestsStore = create(
                 issues.push('firstName cannot be empty');
               }
             }
-            
+
             // Check lastName - if being updated, must not be empty
             if (updates.lastName !== undefined) {
               const newLastName = (updates.lastName || '').trim();
@@ -285,7 +285,7 @@ export const useGuestsStore = create(
                 issues.push('lastName cannot be empty');
               }
             }
-            
+
             // Check name (full name) - if being updated, must not be empty
             if (updates.name !== undefined) {
               const newName = (updates.name || '').trim();
@@ -293,7 +293,7 @@ export const useGuestsStore = create(
                 issues.push('name (full name) cannot be empty');
               }
             }
-            
+
             // Log if there's a potential issue with partial name updates
             if (issues.length > 0) {
               console.error(
@@ -305,7 +305,7 @@ export const useGuestsStore = create(
               );
               return { isValid: false, issues };
             }
-            
+
             return { isValid: true, issues: [] };
           };
 
@@ -441,16 +441,37 @@ export const useGuestsStore = create(
         },
 
         removeGuest: async (id) => {
-          const { guests } = get();
+          const { guests, guestProxies, warnings } = get();
           const target = guests.find((g) => g.id === id);
 
+          // DATA INTEGRITY: Cleanup related data in local state
           set((state) => {
             state.guests = state.guests.filter((g) => g.id !== id);
+            // Remove any proxy relationships involving this guest
+            state.guestProxies = (state.guestProxies || []).filter(
+              (p) => p.guestId !== id && p.proxyId !== id
+            );
+            // Remove any warnings for this guest
+            state.warnings = (state.warnings || []).filter((w) => w.guestId !== id);
           });
+
           // Clear search cache after removing guest
           clearSearchIndexCache();
 
           if (isSupabaseEnabled() && supabase && target) {
+            // DATA INTEGRITY: Cleanup related data in Supabase before deleting guest
+            // This prevents foreign key violations or orphaned records
+
+            // 1. Delete proxy relationships
+            await supabase
+              .from('guest_proxies')
+              .delete()
+              .or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+
+            // 2. Delete guest warnings
+            await supabase.from('guest_warnings').delete().eq('guest_id', id);
+
+            // 3. Finally delete the guest record
             const { error } = await supabase.from('guests').delete().eq('id', id);
 
             if (error) {
@@ -461,9 +482,9 @@ export const useGuestsStore = create(
 
         banGuest: async (
           guestId,
-          { 
-            bannedUntil, 
-            banReason = '', 
+          {
+            bannedUntil,
+            banReason = '',
             bannedAt: bannedAtOverride,
             // Program-specific bans - if all false, it's a blanket ban from all services
             bannedFromBicycle = false,
@@ -921,7 +942,7 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests = [...state.guests, ...newGuests];
           });
-          
+
           // Clear search cache after bulk import
           clearSearchIndexCache();
 
@@ -981,7 +1002,7 @@ export const useGuestsStore = create(
                 housingStatus: normalizeHousingStatus(g.housingStatus),
               }));
             });
-            
+
             // Clear search cache after loading guests from Supabase
             // This ensures the search index is rebuilt with the latest data
             clearSearchIndexCache();
@@ -1124,7 +1145,7 @@ export const useGuestsStore = create(
         getLinkedGuests: (guestId) => {
           const { guests, guestProxies } = get();
           if (!guestId) return [];
-          
+
           // Find all proxy relationships where this guest is involved
           const linkedGuestIds = new Set();
           guestProxies.forEach((proxy) => {
@@ -1143,7 +1164,7 @@ export const useGuestsStore = create(
         getLinkedGuestsCount: (guestId) => {
           const { guestProxies } = get();
           if (!guestId) return 0;
-          
+
           const linkedGuestIds = new Set();
           guestProxies.forEach((proxy) => {
             if (proxy.guestId === guestId) {

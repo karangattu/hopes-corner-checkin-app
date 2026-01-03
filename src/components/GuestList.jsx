@@ -82,7 +82,7 @@ const GuestList = () => {
     setBicyclePickerGuest,
     actionHistory,
     undoAction,
-    transferMealRecords,
+    transferAllGuestRecords,
   } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
@@ -1272,32 +1272,53 @@ const GuestList = () => {
     const guestMealCount = (mealRecords || []).filter(
       (r) => r.guestId === guest.id,
     ).length;
+    const guestExtraMealCount = (extraMealRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
     const guestShowerCount = (showerRecords || []).filter(
       (r) => r.guestId === guest.id,
     ).length;
     const guestLaundryCount = (laundryRecords || []).filter(
       (r) => r.guestId === guest.id,
     ).length;
+    const guestBicycleCount = (bicycleRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
+    const guestHolidayCount = (holidayRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
+    const guestHaircutCount = (haircutRecords || []).filter(
+      (r) => r.guestId === guest.id,
+    ).length;
 
-    // If guest has meal records, show transfer modal instead of delete confirmation
-    if (guestMealCount > 0) {
+    const totalRecords =
+      guestMealCount +
+      guestExtraMealCount +
+      guestShowerCount +
+      guestLaundryCount +
+      guestBicycleCount +
+      guestHolidayCount +
+      guestHaircutCount;
+
+    // If guest has ANY records, show transfer modal instead of delete confirmation
+    if (totalRecords > 0) {
       setMealTransferModal({
         isOpen: true,
         sourceGuest: guest,
-        mealCount: guestMealCount,
+        mealCount: totalRecords,
         selectedTargetGuest: null,
         searchTerm: "",
       });
       return;
     }
 
-    // If no meal records, show normal delete confirmation
+    // If no records, show normal delete confirmation
     setDeleteConfirmation({
       isOpen: true,
       guest,
-      mealCount: guestMealCount,
-      showerCount: guestShowerCount,
-      laundryCount: guestLaundryCount,
+      mealCount: 0,
+      showerCount: 0,
+      laundryCount: 0,
     });
   };
 
@@ -1305,21 +1326,21 @@ const GuestList = () => {
     const { sourceGuest, selectedTargetGuest, mealCount } = mealTransferModal;
 
     if (!selectedTargetGuest) {
-      toast.error("Please select a guest to transfer meals to");
+      toast.error("Please select a guest to transfer records to");
       return;
     }
 
     try {
-      // Transfer meals using the context function
-      const success = await transferMealRecords(sourceGuest.id, selectedTargetGuest.id);
+      // Transfer ALL records using the context function
+      const success = await transferAllGuestRecords(sourceGuest.id, selectedTargetGuest.id);
 
       if (!success) {
-        toast.error("Failed to transfer meals");
+        toast.error("Failed to transfer records");
         return;
       }
 
       toast.success(
-        `✓ Transferred ${mealCount} meal record${mealCount === 1 ? "" : "s"} to ${selectedTargetGuest.name}`
+        `✓ Transferred ${mealCount} record${mealCount === 1 ? "" : "s"} to ${selectedTargetGuest.name}`
       );
 
       // Close transfer modal and proceed with deletion
@@ -1334,10 +1355,13 @@ const GuestList = () => {
       // Now delete the guest
       removeGuest(sourceGuest.id);
       toast.success(`Guest ${sourceGuest.name} deleted`);
+
+      // Cleanup state to prevent index shifting issues
       if (expandedGuest === sourceGuest.id) setExpandedGuest(null);
+      setSelectedGuestIndex(-1); // Critical: Reset index after deletion
     } catch (error) {
-      console.error("Error transferring meals:", error);
-      toast.error("Failed to transfer meals");
+      console.error("Error transferring records:", error);
+      toast.error("Failed to transfer records");
     }
   };
 
@@ -1345,7 +1369,11 @@ const GuestList = () => {
     const guest = deleteConfirmation.guest;
     removeGuest(guest.id);
     toast.success("Guest deleted");
+
+    // Cleanup state to prevent index shifting issues
     if (expandedGuest === guest.id) setExpandedGuest(null);
+    setSelectedGuestIndex(-1); // Critical: Reset index after deletion
+
     setDeleteConfirmation({ isOpen: false, guest: null });
   };
 
@@ -3172,10 +3200,10 @@ const GuestList = () => {
                           fullName.includes(searchLower)
                         );
                       }).length === 0 && (
-                      <div className="px-4 py-2 text-sm text-gray-500">
-                        No guests found
-                      </div>
-                    )}
+                        <div className="px-4 py-2 text-sm text-gray-500">
+                          No guests found
+                        </div>
+                      )}
                   </div>
                 )}
               </div>

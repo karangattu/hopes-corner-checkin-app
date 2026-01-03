@@ -19,7 +19,7 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
 
   // Safely get context - may be undefined in tests
   const context = useAppContext() || {};
-  const { guestNeedsWaiverReminder, hasActiveWaiver } = context;
+  const { guestNeedsWaiverReminder, hasActiveWaiver, waiverVersion } = context;
 
   // Determine if this is a bicycle waiver (separate from shower/laundry)
   const isBicycleWaiver = serviceType === "bicycle";
@@ -36,27 +36,27 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
       setLoading(true);
       try {
         const needsForThisService = await guestNeedsWaiverReminder(guestId, serviceType);
-        
+
         if (!needsForThisService) {
           setNeedsWaiver(false);
           setLoading(false);
           return;
         }
-        
+
         // For bicycle, just check this service (separate waiver)
         if (isBicycleWaiver) {
           setNeedsWaiver(true);
           setLoading(false);
           return;
         }
-        
+
         // Since shower and laundry share a common waiver, check if the OTHER service
         // already has an active (dismissed) waiver this year
         const otherService = serviceType === "shower" ? "laundry" : "shower";
-        const hasOtherWaiver = hasActiveWaiver 
+        const hasOtherWaiver = hasActiveWaiver
           ? await hasActiveWaiver(guestId, otherService)
           : false;
-        
+
         // If the other service has an active waiver, this service doesn't need one
         if (hasOtherWaiver) {
           setNeedsWaiver(false);
@@ -76,15 +76,15 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
     } else {
       setLoading(false);
     }
-  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver, isBicycleWaiver]);
+  }, [guestId, serviceType, guestNeedsWaiverReminder, hasActiveWaiver, isBicycleWaiver, waiverVersion]);
 
   // Don't render anything if loading or no waiver needed
   if (loading || !needsWaiver) {
     return null;
   }
 
-  const tooltipText = serviceType === "bicycle" 
-    ? "Bicycle program waiver needed" 
+  const tooltipText = serviceType === "bicycle"
+    ? "Bicycle program waiver needed"
     : "Services waiver needed (covers shower & laundry)";
 
   const handleClick = () => {
@@ -93,7 +93,7 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
 
   return (
     <>
-      <div 
+      <div
         className="relative inline-flex"
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
@@ -109,7 +109,7 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
         >
           !
         </button>
-        
+
         {/* Tooltip */}
         {showTooltip && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
@@ -126,8 +126,8 @@ export const CompactWaiverIndicator = ({ guestId, serviceType }) => {
 
       {/* Waiver Modal - show WaiverBadge in modal mode */}
       {showWaiverModal && (
-        <WaiverBadge 
-          guestId={guestId} 
+        <WaiverBadge
+          guestId={guestId}
           serviceType={serviceType}
           onDismissed={() => setShowWaiverModal(false)}
         />

@@ -252,7 +252,11 @@ const Services = () => {
 
   const getGuestNameDetails = useCallback(
     (guestId) => {
-      const guest = guests.find((g) => g.id === guestId) || null;
+      // Robust lookup: try primary UUID first (string-safe), then fall back to human-readable external_id
+      const guest =
+        guests.find((g) => String(g.id) === String(guestId)) ||
+        guests.find((g) => String(g.guestId) === String(guestId)) ||
+        null;
       const fallback = "Unknown Guest";
       const isOrphaned = !guest && guestId; // Has guestId but no matching guest
       const legalName =
@@ -267,7 +271,7 @@ const Services = () => {
       const displayName = hasPreferred
         ? `${preferredName} (${legalName})`
         : legalName;
-      
+
       // Log orphaned records for debugging
       if (isOrphaned) {
         console.warn(
@@ -275,16 +279,16 @@ const Services = () => {
           { guestId, message: 'This record references a guest that no longer exists' }
         );
       }
-      
+
       return {
         guest,
         legalName,
         preferredName,
         hasPreferred,
-        primaryName,
         displayName,
         sortKey: legalName.toLowerCase(),
         isOrphaned, // Flag to identify orphaned records in UI
+        originalGuestId: guestId, // Expose for debugging
       };
     },
     [guests],
@@ -460,7 +464,7 @@ const Services = () => {
   const [laundryViewMode, setLaundryViewMode] = useState(
     () => savedFilters?.laundryViewMode === "list" ? "kanban" : (savedFilters?.laundryViewMode ?? "kanban"),
   );
-  
+
   // Laundry time-travel feature: allow staff to view and manage laundry from past dates
   const [laundryViewDate, setLaundryViewDate] = useState(today);
 
@@ -859,7 +863,7 @@ const Services = () => {
   const activeShowers = sortShowersForDisplay(
     filteredShowers.filter((record) => record.status !== "done"),
   );
-  
+
   // Sort completed showers by when they were actually completed (lastUpdated timestamp)
   // This maintains the order they were completed in the default view
   const completedShowers = [...filteredShowers.filter((record) => record.status === "done")]
@@ -1581,11 +1585,10 @@ const Services = () => {
               );
             }
           }}
-          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${
-            isCompleted
-              ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300"
-              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300"
-          }`}
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${isCompleted
+            ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300"
+            : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300"
+            }`}
           title={isCompleted ? "Reopen shower" : "Mark as done"}
         >
           {isCompleted ? (
@@ -1964,7 +1967,7 @@ const Services = () => {
     mealReportEnd,
     mealReportStart,
     mealReportTypes,
-  shelterMealRecords,
+    shelterMealRecords,
     rvMealRecords,
     toCountValue,
     unitedEffortMealRecords,
@@ -2017,9 +2020,9 @@ const Services = () => {
     );
     const canDownloadMealReport = Boolean(
       mealReportStart &&
-        mealReportEnd &&
-        !mealReportRangeInvalid &&
-        activeMealTypeCount > 0,
+      mealReportEnd &&
+      !mealReportRangeInvalid &&
+      activeMealTypeCount > 0,
     );
 
     return (
@@ -2043,7 +2046,7 @@ const Services = () => {
                 <XCircle size={18} className="text-red-600" /> End Service Day
               </h3>
               <p className="text-sm text-red-700">
-                Bulk cancel all remaining booked/waiting showers and waiting laundry for today. 
+                Bulk cancel all remaining booked/waiting showers and waiting laundry for today.
                 This is typically done at the end of the service day to clear the queues.
               </p>
             </div>
@@ -2121,11 +2124,10 @@ const Services = () => {
                 return (
                   <label
                     key={option.id}
-                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      isActive
-                        ? "border-blue-200 bg-blue-50/80 shadow-sm"
-                        : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
-                    }`}
+                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${isActive
+                      ? "border-blue-200 bg-blue-50/80 shadow-sm"
+                      : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -2172,11 +2174,10 @@ const Services = () => {
                 type="button"
                 onClick={handleDownloadMealReport}
                 disabled={!canDownloadMealReport}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${
-                  canDownloadMealReport
-                    ? "bg-blue-600 hover:bg-blue-500"
-                    : "cursor-not-allowed bg-gray-300"
-                }`}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${canDownloadMealReport
+                  ? "bg-blue-600 hover:bg-blue-500"
+                  : "cursor-not-allowed bg-gray-300"
+                  }`}
               >
                 <Download size={12} /> Download CSV
               </button>
@@ -2619,11 +2620,10 @@ const Services = () => {
             <button
               key={id}
               onClick={() => setMealTypeTab(id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-                mealTypeTab === id
-                  ? "bg-emerald-600 text-white shadow-md"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${mealTypeTab === id
+                ? "bg-emerald-600 text-white shadow-md"
+                : "text-gray-700 hover:bg-gray-100"
+                }`}
             >
               <IconComponent size={18} />
               {label}
@@ -3157,7 +3157,7 @@ const Services = () => {
 
         {/* Guest Meal Log - Revamped */}
         <div style={{ display: mealTypeTab === "guest" ? "block" : "none" }} className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
-          
+
           <div className="relative space-y-6">
             {/* Header Section */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -3220,27 +3220,24 @@ const Services = () => {
                   return (
                     <div
                       key={rec.id}
-                      className={`group relative overflow-visible rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${
-                        isOrphaned 
-                          ? 'border-red-300 bg-red-50/70 hover:border-red-400 hover:bg-red-50/90' 
-                          : 'border-emerald-200/60 bg-white/70 hover:border-emerald-300 hover:bg-white/90'
-                      } backdrop-blur-sm`}
+                      className={`group relative overflow-visible rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${isOrphaned
+                        ? 'border-red-300 bg-red-50/70 hover:border-red-400 hover:bg-red-50/90'
+                        : 'border-emerald-200/60 bg-white/70 hover:border-emerald-300 hover:bg-white/90'
+                        } backdrop-blur-sm`}
                     >
-                      <div className={`absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b ${
-                        isOrphaned 
-                          ? 'from-red-400 to-orange-400' 
-                          : 'from-emerald-400 to-teal-400'
-                      } opacity-0 group-hover:opacity-100 transition-opacity`} />
+                      <div className={`absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b ${isOrphaned
+                        ? 'from-red-400 to-orange-400'
+                        : 'from-emerald-400 to-teal-400'
+                        } opacity-0 group-hover:opacity-100 transition-opacity`} />
 
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         {/* Guest Info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <div className={`flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br ${
-                              isOrphaned 
-                                ? 'from-red-400 to-orange-500' 
-                                : 'from-emerald-400 to-teal-500'
-                            } flex items-center justify-center shadow-sm`}>
+                            <div className={`flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br ${isOrphaned
+                              ? 'from-red-400 to-orange-500'
+                              : 'from-emerald-400 to-teal-500'
+                              } flex items-center justify-center shadow-sm`}>
                               <span className="text-xs font-bold text-white">
                                 {index + 1}
                               </span>
@@ -3251,8 +3248,11 @@ const Services = () => {
                               </h3>
                             </div>
                             {isOrphaned && (
-                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200" title="This meal record references a guest that no longer exists in the system">
-                                ⚠️ Orphaned Record
+                              <span
+                                className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
+                                title={`Guest ID: ${guestDetails.originalGuestId || "unknown"} (Loaded: ${guests.length} guests)`}
+                              >
+                                ⚠️ Orphaned Record ({String(guestDetails.originalGuestId)})
                               </span>
                             )}
                             {isNewGuest && !isExtraGuestMeal && !isOrphaned && (
@@ -3399,7 +3399,7 @@ const Services = () => {
   const EndServiceDayActions = ({ onEndShowerDay, onEndLaundryDay, showShower = false, showLaundry = false }) => {
     const isAdmin = user?.role === "admin" || user?.role === "board" || user?.role === "staff";
     if (!isAdmin || (!showShower && !showLaundry)) return null;
-    
+
     return (
       <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -3480,26 +3480,26 @@ const Services = () => {
       const guest = guests.find((g) => g.id === record.guestId);
       const nameDetails = getGuestNameDetails(record.guestId);
       const guestName = nameDetails.primaryName;
-      
+
       // Essentials logic
       const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
       const canSB = guest ? canGiveItem(guest.id, "sleeping_bag") : false;
       const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
       const canTent = guest ? canGiveItem(guest.id, "tent") : false;
       const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
-      
+
       const daysT = guest ? getDaysUntilAvailable(guest.id, "tshirt") : 0;
       const daysSB = guest ? getDaysUntilAvailable(guest.id, "sleeping_bag") : 0;
       const daysBP = guest ? getDaysUntilAvailable(guest.id, "backpack") : 0;
       const daysTent = guest ? getDaysUntilAvailable(guest.id, "tent") : 0;
       const daysFF = guest ? getDaysUntilAvailable(guest.id, "flip_flops") : 0;
-      
+
       const lastTGuest = guest ? getLastGivenItem(guest.id, "tshirt") : null;
       const lastSBGuest = guest ? getLastGivenItem(guest.id, "sleeping_bag") : null;
       const lastBPGuest = guest ? getLastGivenItem(guest.id, "backpack") : null;
       const lastTentGuest = guest ? getLastGivenItem(guest.id, "tent") : null;
       const lastFFGuest = guest ? getLastGivenItem(guest.id, "flip_flops") : null;
-      
+
       const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
       const isDone = record.status === "done";
       const slotLabel = formatShowerSlotLabel(record.time);
@@ -3507,69 +3507,69 @@ const Services = () => {
         hour: "numeric",
         minute: "2-digit",
       });
-      
+
       const statusInfo = getShowerStatusInfo(record.status);
       const StatusIcon = statusInfo.icon;
       const isWaitlisted = record.status === "waitlisted";
       const queuePosition = section === "active" || section === "waitlist" ? index + 1 : null;
       const isPriority = isWaitlisted && queuePosition <= 2;
       const rowExpanded = Boolean(expandedShowerRows[record.id]);
-      
+
       const essentialsConfig = guest
         ? [
-            {
-              key: "tshirt",
-              label: "T-Shirt",
-              buttonLabel: "Give T-Shirt",
-              icon: Shirt,
-              canGive: canT,
-              lastRecord: lastTGuest,
-              daysRemaining: daysT,
-              successMessage: "T-Shirt given",
-            },
-            {
-              key: "sleeping_bag",
-              label: "Sleeping Bag",
-              buttonLabel: "Give Sleeping Bag",
-              icon: Bed,
-              canGive: canSB,
-              lastRecord: lastSBGuest,
-              daysRemaining: daysSB,
-              successMessage: "Sleeping bag given",
-            },
-            {
-              key: "backpack",
-              label: "Backpack/Duffel Bag",
-              buttonLabel: "Give Backpack/Duffel Bag",
-              icon: Backpack,
-              canGive: canBP,
-              lastRecord: lastBPGuest,
-              daysRemaining: daysBP,
-              successMessage: "Backpack/Duffel Bag given",
-            },
-            {
-              key: "tent",
-              label: "Tent",
-              buttonLabel: "Give Tent",
-              icon: TentTree,
-              canGive: canTent,
-              lastRecord: lastTentGuest,
-              daysRemaining: daysTent,
-              successMessage: "Tent given",
-            },
-            {
-              key: "flip_flops",
-              label: "Flip Flops",
-              buttonLabel: "Give Flip Flops",
-              icon: Footprints,
-              canGive: canFF,
-              lastRecord: lastFFGuest,
-              daysRemaining: daysFF,
-              successMessage: "Flip Flops given",
-            },
-          ]
+          {
+            key: "tshirt",
+            label: "T-Shirt",
+            buttonLabel: "Give T-Shirt",
+            icon: Shirt,
+            canGive: canT,
+            lastRecord: lastTGuest,
+            daysRemaining: daysT,
+            successMessage: "T-Shirt given",
+          },
+          {
+            key: "sleeping_bag",
+            label: "Sleeping Bag",
+            buttonLabel: "Give Sleeping Bag",
+            icon: Bed,
+            canGive: canSB,
+            lastRecord: lastSBGuest,
+            daysRemaining: daysSB,
+            successMessage: "Sleeping bag given",
+          },
+          {
+            key: "backpack",
+            label: "Backpack/Duffel Bag",
+            buttonLabel: "Give Backpack/Duffel Bag",
+            icon: Backpack,
+            canGive: canBP,
+            lastRecord: lastBPGuest,
+            daysRemaining: daysBP,
+            successMessage: "Backpack/Duffel Bag given",
+          },
+          {
+            key: "tent",
+            label: "Tent",
+            buttonLabel: "Give Tent",
+            icon: TentTree,
+            canGive: canTent,
+            lastRecord: lastTentGuest,
+            daysRemaining: daysTent,
+            successMessage: "Tent given",
+          },
+          {
+            key: "flip_flops",
+            label: "Flip Flops",
+            buttonLabel: "Give Flip Flops",
+            icon: Footprints,
+            canGive: canFF,
+            lastRecord: lastFFGuest,
+            daysRemaining: daysFF,
+            successMessage: "Flip Flops given",
+          },
+        ]
         : [];
-        
+
       const availableItems = essentialsConfig.filter((i) => i.canGive);
 
       const handleGiveItem = (itemKey, successMessage) => {
@@ -3593,26 +3593,24 @@ const Services = () => {
         <Animated.div
           key={record.id}
           style={animationStyle}
-          className={`will-change-transform bg-white rounded-2xl shadow-sm border-2 transition-all duration-200 focus-within:z-50 relative ${
-            isDone
-              ? "border-emerald-100 bg-emerald-50/30"
-              : "border-blue-100 hover:border-blue-200 hover:shadow-md"
-          }`}
+          className={`will-change-transform bg-white rounded-2xl shadow-sm border-2 transition-all duration-200 focus-within:z-50 relative ${isDone
+            ? "border-emerald-100 bg-emerald-50/30"
+            : "border-blue-100 hover:border-blue-200 hover:shadow-md"
+            }`}
         >
           <div className="p-4 sm:p-5">
             {/* Header Section */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
               <div className="flex items-start gap-4 min-w-0">
                 {/* Status Icon/Queue Number */}
-                <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl ${
-                  isDone 
-                    ? "bg-emerald-100 text-emerald-600" 
-                    : isPriority
+                <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl ${isDone
+                  ? "bg-emerald-100 text-emerald-600"
+                  : isPriority
                     ? "bg-amber-500 text-white shadow-lg shadow-amber-200"
                     : isWaitlisted
-                    ? "bg-amber-100 text-amber-600"
-                    : "bg-blue-100 text-blue-600"
-                }`}>
+                      ? "bg-amber-100 text-amber-600"
+                      : "bg-blue-100 text-blue-600"
+                  }`}>
                   {isDone ? (
                     <CheckCircle2Icon size={24} />
                   ) : (
@@ -3641,7 +3639,7 @@ const Services = () => {
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
                     <div className="flex items-center gap-1.5">
                       <Clock size={14} className={isWaitlisted ? "text-amber-500" : "text-blue-500"} />
@@ -3676,7 +3674,7 @@ const Services = () => {
                   <StatusIcon size={14} />
                   {statusInfo.label}
                 </span>
-                {!isDone && (
+                {!isDone && context.section !== "modal" && (
                   <div className="ml-2">
                     <WaiverBadge guestId={record.guestId} serviceType="shower" />
                   </div>
@@ -3710,13 +3708,12 @@ const Services = () => {
                     toast.error(error.message);
                   }
                 }}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                  isDone
-                    ? "bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                    : isWaitlisted
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${isDone
+                  ? "bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  : isWaitlisted
                     ? "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-amber-200"
                     : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
-                }`}
+                  }`}
               >
                 {isDone ? (
                   <>
@@ -3750,11 +3747,10 @@ const Services = () => {
                   }}
                   size="sm"
                   className="w-full"
-                  buttonClassName={`w-full !rounded-xl !border-2 !py-2.5 !px-4 !font-bold !transition-all !shadow-sm ${
-                    isDone 
-                      ? "!border-emerald-100 !text-emerald-700 hover:!bg-emerald-50" 
-                      : "!border-blue-100 !text-blue-700 hover:!bg-blue-50"
-                  }`}
+                  buttonClassName={`w-full !rounded-xl !border-2 !py-2.5 !px-4 !font-bold !transition-all !shadow-sm ${isDone
+                    ? "!border-emerald-100 !text-emerald-700 hover:!bg-emerald-50"
+                    : "!border-blue-100 !text-blue-700 hover:!bg-blue-50"
+                    }`}
                   placeholder={isWaitlisted ? "Assign to slot..." : "Reschedule..."}
                   displayValue={record.time ? `Move: ${formatShowerSlotLabel(record.time)}` : isWaitlisted ? "Assign Slot" : "Reschedule"}
                 />
@@ -3765,11 +3761,10 @@ const Services = () => {
                 <button
                   type="button"
                   onClick={handleToggleDetails}
-                  className={`p-2.5 rounded-xl border-2 transition-all ${
-                    rowExpanded 
-                      ? "bg-blue-50 border-blue-200 text-blue-600" 
-                      : "bg-white border-gray-100 text-gray-500 hover:border-gray-200 hover:text-gray-700"
-                  }`}
+                  className={`p-2.5 rounded-xl border-2 transition-all ${rowExpanded
+                    ? "bg-blue-50 border-blue-200 text-blue-600"
+                    : "bg-white border-gray-100 text-gray-500 hover:border-gray-200 hover:text-gray-700"
+                    }`}
                   title="Essentials & Notes"
                 >
                   <Sparkles size={20} />
@@ -3815,20 +3810,18 @@ const Services = () => {
                       {essentialsConfig.map((item) => {
                         const Icon = item.icon;
                         const isAvailable = item.canGive;
-                        
+
                         return (
                           <div
                             key={item.key}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                              isAvailable
-                                ? "bg-white border-emerald-100 hover:border-emerald-300"
-                                : "bg-gray-50 border-gray-100 opacity-75"
-                            }`}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isAvailable
+                              ? "bg-white border-emerald-100 hover:border-emerald-300"
+                              : "bg-gray-50 border-gray-100 opacity-75"
+                              }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`p-2 rounded-lg ${
-                                isAvailable ? "bg-emerald-50 text-emerald-600" : "bg-gray-200 text-gray-400"
-                              }`}>
+                              <div className={`p-2 rounded-lg ${isAvailable ? "bg-emerald-50 text-emerald-600" : "bg-gray-200 text-gray-400"
+                                }`}>
                                 <Icon size={18} />
                               </div>
                               <div className="min-w-0">
@@ -3850,16 +3843,15 @@ const Services = () => {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <button
                               type="button"
                               disabled={!isAvailable}
                               onClick={() => handleGiveItem(item.key, item.successMessage)}
-                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                                isAvailable
-                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              }`}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${isAvailable
+                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                }`}
                             >
                               {item.buttonLabel}
                             </button>
@@ -3912,15 +3904,15 @@ const Services = () => {
               <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
             </div>
           </div>
-          
+
           {/* End Service Day - Consistent placement at top of section */}
-          <EndServiceDayActions 
-            onEndShowerDay={handleEndShowerDay} 
+          <EndServiceDayActions
+            onEndShowerDay={handleEndShowerDay}
             onEndLaundryDay={handleEndLaundryDay}
-            showShower={true} 
-            showLaundry={false} 
+            showShower={true}
+            showLaundry={false}
           />
-          
+
           {/* Date Navigation for Shower Time Travel */}
           {showerViewDate !== today && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -3941,7 +3933,7 @@ const Services = () => {
               </div>
             </div>
           )}
-          
+
           {/* Date Navigation Buttons */}
           <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
             <button
@@ -3952,11 +3944,11 @@ const Services = () => {
               <ChevronLeft size={16} />
               Previous Day
             </button>
-            
+
             <div className="text-center text-sm font-medium text-gray-600">
               {formatServiceDayLabel(showerViewDate)}
             </div>
-            
+
             <button
               type="button"
               onClick={goToNextShowerDate}
@@ -3967,10 +3959,10 @@ const Services = () => {
               <ChevronRight size={16} />
             </button>
           </div>
-          
+
           {/* Slot Block Manager - Only visible to admin/staff */}
           <SlotBlockManager serviceType="shower" />
-          
+
           <CompactShowerList onGuestClick={handleShowerGuestClick} viewDate={showerViewDate} />
 
           {/* Modal for detailed view */}
@@ -4123,7 +4115,7 @@ const Services = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Date Navigation Buttons */}
             <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
               <button
@@ -4134,11 +4126,11 @@ const Services = () => {
                 <ChevronLeft size={16} />
                 Previous Day
               </button>
-              
+
               <div className="text-center text-sm font-medium text-gray-600">
                 {formatServiceDayLabel(showerViewDate)}
               </div>
-              
+
               <button
                 type="button"
                 onClick={goToNextShowerDate}
@@ -4155,51 +4147,45 @@ const Services = () => {
               <button
                 type="button"
                 onClick={() => setShowerTab("active")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "active"
-                    ? "border-blue-500 text-blue-600 bg-blue-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "active"
+                  ? "border-blue-500 text-blue-600 bg-blue-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <Clock size={16} />
                 <span>Active Queue</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "active" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "active" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {activeShowers.length}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowerTab("completed")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "completed"
-                    ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "completed"
+                  ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <CheckCircle size={16} />
                 <span>Completed</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {completedShowers.length}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowerTab("waitlist")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "waitlist"
-                    ? "border-amber-500 text-amber-600 bg-amber-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "waitlist"
+                  ? "border-amber-500 text-amber-600 bg-amber-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <History size={16} />
                 <span>Waitlist</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "waitlist" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "waitlist" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {todayWaitlisted.length}
                 </span>
               </button>
@@ -4261,7 +4247,7 @@ const Services = () => {
                     )}
                   </div>
                 )}
-                
+
                 {/* Collapsible Completed Showers Section */}
                 {completedShowers.length > 0 && (
                   <div className="mt-8 rounded-xl border-2 border-emerald-100 bg-emerald-50 overflow-hidden">
@@ -4285,7 +4271,7 @@ const Services = () => {
                         <ChevronDown size={20} className="text-emerald-600" />
                       )}
                     </button>
-                    
+
                     {expandedCompletedShowers && (
                       <div className="border-t-2 border-emerald-100 bg-white p-6 space-y-4">
                         {completedShowers.map((record, idx) =>
@@ -4318,7 +4304,7 @@ const Services = () => {
                       </select>
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
-                    
+
                     <div className="px-3 py-2 bg-emerald-50 border-2 border-emerald-100 rounded-xl flex items-center gap-2">
                       <CheckCircle2Icon size={14} className="text-emerald-600" />
                       <span className="text-sm font-bold text-emerald-700">
@@ -4384,7 +4370,7 @@ const Services = () => {
                       </select>
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
-                    
+
                     <div className="px-3 py-2 bg-amber-50 border-2 border-amber-100 rounded-xl flex items-center gap-2">
                       <History size={14} className="text-amber-600" />
                       <span className="text-sm font-bold text-amber-700">
@@ -4428,7 +4414,7 @@ const Services = () => {
                         section: "waitlist",
                       }),
                     )}
-                    
+
                     <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-start gap-3">
                       <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                         <Sparkles size={20} />
@@ -4436,7 +4422,7 @@ const Services = () => {
                       <div>
                         <h4 className="text-sm font-bold text-amber-900 mb-1">Waitlist Management</h4>
                         <p className="text-xs text-amber-700 leading-relaxed">
-                          Guests marked as <strong>Priority</strong> are next in line. 
+                          Guests marked as <strong>Priority</strong> are next in line.
                           Assign them to a slot or mark them complete as soon as a shower becomes available.
                         </p>
                       </div>
@@ -4455,11 +4441,11 @@ const Services = () => {
     return (
       <div className="space-y-6">
         {/* End Service Day - Consistent placement at top of section */}
-        <EndServiceDayActions 
-          onEndShowerDay={handleEndShowerDay} 
+        <EndServiceDayActions
+          onEndShowerDay={handleEndShowerDay}
           onEndLaundryDay={handleEndLaundryDay}
-          showShower={false} 
-          showLaundry={true} 
+          showShower={false}
+          showLaundry={true}
         />
 
         {/* Pending Pickup - Orphaned Laundry from Previous Days */}
@@ -4494,22 +4480,20 @@ const Services = () => {
                   <button
                     type="button"
                     onClick={() => setLaundryViewMode("kanban")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                      laundryViewMode === "kanban"
-                        ? "bg-white text-purple-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${laundryViewMode === "kanban"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     Kanban
                   </button>
                   <button
                     type="button"
                     onClick={() => setLaundryViewMode("compact")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                      laundryViewMode === "compact"
-                        ? "bg-white text-purple-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${laundryViewMode === "compact"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     Compact
                   </button>
@@ -4551,7 +4535,7 @@ const Services = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Date Navigation Buttons */}
                 <div className="flex items-center justify-between gap-2 bg-purple-50 border border-purple-100 rounded-lg p-2">
                   <button
@@ -4562,11 +4546,11 @@ const Services = () => {
                     <ChevronLeft size={16} />
                     Previous Day
                   </button>
-                  
+
                   <div className="text-center text-sm font-medium text-gray-600">
                     {formatServiceDayLabel(laundryViewDate)}
                   </div>
-                  
+
                   <button
                     type="button"
                     onClick={goToNextLaundryDate}
@@ -4578,8 +4562,8 @@ const Services = () => {
                   </button>
                 </div>
 
-                <CompactLaundryList 
-                  viewDate={laundryViewDate} 
+                <CompactLaundryList
+                  viewDate={laundryViewDate}
                   onGuestClick={() => {
                     // When clicking in compact view, switch to kanban for full interaction
                     setLaundryViewMode("kanban");
@@ -4677,11 +4661,10 @@ const Services = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    activeSection === section.id
-                      ? "bg-blue-100 text-blue-700 border border-blue-200"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeSection === section.id
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
                 >
                   <SpringIcon>
                     <Icon size={16} />

@@ -129,6 +129,11 @@ export const AppProvider = ({ children }) => {
   const [laundryPickerGuest, setLaundryPickerGuest] = useState(null);
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
+  const [waiverVersion, setWaiverVersion] = useState(0);
+
+  const incrementWaiverVersion = useCallback(() => {
+    setWaiverVersion((v) => v + 1);
+  }, []);
 
   const pushAction = useCallback((action) => {
     if (!action) return;
@@ -700,7 +705,8 @@ export const AppProvider = ({ children }) => {
           fetchAllPaginated(supabase, {
             table: "guests",
             select: guestColumns,
-            orderBy: "updated_at",
+            // Use created_at for stable pagination (updated_at can be unstable during bulk updates)
+            orderBy: "created_at",
             ascending: false,
             pageSize: 1000,
             mapper: mapGuestRow,
@@ -2456,50 +2462,90 @@ export const AppProvider = ({ children }) => {
   };
 
   /**
-   * Transfer meal records from one guest to another
-   * Used when deleting a guest who has meal records
+   * Transfers ALL service records from one guest to another.
+   * Used when deleting a guest who has history that should be preserved.
    */
-  const transferMealRecords = async (sourceGuestId, targetGuestId) => {
+  const transferAllGuestRecords = async (sourceGuestId, targetGuestId) => {
     if (!sourceGuestId || !targetGuestId) return false;
 
-    const mealsToTransfer = mealRecords.filter((r) => r.guestId === sourceGuestId) || [];
-
-    if (mealsToTransfer.length === 0) return true; // Nothing to transfer
+    // Tables that have guest_id column and need transferring
+    const serviceTables = [
+      { name: "meal_attendance", stateSetter: setMealRecords, state: mealRecords },
+      { name: "meal_attendance", stateSetter: setExtraMealRecords, state: extraMealRecords },
+      { name: "shower_reservations", stateSetter: setShowerRecords, state: showerRecords },
+      { name: "laundry_bookings", stateSetter: setLaundryRecords, state: laundryRecords },
+      { name: "bicycle_repairs", stateSetter: setBicycleRecords, state: bicycleRecords },
+      { name: "holiday_visits", stateSetter: setHolidayRecords, state: holidayRecords },
+      { name: "haircut_visits", stateSetter: setHaircutRecords, state: haircutRecords },
+      { name: "items_distributed", stateSetter: setItemRecords, state: itemRecords },
+    ];
 
     if (supabaseEnabled && supabase) {
       try {
-        // Update all meal records in Supabase
-        for (const meal of mealsToTransfer) {
+        for (const table of serviceTables) {
+          // Use a generic update for all service tables in Supabase
           const { error } = await supabase
-            .from("meal_attendance")
+            .from(table.name)
             .update({ guest_id: targetGuestId })
-            .eq("id", meal.id);
+            .eq("guest_id", sourceGuestId);
 
           if (error) {
-            console.error("Failed to transfer meal record:", error, meal.id);
-            return false;
+            console.error(`Failed to transfer records for ${table.name}:`, error);
+            // We continue with other tables even if one fails, but track error
           }
         }
       } catch (error) {
-        console.error("Error during meal transfer:", error);
+        console.error("Error during batch record transfer:", error);
         return false;
       }
     }
 
-    // Update local state
-    setMealRecords(
-      mealRecords.map((r) =>
-        r.guestId === sourceGuestId ? { ...r, guestId: targetGuestId } : r
-      )
-    );
+    // Update local state for all service types
+    // Note: meal_attendance is shared by multiple state pieces (mealRecords, extraMealRecords, etc.)
+    // but they are already separated in our local state, so we update them individually.
+    serviceTables.forEach(table => {
+      table.stateSetter(prev =>
+        prev.map(r => r.guestId === sourceGuestId ? { ...r, guestId: targetGuestId } : r)
+      );
+    });
 
     return true;
   };
 
   const removeGuest = async (id) => {
     const target = guests.find((g) => g.id === id);
-    setGuests(guests.filter((guest) => guest.id !== id));
+
+    // First, remove from local state
+    setGuests(prev => prev.filter((guest) => guest.id !== id));
+
+    // Cleanup related records in local state that don't make sense to transfer
+    // such as warnings and proxy links
+    const { unlinkGuests, removeGuestWarning } = useGuestsStore.getState();
+
+    // Get all proxy links involving this guest and remove them
+    // This is handled by useGuestsStore's unlinkGuests which updates state
+    const { guestProxies, warnings } = useGuestsStore.getState();
+    const proxiesToRemove = (guestProxies || []).filter(
+      p => p.guestId === id || p.proxyId === id
+    );
+    for (const p of proxiesToRemove) {
+      unlinkGuests(p.guestId, p.proxyId);
+    }
+
+    // Remove warnings for this guest
+    const guestWarnings = (warnings || []).filter(w => w.guestId === id);
+    for (const w of guestWarnings) {
+      removeGuestWarning(w.id);
+    }
+
     if (supabaseEnabled && supabase && target) {
+      // 1. Cleanup guest_proxies in Supabase
+      await supabase.from("guest_proxies").delete().or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+
+      // 2. Cleanup guest_warnings in Supabase
+      await supabase.from("guest_warnings").delete().eq("guest_id", id);
+
+      // 3. Finally delete the guest
       const { error } = await supabase.from("guests").delete().eq("id", id);
 
       if (error) {
@@ -3387,8 +3433,9 @@ export const AppProvider = ({ children }) => {
         supabaseClient: supabase,
         pushAction,
         toast,
+        incrementWaiverVersion,
       }),
-    [supabaseEnabled, pushAction],
+    [supabaseEnabled, pushAction, incrementWaiverVersion],
   );
 
   // Callback for when a service is marked complete - checks if waiver is needed
@@ -5901,6 +5948,7 @@ export const AppProvider = ({ children }) => {
     // Waiver operations
     fetchGuestWaivers,
     guestNeedsWaiverReminder,
+    waiverVersion,
     dismissWaiver,
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
@@ -5912,7 +5960,7 @@ export const AppProvider = ({ children }) => {
     // Slot refresh for real-time availability
     refreshServiceSlots,
     // Meal transfer for guest deletion
-    transferMealRecords,
+    transferAllGuestRecords,
   }), [
     // State dependencies
     guests,
