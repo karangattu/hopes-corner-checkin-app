@@ -9,6 +9,10 @@ An app to manage guest check‑ins, services (meals, showers, laundry), donation
 - **Donation Management**: Record, consolidate, and export donations
 - **Admin Analytics**: Generate charts, metrics, and reports
 
+## App link
+
+The app can be accessed [at this link](https://hopes-corner-checkin-app.web.app)
+
 ## 🚀 Quick Start
 
 ### Run the App Locally
