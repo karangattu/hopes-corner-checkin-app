@@ -10,24 +10,31 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // Changelog entries - add new entries at the top
 export const CHANGELOG = [
   {
+    version: "0.0.7",
+    date: "January 4, 2026",
+    highlights: [
+      {
+        type: "feature",
+        title: "Automatic Meal Entries",
+        description: "Meal presets can now automatically add meal records for guests on meal service days. This helps ensure the meals are recorded without staff needing to manually add each record every week",
+      },
+    ],
+  },
+  {
+    version: "0.0.6",
+    date: "January 1, 2026",
+    highlights: [
+      {
+        type: "fix",
+        title: "Waiver Annual Reset",
+        description: "Fixed waivers not resetting at the start of a new year. Guests who signed waivers last year will now correctly show as needing new waivers for 2026.",
+      },
+    ],
+  },
+  {
     version: "0.0.5",
     date: "December 28, 2025",
     highlights: [
-      {
-        type: "performance",
-        title: "Faster Guest Searching",
-        description: "Made searching for guests much quicker, especially when there are many guests in the system. The app now finds people faster without slowing down.",
-      },
-      {
-        type: "performance",
-        title: "Better Search Memory",
-        description: "The app remembers search information to avoid having to look everything up again each time.",
-      },
-      {
-        type: "performance",
-        title: "Smarter Fuzzy Matching",
-        description: "Improved the way the app finds guests even when names aren't spelled exactly right, using less computer memory in the process.",
-      },
       {
         type: "feature",
         title: "Search by Initials",

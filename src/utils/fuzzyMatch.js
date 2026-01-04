@@ -3,6 +3,239 @@
  */
 
 /**
+ * Common nickname mappings (bidirectional)
+ * Maps formal names to their common nicknames and vice versa
+ */
+export const COMMON_NICKNAMES = {
+  // Male names
+  william: ['bill', 'billy', 'will', 'willy', 'liam'],
+  robert: ['bob', 'bobby', 'rob', 'robbie', 'bert'],
+  richard: ['rick', 'ricky', 'dick', 'dickie', 'rich', 'richie'],
+  james: ['jim', 'jimmy', 'jamie'],
+  john: ['jack', 'johnny', 'jon'],
+  michael: ['mike', 'mikey', 'mick', 'mickey'],
+  joseph: ['joe', 'joey'],
+  thomas: ['tom', 'tommy'],
+  charles: ['charlie', 'chuck', 'chas'],
+  christopher: ['chris', 'topher', 'kit'],
+  daniel: ['dan', 'danny'],
+  matthew: ['matt', 'matty'],
+  anthony: ['tony'],
+  edward: ['ed', 'eddie', 'ted', 'teddy', 'ned'],
+  steven: ['steve', 'stevie'],
+  stephen: ['steve', 'stevie'],
+  nicholas: ['nick', 'nicky'],
+  jonathan: ['jon', 'jonny', 'john'],
+  benjamin: ['ben', 'benny', 'benji'],
+  samuel: ['sam', 'sammy'],
+  alexander: ['alex', 'al', 'xander'],
+  andrew: ['andy', 'drew'],
+  timothy: ['tim', 'timmy'],
+  patrick: ['pat', 'paddy'],
+  peter: ['pete'],
+  raymond: ['ray'],
+  gerald: ['gerry', 'jerry'],
+  lawrence: ['larry'],
+  gregory: ['greg'],
+  vincent: ['vince', 'vinny'],
+  francisco: ['frank', 'frankie', 'paco', 'pancho'],
+  // Female names
+  elizabeth: ['liz', 'lizzy', 'beth', 'betsy', 'betty', 'eliza', 'ellie'],
+  jennifer: ['jen', 'jenny'],
+  jessica: ['jess', 'jessie'],
+  margaret: ['maggie', 'meg', 'peggy', 'marge', 'margie'],
+  patricia: ['pat', 'patty', 'trish', 'tricia'],
+  katherine: ['kate', 'kathy', 'kat', 'katie', 'kit', 'kitty'],
+  catherine: ['kate', 'cathy', 'cat', 'katie'],
+  rebecca: ['becca', 'becky'],
+  christine: ['chris', 'christy', 'tina'],
+  victoria: ['vicky', 'vicki', 'tori'],
+  alexandra: ['alex', 'lexi', 'sandra'],
+  samantha: ['sam', 'sammy'],
+  deborah: ['deb', 'debbie'],
+  dorothy: ['dot', 'dotty', 'dottie'],
+  carolyn: ['carol', 'carrie', 'lynn'],
+  suzanne: ['sue', 'suzy', 'suzie'],
+  theodore: ['ted', 'teddy', 'theo'],
+  // Spanish names
+  jose: ['pepe', 'chepe'],
+  jesus: ['chucho', 'chuy'],
+  guadalupe: ['lupe', 'lupita'],
+  maria: ['mari', 'mary'],
+  manuel: ['manny'],
+  miguel: ['mike'],
+  roberto: ['beto'],
+  alberto: ['beto'],
+  enrique: ['henry', 'kike'],
+  eduardo: ['eddie', 'lalo'],
+  guillermo: ['memo', 'william', 'bill'],
+  fernando: ['nando'],
+
+  alejandro: ['alex'],
+  antonio: ['tony', 'tono'],
+  rafael: ['rafa'],
+  ricardo: ['ricky'],
+  carlos: ['charlie'],
+};
+
+// Build reverse lookup for nicknames
+const nicknameLookup = new Map();
+for (const [formal, nicks] of Object.entries(COMMON_NICKNAMES)) {
+  nicknameLookup.set(formal, new Set([formal, ...nicks]));
+  for (const nick of nicks) {
+    if (!nicknameLookup.has(nick)) {
+      nicknameLookup.set(nick, new Set([nick]));
+    }
+    nicknameLookup.get(nick).add(formal);
+    // Add all other nicknames of the same formal name
+    for (const otherNick of nicks) {
+      nicknameLookup.get(nick).add(otherNick);
+    }
+  }
+}
+
+/**
+ * Get all nickname variants for a given name
+ * @param {string} name - Name to get variants for
+ * @returns {string[]} - Array of all name variants including the original
+ */
+export const getNicknameVariants = (name) => {
+  if (!name) return [];
+  const lower = name.toLowerCase().trim();
+  const variants = nicknameLookup.get(lower);
+  return variants ? Array.from(variants) : [lower];
+};
+
+/**
+ * Check if two names are nickname variants of each other
+ * @param {string} a - First name
+ * @param {string} b - Second name
+ * @returns {boolean}
+ */
+export const areNicknameVariants = (a, b) => {
+  if (!a || !b) return false;
+  const aLower = a.toLowerCase().trim();
+  const bLower = b.toLowerCase().trim();
+  if (aLower === bLower) return true;
+  const variants = nicknameLookup.get(aLower);
+  return variants ? variants.has(bLower) : false;
+};
+
+/**
+ * QWERTY keyboard layout for adjacency detection
+ */
+const KEYBOARD_ROWS = [
+  'qwertyuiop',
+  'asdfghjkl',
+  'zxcvbnm'
+];
+
+// Build adjacency map
+const keyboardAdjacency = new Map();
+for (let row = 0; row < KEYBOARD_ROWS.length; row++) {
+  for (let col = 0; col < KEYBOARD_ROWS[row].length; col++) {
+    const key = KEYBOARD_ROWS[row][col];
+    const adjacent = new Set();
+    // Same row neighbors
+    if (col > 0) adjacent.add(KEYBOARD_ROWS[row][col - 1]);
+    if (col < KEYBOARD_ROWS[row].length - 1) adjacent.add(KEYBOARD_ROWS[row][col + 1]);
+    // Row above
+    if (row > 0) {
+      const prevRow = KEYBOARD_ROWS[row - 1];
+      if (col < prevRow.length) adjacent.add(prevRow[col]);
+      if (col > 0 && col - 1 < prevRow.length) adjacent.add(prevRow[col - 1]);
+    }
+    // Row below
+    if (row < KEYBOARD_ROWS.length - 1) {
+      const nextRow = KEYBOARD_ROWS[row + 1];
+      if (col < nextRow.length) adjacent.add(nextRow[col]);
+      if (col > 0 && col - 1 < nextRow.length) adjacent.add(nextRow[col - 1]);
+    }
+    keyboardAdjacency.set(key, adjacent);
+  }
+}
+
+/**
+ * Check if a character substitution is a keyboard adjacency error
+ * @param {string} a - First character
+ * @param {string} b - Second character
+ * @returns {boolean}
+ */
+export const isKeyboardAdjacent = (a, b) => {
+  if (!a || !b) return false;
+  const aLower = a.toLowerCase();
+  const bLower = b.toLowerCase();
+  const adjacent = keyboardAdjacency.get(aLower);
+  return adjacent ? adjacent.has(bLower) : false;
+};
+
+/**
+ * Detect if a string has a keyboard adjacency typo compared to another
+ * Returns true if strings differ by exactly one keyboard-adjacent character
+ * @param {string} a - First string (search term)
+ * @param {string} b - Second string (name)
+ * @returns {boolean}
+ */
+export const hasKeyboardTypo = (a, b) => {
+  if (!a || !b) return false;
+  const aLower = a.toLowerCase();
+  const bLower = b.toLowerCase();
+
+  if (aLower.length !== bLower.length) return false;
+
+  let diffCount = 0;
+  let isAdjacent = false;
+
+  for (let i = 0; i < aLower.length; i++) {
+    if (aLower[i] !== bLower[i]) {
+      diffCount++;
+      if (diffCount > 1) return false;
+      isAdjacent = isKeyboardAdjacent(aLower[i], bLower[i]);
+    }
+  }
+
+  return diffCount === 1 && isAdjacent;
+};
+
+/**
+ * Detect if strings differ by adjacent character transposition
+ * e.g., "teh" -> "the", "micheal" -> "michael"
+ * @param {string} a - First string
+ * @param {string} b - Second string
+ * @returns {boolean}
+ */
+export const hasTranspositionTypo = (a, b) => {
+  if (!a || !b) return false;
+  const aLower = a.toLowerCase();
+  const bLower = b.toLowerCase();
+
+  if (aLower.length !== bLower.length) return false;
+  if (aLower.length < 2) return false;
+
+  let diffCount = 0;
+  let firstDiffPos = -1;
+
+  for (let i = 0; i < aLower.length; i++) {
+    if (aLower[i] !== bLower[i]) {
+      if (diffCount === 0) {
+        firstDiffPos = i;
+      }
+      diffCount++;
+      if (diffCount > 2) return false;
+    }
+  }
+
+  if (diffCount !== 2) return false;
+
+  // Check if it's a transposition (swapped adjacent characters)
+  const secondDiffPos = firstDiffPos + 1;
+  return (
+    aLower[firstDiffPos] === bLower[secondDiffPos] &&
+    aLower[secondDiffPos] === bLower[firstDiffPos]
+  );
+};
+
+/**
  * Calculate the Levenshtein distance between two strings
  * This represents the minimum number of single-character edits needed to transform one string to another
  * 
@@ -130,6 +363,7 @@ export const hasMatchingFirstChars = (search, name) => {
 
 /**
  * Check for phonetic similarity (handles common sound-alike names)
+ * Enhanced for Spanish names and common phonetic patterns
  * @param {string} a - First string
  * @param {string} b - Second string
  * @returns {boolean} - Whether names sound similar
@@ -137,16 +371,29 @@ export const hasMatchingFirstChars = (search, name) => {
 export const soundsLike = (a, b) => {
   if (!a || !b) return false;
 
-  // Simple phonetic normalization
+  // Enhanced phonetic normalization including Spanish patterns
   const normalize = (str) => {
     return str.toLowerCase()
       .trim()
+      // Spanish phonetic patterns
+      .replace(/^h/g, '')          // Silent h at start (Hugo -> ugo)
+      .replace(/ll/g, 'y')         // ll sounds like y (Guillermo)
+      .replace(/ñ/g, 'ny')         // ñ sounds like ny
+      .replace(/rr/g, 'r')         // Double r
+      .replace(/qu/g, 'k')         // qu sounds like k
+      .replace(/gue/g, 'ge')       // gue sounds like ge
+      .replace(/gui/g, 'gi')       // gui sounds like gi
+      // English soft g
+      .replace(/g(?=[ei])/g, 'j')  // Soft g before e/i (George -> Jeorge)
+      // English phonetic patterns
       .replace(/ph/g, 'f')
       .replace(/ck/g, 'k')
       .replace(/gh/g, 'f')
       .replace(/v/g, 'f')
       .replace(/z/g, 's')
-      .replace(/[aeiouy]/g, 'a')  // Normalize all vowels including semi-vowels
+      .replace(/c(?=[ei])/g, 's')  // Soft c before e/i
+      .replace(/c/g, 'k')          // Hard c
+      .replace(/[aeiouy]/g, 'a')   // Normalize all vowels
       .replace(/([bcdfghjklmnpqrstvwxyz])\1+/g, '$1'); // Remove double consonants
   };
 
@@ -158,7 +405,7 @@ export const soundsLike = (a, b) => {
   // For very short names, phonetic match must be exact
   if (Math.min(aNorm.length, bNorm.length) <= 2) return false;
 
-  return similarityScore(aNorm, bNorm) > 0.75;
+  return similarityScore(aNorm, bNorm) >= 0.75;
 };
 
 /**
@@ -214,97 +461,70 @@ export const findFuzzySuggestions = (searchTerm, guests, maxSuggestions = 5) => 
   if (searchTokens.length === 0) return [];
 
   const scored = guests.map(guest => {
-    const firstName = (guest.firstName || '').toLowerCase().trim();
-    const lastName = (guest.lastName || '').toLowerCase().trim();
-    const preferredName = (guest.preferredName || '').toLowerCase().trim();
-    const fullName = `${firstName} ${lastName}`.trim();
+    const firstName = (guest.firstName || "").toLowerCase().trim();
+    const lastName = (guest.lastName || "").toLowerCase().trim();
+    const preferredName = (guest.preferredName || "").toLowerCase().trim();
 
-    let bestScore = 0;
-    let matchType = "none";
+    // All possible name tokens for this guest
+    const guestTokens = [
+      ...firstName.split(/\s+/).filter(Boolean),
+      ...lastName.split(/\s+/).filter(Boolean),
+      ...(preferredName ? preferredName.split(/\s+/).filter(Boolean) : []),
+    ];
 
-    // Score based on different matching strategies
-    if (searchTokens.length === 1) {
-      const token = searchTokens[0];
+    if (guestTokens.length === 0) return { guest, score: 0 };
 
-      // 1. Base Similarity Scores (Levenshtein)
-      const firstNameScore = similarityScore(token, firstName);
-      const lastNameScore = similarityScore(token, lastName);
-      const preferredScore = preferredName ? similarityScore(token, preferredName) : 0;
+    // Find best match for each search token among guest tokens
+    const tokenScores = searchTokens.map((sToken) => {
+      let bestTokenScore = 0;
 
-      bestScore = Math.max(firstNameScore, lastNameScore, preferredScore);
-
-      // 2. Substring matches (catches partial name matches)
-      const firstNameSubstring = getSubstringMatchScore(token, firstName);
-      const lastNameSubstring = getSubstringMatchScore(token, lastName);
-      const preferredSubstring = preferredName ? getSubstringMatchScore(token, preferredName) : 0;
-
-      bestScore = Math.max(bestScore, firstNameSubstring, lastNameSubstring, preferredSubstring);
-
-      // 3. Bonuses (only for non-exact matches)
-      if (bestScore > 0 && bestScore < 1) {
-        // Bonus for matching first characters
-        if (hasMatchingFirstChars(token, firstName) ||
-          hasMatchingFirstChars(token, lastName) ||
-          (preferredName && hasMatchingFirstChars(token, preferredName))) {
-          bestScore = Math.min(0.99, bestScore + 0.1);
+      for (const gToken of guestTokens) {
+        // 1. Nickname matching (highest priority for exact nickname match)
+        if (areNicknameVariants(sToken, gToken)) {
+          bestTokenScore = Math.max(bestTokenScore, 0.95);
+          continue;
         }
 
-        // Check phonetic similarity
-        if (soundsLike(token, firstName) ||
-          soundsLike(token, lastName) ||
-          (preferredName && soundsLike(token, preferredName))) {
-          bestScore = Math.max(bestScore, 0.85); // High floor for phonetic matches
-          bestScore = Math.min(0.99, bestScore + 0.1);
+        // 2. Keyboard typo detection (high score for adjacent key typo)
+        if (hasKeyboardTypo(sToken, gToken)) {
+          bestTokenScore = Math.max(bestTokenScore, 0.92);
+          continue;
+        }
+
+        // 3. Transposition typo (swapped characters like "micheal" -> "michael")
+        if (hasTranspositionTypo(sToken, gToken)) {
+          bestTokenScore = Math.max(bestTokenScore, 0.90);
+          continue;
+        }
+
+        // 4. Base Similarity (Levenshtein)
+        const sim = similarityScore(sToken, gToken);
+
+        // 5. Substring/Prefix (High score for initials or partials)
+        const sub = getSubstringMatchScore(sToken, gToken);
+
+        // 6. Phonetic
+        let sound = 0;
+        if (soundsLike(sToken, gToken)) {
+          sound = Math.max(sim, 0.85) + 0.1;
+        }
+
+        const score = Math.max(sim, sub, sound);
+        if (score > bestTokenScore) {
+          bestTokenScore = score;
         }
       }
-    } else if (searchTokens.length >= 2) {
-      const [firstToken, secondToken] = searchTokens;
+      return Math.min(1.0, bestTokenScore);
+    });
 
-      // Try substring matching first for multi-token searches
-      const firstSubstring = getSubstringMatchScore(firstToken, firstName);
-      const secondSubstring = getSubstringMatchScore(secondToken, lastName);
-      const substringCombined = (firstSubstring + secondSubstring) / 2;
-
-      bestScore = substringCombined;
-
-      // Score first + last name combination
-      const firstMatch = similarityScore(firstToken, firstName);
-      const lastMatch = similarityScore(secondToken, lastName);
-      const combinedScore = (firstMatch + lastMatch) / 2;
-
-      if (combinedScore > bestScore) {
-        bestScore = combinedScore;
-      }
-
-      // Also try reversed order (last name first)
-      const reversedFirst = similarityScore(secondToken, firstName);
-      const reversedLast = similarityScore(firstToken, lastName);
-      const reversedScore = (reversedFirst + reversedLast) / 2;
-
-      if (reversedScore > bestScore) {
-        bestScore = reversedScore;
-      }
-
-      // Check full name as single string
-      const fullNameScore = similarityScore(searchLower, fullName);
-      if (fullNameScore > bestScore) {
-        bestScore = fullNameScore;
-      }
-
-      // Phonetic bonus for full name
-      if (bestScore > 0 && bestScore < 1) {
-        const phoneticFirst = soundsLike(firstToken, firstName);
-        const phoneticLast = soundsLike(secondToken, lastName);
-        if (phoneticFirst && phoneticLast) {
-          bestScore = Math.min(0.99, bestScore + 0.2);
-        }
-      }
-    }
+    // Average score across all search tokens
+    const bestScore =
+      tokenScores.reduce((sum, s) => sum + s, 0) / tokenScores.length;
 
     return {
       guest,
       score: bestScore,
-      matchType,
+      matchType: "flexible",
     };
   });
 
@@ -358,8 +578,16 @@ export const formatSuggestionDisplay = (guest) => {
 export default {
   levenshteinDistance,
   similarityScore,
-  findFuzzySuggestions,
-  formatSuggestionDisplay,
   hasMatchingFirstChars,
   soundsLike,
+  findFuzzySuggestions,
+  formatSuggestionDisplay,
+  getSubstringMatchScore,
+  // New exports
+  COMMON_NICKNAMES,
+  getNicknameVariants,
+  areNicknameVariants,
+  isKeyboardAdjacent,
+  hasKeyboardTypo,
+  hasTranspositionTypo,
 };

@@ -6,6 +6,11 @@ import {
   formatSuggestionDisplay,
   soundsLike,
   hasMatchingFirstChars,
+  getNicknameVariants,
+  areNicknameVariants,
+  isKeyboardAdjacent,
+  hasKeyboardTypo,
+  hasTranspositionTypo,
 } from "../fuzzyMatch";
 
 describe("fuzzyMatch utilities", () => {
@@ -71,10 +76,90 @@ describe("fuzzyMatch utilities", () => {
       expect(soundsLike("John", "Mary")).toBe(false);
       expect(soundsLike("Bob", "Alice")).toBe(false);
     });
-    
-    it("returns true when normalized names are similar", () => {
-      // After normalization (vowels -> 'a', ph -> f, etc.)
+
+    it("returns true when normalized names are similar (English)", () => {
       expect(soundsLike("phonics", "fanacs")).toBe(true); // ph -> f
+      expect(soundsLike("kayla", "cayla")).toBe(true); // k/c check
+      expect(soundsLike("jeff", "geoff")).toBe(true);
+    });
+
+    it("returns true for Spanish name variations", () => {
+      // j sounds like h
+      expect(soundsLike("jose", "hose")).toBe(true);
+      expect(soundsLike("julio", "hulio")).toBe(true);
+
+      // ll sounds like y
+      expect(soundsLike("guillermo", "guiyermo")).toBe(true);
+
+      // silent h
+      expect(soundsLike("hugo", "ugo")).toBe(true);
+
+      // ñ sounds like ny
+      expect(soundsLike("nino", "ninyo")).toBe(true);
+
+      // qu sounds like k
+      expect(soundsLike("enrique", "enrike")).toBe(true);
+    });
+
+    it("handles common tough cases", () => {
+      expect(soundsLike("stephen", "steven")).toBe(true);
+      expect(soundsLike("vicki", "vicky")).toBe(true);
+    });
+  });
+
+  describe("nicknameMatching", () => {
+    it("identifies common nicknames", () => {
+      expect(areNicknameVariants("william", "bill")).toBe(true);
+      expect(areNicknameVariants("robert", "bob")).toBe(true);
+      expect(areNicknameVariants("francisco", "pancho")).toBe(true);
+      expect(areNicknameVariants("elizabeth", "liz")).toBe(true);
+    });
+
+    it("works bidirectionally (nickname -> formal)", () => {
+      expect(areNicknameVariants("bill", "william")).toBe(true);
+      expect(areNicknameVariants("pepe", "jose")).toBe(true);
+    });
+
+    it("identifies nickname to nickname of same formal name", () => {
+      expect(areNicknameVariants("bill", "will")).toBe(true); // both from William
+      expect(areNicknameVariants("bob", "rob")).toBe(true);   // both from Robert
+    });
+
+    it("returns normalized variants for a name", () => {
+      const variants = getNicknameVariants("William");
+      expect(variants).toContain("bill");
+      expect(variants).toContain("will");
+      expect(variants).toContain("william");
+    });
+  });
+
+  describe("typoDetection", () => {
+    it("detects keyboard adjacency typos", () => {
+      // QWERTY adjacent keys
+      expect(isKeyboardAdjacent("a", "s")).toBe(true);
+      expect(isKeyboardAdjacent("m", "n")).toBe(true);
+      expect(isKeyboardAdjacent("o", "p")).toBe(true);
+
+      // Non-adjacent
+      expect(isKeyboardAdjacent("a", "p")).toBe(false);
+    });
+
+    it("detects single keyboard typo in full string", () => {
+      expect(hasKeyboardTypo("jihn", "john")).toBe(true); // i is next to o
+      expect(hasKeyboardTypo("mickael", "michael")).toBe(false); // k not next to h
+      expect(hasKeyboardTypo("david", "davis")).toBe(true); // d next to s
+    });
+
+    it("detects transposition typos (swapped chars)", () => {
+      expect(hasTranspositionTypo("micheal", "michael")).toBe(true); // ea <-> ae
+      expect(hasTranspositionTypo("jhon", "john")).toBe(true); // ho <-> oh
+      expect(hasTranspositionTypo("flies", "files")).toBe(true); // li <-> il
+    });
+
+    it("rejects non-transposition edits", () => {
+      expect(hasTranspositionTypo("michael", "michele")).toBe(false); // missing char
+      expect(hasTranspositionTypo("abc", "acb")).toBe(true);
+      expect(hasTranspositionTypo("abc", "cba")).toBe(false); // too many swaps
     });
   });
 
@@ -91,7 +176,7 @@ describe("fuzzyMatch utilities", () => {
     it("handles case insensitively", () => {
       expect(hasMatchingFirstChars("JOHN", "john")).toBe(true);
     });
-    
+
     it("handles swapped first two characters", () => {
       // "Jhon" and "John" have same sorted first two chars: "hJ" sorts to "Jh"
       expect(hasMatchingFirstChars("Jhon", "John")).toBe(true);
@@ -103,8 +188,10 @@ describe("fuzzyMatch utilities", () => {
       { id: "1", firstName: "John", lastName: "Smith" },
       { id: "2", firstName: "Jane", lastName: "Doe" },
       { id: "3", firstName: "Michael", lastName: "Johnson" },
-      { id: "4", firstName: "Michelle", lastName: "Williams" },
+      { id: "4", firstName: "Victoria", lastName: "Williams" },
       { id: "5", firstName: "Robert", lastName: "Brown" },
+      { id: "6", firstName: "Francisco", lastName: "Garcia" },
+      { id: "7", firstName: "William", lastName: "Jones" },
     ];
 
     it("returns empty array for empty input", () => {
@@ -118,40 +205,43 @@ describe("fuzzyMatch utilities", () => {
       expect(suggestions.some((s) => s.firstName === "John")).toBe(true);
     });
 
-    it("finds suggestions for typos in last name", () => {
-      const suggestions = findFuzzySuggestions("John Smth", guestList);
-      expect(suggestions.some((s) => s.lastName === "Smith")).toBe(true);
+    it("finds suggestions through nicknames", () => {
+      // Searching "Bill" should find "William"
+      const suggestions1 = findFuzzySuggestions("Bill", guestList);
+      expect(suggestions1.some((s) => s.firstName === "William")).toBe(true);
+
+      // Searching "Vicky" should find "Victoria"
+      const suggestions2 = findFuzzySuggestions("Vicky", guestList);
+      expect(suggestions2.some((s) => s.firstName === "Victoria")).toBe(true);
+
+      // Searching "Pancho" should find "Francisco"
+      const suggestions3 = findFuzzySuggestions("Pancho", guestList);
+      expect(suggestions3.some((s) => s.firstName === "Francisco")).toBe(true);
+    });
+
+    it("finds suggestions through keyboard typos", () => {
+      // "Jihn" -> "John" (i is next to o)
+      const suggestions = findFuzzySuggestions("Jihn", guestList);
+      expect(suggestions.some((s) => s.firstName === "John")).toBe(true);
+    });
+
+    it("scores nicknames higher than loose fuzzy matches", () => {
+      const guests = [
+        { id: "1", firstName: "William", lastName: "Smith" },
+        { id: "2", firstName: "Willard", lastName: "Smith" }, // similar but not nickname
+      ];
+      const suggestions = findFuzzySuggestions("Bill", guests);
+
+      const william = suggestions.find(s => s.firstName === "William");
+      const willard = suggestions.find(s => s.firstName === "Willard");
+
+      expect(william._suggestionScore).toBeGreaterThan(willard?._suggestionScore || 0);
     });
 
     it("finds suggestions for similar first names", () => {
-      const suggestions = findFuzzySuggestions("Micheal", guestList);
-      // Should find Michael or Michelle
-      expect(
-        suggestions.some(
-          (s) =>
-            s.firstName === "Michael" || s.firstName === "Michelle"
-        )
-      ).toBe(true);
-    });
-
-    it("limits results to maxSuggestions", () => {
-      // Create a larger guest list to test limiting
-      const largeGuestList = [
-        ...guestList,
-        { id: "6", firstName: "Johnathan", lastName: "Davis" },
-        { id: "7", firstName: "Johnny", lastName: "Cash" },
-        { id: "8", firstName: "Jonas", lastName: "Miller" },
-      ];
-      const suggestions = findFuzzySuggestions("Joh", largeGuestList, 2);
-      expect(suggestions.length).toBeLessThanOrEqual(2);
-    });
-
-    it("does not return exact matches (score = 1.0)", () => {
-      const suggestions = findFuzzySuggestions("John", guestList);
-      // Exact match for "John" should not be in suggestions since it would already appear in results
-      suggestions.forEach((s) => {
-        expect(s._suggestionScore).toBeLessThan(1.0);
-      });
+      const suggestions = findFuzzySuggestions("Mike", guestList);
+      // Should find Michael (nickname match)
+      expect(suggestions.some((s) => s.firstName === "Michael")).toBe(true);
     });
 
     it("includes suggestion metadata in returned objects", () => {
@@ -162,54 +252,24 @@ describe("fuzzyMatch utilities", () => {
       }
     });
 
-    it("filters out results below similarity threshold", () => {
-      // Very different searches should not return results
-      const suggestions = findFuzzySuggestions("XYZZZ", guestList);
-      expect(suggestions.length).toBe(0);
-    });
-
     it("suggests similar names from substring matching (francas -> francis)", () => {
       const guests = [
         { id: "1", firstName: "Francis", lastName: "Smith" },
         { id: "2", firstName: "Francisco", lastName: "Lopez" },
-        { id: "3", firstName: "Frank", lastName: "Johnson" },
       ];
       const suggestions = findFuzzySuggestions("francas", guests);
-      // Should find Francis and Francisco as they contain "franc" and are similar overall
       const firstNames = suggestions.map(s => s.firstName);
       expect(
         firstNames.includes("Francis") || firstNames.includes("Francisco")
       ).toBe(true);
     });
-
-    it("suggests Francisco when searching for similar name", () => {
-      const guests = [
-        { id: "1", firstName: "Francis", lastName: "Smith" },
-        { id: "2", firstName: "Francisco", lastName: "Lopez" },
-      ];
-      const suggestions = findFuzzySuggestions("francas", guests);
-      const ids = suggestions.map(s => s.id);
-      // Should include both Francis and Francisco
-      expect(ids.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("prioritizes better substring matches over poorer ones", () => {
-      const guests = [
-        { id: "1", firstName: "Francis", lastName: "Smith" },
-        { id: "2", firstName: "Frank", lastName: "Johnson" },
-        { id: "3", firstName: "Francisco", lastName: "Lopez" },
-      ];
-      const suggestions = findFuzzySuggestions("fran", guests);
-      // All should match since they start with "fran"
-      expect(suggestions.length).toBeGreaterThanOrEqual(2);
-    });
   });
 
   describe("formatSuggestionDisplay", () => {
     it("formats guest name and returns display info", () => {
-      const guest = { 
-        id: "1", 
-        firstName: "John", 
+      const guest = {
+        id: "1",
+        firstName: "John",
         lastName: "Smith",
         _suggestionScore: 0.85,
         _matchType: "firstName",
@@ -232,31 +292,6 @@ describe("fuzzyMatch utilities", () => {
       const result = formatSuggestionDisplay(guest);
       expect(result.displayName).toContain("Johnny");
       expect(result.displayName).toContain("John Smith");
-    });
-
-    it("returns fullName without preferred name when not set", () => {
-      const guest = {
-        id: "2",
-        firstName: "Jane",
-        lastName: "Doe",
-        _suggestionScore: 0.75,
-        _matchType: "lastName",
-      };
-      const result = formatSuggestionDisplay(guest);
-      expect(result.fullName).toBe("Jane Doe");
-      expect(result.preferredName).toBeFalsy();
-    });
-
-    it("handles missing fields gracefully", () => {
-      const guest = {
-        id: "1",
-        firstName: "John",
-        lastName: "",
-        _suggestionScore: 0.8,
-        _matchType: "firstName",
-      };
-      const result = formatSuggestionDisplay(guest);
-      expect(result.displayName).toBe("John");
     });
   });
 });

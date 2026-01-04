@@ -77,6 +77,7 @@ import {
   pacificDateStringFrom,
   isoFromPacificDateString,
 } from "../../utils/date";
+import { getMealServiceStatus } from "../../utils/mealServiceTime";
 import {
   getBicycleServiceCount,
   isBicycleStatusCountable,
@@ -141,6 +142,8 @@ const Services = () => {
     deleteRvMealRecord,
     deleteShelterMealRecord,
     deleteUnitedEffortMealRecord,
+    addAutomaticMealEntries,
+    hasAutomaticMealsForDay,
     laundryRecords,
     showerRecords,
     haircutRecords,
@@ -233,6 +236,54 @@ const Services = () => {
       }
     }
   };
+
+  // Auto-add preset meal entries when meal service ends
+  const [autoMealsAdded, setAutoMealsAdded] = useState(() => {
+    // Check if we already added auto meals for today
+    const stored = localStorage.getItem('hopes-corner-auto-meals-date');
+    return stored === todayPacificDateString();
+  });
+
+  useEffect(() => {
+    // Only run this effect if we haven't already added auto meals today
+    if (autoMealsAdded) return;
+
+    const today = todayPacificDateString();
+    const dayOfWeek = new Date(today + 'T12:00:00').getDay();
+
+    // Check if today has automatic meal entries configured
+    if (!hasAutomaticMealsForDay || !hasAutomaticMealsForDay(dayOfWeek)) return;
+
+    const checkAndTrigger = () => {
+      const status = getMealServiceStatus();
+
+      // If meal service has ended and we haven't added entries yet
+      if (status.type === 'ended' && !autoMealsAdded) {
+        // Mark as added immediately to prevent double-triggering
+        setAutoMealsAdded(true);
+        localStorage.setItem('hopes-corner-auto-meals-date', today);
+
+        // Add the automatic meal entries
+        addAutomaticMealEntries(today)
+          .then((result) => {
+            if (result.success) {
+              toast.success(`✅ Automatic meal entries added: ${result.summary}`);
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to add automatic meal entries:', error);
+          });
+      }
+    };
+
+    // Check immediately
+    checkAndTrigger();
+
+    // Also check periodically (every minute) in case the user leaves the page open
+    const interval = setInterval(checkAndTrigger, 60000);
+
+    return () => clearInterval(interval);
+  }, [autoMealsAdded, addAutomaticMealEntries, hasAutomaticMealsForDay]);
 
   const todayLaundryWithGuests = getTodayLaundryWithGuests();
 
@@ -2354,6 +2405,23 @@ const Services = () => {
             </div>
           </div>
         </div>
+
+        {/* Auto-entries status indicator */}
+        {hasAutomaticMealsForDay && hasAutomaticMealsForDay(new Date(selectedDate + 'T12:00:00').getDay()) && (
+          <div className="flex items-center justify-center">
+            {autoMealsAdded ? (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700">
+                <CheckCircle size={18} />
+                Preset meals auto-added for today
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-2 text-sm font-medium text-amber-700">
+                <Clock size={18} />
+                Preset meals will be added when service ends
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Stats Overview Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

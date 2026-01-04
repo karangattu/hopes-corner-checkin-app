@@ -15,6 +15,12 @@ import {
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
 import performanceMonitor from "../utils/performanceMonitor";
+import {
+  getAutomaticMealsForDay,
+  hasAutomaticMealsForDay,
+  getAutomaticMealsSummary,
+  MEAL_TYPES,
+} from "../utils/automaticMealEntries";
 import { fetchAllPaginated } from "../utils/supabasePagination";
 import {
   addMealWithOffline,
@@ -3440,6 +3446,70 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
+  /**
+   * Add all automatic/preset meal entries for a given date
+   * These are predefined quantities based on day of week
+   * @param {string} dateString - Date in YYYY-MM-DD format
+   * @returns {Promise<{success: boolean, added: number, summary: string}>}
+   */
+  const addAutomaticMealEntries = async (dateString = null) => {
+    const targetDate = dateString || todayPacificDateString();
+    const dateObj = new Date(targetDate + 'T12:00:00');
+    const dayOfWeek = dateObj.getDay();
+
+    if (!hasAutomaticMealsForDay(dayOfWeek)) {
+      toast.error('No automatic meal entries configured for this day');
+      return { success: false, added: 0, summary: 'No entries configured' };
+    }
+
+    const presets = getAutomaticMealsForDay(dayOfWeek);
+    let addedCount = 0;
+    const errors = [];
+
+    for (const preset of presets) {
+      try {
+        switch (preset.type) {
+          case MEAL_TYPES.LUNCH_BAGS:
+            await addLunchBagRecord(preset.count, targetDate);
+            break;
+          case MEAL_TYPES.RV_MEALS:
+            await addRvMealRecord(preset.count, targetDate);
+            break;
+          case MEAL_TYPES.DAY_WORKER:
+            await addDayWorkerMealRecord(preset.count, targetDate);
+            break;
+          default:
+            console.warn(`Unknown meal type: ${preset.type}`);
+            continue;
+        }
+        addedCount++;
+      } catch (error) {
+        console.error(`Failed to add ${preset.label}:`, error);
+        errors.push(preset.label);
+      }
+    }
+
+    const summary = getAutomaticMealsSummary(dayOfWeek);
+
+    if (errors.length > 0) {
+      toast.error(`Added ${addedCount} of ${presets.length} preset entries. Failed: ${errors.join(', ')}`);
+    } else {
+      toast.success(`Added ${addedCount} preset meal entries: ${summary}`);
+    }
+
+    // Log to action history
+    const action = {
+      id: Date.now() + Math.random(),
+      type: 'AUTOMATIC_MEALS_ADDED',
+      timestamp: new Date().toISOString(),
+      data: { date: targetDate, count: addedCount, presets },
+      description: `Added automatic meal entries for ${targetDate}: ${summary}`,
+    };
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+    return { success: errors.length === 0, added: addedCount, summary };
+  };
+
   // Create waiver mutations first so we can use guestNeedsWaiverReminder in service callbacks
   const {
     fetchGuestWaivers,
@@ -5908,6 +5978,8 @@ export const AppProvider = ({ children }) => {
     deleteExtraMealRecord,
     deleteDayWorkerMealRecord,
     deleteLunchBagRecord,
+    addAutomaticMealEntries,
+    hasAutomaticMealsForDay,
     removeMealAttendanceRecord,
     addShowerRecord,
     importShowerAttendanceRecord,

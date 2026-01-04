@@ -52,6 +52,7 @@ import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
 import { isActiveGuest, getLastMealLabel } from "../utils/guestActivity";
+import { findPotentialDuplicates } from "../utils/duplicateDetection";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -385,6 +386,45 @@ const GuestList = () => {
     document.addEventListener("keydown", handleGlobalKeyDown);
     return () => document.removeEventListener("keydown", handleGlobalKeyDown);
   }, [handleShowCreateForm, showCreateForm]);
+
+  // Check for potential duplicates while creating a guest
+  const { firstName: createFirstName, lastName: createLastName } = createFormData;
+
+  useEffect(() => {
+    if (!showCreateForm) {
+      setDuplicateWarning("");
+      return;
+    }
+
+    const checkDuplicates = () => {
+      const firstName = createFirstName;
+      const lastName = createLastName;
+      // improved check: must have significant length
+      if (!firstName || !lastName || firstName.length < 2 || lastName.length < 2) {
+        setDuplicateWarning("");
+        return;
+      }
+
+      const duplicates = findPotentialDuplicates(firstName, lastName, guestsList);
+
+      if (duplicates.length > 0) {
+        // Show the top match
+        const topMatch = duplicates[0];
+        const matchName = `${topMatch.guest.firstName} ${topMatch.guest.lastName}`;
+        // Add nickname hint if available
+        const preferred = topMatch.guest.preferredName ? ` "${topMatch.guest.preferredName}"` : "";
+
+        setDuplicateWarning(
+          `Possible duplicate found: ${matchName}${preferred} (Reason: ${topMatch.reason})`
+        );
+      } else {
+        setDuplicateWarning("");
+      }
+    };
+
+    const timer = setTimeout(checkDuplicates, 500);
+    return () => clearTimeout(timer);
+  }, [createFirstName, createLastName, showCreateForm, guestsList]);
 
   const filteredGuests = useMemo(() => {
     return flexibleNameSearch(debouncedSearchTerm, guestsList);
