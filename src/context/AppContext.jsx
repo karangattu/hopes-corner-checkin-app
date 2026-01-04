@@ -71,6 +71,7 @@ import {
   mapShowerStatusToDb,
 } from "./utils/mappers";
 import { persistentStore } from "../utils/persistentStore";
+import { useGuestsStore } from "../stores/useGuestsStore";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 
@@ -2477,7 +2478,7 @@ export const AppProvider = ({ children }) => {
       { name: "bicycle_repairs", stateSetter: setBicycleRecords, state: bicycleRecords },
       { name: "holiday_visits", stateSetter: setHolidayRecords, state: holidayRecords },
       { name: "haircut_visits", stateSetter: setHaircutRecords, state: haircutRecords },
-      { name: "items_distributed", stateSetter: setItemRecords, state: itemRecords },
+      { name: "items_distributed", stateSetter: setItemGivenRecords, state: itemGivenRecords },
     ];
 
     if (supabaseEnabled && supabase) {
@@ -2516,7 +2517,7 @@ export const AppProvider = ({ children }) => {
     const target = guests.find((g) => g.id === id);
 
     // First, remove from local state
-    setGuests(prev => prev.filter((guest) => guest.id !== id));
+    setGuests((prev) => prev.filter((guest) => guest.id !== id));
 
     // Cleanup related records in local state that don't make sense to transfer
     // such as warnings and proxy links
@@ -2526,26 +2527,47 @@ export const AppProvider = ({ children }) => {
     // This is handled by useGuestsStore's unlinkGuests which updates state
     const { guestProxies, warnings } = useGuestsStore.getState();
     const proxiesToRemove = (guestProxies || []).filter(
-      p => p.guestId === id || p.proxyId === id
+      (p) => p.guestId === id || p.proxyId === id,
     );
     for (const p of proxiesToRemove) {
       unlinkGuests(p.guestId, p.proxyId);
     }
 
     // Remove warnings for this guest
-    const guestWarnings = (warnings || []).filter(w => w.guestId === id);
+    const guestWarnings = (warnings || []).filter((w) => w.guestId === id);
     for (const w of guestWarnings) {
       removeGuestWarning(w.id);
     }
 
     if (supabaseEnabled && supabase && target) {
       // 1. Cleanup guest_proxies in Supabase
-      await supabase.from("guest_proxies").delete().or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+      await supabase
+        .from("guest_proxies")
+        .delete()
+        .or(`guest_id.eq.${id},proxy_id.eq.${id}`);
 
       // 2. Cleanup guest_warnings in Supabase
       await supabase.from("guest_warnings").delete().eq("guest_id", id);
 
-      // 3. Finally delete the guest
+      // 3. Explicitly delete all related service records first to prevent orphans (Cascade Delete)
+      try {
+        await Promise.all([
+          supabase.from("meal_attendance").delete().eq("guest_id", id),
+          supabase.from("shower_reservations").delete().eq("guest_id", id),
+          supabase.from("laundry_bookings").delete().eq("guest_id", id),
+          supabase.from("bicycle_repairs").delete().eq("guest_id", id),
+          supabase.from("holiday_visits").delete().eq("guest_id", id),
+          supabase.from("clothing_giveaways").delete().eq("guest_id", id),
+          supabase.from("inventory_transactions").delete().eq("guest_id", id),
+          supabase.from("haircuts").delete().eq("guest_id", id),
+          supabase.from("donations").delete().eq("donor_id", id), // Assuming donor_id maps to guest
+        ]);
+      } catch (err) {
+        console.error("Error during cascade delete of services:", err);
+        // Continue to try deleting the guest even if some cleanups fail
+      }
+
+      // 4. Finally delete the guest
       const { error } = await supabase.from("guests").delete().eq("id", id);
 
       if (error) {

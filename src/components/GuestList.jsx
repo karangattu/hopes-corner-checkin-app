@@ -390,10 +390,11 @@ const GuestList = () => {
     return flexibleNameSearch(debouncedSearchTerm, guestsList);
   }, [guestsList, debouncedSearchTerm]);
 
-  // Fuzzy name suggestions when no exact matches are found
+  // Fuzzy name suggestions to catch typos and phonetic matches
   const fuzzySuggestions = useMemo(() => {
-    // Only show suggestions when search has some input but no matches
-    if (!debouncedSearchTerm.trim() || filteredGuests.length > 0) {
+    // Show suggestions when search has input, and either no matches or very few matches
+    // (This allows "did you mean" to appear even if we found a few low-quality direct matches)
+    if (!debouncedSearchTerm.trim() || filteredGuests.length >= 3) {
       return [];
     }
     // Need at least 2 characters to suggest

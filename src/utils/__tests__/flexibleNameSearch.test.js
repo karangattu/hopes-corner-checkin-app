@@ -16,6 +16,7 @@ describe("flexibleNameSearch", () => {
         firstNameParts: ["john"],
         allTokens: ["john", "doe"],
         fullName: "john doe",
+        fullNameNoSpaces: "johndoe",
       });
     });
 
@@ -27,6 +28,7 @@ describe("flexibleNameSearch", () => {
         firstNameParts: ["ping", "xing"],
         allTokens: ["ping", "xing", "yuan"],
         fullName: "ping xing yuan",
+        fullNameNoSpaces: "pingxingyuan",
       });
     });
 
@@ -38,6 +40,7 @@ describe("flexibleNameSearch", () => {
         firstNameParts: ["john", "michael", "james"],
         allTokens: ["john", "michael", "james", "smith"],
         fullName: "john michael james smith",
+        fullNameNoSpaces: "johnmichaeljamessmith",
       });
     });
 

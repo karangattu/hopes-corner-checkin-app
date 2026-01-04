@@ -267,7 +267,6 @@ const Services = () => {
       const hasPreferred =
         Boolean(preferredName) &&
         preferredName.toLowerCase() !== legalName.toLowerCase();
-      const primaryName = hasPreferred ? preferredName : legalName;
       const displayName = hasPreferred
         ? `${preferredName} (${legalName})`
         : legalName;
@@ -3281,7 +3280,7 @@ const Services = () => {
                             </span>
                             {rec.pickedUpByProxyId && (
                               <span className="text-xs text-orange-600">
-                                via {getGuestNameDetails(rec.pickedUpByProxyId).primaryName}
+                                via {getGuestNameDetails(rec.pickedUpByProxyId).displayName}
                               </span>
                             )}
                             {rec.pendingSync && (

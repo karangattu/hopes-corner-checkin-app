@@ -5,7 +5,7 @@
  * Use pre-computed search index for O(1) lookups
  */
 
-import { createSearchIndex, searchWithIndex, getCachedNameParts } from './guestSearchIndex';
+import { createSearchIndex, searchWithIndex, getCachedNameParts } from './guestSearchIndex.js';
 
 // Cache for the search index with content-aware invalidation
 let cachedIndex = null;
@@ -25,12 +25,12 @@ const getSearchIndex = (guests) => {
   const currentGuestCount = guests.length;
   const isSameRef = cachedGuestsRef === guests;
   const isSameCount = cachedGuestCount === currentGuestCount;
-  
+
   // If reference and count are the same, check if guest IDs match (content validation)
   if (isSameRef && isSameCount && cachedIndex) {
     // Build current ID set for comparison
     const currentIdSet = new Set(guests.map(g => g.id));
-    
+
     // Check if all cached IDs are still present
     let allIdsMatch = currentIdSet.size === cachedGuestIdSet.size;
     if (allIdsMatch) {
@@ -41,23 +41,23 @@ const getSearchIndex = (guests) => {
         }
       }
     }
-    
+
     // If IDs match, cache is still valid
     if (allIdsMatch) {
       return cachedIndex;
     }
-    
+
     // IDs don't match - cache is stale, rebuild below
     console.log('[Search Index] Cache invalidated: guest ID mismatch detected');
   }
-  
+
   // Create new index
   console.log('[Search Index] Building new search index for', currentGuestCount, 'guests');
   cachedIndex = createSearchIndex(guests);
   cachedGuestsRef = guests;
   cachedGuestCount = currentGuestCount;
   cachedGuestIdSet = new Set(guests.map(g => g.id));
-  
+
   return cachedIndex;
 };
 
@@ -79,13 +79,14 @@ export const clearSearchIndexCache = () => {
 export const extractNameParts = (firstName = "", lastName = "") => {
   // Use optimized cached version
   const cached = getCachedNameParts(firstName, lastName, "");
-  
+
   return {
     firstName: cached.firstName,
     lastName: cached.lastName,
     firstNameParts: cached.firstTokens,
     allTokens: cached.allTokens,
     fullName: cached.fullName,
+    fullNameNoSpaces: cached.fullNameNoSpaces,
   };
 };
 
@@ -103,6 +104,10 @@ export const scoreNameMatch = (query, nameParts) => {
 
   // Exact full name match
   if (fullName === query) return -1;
+
+  // Space-insensitive full name match
+  const queryNoSpaces = query.replace(/\s+/g, '');
+  if (nameParts.fullNameNoSpaces === queryNoSpaces) return -1;
 
   // Single token searches
   if (queryTokens.length === 1) {

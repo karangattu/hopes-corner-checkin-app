@@ -441,7 +441,7 @@ export const useGuestsStore = create(
         },
 
         removeGuest: async (id) => {
-          const { guests, guestProxies, warnings } = get();
+          const { guests } = get();
           const target = guests.find((g) => g.id === id);
 
           // DATA INTEGRITY: Cleanup related data in local state
