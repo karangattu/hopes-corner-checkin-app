@@ -295,50 +295,58 @@ export const createLaundryMutations = ({
     const record = laundryRecords.find((candidate) => candidate.id === recordId);
     if (!record) return false;
 
-    // Remove the record from local state
-    setLaundryRecords((prev) =>
-      prev.filter((candidate) => candidate.id !== recordId)
-    );
+    // Create snapshots for rollback
+    const recordsSnapshot = laundryRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = laundrySlots.map((s) => ({ ...s }));
 
-    if (record.laundryType === "onsite") {
-      setLaundrySlots((prev) =>
-        prev.filter((slot) =>
-          !(slot.guestId === record.guestId && slot.time === record.time)
-        )
+    try {
+      // Remove the record from local state optimistically
+      setLaundryRecords((prev) =>
+        prev.filter((candidate) => candidate.id !== recordId)
       );
-    }
 
-    if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
-      try {
+      if (record.laundryType === "onsite") {
+        setLaundrySlots((prev) =>
+          prev.filter((slot) =>
+            !(slot.guestId === record.guestId && slot.time === record.time)
+          )
+        );
+      }
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
         const { error } = await supabaseClient
           .from("laundry_bookings")
           .delete()
           .eq("id", recordId);
         if (error) throw error;
-      } catch (error) {
-        console.error("Failed to cancel laundry booking:", error);
-        toast.error("Unable to cancel laundry booking.");
-        return false;
       }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "LAUNDRY_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: {
+          recordId,
+          guestId: record.guestId,
+          time: record.time,
+          laundryType: record.laundryType,
+          snapshot: { ...record },
+        },
+        description: `Cancelled ${record.laundryType} laundry${
+          record.time ? ` at ${record.time}` : ""
+        }`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to cancel laundry booking:", error);
+      setLaundryRecords(recordsSnapshot);
+      setLaundrySlots(slotsSnapshot);
+      toast.error("Unable to cancel laundry booking.");
+      return false;
     }
-
-    pushAction({
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        time: record.time,
-        laundryType: record.laundryType,
-        snapshot: { ...record },
-      },
-      description: `Cancelled ${record.laundryType} laundry${
-        record.time ? ` at ${record.time}` : ""
-      }`,
-    });
-
-    return true;
   };
 
   const cancelMultipleLaundry = async (recordIds) => {
@@ -347,55 +355,63 @@ export const createLaundryMutations = ({
     const recordsToCancel = laundryRecords.filter((r) => recordIds.includes(r.id));
     if (recordsToCancel.length === 0) return true;
 
-    // Update local state
-    setLaundryRecords((prev) =>
-      prev.map((candidate) =>
-        recordIds.includes(candidate.id)
-          ? { ...candidate, status: "cancelled" }
-          : candidate,
-      ),
-    );
+    // Create snapshots for rollback
+    const recordsSnapshot = laundryRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = laundrySlots.map((s) => ({ ...s }));
 
-    setLaundrySlots((prev) =>
-      prev.map((slot) => {
-        const matchingRecord = recordsToCancel.find(
-          (r) =>
-            r.guestId === slot.guestId &&
-            r.time === slot.time &&
-            r.laundryType === "onsite",
-        );
-        return matchingRecord ? { ...slot, status: "cancelled" } : slot;
-      }),
-    );
-
-    if (supabaseEnabled && supabaseClient) {
-      const nonLocalIds = recordIds.filter(
-        (id) => !String(id).startsWith("local-"),
+    try {
+      // Update local state optimistically
+      setLaundryRecords((prev) =>
+        prev.map((candidate) =>
+          recordIds.includes(candidate.id)
+            ? { ...candidate, status: "cancelled" }
+            : candidate,
+        ),
       );
-      if (nonLocalIds.length > 0) {
-        try {
+
+      setLaundrySlots((prev) =>
+        prev.map((slot) => {
+          const matchingRecord = recordsToCancel.find(
+            (r) =>
+              r.guestId === slot.guestId &&
+              r.time === slot.time &&
+              r.laundryType === "onsite",
+          );
+          return matchingRecord ? { ...slot, status: "cancelled" } : slot;
+        }),
+      );
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient) {
+        const nonLocalIds = recordIds.filter(
+          (id) => !String(id).startsWith("local-"),
+        );
+        if (nonLocalIds.length > 0) {
           const { error } = await supabaseClient
             .from("laundry_bookings")
             .update({ status: "cancelled" })
             .in("id", nonLocalIds);
           if (error) throw error;
-        } catch (error) {
-          console.error("Failed to bulk cancel laundry bookings:", error);
-          toast.error("Unable to cancel some laundry bookings.");
-          return false;
         }
       }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "LAUNDRY_BULK_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: { recordIds, count: recordIds.length },
+        description: `Bulk cancelled ${recordIds.length} laundry loads`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to bulk cancel laundry bookings:", error);
+      setLaundryRecords(recordsSnapshot);
+      setLaundrySlots(slotsSnapshot);
+      toast.error("Unable to cancel some laundry bookings.");
+      return false;
     }
-
-    pushAction({
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_BULK_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: { recordIds, count: recordIds.length },
-      description: `Bulk cancelled ${recordIds.length} laundry loads`,
-    });
-
-    return true;
   };
 
   const rescheduleLaundry = async (

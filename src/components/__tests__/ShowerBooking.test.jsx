@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 let mockContext = {
   showerPickerGuest: { id: "1", name: "Alice" },
@@ -166,10 +166,12 @@ describe("ShowerBooking", () => {
     fireEvent.click(bookButtons[0]);
     // Ensure addShowerRecord was invoked and component displays error
     expect(mockAddShowerRecord).toHaveBeenCalled();
-    expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
+    });
   });
 
-  it("allows adding to waitlist when all slots full", () => {
+  it("allows adding to waitlist when all slots full", async () => {
     mockContext.showerRecords = [
       {
         id: "rec2",
@@ -233,8 +235,10 @@ describe("ShowerBooking", () => {
     const waitlistButton = screen.getByRole("button", { name: /waitlist/i });
     fireEvent.click(waitlistButton);
 
-    expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
-    expect(toastMock.success).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
+      expect(toastMock.success).toHaveBeenCalled();
+    });
   });
 
   it("displays guest shower history", () => {
@@ -308,7 +312,7 @@ describe("ShowerBooking", () => {
     // First slot should be available (8:30), then full (8:00)
   });
 
-  it("handles waitlist error", () => {
+  it("handles waitlist error", async () => {
     mockAddShowerWaitlist.mockImplementation(() => {
       throw new Error("Waitlist full");
     });
@@ -378,7 +382,9 @@ describe("ShowerBooking", () => {
     });
     fireEvent.click(waitlistButton);
 
-    expect(screen.getByText("Waitlist full")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Waitlist full")).toBeInTheDocument();
+    });
   });
 
   describe("Book Next Available", () => {
@@ -433,7 +439,7 @@ describe("ShowerBooking", () => {
       expect(screen.queryByTestId("book-next-available-btn")).not.toBeInTheDocument();
     });
 
-    it("shows error message if booking next available slot fails", () => {
+    it("shows error message if booking next available slot fails", async () => {
       mockAddShowerRecord.mockImplementation(() => {
         throw new Error("Booking failed");
       });
@@ -443,7 +449,9 @@ describe("ShowerBooking", () => {
       const bookNextBtn = screen.getByTestId("book-next-available-btn");
       fireEvent.click(bookNextBtn);
       
-      expect(screen.getByText("Booking failed")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Booking failed")).toBeInTheDocument();
+      });
     });
   });
 

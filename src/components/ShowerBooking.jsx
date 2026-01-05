@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useId } from "react";
+import React, { useEffect, useMemo, useRef, useState, useId, useCallback } from "react";
 import {
   ShowerHead,
   Clock,
@@ -15,6 +15,7 @@ import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
 import Modal from "./ui/Modal";
+import { executeWithOptimisticUpdate } from "../utils/optimisticUpdates";
 
 const humanizeStatus = (status) => {
   if (!status) return "Booked";
@@ -176,7 +177,7 @@ const ShowerBooking = () => {
     in_progress: "bg-indigo-100 text-indigo-800",
   };
 
-  const handleBookShower = (slotTime) => {
+  const handleBookShower = useCallback(async (slotTime) => {
     if (!showerPickerGuest) return;
 
     console.log(
@@ -186,36 +187,89 @@ const ShowerBooking = () => {
       showerPickerGuest?.id,
     );
 
-    try {
-      addShowerRecord(showerPickerGuest.id, slotTime);
+    // Set up optimistic update and rollback handlers
+    const optimisticUpdate = () => {
+      // UI feedback happens immediately
       setSuccess(true);
-      toast.success(`${showerPickerGuest?.name} booked for ${formatSlotLabel(slotTime)}`);
       setError("");
+    };
 
-      setTimeout(() => {
-        setSuccess(false);
-        setShowerPickerGuest(null);
-      }, 1500);
-    } catch (err) {
-      setError(err.message || "Failed to book shower slot");
+    const mutation = async () => {
+      // Execute the actual booking
+      return await addShowerRecord(showerPickerGuest.id, slotTime);
+    };
+
+    const rollback = () => {
+      // If booking fails, clear success state and show error
       setSuccess(false);
-    }
-  };
+    };
 
-  const handleWaitlist = () => {
-    if (!showerPickerGuest) return;
     try {
-      addShowerWaitlist(showerPickerGuest.id);
-      setSuccess(true);
-      toast.success("Guest added to shower waitlist");
-      setTimeout(() => {
-        setSuccess(false);
-        setShowerPickerGuest(null);
-      }, 1200);
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            toast.success(`${showerPickerGuest?.name} booked for ${formatSlotLabel(slotTime)}`);
+            // Close modal after success
+            setTimeout(() => {
+              setSuccess(false);
+              setShowerPickerGuest(null);
+            }, 1500);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to book shower slot");
+            setSuccess(false);
+          },
+        }
+      );
     } catch (err) {
-      setError(err.message || "Failed to add to waitlist");
+      // Error is already handled in executeWithOptimisticUpdate
+      console.error("Shower booking error:", err);
     }
-  };
+  }, [showerPickerGuest, addShowerRecord, setShowerPickerGuest]);
+
+  const handleWaitlist = useCallback(async () => {
+    if (!showerPickerGuest) return;
+
+    // Optimistic update for waitlist
+    const optimisticUpdate = () => {
+      setSuccess(true);
+      setError("");
+    };
+
+    const mutation = async () => {
+      return await addShowerWaitlist(showerPickerGuest.id);
+    };
+
+    const rollback = () => {
+      setSuccess(false);
+    };
+
+    try {
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            toast.success("Guest added to shower waitlist");
+            setTimeout(() => {
+              setSuccess(false);
+              setShowerPickerGuest(null);
+            }, 1200);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to add to waitlist");
+            setSuccess(false);
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Waitlist error:", err);
+    }
+  }, [showerPickerGuest, addShowerWaitlist, setShowerPickerGuest]);
 
   const titleId = useId();
   const descriptionId = useId();

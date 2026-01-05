@@ -15,6 +15,7 @@ import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import Modal from "./ui/Modal";
 import toast from "react-hot-toast";
+import { executeWithOptimisticUpdate } from "../utils/optimisticUpdates";
 
 const humanizeStatus = (status) => {
   if (!status) return "Pending";
@@ -109,35 +110,57 @@ const LaundryBooking = () => {
     [laundrySlots],
   );
 
-  const handleBookLaundry = (slotTime = null) => {
+  const handleBookLaundry = useCallback(async (slotTime = null) => {
     if (!laundryPickerGuest) return;
 
-    try {
-      addLaundryRecord(
+    // Optimistic update
+    const optimisticUpdate = () => {
+      setSuccess(true);
+      setError("");
+    };
+
+    const mutation = async () => {
+      return await addLaundryRecord(
         laundryPickerGuest.id,
         slotTime,
         selectedLaundryType,
         bagNumber.trim(),
       );
-      setSuccess(true);
-      setError("");
-      if (slotTime) {
-        // slotTime is typically a time or range string
-        toast.success(`${laundryPickerGuest?.name} booked for ${slotTime}`);
-      } else {
-        toast.success(`${laundryPickerGuest?.name} booked (off-site)`);
-      }
+    };
 
-      setTimeout(() => {
-        setSuccess(false);
-        setLaundryPickerGuest(null);
-        setBagNumber("");
-      }, 1500);
-    } catch (err) {
-      setError(err.message || "Failed to book laundry");
+    const rollback = () => {
       setSuccess(false);
+    };
+
+    try {
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            if (slotTime) {
+              toast.success(`${laundryPickerGuest?.name} booked for ${slotTime}`);
+            } else {
+              toast.success(`${laundryPickerGuest?.name} booked (off-site)`);
+            }
+
+            setTimeout(() => {
+              setSuccess(false);
+              setLaundryPickerGuest(null);
+              setBagNumber("");
+            }, 1500);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to book laundry");
+            setSuccess(false);
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Laundry booking error:", err);
     }
-  };
+  }, [laundryPickerGuest, selectedLaundryType, bagNumber, addLaundryRecord, setLaundryPickerGuest]);
 
   const onsiteCapacity = settings?.maxOnsiteLaundrySlots ?? 5;
   const onsiteSlotsTaken = useMemo(

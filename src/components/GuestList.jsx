@@ -1622,10 +1622,10 @@ const GuestList = () => {
         <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
 
         <div
-          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 group`}
+          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex flex-col items-start sm:flex-row sm:justify-between sm:items-center gap-3 group`}
           onClick={() => toggleExpanded(guest.id)}
         >
-          <div className={`flex items-center ${compact ? "gap-3" : "gap-4"}`}>
+          <div className={`flex items-center ${compact ? "gap-3" : "gap-4"} w-full sm:w-auto`}>
             <div className={`bg-blue-50 ${compact ? "p-2 rounded-lg" : "p-3 rounded-xl"} border border-blue-100 shadow-sm group-hover:scale-110 transition-transform`}>
               <User size={compact ? 18 : 24} className="text-blue-600" />
             </div>
