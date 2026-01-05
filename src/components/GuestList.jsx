@@ -58,10 +58,16 @@ import { findPotentialDuplicates } from "../utils/duplicateDetection";
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
 const COMPACT_ITEM_HEIGHT = 72;
+// Adaptive height for few results (1-3 matches) - more space-efficient
+const ADAPTIVE_ITEM_HEIGHT = 120;
 const ITEM_VERTICAL_GAP = 16;
 const COMPACT_ITEM_GAP = 8;
+const ADAPTIVE_ITEM_GAP = 12;
 const VIRTUAL_ITEM_SIZE = DEFAULT_ITEM_HEIGHT + ITEM_VERTICAL_GAP;
-const COMPACT_THRESHOLD = 5; // Show compact cards when more than this many results
+// Show compact cards when more than 3 results (was 5 - now more aggressive)
+const COMPACT_THRESHOLD = 3;
+// Show adaptive (medium) sized cards when 2-3 results  
+const ADAPTIVE_THRESHOLD = 1;
 const MIN_VISIBLE_ROWS = 5;
 const MAX_VISIBLE_ROWS = 12;
 
@@ -502,9 +508,17 @@ const GuestList = () => {
     expandedGuest === null &&
     !showCreateForm;
 
-  // Use compact cards when there are many search results
+  // Determine card sizing based on number of results:
+  // - 1 result: full size (exact match)
+  // - 2-3 results: adaptive (medium) size 
+  // - 4+ results: compact size
   const isCompact = sortedGuests.length > COMPACT_THRESHOLD;
-  const effectiveItemSize = isCompact ? COMPACT_ITEM_HEIGHT + COMPACT_ITEM_GAP : VIRTUAL_ITEM_SIZE;
+  const isAdaptive = !isCompact && sortedGuests.length > ADAPTIVE_THRESHOLD;
+  const effectiveItemSize = isCompact 
+    ? COMPACT_ITEM_HEIGHT + COMPACT_ITEM_GAP 
+    : isAdaptive 
+      ? ADAPTIVE_ITEM_HEIGHT + ADAPTIVE_ITEM_GAP
+      : VIRTUAL_ITEM_SIZE;
 
   const trail = useStagger(
     shouldVirtualize ? 0 : (filteredGuests || []).length,
@@ -1455,7 +1469,7 @@ const GuestList = () => {
   const renderGuestCard = (guest, index, options = {}) => {
     if (!guest) return null;
 
-    const { style, key: keyOverride, compact = false } = options;
+    const { style, key: keyOverride, compact = false, adaptive = false } = options;
     const lastService = latestServiceByGuest.get(String(guest.id));
     const ServiceIcon = lastService?.icon;
     const formattedDate = lastService
@@ -1509,9 +1523,9 @@ const GuestList = () => {
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
       : null;
 
-    const containerClass = `border ${compact ? "rounded-lg" : "rounded-xl"} transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
-      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl focus-glow bg-blue-50/50 ${compact ? "" : "scale-[1.02]"} z-10`
-      : `shadow-sm hover:shadow-xl hover:border-blue-200 ${compact ? "" : "hover:-translate-y-0.5"}`
+    const containerClass = `border ${compact ? "rounded-lg" : adaptive ? "rounded-lg" : "rounded-xl"} transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
+      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl focus-glow bg-blue-50/50 ${compact || adaptive ? "" : "scale-[1.02]"} z-10`
+      : `shadow-sm hover:shadow-xl hover:border-blue-200 ${compact || adaptive ? "" : "hover:-translate-y-0.5"}`
       } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-400/20 border-emerald-300 bg-white shadow-lg" : ""} ${isBanned ? "border-red-200 bg-red-50/30" : ""}`;
 
     let animationStyle = shouldVirtualize ? {} : trail[index] || {};
@@ -1622,10 +1636,10 @@ const GuestList = () => {
         <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
 
         <div
-          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex flex-col items-start sm:flex-row sm:justify-between sm:items-center gap-3 group`}
+          className={`${compact ? "px-3 py-2" : isAdaptive ? "px-4 py-3" : "p-4"} cursor-pointer flex flex-row items-center justify-between gap-2 sm:gap-3 group`}
           onClick={() => toggleExpanded(guest.id)}
         >
-          <div className={`flex items-center ${compact ? "gap-3" : "gap-4"} w-full sm:w-auto`}>
+          <div className={`flex items-center ${compact ? "gap-2" : "gap-3"} flex-1 min-w-0`}>
             <div className={`bg-blue-50 ${compact ? "p-2 rounded-lg" : "p-3 rounded-xl"} border border-blue-100 shadow-sm group-hover:scale-110 transition-transform`}>
               <User size={compact ? 18 : 24} className="text-blue-600" />
             </div>
@@ -1831,12 +1845,12 @@ const GuestList = () => {
               )}
             </div>
           </div>
-          <div className={`flex flex-wrap items-center justify-start sm:justify-end ${compact ? "gap-1" : "gap-2"} w-full sm:w-auto`}>
-            {/* Quick Action Buttons - wrap on mobile for better visibility */}
-            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+          <div className={`flex items-center flex-shrink-0 ${compact ? "gap-1" : "gap-2"}`}>
+            {/* Quick Action Buttons - stay in row, no wrapping */}
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Meal Buttons - Only if not banned from meals */}
               {!isBannedFromMeals && (
-                <div className={`flex items-center ${compact ? "gap-1 p-0.5" : "gap-2 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
+                <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
                   {(() => {
                     const today = todayPacificDateString();
                     const todayMealRecord = mealRecords.find(
@@ -1911,7 +1925,7 @@ const GuestList = () => {
               )}
               {/* Quick Action Service Buttons - Shower & Laundry */}
               {(!isBannedFromShower || !isBannedFromLaundry) && (
-                <div className={`flex items-center ${compact ? "gap-1 p-0.5" : "gap-2 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
+                <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
                   {/* Shower Button */}
                   {!isBannedFromShower && (() => {
                     const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
@@ -3697,6 +3711,7 @@ const GuestList = () => {
                       renderGuestCard(sortedGuests[index], index, {
                         style,
                         compact: isCompact,
+                        adaptive: isAdaptive,
                       })
                     }
                   </List>
@@ -3707,6 +3722,7 @@ const GuestList = () => {
                     key: `guest-${guest.id}-${searchTerm}`,
                     style: trail[i],
                     compact: isCompact,
+                    adaptive: isAdaptive,
                   }),
                 )
               )}

@@ -66,7 +66,7 @@ const ShowerRow = memo(({ booking, onGuestClick }) => {
   return (
     <div
       onClick={handleClick}
-      className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors"
+      className="px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-blue-50 cursor-pointer transition-colors duration-75 active:bg-blue-100"
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
@@ -91,7 +91,7 @@ const DoneShowerRow = memo(({ booking, onGuestClick }) => {
   return (
     <div
       onClick={handleClick}
-      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-emerald-50 cursor-pointer transition-colors"
+      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-emerald-50 cursor-pointer transition-colors duration-75 active:bg-emerald-100"
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
@@ -116,7 +116,7 @@ const CancelledShowerRow = memo(({ booking, onGuestClick }) => {
   return (
     <div
       onClick={handleClick}
-      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-red-50 cursor-pointer transition-colors"
+      className="px-4 py-2 flex items-center justify-between gap-3 hover:bg-red-50 cursor-pointer transition-colors duration-75 active:bg-red-100"
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="text-xs font-medium text-red-600 w-16 flex-shrink-0">
@@ -141,7 +141,7 @@ const WaitlistRow = memo(({ guest, onGuestClick }) => {
   return (
     <div
       onClick={handleClick}
-      className="px-4 py-2 flex items-center gap-3 hover:bg-amber-100 cursor-pointer transition-colors"
+      className="px-4 py-2 flex items-center gap-3 hover:bg-amber-100 cursor-pointer transition-colors duration-75 active:bg-amber-200"
     >
       <span className="text-xs font-bold text-amber-600 w-6">
         #{guest.position}

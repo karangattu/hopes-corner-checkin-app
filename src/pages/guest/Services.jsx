@@ -409,6 +409,24 @@ const Services = () => {
     }
   }, []);
 
+  // Optimized lookup maps for quick record retrieval - prevents slow .find() operations
+  const showerRecordsMap = useMemo(() => {
+    const map = new Map();
+    (showerRecords || []).forEach(r => map.set(r.id, r));
+    return map;
+  }, [showerRecords]);
+
+  // Optimized handler for shower guest click - uses map lookup instead of .find()
+  const handleShowerGuestClickOptimized = useCallback((guestId, recordId) => {
+    const record = showerRecordsMap.get(recordId);
+    if (record) {
+      // Use startTransition for non-urgent UI updates to improve responsiveness
+      startTransition(() => {
+        setSelectedShowerRecord(record);
+      });
+    }
+  }, [showerRecordsMap]);
+
   // Scroll detection for quick actions visibility
   useEffect(() => {
     let timeoutId;
@@ -3949,14 +3967,6 @@ const Services = () => {
       );
     };
 
-    // Handler for when a guest is clicked in the compact list
-    const handleShowerGuestClick = (guestId, recordId) => {
-      const record = showerRecords.find(r => r.id === recordId);
-      if (record) {
-        setSelectedShowerRecord(record);
-      }
-    };
-
     // Compact view mode - return simplified list
     if (showerViewMode === "compact") {
       return (
@@ -4030,7 +4040,7 @@ const Services = () => {
           {/* Slot Block Manager - Only visible to admin/staff */}
           <SlotBlockManager serviceType="shower" />
 
-          <CompactShowerList onGuestClick={handleShowerGuestClick} viewDate={showerViewDate} />
+          <CompactShowerList onGuestClick={handleShowerGuestClickOptimized} viewDate={showerViewDate} />
 
           {/* Modal for detailed view */}
           {selectedShowerRecord && (

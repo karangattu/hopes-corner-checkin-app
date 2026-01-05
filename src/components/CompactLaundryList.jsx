@@ -101,7 +101,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
   return (
     <div 
       onClick={handleClick}
-      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-purple-50 cursor-pointer" : "hover:bg-gray-50"} transition-colors`}
+      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-purple-50 cursor-pointer active:bg-purple-100" : "hover:bg-gray-50"} transition-colors duration-75`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
@@ -134,7 +134,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
   return (
     <div 
       onClick={handleClick}
-      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer" : "hover:bg-emerald-50"} transition-colors`}
+      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer active:bg-emerald-200" : "hover:bg-emerald-50"} transition-colors duration-75`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
@@ -164,7 +164,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, LAUNDRY_STATUS }) => {
   return (
     <div 
       onClick={handleClick}
-      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-blue-100 cursor-pointer" : ""} transition-colors`}
+      className={`px-4 py-2.5 flex items-center justify-between gap-3 ${onGuestClick ? "hover:bg-blue-100 cursor-pointer active:bg-blue-200" : ""} transition-colors duration-75`}
     >
       <div className="min-w-0 flex-1">
         <span className="font-medium text-blue-900 text-sm truncate block">
@@ -192,7 +192,7 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, LAUNDRY_STATUS }) => {
   return (
     <div 
       onClick={handleClick}
-      className={`px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer" : ""} transition-colors`}
+      className={`px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30 ${onGuestClick ? "hover:bg-emerald-100 cursor-pointer active:bg-emerald-200" : ""} transition-colors duration-75`}
     >
       <div className="min-w-0 flex-1">
         <span className="font-medium text-emerald-900 text-sm truncate block">

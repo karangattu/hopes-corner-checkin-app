@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   WashingMachine,
   ChevronDown,
@@ -67,26 +67,36 @@ const LaundryKanban = ({
 }) => {
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
+  
+  // Use ref to track dragged item for optimistic updates without re-renders
+  const draggedItemRef = useRef(null);
 
-  const applyStatusUpdate = async (record, newStatus) => {
+  // Memoize guest lookup map for O(1) access
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach(g => map.set(g.id, g));
+    return map;
+  }, [guests]);
+
+  const applyStatusUpdate = useCallback(async (record, newStatus) => {
     if (!record) return false;
     const success = await updateLaundryStatus(record.id, newStatus);
     if (success) {
       toast.success("Status updated");
     }
     return success;
-  };
+  }, [updateLaundryStatus]);
 
-  const hasBagNumber = (record) =>
-    Boolean(String(record?.bagNumber ?? "").trim().length);
+  const hasBagNumber = useCallback((record) =>
+    Boolean(String(record?.bagNumber ?? "").trim().length), []);
 
-  const requiresBagPrompt = (record, newStatus) =>
+  const requiresBagPrompt = useCallback((record, newStatus) =>
     record?.laundryType !== "offsite" &&
     record?.status === LAUNDRY_STATUS.WAITING &&
     newStatus !== LAUNDRY_STATUS.WAITING &&
-    !hasBagNumber(record);
+    !hasBagNumber(record), [hasBagNumber]);
 
-  const promptForBagNumber = async (record, newStatus) => {
+  const promptForBagNumber = useCallback(async (record, newStatus) => {
     if (!record) {
       return;
     }
@@ -113,9 +123,9 @@ const LaundryKanban = ({
 
     toast.success("Bag number saved");
     await applyStatusUpdate(record, newStatus);
-  };
+  }, [attemptLaundryStatusChange, updateLaundryBagNumber, applyStatusUpdate]);
 
-  const processStatusChange = async (record, newStatus) => {
+  const processStatusChange = useCallback(async (record, newStatus) => {
     if (!record) {
       return;
     }
@@ -126,10 +136,11 @@ const LaundryKanban = ({
     }
 
     await applyStatusUpdate(record, newStatus);
-  };
+  }, [requiresBagPrompt, promptForBagNumber, applyStatusUpdate]);
 
-  const getGuestNameDetails = (guestId) => {
-    const guest = guests.find((g) => g.id === guestId) || null;
+  // Optimized guest name lookup using memoized map
+  const getGuestNameDetails = useCallback((guestId) => {
+    const guest = guestMap.get(guestId) || null;
     const fallback = "Unknown Guest";
     const legalName =
       guest?.name ||
@@ -152,9 +163,9 @@ const LaundryKanban = ({
       displayName,
       sortKey: legalName.toLowerCase(),
     };
-  };
+  }, [guestMap]);
 
-  const formatSlotTime = (slotTime) => {
+  const formatSlotTime = useCallback((slotTime) => {
     if (!slotTime) return null;
     // Slot can be a range like "8:30 - 9:30"
     const [start] = String(slotTime).split(" - ");
@@ -166,38 +177,53 @@ const LaundryKanban = ({
     date.setHours(hours);
     date.setMinutes(minutes, 0, 0);
     return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  };
+  }, []);
 
-  const toggleCard = (recordId) => {
+  const toggleCard = useCallback((recordId) => {
     setExpandedCards((prev) => ({
       ...prev,
       [recordId]: !prev[recordId],
     }));
-  };
+  }, []);
 
-  const handleDragStart = (e, record) => {
+  // Optimized drag handlers - use refs to avoid state updates during drag
+  const handleDragStart = useCallback((e, record) => {
+    draggedItemRef.current = record;
     setDraggedItem(record);
     e.dataTransfer.effectAllowed = "move";
-  };
+    // Add drag image effect for smoother visual (only if supported - not available in jsdom)
+    if (typeof e.dataTransfer.setDragImage === 'function') {
+      e.dataTransfer.setDragImage(e.target, 0, 0);
+    }
+  }, []);
 
-  const handleDragOver = (e) => {
+  const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-  };
+  }, []);
 
-  const handleDrop = async (e, newStatus) => {
+  const handleDrop = useCallback(async (e, newStatus) => {
     e.preventDefault();
-    if (draggedItem && draggedItem.status !== newStatus) {
-      await processStatusChange(draggedItem, newStatus);
+    const item = draggedItemRef.current;
+    if (item && item.status !== newStatus) {
+      await processStatusChange(item, newStatus);
     }
+    draggedItemRef.current = null;
     setDraggedItem(null);
-  };
+  }, [processStatusChange]);
 
-  // Separate on-site and off-site records
-  const onsiteRecords = laundryRecords.filter((r) => r.laundryType !== "offsite");
-  const offsiteRecords = laundryRecords.filter((r) => r.laundryType === "offsite");
+  const handleDragEnd = useCallback(() => {
+    draggedItemRef.current = null;
+    setDraggedItem(null);
+  }, []);
 
-  const groupedOnsiteRecords = {
+  // Memoize record filtering to prevent unnecessary recalculation
+  const { onsiteRecords, offsiteRecords } = useMemo(() => ({
+    onsiteRecords: laundryRecords.filter((r) => r.laundryType !== "offsite"),
+    offsiteRecords: laundryRecords.filter((r) => r.laundryType === "offsite"),
+  }), [laundryRecords]);
+
+  const groupedOnsiteRecords = useMemo(() => ({
     [LAUNDRY_STATUS.WAITING]: onsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.WAITING,
     ),
@@ -213,9 +239,9 @@ const LaundryKanban = ({
     [LAUNDRY_STATUS.PICKED_UP]: onsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.PICKED_UP,
     ),
-  };
+  }), [onsiteRecords]);
 
-  const groupedOffsiteRecords = {
+  const groupedOffsiteRecords = useMemo(() => ({
     [LAUNDRY_STATUS.PENDING]: offsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.PENDING,
     ),
@@ -228,7 +254,7 @@ const LaundryKanban = ({
     [LAUNDRY_STATUS.OFFSITE_PICKED_UP]: offsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP,
     ),
-  };
+  }), [offsiteRecords]);
 
   const onsiteColumns = [
     {
@@ -335,12 +361,13 @@ const LaundryKanban = ({
     },
   ];
 
-  const renderCard = (record, isOffsite = false) => {
+  const renderCard = useCallback((record, isOffsite = false) => {
     const nameDetails = getGuestNameDetails(record.guestId);
     const isExpanded = expandedCards[record.id];
     const isCompleted =
       record.status === LAUNDRY_STATUS.PICKED_UP ||
       record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP;
+    const isDragging = draggedItem?.id === record.id;
 
     const statusOptions = isOffsite
       ? [
@@ -362,9 +389,11 @@ const LaundryKanban = ({
         key={record.id}
         draggable
         onDragStart={(e) => handleDragStart(e, record)}
+        onDragEnd={handleDragEnd}
         data-testid={`laundry-card-${record.id}`}
-        className={`bg-white rounded-lg border-2 shadow-sm p-3 cursor-move transition-all hover:shadow-md ${
-          draggedItem?.id === record.id ? "opacity-50" : ""
+        style={{ willChange: isDragging ? 'transform, opacity' : 'auto' }}
+        className={`bg-white rounded-lg border-2 shadow-sm p-3 cursor-move transition-all duration-75 hover:shadow-md ${
+          isDragging ? "opacity-50 scale-105" : ""
         } ${
           isCompleted
             ? "border-emerald-200 hover:border-emerald-300"
@@ -499,7 +528,7 @@ const LaundryKanban = ({
         </div>
       </div>
     );
-  };
+  }, [getGuestNameDetails, expandedCards, draggedItem, handleDragStart, handleDragEnd, toggleCard, updateLaundryBagNumber, processStatusChange, cancelLaundryRecord, formatSlotTime]);
 
   return (
     <div className="space-y-6">

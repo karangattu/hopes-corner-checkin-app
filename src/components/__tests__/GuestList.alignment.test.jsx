@@ -12,15 +12,15 @@ const guestListPath = join(__dirname, '../GuestList.jsx');
 const guestListContent = readFileSync(guestListPath, 'utf-8');
 
 describe('GuestList - Alignment Tests', () => {
-  it('guest card container should have items-start class for left alignment on mobile', () => {
-    // Check that the flex container has items-start for mobile
-    const hasItemsStart = guestListContent.includes('flex flex-col items-start');
-    expect(hasItemsStart).toBe(true);
+  it('guest card container should use flex-row layout for name and actions on same line', () => {
+    // Updated: Now using flex-row for horizontal layout to keep buttons on same row
+    const hasFlexRow = guestListContent.includes('flex-row items-center justify-between');
+    expect(hasFlexRow).toBe(true);
   });
 
   it('guest card container should not have justify-center in main flex container', () => {
-    // Find the main guest card container (line with cursor-pointer flex flex-col)
-    const guestCardContainerPattern = /cursor-pointer flex flex-col[^"]*"/g;
+    // Find the main guest card container (line with cursor-pointer flex)
+    const guestCardContainerPattern = /cursor-pointer flex flex-row[^"]*"/g;
     const matches = guestListContent.match(guestCardContainerPattern);
     
     // Verify the main container doesn't have justify-center (which would center name on mobile)
@@ -35,10 +35,10 @@ describe('GuestList - Alignment Tests', () => {
     expect(h3Pattern.test(guestListContent)).toBe(false);
   });
 
-  it('guest info container should take full width on mobile (w-full sm:w-auto)', () => {
-    // Check for responsive width classes
-    const hasResponsiveWidth = guestListContent.includes('w-full sm:w-auto');
-    expect(hasResponsiveWidth).toBe(true);
+  it('guest info container should use flex-1 for proper space distribution', () => {
+    // Check for flex-1 min-w-0 pattern which allows proper space distribution
+    const hasFlexMinW = guestListContent.includes('flex-1 min-w-0');
+    expect(hasFlexMinW).toBe(true);
   });
 
   it('guest name wrapper should use flex with items-baseline', () => {
@@ -47,36 +47,20 @@ describe('GuestList - Alignment Tests', () => {
     expect(hasItemsBaseline).toBe(true);
   });
 
-  it('service buttons container should use justify-start for mobile alignment', () => {
-    // Check for justify-start (mobile) and sm:justify-end (desktop)
-    const hasJustifyStart = guestListContent.includes('justify-start');
-    expect(hasJustifyStart).toBe(true);
+  it('action buttons should stay in row without wrapping by using flex-shrink-0', () => {
+    // Check for flex-shrink-0 to prevent buttons from wrapping
+    const hasShrinkNone = guestListContent.includes('flex-shrink-0');
+    expect(hasShrinkNone).toBe(true);
   });
 
-  it('flex-col container should have items-start to prevent default centering', () => {
-    // The main guest card container should have both flex-col and items-start
-    const pattern = /flex flex-col items-start/;
-    expect(pattern.test(guestListContent)).toBe(true);
-  });
-
-  it('guest card should have sm:items-center only for larger screens, not mobile', () => {
-    // Check that items-center is only applied with sm: prefix
-    const hasSmItems = guestListContent.includes('sm:items-center');
-    expect(hasSmItems).toBe(true);
-
-    // Ensure items-center without prefix isn't in the main card container
-    const mainCardPattern = /flex flex-col items-start.*sm:flex-row.*sm:items-center/;
-    expect(mainCardPattern.test(guestListContent)).toBe(true);
+  it('main container should use items-center for vertical alignment', () => {
+    // Check for items-center in the main card container
+    const hasItemsCenter = guestListContent.includes('items-center justify-between');
+    expect(hasItemsCenter).toBe(true);
   });
 });
 
 describe('GuestList - Space Efficiency Tests', () => {
-  it('guest info container should use responsive width for space efficiency', () => {
-    // w-full on mobile, w-auto on larger screens
-    const hasResponsiveWidth = guestListContent.includes('w-full sm:w-auto');
-    expect(hasResponsiveWidth).toBe(true);
-  });
-
   it('compact mode should use reduced padding (px-3 py-2)', () => {
     // Check for compact padding classes
     const hasCompactPadding = guestListContent.includes('px-3 py-2');
@@ -87,6 +71,12 @@ describe('GuestList - Space Efficiency Tests', () => {
     // Check for normal padding
     const hasNormalPadding = guestListContent.includes('p-4');
     expect(hasNormalPadding).toBe(true);
+  });
+
+  it('adaptive mode should use medium padding (px-4 py-3)', () => {
+    // Check for adaptive padding classes
+    const hasAdaptivePadding = guestListContent.includes('px-4 py-3');
+    expect(hasAdaptivePadding).toBe(true);
   });
 
   it('name section should not use mx-auto (which would center it)', () => {
@@ -100,25 +90,37 @@ describe('GuestList - Space Efficiency Tests', () => {
     const excessiveMarginPattern = /<h3[^>]*className[^>]*m-(?:1[0-9]|2[0-9]|[3-9][0-9])/;
     expect(excessiveMarginPattern.test(guestListContent)).toBe(false);
   });
+
+  it('should use COMPACT_THRESHOLD of 3 for aggressive space optimization', () => {
+    // Verify the threshold is set to 3 (reduced from 5)
+    const hasThreshold3 = guestListContent.includes('COMPACT_THRESHOLD = 3');
+    expect(hasThreshold3).toBe(true);
+  });
+
+  it('should have ADAPTIVE_THRESHOLD for medium-sized cards', () => {
+    // Verify adaptive threshold exists
+    const hasAdaptiveThreshold = guestListContent.includes('ADAPTIVE_THRESHOLD');
+    expect(hasAdaptiveThreshold).toBe(true);
+  });
 });
 
 describe('GuestList - Flexbox Direction Tests', () => {
-  it('main container should use flex-col on mobile for vertical stacking', () => {
-    // Ensure flex-col is present
-    const hasFlexCol = guestListContent.includes('flex-col');
-    expect(hasFlexCol).toBe(true);
+  it('main container should use flex-row for horizontal layout', () => {
+    // Check for flex-row layout
+    const hasFlexRow = guestListContent.includes('flex-row');
+    expect(hasFlexRow).toBe(true);
   });
 
-  it('main container should switch to flex-row on sm breakpoint', () => {
-    // Ensure sm:flex-row is present
-    const hasSmFlexRow = guestListContent.includes('sm:flex-row');
-    expect(hasSmFlexRow).toBe(true);
+  it('responsive breakpoints should include sm: prefix patterns', () => {
+    // Check that sm: responsive patterns exist
+    const hasSmPattern = guestListContent.includes('sm:gap');
+    expect(hasSmPattern).toBe(true);
   });
 
-  it('button container should be full width on mobile for proper spacing', () => {
-    // Buttons should use w-full sm:w-auto
-    const buttonContainerPattern = /justify-start sm:justify-end.*w-full sm:w-auto|w-full sm:w-auto.*justify-start sm:justify-end/;
-    expect(buttonContainerPattern.test(guestListContent)).toBe(true);
+  it('button container should not wrap to prevent row overflow', () => {
+    // Action buttons should not use flex-wrap in the main button container
+    const buttonNoWrapPattern = /flex items-center flex-shrink-0/;
+    expect(buttonNoWrapPattern.test(guestListContent)).toBe(true);
   });
 });
 
@@ -133,16 +135,15 @@ describe('Guest List - Visual Regression Prevention', () => {
     expect(guestCardSection.includes('text-center')).toBe(false);
   });
 
-  it('should maintain flex items-start for consistent left alignment', () => {
-    // The critical fix: flex-col with items-start
-    const criticalPattern = /flex flex-col items-start sm:flex-row/;
+  it('should maintain flex items-center for proper vertical alignment', () => {
+    // Updated: Now checking for items-center in row layout
+    const criticalPattern = /flex-row items-center/;
     expect(criticalPattern.test(guestListContent)).toBe(true);
   });
 
-  it('guest info div should maintain responsive width classes', () => {
-    // Look for the pattern near the User icon and name
-    const guestInfoPattern = /flex items-center.*w-full sm:w-auto|w-full sm:w-auto.*flex items-center/s;
+  it('guest info div should use flex-1 min-w-0 for responsive sizing', () => {
+    // Look for the pattern for responsive width
+    const guestInfoPattern = /flex-1 min-w-0/;
     expect(guestInfoPattern.test(guestListContent)).toBe(true);
   });
 });
-
