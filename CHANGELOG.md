@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 0.0.7 · 2026-01-04
+
+### ✨ New Features
+
+- **Automatic Meal Entries**: Meals for RVs and lunch bags will automatically be added after meal service ends. Preset quantities are configured by day:
+  - **Monday**: 120 Lunch Bags, 100 RV Meals
+  - **Wednesday**: 120 Lunch Bags, 35 RV Meals  
+  - **Thursday**: 100 RV Meals
+  - **Saturday**: 110 + 220 Lunch Bags (2 entries), 100 RV Meals, 50 Day Worker Center Meals
+- Auto-added entries appear in the meals section where staff can modify or delete them as needed.
+
+## 0.0.6 · 2026-01-01
+
+### Bug Fixes
+
+- **Waiver Annual Reset**: Fixed waivers not resetting at the start of a new year. Guests who signed waivers last year will now correctly show as needing new waivers for 2026.
+
 ## 0.0.5 · 2025-12-28
 
 ### Performance Improvements
