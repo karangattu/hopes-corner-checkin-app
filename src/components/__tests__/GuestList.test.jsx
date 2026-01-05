@@ -57,7 +57,7 @@ describe("GuestList", () => {
   it("displays create-guest prompt when search has first and last initial with no results", async () => {
     render(<GuestList />);
 
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     // Use fireEvent for faster input simulation
     fireEvent.change(search, { target: { value: "Alex R" } });
 
@@ -88,7 +88,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "Jane R" } });
 
     expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
@@ -110,7 +110,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "Tim" } });
 
     // Compact label should show both services with times
@@ -131,7 +131,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "Doe" } });
 
     expect(await screen.findByText(/2 guests.*found/i)).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "Nonexistent" } });
 
     expect(await screen.findByText(/no guests found/i)).toBeInTheDocument();
@@ -165,7 +165,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
     expect(await screen.findByText(/1 guest.*found/i)).toBeInTheDocument();
 
@@ -195,7 +195,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
@@ -251,7 +251,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
@@ -302,7 +302,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
@@ -339,7 +339,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
@@ -375,7 +375,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "John" } });
 
     const guestCard = await screen.findByText("John Doe");
@@ -405,7 +405,7 @@ describe("GuestList", () => {
   it("does not trigger shortcut while typing in inputs", async () => {
     render(<GuestList />);
 
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     search.focus();
 
     fireEvent.keyDown(search, {
@@ -450,7 +450,7 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      const search = screen.getByPlaceholderText(/Type first AND last name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "Charlie" } });
 
       await waitFor(() => {
@@ -498,7 +498,7 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      const search = screen.getByPlaceholderText(/Type first AND last name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "A" } });
 
       const firstNameButton = await screen.findByRole("button", { name: /first name/i });
@@ -548,7 +548,7 @@ describe("GuestList", () => {
       };
 
       render(<GuestList />);
-      const search = screen.getByPlaceholderText(/Type first AND last name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "A" } });
 
       const lastNameButton = await screen.findByRole("button", { name: /last name/i });
@@ -591,7 +591,7 @@ describe("GuestList", () => {
     };
 
     render(<GuestList />);
-    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    const search = screen.getByPlaceholderText(/search guests/i);
     fireEvent.change(search, { target: { value: "Hungry" } });
 
     // Should see "3 Meals" because 1 regular + 2 extra

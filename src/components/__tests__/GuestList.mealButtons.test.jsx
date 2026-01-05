@@ -85,7 +85,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -126,7 +126,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -174,7 +174,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -212,7 +212,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -254,7 +254,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -294,7 +294,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -338,7 +338,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -383,7 +383,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -425,7 +425,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -461,7 +461,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "Jane Smith" } });
 
       await waitFor(() => {
@@ -494,7 +494,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {
@@ -531,7 +531,7 @@ describe("GuestList - Meal Button Changes", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John Doe" } });
 
       await waitFor(() => {

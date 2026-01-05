@@ -170,7 +170,7 @@ describe("GuestList - Linked Guests Fix", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John" } });
 
       await waitFor(() => {
@@ -210,7 +210,7 @@ describe("GuestList - Linked Guests Fix", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John" } });
 
       await waitFor(() => {
@@ -236,7 +236,7 @@ describe("GuestList - Linked Guests Fix", () => {
 
       render(<GuestList />);
 
-      const search = screen.getByPlaceholderText(/search by name/i);
+      const search = screen.getByPlaceholderText(/search guests/i);
       fireEvent.change(search, { target: { value: "John" } });
 
       await waitFor(() => {

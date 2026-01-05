@@ -40,6 +40,7 @@ import {
   Link,
   Check,
   BrushCleaning,
+  Loader2,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { useGuestsStore } from "../stores/useGuestsStore";
@@ -173,6 +174,8 @@ const GuestList = () => {
   const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
   const [pendingExtraMealGuests, setPendingExtraMealGuests] = useState(new Set());
   const [pendingActions, setPendingActions] = useState(new Set());
+  // Track recently logged meals for success animation
+  const [recentlyLoggedMeals, setRecentlyLoggedMeals] = useState(new Set());
   const [banEditor, setBanEditor] = useState({
     guestId: null,
     until: "",
@@ -616,7 +619,24 @@ const GuestList = () => {
       // Pass pickedUpByGuestId to track who physically picked up the meal (for linked guests metrics)
       const rec = addMealRecord(guestId, count, null, pickedUpByGuestId);
       if (rec) {
-        haptics.success();
+        // Add to recently logged meals for success animation
+        setRecentlyLoggedMeals((prev) => {
+          const next = new Set(prev);
+          next.add(guestId);
+          return next;
+        });
+        // Clear from recently logged after animation completes (600ms)
+        setTimeout(() => {
+          setRecentlyLoggedMeals((prev) => {
+            const next = new Set(prev);
+            next.delete(guestId);
+            return next;
+          });
+        }, 600);
+        // Delay haptic feedback slightly to sync with visual confirmation
+        setTimeout(() => {
+          haptics.success();
+        }, 100);
         const proxyNote = pickedUpByGuestId ? " (picked up by linked guest)" : "";
         toast.success(`${count} meal${count > 1 ? "s" : ""} logged for guest!${proxyNote}`);
       }
@@ -1490,7 +1510,7 @@ const GuestList = () => {
       : null;
 
     const containerClass = `border ${compact ? "rounded-lg" : "rounded-xl"} transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
-      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl bg-blue-50/50 ${compact ? "" : "scale-[1.02]"} z-10`
+      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl focus-glow bg-blue-50/50 ${compact ? "" : "scale-[1.02]"} z-10`
       : `shadow-sm hover:shadow-xl hover:border-blue-200 ${compact ? "" : "hover:-translate-y-0.5"}`
       } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-400/20 border-emerald-300 bg-white shadow-lg" : ""} ${isBanned ? "border-red-200 bg-red-50/30" : ""}`;
 
@@ -1602,7 +1622,7 @@ const GuestList = () => {
         <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
 
         <div
-          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex justify-between items-center group`}
+          className={`${compact ? "px-3 py-2" : "p-4"} cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 group`}
           onClick={() => toggleExpanded(guest.id)}
         >
           <div className={`flex items-center ${compact ? "gap-3" : "gap-4"}`}>
@@ -1669,7 +1689,7 @@ const GuestList = () => {
                     return (
                       <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-green-700 bg-green-50 rounded-full border border-green-200 shadow-sm`} title={`Last meal: ${lastMealLabel}`}>
                         <Utensils size={compact ? 8 : 10} className="text-green-700" />
-                        <span>RECENT</span>
+                        <span className="hidden sm:inline">RECENT</span>
                       </span>
                     );
                   })()}
@@ -1811,9 +1831,9 @@ const GuestList = () => {
               )}
             </div>
           </div>
-          <div className={`flex items-center ${compact ? "gap-2" : "gap-3"} shrink-0 ${compact ? "ml-2" : "ml-4"}`}>
-            {/* Quick Action Buttons */}
-            <div className="flex items-center gap-2">
+          <div className={`flex flex-wrap items-center justify-start sm:justify-end ${compact ? "gap-1" : "gap-2"} w-full sm:w-auto`}>
+            {/* Quick Action Buttons - wrap on mobile for better visibility */}
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
               {/* Meal Buttons - Only if not banned from meals */}
               {!isBannedFromMeals && (
                 <div className={`flex items-center ${compact ? "gap-1 p-0.5" : "gap-2 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
@@ -1841,11 +1861,14 @@ const GuestList = () => {
                       const tooltip = extraMealsCount > 0
                         ? `Received ${baseCount} regular meal${baseCount > 1 ? "s" : ""} and ${extraMealsCount} extra meal${extraMealsCount !== 1 ? "s" : ""} today`
                         : `Already received ${baseCount} meal${baseCount > 1 ? "s" : ""} today`;
+                      // Add success animation class if recently logged
+                      const showSuccessAnimation = recentlyLoggedMeals.has(guest.id);
 
                       return (
                         <div
-                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default opacity-60`}
+                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default ${showSuccessAnimation ? "animate-success-pulse opacity-100" : "opacity-60"}`}
                           title={tooltip}
+                          data-testid="meal-status-indicator"
                         >
                           <Check
                             size={compact ? 12 : 14}
@@ -1855,6 +1878,8 @@ const GuestList = () => {
                         </div>
                       );
                     }
+                    // Check if there's a pending meal action for this guest
+                    const isPending = pendingMealGuests.has(guest.id);
                     return [1, 2].map((count) => (
                       <button
                         key={count}
@@ -1862,13 +1887,22 @@ const GuestList = () => {
                           e.stopPropagation();
                           handleMealSelection(guest.id, count);
                         }}
-                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95`}
-                        title={`Quick log ${count} meal${count > 1 ? "s" : ""}`}
+                        disabled={isPending}
+                        aria-busy={isPending}
+                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={isPending ? "Logging meal..." : `Quick log ${count} meal${count > 1 ? "s" : ""}`}
                       >
-                        <Utensils
-                          size={compact ? 12 : 14}
-                          className="group-hover/btn:scale-110 transition-transform"
-                        />
+                        {isPending ? (
+                          <Loader2
+                            size={compact ? 12 : 14}
+                            className="animate-spin-fast text-emerald-600"
+                          />
+                        ) : (
+                          <Utensils
+                            size={compact ? 12 : 14}
+                            className="group-hover/btn:scale-110 transition-transform"
+                          />
+                        )}
                         <span>{count}</span>
                       </button>
                     ));
@@ -1947,9 +1981,25 @@ const GuestList = () => {
                     pacificDateStringFrom(record.date) === today
                 );
                 const hasMealToday = !!todayMealRecord;
+                const mealCount = todayMealRecord?.count || 0;
+                // Add extra meals count
+                const guestExtraMeals = extraMealRecords.filter(
+                  (record) =>
+                    record.guestId === guest.id &&
+                    pacificDateStringFrom(record.date) === today
+                );
+                const extraMealsCount = guestExtraMeals.reduce((sum, r) => sum + (r.count || 1), 0);
+                const totalMeals = mealCount + extraMealsCount;
                 const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
                 const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
                 if (hasMealToday || hasShowerToday || hasLaundryToday) {
+                  // Build services summary for toast
+                  const servicesParts = [];
+                  if (totalMeals > 0) servicesParts.push(`${totalMeals} meal${totalMeals > 1 ? "s" : ""}`);
+                  if (hasShowerToday) servicesParts.push("shower");
+                  if (hasLaundryToday) servicesParts.push("laundry");
+                  const servicesSummary = servicesParts.join(" + ");
+
                   return (
                     <button
                       onClick={(e) => {
@@ -1957,8 +2007,13 @@ const GuestList = () => {
                         haptics.buttonPress();
                         setSearchTerm("");
                         setExpandedGuest(null);
+                        // Smooth scroll to search bar (if available - not in jsdom tests)
+                        if (typeof searchInputRef.current?.scrollIntoView === 'function') {
+                          searchInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
                         searchInputRef.current?.focus();
-                        toast.success("Ready for next guest");
+                        // Show quick stats toast with services summary
+                        toast.success(`${servicesSummary} ✓`);
                       }}
                       className={`flex items-center justify-center ${compact ? "h-8 px-3" : "h-10 px-3"} rounded-lg font-bold transition-all shadow-sm bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95 ml-2`}
                       title="Complete check-in and search for next guest"
@@ -3317,7 +3372,7 @@ const GuestList = () => {
             </div>
             <input
               type="text"
-              placeholder="Search by name or type first AND last name to create new guest..."
+              placeholder="Search guests..."
               aria-label="Search guests by name"
               value={searchTerm}
               onChange={(e) => {
@@ -3382,8 +3437,8 @@ const GuestList = () => {
           {/* Search results count badge - removed to reduce clutter */}
         </div>
 
-        {/* Keyboard shortcuts hint - more compact */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-2">
+        {/* Keyboard shortcuts hint - hidden on mobile, visible on sm+ screens */}
+        <div className="hidden sm:flex flex-wrap items-center gap-2 text-xs text-gray-500 mt-2">
           <kbd className="px-2 py-1 bg-gray-100 border border-gray-200 rounded text-gray-600 font-mono">Ctrl+K</kbd>
           <span>Focus search</span>
           <span className="text-gray-300">•</span>
@@ -3589,7 +3644,7 @@ const GuestList = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-full">
+                    <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-full">
                       <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">↑↓</kbd>
                       <span>Navigate</span>
                       <span className="text-emerald-400">•</span>

@@ -155,7 +155,7 @@ describe("GuestList Quick Services", () => {
         };
         render(<GuestList />);
 
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByPlaceholderText(/search guests/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         expect(await screen.findByTitle("Shower already booked today")).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("GuestList Quick Services", () => {
         };
 
         render(<GuestList />);
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByPlaceholderText(/search guests/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         // Reset button should be visible (BrushCleaning icon implies "Complete check-in")
@@ -189,7 +189,7 @@ describe("GuestList Quick Services", () => {
         };
 
         render(<GuestList />);
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByPlaceholderText(/search guests/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         expect(screen.getByTitle("Complete check-in and search for next guest")).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe("GuestList Quick Services", () => {
         };
 
         render(<GuestList />);
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByPlaceholderText(/search guests/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         // Shower button should NOT be present (conditional rendering)
@@ -243,7 +243,7 @@ describe("GuestList Quick Services", () => {
         };
 
         render(<GuestList />);
-        fireEvent.change(screen.getByPlaceholderText(/search by name/i), { target: { value: "John" } });
+        fireEvent.change(screen.getByPlaceholderText(/search guests/i), { target: { value: "John" } });
         await screen.findByText("John Doe");
 
         // Meal buttons should be hidden
