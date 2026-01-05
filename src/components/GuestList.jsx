@@ -54,6 +54,7 @@ import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMat
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
 import { isActiveGuest, getLastMealLabel } from "../utils/guestActivity";
 import { findPotentialDuplicates } from "../utils/duplicateDetection";
+import MobileServiceSheet from "./MobileServiceSheet";
 
 const VIRTUALIZATION_THRESHOLD = 40;
 const DEFAULT_ITEM_HEIGHT = 208;
@@ -203,6 +204,12 @@ const GuestList = () => {
   });
   const [warningSubmitting, setWarningSubmitting] = useState(false);
   const [showWarningForm, setShowWarningForm] = useState(null); // guestId or null
+
+  // Mobile service sheet state for tablet/mobile quick actions
+  const [mobileServiceSheet, setMobileServiceSheet] = useState({
+    isOpen: false,
+    guest: null,
+  });
 
   const [editingGuestId, setEditingGuestId] = useState(null);
   const [linkingGuestId, setLinkingGuestId] = useState(null);
@@ -514,9 +521,9 @@ const GuestList = () => {
   // - 4+ results: compact size
   const isCompact = sortedGuests.length > COMPACT_THRESHOLD;
   const isAdaptive = !isCompact && sortedGuests.length > ADAPTIVE_THRESHOLD;
-  const effectiveItemSize = isCompact 
-    ? COMPACT_ITEM_HEIGHT + COMPACT_ITEM_GAP 
-    : isAdaptive 
+  const effectiveItemSize = isCompact
+    ? COMPACT_ITEM_HEIGHT + COMPACT_ITEM_GAP
+    : isAdaptive
       ? ADAPTIVE_ITEM_HEIGHT + ADAPTIVE_ITEM_GAP
       : VIRTUAL_ITEM_SIZE;
 
@@ -1846,8 +1853,22 @@ const GuestList = () => {
             </div>
           </div>
           <div className={`flex items-center flex-shrink-0 ${compact ? "gap-1" : "gap-2"}`}>
-            {/* Quick Action Buttons - stay in row, no wrapping */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            {/* Mobile Quick Add Button - only visible on tablet/mobile */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                haptics.buttonPress();
+                setMobileServiceSheet({ isOpen: true, guest });
+              }}
+              className="mobile-quick-add-btn"
+              title="Quick Add Services"
+              aria-label="Quick add services"
+            >
+              <Plus size={22} strokeWidth={2.5} />
+            </button>
+
+            {/* Desktop Quick Action Buttons - hidden on tablet/mobile */}
+            <div className="quick-actions-desktop items-center gap-1 sm:gap-2">
               {/* Meal Buttons - Only if not banned from meals */}
               {!isBannedFromMeals && (
                 <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
@@ -3258,6 +3279,118 @@ const GuestList = () => {
         mealCount={deleteConfirmation.mealCount}
         showerCount={deleteConfirmation.showerCount}
         laundryCount={deleteConfirmation.laundryCount}
+      />
+
+      {/* Mobile Service Sheet - for tablet/mobile quick actions */}
+      <MobileServiceSheet
+        isOpen={mobileServiceSheet.isOpen}
+        onClose={() => setMobileServiceSheet({ isOpen: false, guest: null })}
+        guest={mobileServiceSheet.guest}
+        // Meal props
+        onMealSelect={(guestId, count) => {
+          handleMealSelection(guestId, count);
+        }}
+        hasMealToday={
+          mobileServiceSheet.guest
+            ? (() => {
+              const today = todayPacificDateString();
+              return mealRecords.some(
+                (record) =>
+                  record.guestId === mobileServiceSheet.guest.id &&
+                  pacificDateStringFrom(record.date) === today
+              );
+            })()
+            : false
+        }
+        mealCount={
+          mobileServiceSheet.guest
+            ? (() => {
+              const today = todayPacificDateString();
+              const todayMealRecord = mealRecords.find(
+                (record) =>
+                  record.guestId === mobileServiceSheet.guest.id &&
+                  pacificDateStringFrom(record.date) === today
+              );
+              const guestExtraMeals = extraMealRecords.filter(
+                (record) =>
+                  record.guestId === mobileServiceSheet.guest.id &&
+                  pacificDateStringFrom(record.date) === today
+              );
+              const extraMealsCount = guestExtraMeals.reduce(
+                (sum, r) => sum + (r.count || 1),
+                0
+              );
+              return (todayMealRecord?.count || 0) + extraMealsCount;
+            })()
+            : 0
+        }
+        isPendingMeal={
+          mobileServiceSheet.guest
+            ? pendingMealGuests.has(mobileServiceSheet.guest.id)
+            : false
+        }
+        isBannedFromMeals={
+          mobileServiceSheet.guest
+            ? (() => {
+              const guest = mobileServiceSheet.guest;
+              const isBanned = Boolean(guest.isBanned);
+              const hasProgramSpecificBans =
+                guest.bannedFromMeals ||
+                guest.bannedFromShower ||
+                guest.bannedFromLaundry ||
+                guest.bannedFromBicycle;
+              return isBanned && (!hasProgramSpecificBans || guest.bannedFromMeals);
+            })()
+            : false
+        }
+        // Shower props
+        onShowerSelect={(guest) => {
+          haptics.buttonPress();
+          setShowerPickerGuest(guest);
+        }}
+        hasShowerToday={
+          mobileServiceSheet.guest
+            ? guestsWithShowerToday.has(String(mobileServiceSheet.guest.id))
+            : false
+        }
+        isBannedFromShower={
+          mobileServiceSheet.guest
+            ? (() => {
+              const guest = mobileServiceSheet.guest;
+              const isBanned = Boolean(guest.isBanned);
+              const hasProgramSpecificBans =
+                guest.bannedFromMeals ||
+                guest.bannedFromShower ||
+                guest.bannedFromLaundry ||
+                guest.bannedFromBicycle;
+              return isBanned && (!hasProgramSpecificBans || guest.bannedFromShower);
+            })()
+            : false
+        }
+        // Laundry props
+        onLaundrySelect={(guest) => {
+          haptics.buttonPress();
+          setLaundryPickerGuest(guest);
+        }}
+        hasLaundryToday={
+          mobileServiceSheet.guest
+            ? guestsWithLaundryToday.has(String(mobileServiceSheet.guest.id))
+            : false
+        }
+        isBannedFromLaundry={
+          mobileServiceSheet.guest
+            ? (() => {
+              const guest = mobileServiceSheet.guest;
+              const isBanned = Boolean(guest.isBanned);
+              const hasProgramSpecificBans =
+                guest.bannedFromMeals ||
+                guest.bannedFromShower ||
+                guest.bannedFromLaundry ||
+                guest.bannedFromBicycle;
+              return isBanned && (!hasProgramSpecificBans || guest.bannedFromLaundry);
+            })()
+            : false
+        }
       />
 
       {/* Meal Transfer Modal */}
