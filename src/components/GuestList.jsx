@@ -97,6 +97,7 @@ const GuestList = () => {
   const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const addGuestWarning = useGuestsStore((state) => state.addGuestWarning);
   const removeGuestWarning = useGuestsStore((state) => state.removeGuestWarning);
+  const syncGuests = useGuestsStore((state) => state.syncGuests);
 
   // Wrapper for getLinkedGuests that uses AppContext guests for consistency
   // This fixes the issue where newly linked guests couldn't receive meals because
@@ -119,6 +120,15 @@ const GuestList = () => {
     },
     [guestProxies, guests]
   );
+
+
+  // Sync guests from AppContext to the store to ensure they exist for linking
+  // This is critical when running locally where AppContext manages the source of truth
+  useEffect(() => {
+    if (guests && guests.length > 0) {
+      syncGuests(guests);
+    }
+  }, [guests, syncGuests]);
 
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -1814,19 +1824,34 @@ const GuestList = () => {
                         record.guestId === guest.id &&
                         pacificDateStringFrom(record.date) === today
                     );
+
+                    // Calculate extra meals for this guest today
+                    const guestExtraMeals = extraMealRecords.filter(
+                      (record) =>
+                        record.guestId === guest.id &&
+                        pacificDateStringFrom(record.date) === today
+                    );
+                    const extraMealsCount = guestExtraMeals.reduce((sum, r) => sum + (r.count || 1), 0);
+
                     const alreadyHasMeal = !!todayMealRecord;
-                    const mealCount = todayMealRecord?.count || 0;
+                    const baseCount = todayMealRecord?.count || 0;
+                    const totalDisplayedCount = baseCount + extraMealsCount;
+
                     if (alreadyHasMeal) {
+                      const tooltip = extraMealsCount > 0
+                        ? `Received ${baseCount} regular meal${baseCount > 1 ? "s" : ""} and ${extraMealsCount} extra meal${extraMealsCount !== 1 ? "s" : ""} today`
+                        : `Already received ${baseCount} meal${baseCount > 1 ? "s" : ""} today`;
+
                       return (
                         <div
                           className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default opacity-60`}
-                          title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
+                          title={tooltip}
                         >
                           <Check
                             size={compact ? 12 : 14}
                             className="text-emerald-600"
                           />
-                          <span>{mealCount} Meal{mealCount > 1 ? "s" : ""}</span>
+                          <span>{totalDisplayedCount} Meal{totalDisplayedCount > 1 ? "s" : ""}</span>
                         </div>
                       );
                     }

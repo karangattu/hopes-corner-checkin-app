@@ -8,18 +8,33 @@ import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
  * Non-intrusive indicator for staff awareness
  */
 const TodayStats = () => {
-  const { mealRecords = [] } = useAppContext();
+  const { mealRecords = [], extraMealRecords = [] } = useAppContext();
   const today = todayPacificDateString();
   const todayMeals = useMemo(
     () => (mealRecords || []).filter((r) => pacificDateStringFrom(r.date) === today),
     [mealRecords, today],
   );
+  const todayExtraMeals = useMemo(
+    () => (extraMealRecords || []).filter((r) => pacificDateStringFrom(r.date) === today),
+    [extraMealRecords, today],
+  );
 
   const stats = useMemo(() => {
-    const totalMeals = todayMeals.reduce((sum, record) => sum + (record.quantity || record.count || 1), 0);
-    const uniqueGuests = new Set(todayMeals.map((record) => record.guestId)).size;
-    return { totalMeals, uniqueGuests };
-  }, [todayMeals]);
+    // Calculate total meals from both regular and extra records
+    const regularCount = todayMeals.reduce((sum, record) => sum + (record.quantity || record.count || 1), 0);
+    const extraCount = todayExtraMeals.reduce((sum, record) => sum + (record.quantity || record.count || 1), 0);
+
+    // Calculate unique guests across both lists
+    const uniqueGuestIds = new Set([
+      ...todayMeals.map((record) => record.guestId),
+      ...todayExtraMeals.map((record) => record.guestId)
+    ]);
+
+    return {
+      totalMeals: regularCount + extraCount,
+      uniqueGuests: uniqueGuestIds.size
+    };
+  }, [todayMeals, todayExtraMeals]);
 
   return (
     <div className="flex items-center gap-3 text-xs text-gray-500">

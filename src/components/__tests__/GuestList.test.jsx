@@ -568,4 +568,40 @@ describe("GuestList", () => {
   });
 
   // Balance: extra closing pair to satisfy parser (added during automated test fix)
+  it("displays total meal count including extra meals in the disabled button", async () => {
+    mockContextValue = {
+      ...createDefaultContext(),
+      guests: [
+        {
+          id: "g1",
+          name: "Hungry Guest",
+          firstName: "Hungry",
+          lastName: "Guest",
+          housingStatus: "Unhoused",
+          gender: "Male",
+          age: "Old"
+        },
+      ],
+      mealRecords: [
+        { id: "m1", guestId: "g1", date: new Date().toISOString(), count: 1 }
+      ],
+      extraMealRecords: [
+        { id: "em1", guestId: "g1", date: new Date().toISOString(), count: 2 }
+      ],
+    };
+
+    render(<GuestList />);
+    const search = screen.getByPlaceholderText(/Type first AND last name/i);
+    fireEvent.change(search, { target: { value: "Hungry" } });
+
+    // Should see "3 Meals" because 1 regular + 2 extra
+    const disabledButton = await screen.findByText("3 Meals");
+    expect(disabledButton).toBeInTheDocument();
+
+    // Check tooltip content
+    const buttonContainer = disabledButton.closest('div');
+    expect(buttonContainer).toHaveAttribute('title', expect.stringContaining("Received 1 regular meal"));
+    expect(buttonContainer).toHaveAttribute('title', expect.stringContaining("and 2 extra meals"));
+  });
+
 });

@@ -663,7 +663,7 @@ const MonthlySummaryReport = () => {
     const averageHotMeals = Math.round(ytdHotMeals / months.length || 0);
     const topMonth = months.reduce((best, current) =>
       current.totalHotMeals > best.totalHotMeals ? current : best,
-    months[0]);
+      months[0]);
     const lunchBagCount = monthlyData.totals.lunchBags;
     const totalMealsWithLunch = monthlyData.totals.totalWithLunchBags;
     const lunchBagShare =
@@ -803,6 +803,7 @@ const MonthlySummaryReport = () => {
         LAUNDRY_STATUS?.PICKED_UP,
         LAUNDRY_STATUS?.RETURNED,
         LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+        "attended",
       ]
         .filter(Boolean)
         .map((value) => value.toString().toLowerCase()),
@@ -816,7 +817,7 @@ const MonthlySummaryReport = () => {
           return acc;
         }
         const status = (record.status || "").toString().toLowerCase();
-        if (status !== "done") return acc;
+        if (status !== "done" && status !== "attended") return acc;
         acc.push({
           guestId: record.guestId != null ? String(record.guestId) : null,
           date,
@@ -1065,8 +1066,8 @@ const MonthlySummaryReport = () => {
       avgLaundryLoadsPerDay:
         totalsAccumulator.laundryServiceDays > 0
           ?
-              totalsAccumulator.laundryLoadsProcessed /
-              totalsAccumulator.laundryServiceDays
+          totalsAccumulator.laundryLoadsProcessed /
+          totalsAccumulator.laundryServiceDays
           : 0,
       newLaundryGuests: runningNewLaundryGuests,
       ytdNewGuestsLaundry: runningNewLaundryGuests,

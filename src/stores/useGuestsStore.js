@@ -34,6 +34,15 @@ export const useGuestsStore = create(
         // Guest warnings persisted in Supabase
         warnings: [],
 
+        // Sync guests from external source (AppContext)
+        // This resolves conflicts when running locally where AppContext owns the data
+        syncGuests: (externalGuests) => {
+          set((state) => {
+            state.guests = externalGuests;
+          });
+          clearSearchIndexCache();
+        },
+
         // Helper functions
         migrateGuestData: (guestList) => {
           return guestList.map((guest) => {
@@ -1369,7 +1378,7 @@ export const useGuestsStore = create(
           });
         },
       })),
-      createPersistConfig('hopes-corner-guests')
+      createPersistConfig('hopes-corner-guests-v2')
     ),
     { name: 'GuestsStore' }
   )

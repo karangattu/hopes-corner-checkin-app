@@ -57,6 +57,7 @@ vi.mock("../../stores/useGuestsStore", () => ({
             getWarningsForGuest: () => [],
             addGuestWarning: vi.fn(),
             removeGuestWarning: vi.fn(),
+            syncGuests: vi.fn(),
         };
         return selector(state);
     },

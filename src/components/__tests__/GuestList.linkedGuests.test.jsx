@@ -48,6 +48,7 @@ let mockGuestStoreValue = {
   getWarningsForGuest: vi.fn().mockReturnValue([]),
   addGuestWarning: vi.fn(),
   removeGuestWarning: vi.fn(),
+  syncGuests: vi.fn(),
 };
 
 vi.mock("../../context/useAppContext", () => ({
@@ -106,6 +107,7 @@ describe("GuestList - Linked Guests Fix", () => {
       getWarningsForGuest: vi.fn().mockReturnValue([]),
       addGuestWarning: vi.fn(),
       removeGuestWarning: vi.fn(),
+      syncGuests: vi.fn(),
     };
   });
 
