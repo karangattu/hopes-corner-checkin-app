@@ -3946,19 +3946,6 @@ const Services = () => {
                     </div>
                   </div>
 
-                  {/* Notes Section (Placeholder for now) */}
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                      <MessageSquare size={14} />
-                      Staff Notes
-                    </h4>
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 h-full min-h-[120px] flex flex-col items-center justify-center text-center">
-                      <MessageSquare size={24} className="text-gray-300 mb-2" />
-                      <p className="text-xs text-gray-500 italic">
-                        No notes for this booking yet.
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
