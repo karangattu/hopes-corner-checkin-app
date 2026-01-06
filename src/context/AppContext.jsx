@@ -3462,19 +3462,59 @@ export const AppProvider = ({ children }) => {
       return { success: false, added: 0, summary: 'No entries configured' };
     }
 
-    // Check if automatic entries already exist for this date by looking at RV records
-    // This prevents duplicate entries when multiple users log in or when auto-trigger fires multiple times
-    const existingRvForDate = rvMealRecords.filter(r => {
-      const recordDate = pacificDateStringFrom(r.date);
-      return recordDate === targetDate;
-    });
+    // Check if automatic entries already exist for this date
+    // We fetch freshly from Supabase if possible to handle the "2 people logging in at once" case
+    let existingMeals = [];
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('meal_attendance')
+          .select('meal_type, quantity')
+          .eq('served_on', targetDate)
+          .in('meal_type', ['rv', 'day_worker', 'lunch_bag']);
 
-    if (existingRvForDate.length > 0) {
-      console.log(`Automatic meal entries already exist for ${targetDate} (found ${existingRvForDate.length} RV meal records)`);
+        if (!error && data) {
+          existingMeals = data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch fresh meal records for deduplication, falling back to local state:', err);
+      }
+    }
+
+    // If fetch failed or offline, use local state for deduplication
+    const isAlreadyAdded = (type, count) => {
+      // Mapping internal type to DB type if they differ
+      const dbTypeMap = {
+        [MEAL_TYPES.RV_MEALS]: 'rv',
+        [MEAL_TYPES.DAY_WORKER]: 'day_worker',
+        [MEAL_TYPES.LUNCH_BAGS]: 'lunch_bag'
+      };
+      const dbType = dbTypeMap[type] || type;
+
+      // Check freshly fetched data first
+      if (existingMeals.length > 0) {
+        return existingMeals.some(m => m.meal_type === dbType && Number(m.quantity) === Number(count));
+      }
+
+      // Fallback to local state
+      if (type === MEAL_TYPES.RV_MEALS) {
+        return rvMealRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      } else if (type === MEAL_TYPES.DAY_WORKER) {
+        return dayWorkerMealRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      } else if (type === MEAL_TYPES.LUNCH_BAGS) {
+        return lunchBagRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      }
+      return false;
+    };
+
+    const presetsToProcess = getAutomaticMealsForDay(dayOfWeek).filter(p => !isAlreadyAdded(p.type, p.count));
+
+    if (presetsToProcess.length === 0) {
+      console.log(`Automatic meal entries already exist for ${targetDate}`);
       return { success: true, added: 0, summary: 'Already added' };
     }
 
-    const presets = getAutomaticMealsForDay(dayOfWeek);
+    const presets = presetsToProcess;
     let addedCount = 0;
     const errors = [];
 

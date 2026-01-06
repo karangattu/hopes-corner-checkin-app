@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { RefreshCw } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import toast from "react-hot-toast";
@@ -22,6 +22,16 @@ const SectionRefreshButton = ({
 }) => {
   const { refreshServiceSlots, supabaseEnabled } = useAppContext();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const timerRef = useRef(null);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
@@ -40,11 +50,11 @@ const SectionRefreshButton = ({
 
     try {
       const success = await refreshServiceSlots(serviceType);
-      
+
       if (success) {
         const label = serviceType === "shower" ? "Showers" : "Laundry";
         toast.success(`${label} refreshed`);
-        
+
         if (onRefreshComplete) {
           onRefreshComplete();
         }
@@ -56,8 +66,9 @@ const SectionRefreshButton = ({
       toast.error("Failed to refresh data");
     } finally {
       // Add a small delay to show the animation completing
-      setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         setIsRefreshing(false);
+        timerRef.current = null;
       }, 300);
     }
   }, [isRefreshing, supabaseEnabled, refreshServiceSlots, serviceType, onRefreshComplete]);
@@ -79,15 +90,12 @@ const SectionRefreshButton = ({
 
   // Variant classes
   const variantClasses = {
-    ghost: `text-gray-500 hover:text-gray-700 hover:bg-gray-100 ${
-      isDisabled ? "text-gray-300 cursor-not-allowed hover:bg-transparent" : ""
-    }`,
-    outline: `border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 ${
-      isDisabled ? "text-gray-300 border-gray-100 cursor-not-allowed hover:bg-transparent hover:border-gray-100" : ""
-    }`,
-    solid: `bg-gray-100 text-gray-600 hover:bg-gray-200 ${
-      isDisabled ? "bg-gray-50 text-gray-300 cursor-not-allowed hover:bg-gray-50" : ""
-    }`,
+    ghost: `text-gray-500 hover:text-gray-700 hover:bg-gray-100 ${isDisabled ? "text-gray-300 cursor-not-allowed hover:bg-transparent" : ""
+      }`,
+    outline: `border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 ${isDisabled ? "text-gray-300 border-gray-100 cursor-not-allowed hover:bg-transparent hover:border-gray-100" : ""
+      }`,
+    solid: `bg-gray-100 text-gray-600 hover:bg-gray-200 ${isDisabled ? "bg-gray-50 text-gray-300 cursor-not-allowed hover:bg-gray-50" : ""
+      }`,
   };
 
   const serviceLabel = serviceType === "shower" ? "showers" : "laundry";
@@ -109,9 +117,8 @@ const SectionRefreshButton = ({
     >
       <RefreshCw
         size={iconSizes[size]}
-        className={`transition-transform duration-300 ${
-          isRefreshing ? "animate-spin" : ""
-        }`}
+        className={`transition-transform duration-300 ${isRefreshing ? "animate-spin" : ""
+          }`}
       />
       {showLabel && (
         <span className={`text-xs font-medium ${size === "sm" ? "sr-only sm:not-sr-only" : ""}`}>
