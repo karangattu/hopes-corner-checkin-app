@@ -2500,7 +2500,7 @@ const Services = () => {
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm transition hover:shadow-md">
+          <div className="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm transition hover:shadow-md" title="Number of meal records picked up by a different guest on behalf of the intended recipient. Counts meals, not unique proxies.">
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-orange-100 p-3">
@@ -2514,7 +2514,7 @@ const Services = () => {
                 {mergedGuestMeals.filter(r => r.pickedUpByProxyId).length}
               </p>
               <p className="mt-1 text-sm text-orange-700">
-                meals picked up by authorized proxies
+                meal records picked up by proxies
               </p>
             </div>
           </div>

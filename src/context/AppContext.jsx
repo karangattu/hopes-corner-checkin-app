@@ -3462,6 +3462,18 @@ export const AppProvider = ({ children }) => {
       return { success: false, added: 0, summary: 'No entries configured' };
     }
 
+    // Check if automatic entries already exist for this date by looking at RV records
+    // This prevents duplicate entries when multiple users log in or when auto-trigger fires multiple times
+    const existingRvForDate = rvMealRecords.filter(r => {
+      const recordDate = pacificDateStringFrom(r.date);
+      return recordDate === targetDate;
+    });
+
+    if (existingRvForDate.length > 0) {
+      console.log(`Automatic meal entries already exist for ${targetDate} (found ${existingRvForDate.length} RV meal records)`);
+      return { success: true, added: 0, summary: 'Already added' };
+    }
+
     const presets = getAutomaticMealsForDay(dayOfWeek);
     let addedCount = 0;
     const errors = [];

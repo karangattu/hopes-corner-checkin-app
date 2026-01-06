@@ -5,10 +5,13 @@
  * based on the day of week.
  *
  * Schedule:
- * - Monday: 120 lunch bags, 100 RV meals
- * - Wednesday: 120 lunch bags, 35 RV meals
+ * - Monday: 100 RV meals
+ * - Wednesday: 35 RV meals
  * - Thursday: 100 RV meals
- * - Saturday: 110 lunch bags, 220 lunch bags, 100 RV meals, 50 Day Worker Center meals
+ * - Saturday: 100 RV meals, 50 Day Worker Center meals
+ *
+ * Note: Lunch bags are now added automatically per-guest when meals are
+ * recorded (1 bag per guest, +1 if picked up by proxy). See GuestList.jsx.
  */
 
 /**
@@ -31,7 +34,7 @@ export const AUTOMATIC_MEAL_CONFIG = {
 
     // Monday
     1: [
-        { type: MEAL_TYPES.LUNCH_BAGS, count: 120, label: '120 Lunch Bags' },
+        // Lunch bags are now added automatically per-guest when meals are recorded
         { type: MEAL_TYPES.RV_MEALS, count: 100, label: '100 RV Meals' },
     ],
 
@@ -40,7 +43,7 @@ export const AUTOMATIC_MEAL_CONFIG = {
 
     // Wednesday
     3: [
-        { type: MEAL_TYPES.LUNCH_BAGS, count: 120, label: '120 Lunch Bags' },
+        // Lunch bags are now added automatically per-guest when meals are recorded
         { type: MEAL_TYPES.RV_MEALS, count: 35, label: '35 RV Meals' },
     ],
 
@@ -54,8 +57,7 @@ export const AUTOMATIC_MEAL_CONFIG = {
 
     // Saturday
     6: [
-        { type: MEAL_TYPES.LUNCH_BAGS, count: 110, label: '110 Lunch Bags' },
-        { type: MEAL_TYPES.LUNCH_BAGS, count: 220, label: '220 Lunch Bags' },
+        // Lunch bags are now added automatically per-guest when meals are recorded
         { type: MEAL_TYPES.RV_MEALS, count: 100, label: '100 RV Meals' },
         { type: MEAL_TYPES.DAY_WORKER, count: 50, label: '50 Day Worker Center Meals' },
     ],

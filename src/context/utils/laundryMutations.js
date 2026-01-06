@@ -333,9 +333,8 @@ export const createLaundryMutations = ({
           laundryType: record.laundryType,
           snapshot: { ...record },
         },
-        description: `Cancelled ${record.laundryType} laundry${
-          record.time ? ` at ${record.time}` : ""
-        }`,
+        description: `Cancelled ${record.laundryType} laundry${record.time ? ` at ${record.time}` : ""
+          }`,
       });
 
       return true;
@@ -362,22 +361,18 @@ export const createLaundryMutations = ({
     try {
       // Update local state optimistically
       setLaundryRecords((prev) =>
-        prev.map((candidate) =>
-          recordIds.includes(candidate.id)
-            ? { ...candidate, status: "cancelled" }
-            : candidate,
-        ),
+        prev.filter((candidate) => !recordIds.includes(candidate.id))
       );
 
       setLaundrySlots((prev) =>
-        prev.map((slot) => {
+        prev.filter((slot) => {
           const matchingRecord = recordsToCancel.find(
             (r) =>
               r.guestId === slot.guestId &&
               r.time === slot.time &&
               r.laundryType === "onsite",
           );
-          return matchingRecord ? { ...slot, status: "cancelled" } : slot;
+          return !matchingRecord;
         }),
       );
 
@@ -389,7 +384,7 @@ export const createLaundryMutations = ({
         if (nonLocalIds.length > 0) {
           const { error } = await supabaseClient
             .from("laundry_bookings")
-            .update({ status: "cancelled" })
+            .delete()
             .in("id", nonLocalIds);
           if (error) throw error;
         }
@@ -557,9 +552,8 @@ export const createLaundryMutations = ({
         from: { type: record.laundryType, time: record.time },
         to: { type: targetType, time: targetTime },
       },
-      description: `Updated laundry to ${targetType}${
-        targetTime ? ` at ${targetTime}` : ""
-      }`,
+      description: `Updated laundry to ${targetType}${targetTime ? ` at ${targetTime}` : ""
+        }`,
     });
 
     return updatedRecord;
@@ -586,7 +580,7 @@ export const createLaundryMutations = ({
     setLaundrySlots((prev) =>
       prev.map((slot) =>
         slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
+          slot.time === updatedRecord.time
           ? { ...slot, status: newStatus, bagNumber: updatedRecord.bagNumber }
           : slot,
       ),
@@ -658,7 +652,7 @@ export const createLaundryMutations = ({
     setLaundrySlots((prev) =>
       prev.map((slot) =>
         slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
+          slot.time === updatedRecord.time
           ? { ...slot, bagNumber: bagNumber || "" }
           : slot,
       ),
@@ -737,9 +731,8 @@ export const createLaundryMutations = ({
       type: "LAUNDRY_IMPORTED",
       timestamp: timestampIso,
       data: { guestId, count: importedRecords.length },
-      description: `Imported ${importedRecords.length} laundry record${
-        importedRecords.length === 1 ? "" : "s"
-      }`,
+      description: `Imported ${importedRecords.length} laundry record${importedRecords.length === 1 ? "" : "s"
+        }`,
     });
 
     return importedRecords;

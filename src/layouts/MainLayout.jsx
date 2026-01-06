@@ -29,7 +29,7 @@ const MainLayout = ({ children }) => {
   const navItems = navItemsAll.filter((item) => {
     if (role === "admin") return true;
     if (role === "board") return item.id === "admin";
-    if (role === "staff") return item.id !== "admin";
+    if (role === "staff") return true;
     if (role === "checkin") return item.id === "check-in";
     return false;
   });
@@ -120,8 +120,8 @@ const MainLayout = ({ children }) => {
                     type="button"
                     aria-current={activeTab === item.id ? "page" : undefined}
                     className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${activeTab === item.id
-                        ? "bg-white text-emerald-900 shadow-md"
-                        : "text-emerald-100 hover:bg-emerald-800/60 hover:text-white"
+                      ? "bg-white text-emerald-900 shadow-md"
+                      : "text-emerald-100 hover:bg-emerald-800/60 hover:text-white"
                       }`}
                   >
                     <SpringIcon>
@@ -187,8 +187,8 @@ const MainLayout = ({ children }) => {
                 type="button"
                 aria-current={active ? "page" : undefined}
                 className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${active
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow"
-                    : "border-transparent text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/70"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow"
+                  : "border-transparent text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/70"
                   }`}
               >
                 <SpringIcon

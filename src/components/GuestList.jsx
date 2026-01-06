@@ -39,7 +39,7 @@ import {
   Lightbulb,
   Link,
   Check,
-  BrushCleaning,
+  UserCheck,
   Loader2,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
@@ -92,6 +92,7 @@ const GuestList = () => {
     actionHistory,
     undoAction,
     transferAllGuestRecords,
+    addLunchBagRecord,
   } = useAppContext();
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
@@ -640,6 +641,16 @@ const GuestList = () => {
       // Pass pickedUpByGuestId to track who physically picked up the meal (for linked guests metrics)
       const rec = addMealRecord(guestId, count, null, pickedUpByGuestId);
       if (rec) {
+        // Auto-add lunch bag for each guest getting a meal
+        try {
+          addLunchBagRecord(1, today);
+          // If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest
+          if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+            addLunchBagRecord(1, today);
+          }
+        } catch (lunchBagError) {
+          console.warn('Failed to auto-add lunch bag:', lunchBagError);
+        }
         // Add to recently logged meals for success animation
         setRecentlyLoggedMeals((prev) => {
           const next = new Set(prev);
@@ -2054,7 +2065,7 @@ const GuestList = () => {
                       title="Complete check-in and search for next guest"
                       aria-label="Complete check-in"
                     >
-                      <BrushCleaning size={compact ? 16 : 20} />
+                      <UserCheck size={compact ? 16 : 20} />
                     </button>
                   );
                 }
