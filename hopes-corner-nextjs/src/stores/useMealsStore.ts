@@ -257,7 +257,10 @@ export const useMealsStore = create<MealsState>()(
                             state.extraMealRecords = state.extraMealRecords.filter(r => r.id !== recordId);
                         });
                         const supabase = createClient();
-                        await supabase.from('meal_attendance').delete().eq('id', recordId);
+                        const { error } = await supabase.from('meal_attendance').delete().eq('id', recordId);
+                        if (error) {
+                            console.error('Failed to delete Extra meal record:', error);
+                        }
                     },
 
                     // Bulk Meal Actions (Day Worker, Shelter, Lunch Bags, United Effort)
@@ -340,7 +343,10 @@ export const useMealsStore = create<MealsState>()(
                             }
                         });
                         const supabase = createClient();
-                        await supabase.from('meal_attendance').delete().eq('id', recordId);
+                        const { error } = await supabase.from('meal_attendance').delete().eq('id', recordId);
+                        if (error) {
+                            console.error(`Failed to delete ${mealType} meal record:`, error);
+                        }
                     },
 
                     // Holiday Records
@@ -456,10 +462,13 @@ export const useMealsStore = create<MealsState>()(
                             }
                         });
                         const supabase = createClient();
-                        await supabase.from('meal_attendance').update({
+                        const { error } = await supabase.from('meal_attendance').update({
                             quantity: updates.count,
                             notes: (updates as any).notes // cast to any if notes not in MealRecord interface
                         }).eq('id', recordId);
+                        if (error) {
+                            console.error('Failed to update meal record:', error);
+                        }
                     },
 
                     updateBulkMealRecord: async (recordId: string, mealType: string, updates: Partial<MealRecord>) => {
@@ -483,9 +492,12 @@ export const useMealsStore = create<MealsState>()(
                         });
 
                         const supabase = createClient();
-                        await supabase.from('meal_attendance').update({
+                        const { error } = await supabase.from('meal_attendance').update({
                             quantity: updates.count
                         }).eq('id', recordId);
+                        if (error) {
+                            console.error(`Failed to update ${mealType} meal record:`, error);
+                        }
                     },
 
                     // Automation

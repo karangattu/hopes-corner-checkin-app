@@ -76,7 +76,24 @@ describe('useServicesStore', () => {
             showerRecords: [],
             laundryRecords: [],
             bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
         });
+        vi.clearAllMocks();
+
+        // Reset mocks to ensure no leakages
+        mockSupabase.from.mockReturnThis();
+        mockSupabase.select.mockReturnThis();
+        mockSupabase.insert.mockReturnThis();
+        mockSupabase.update.mockReturnThis();
+        mockSupabase.delete.mockReturnThis();
+        mockSupabase.eq.mockReturnThis();
+        mockSupabase.or.mockReturnThis();
+        mockSupabase.order.mockReturnThis();
+        mockSupabase.limit.mockReturnThis();
+
+        mockSupabase.single.mockReset();
+        mockSupabase.single.mockResolvedValue({ data: { id: 'new-id' }, error: null });
     });
 
     describe('initial state', () => {
@@ -624,19 +641,7 @@ describe('useServicesStore', () => {
             expect(laundryRecords[0].date).toBe('2020-01-01');
         });
         describe('store actions (async)', () => {
-            beforeEach(() => {
-                vi.clearAllMocks();
-                useServicesStore.setState({
-                    showerRecords: [],
-                    laundryRecords: [],
-                    bicycleRecords: [],
-                    haircutRecords: [],
-                    holidayRecords: [],
-                });
-                if (useServicesStore.persist) {
-                    useServicesStore.persist.clearStorage();
-                }
-            });
+            // Note: beforeEach at top level resets mocks
 
             describe('shower actions', () => {
                 it('adds a shower record successfully', async () => {
@@ -800,6 +805,190 @@ describe('useServicesStore', () => {
                 expect(store.getTodayOnsiteLaundry()).toHaveLength(1);
                 expect(store.getTodayOffsiteLaundry()).toHaveLength(1);
                 expect(store.getActiveBicycles()).toHaveLength(1);
+                expect(store.getTodayBicycles()).toHaveLength(2);
+            });
+        });
+    });
+
+    describe('error handling and edge cases', () => {
+        beforeEach(() => {
+            vi.spyOn(console, 'error').mockImplementation(() => { });
+        });
+
+        describe('shower errors', () => {
+            it('throws error when Supabase insert fails for addShowerWaitlist', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addShowerWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
+            });
+
+            it('handles deleteShowerRecord failure gracefully', async () => {
+                useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1' })] });
+                mockSupabase.delete.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+
+                // Should not throw, just log error
+                await useServicesStore.getState().deleteShowerRecord('s1');
+
+                // Optimistic update removes it
+                expect(useServicesStore.getState().showerRecords).toHaveLength(0);
+            });
+        });
+
+        describe('laundry errors', () => {
+            it('throws error when guest ID is missing for addLaundryRecord', async () => {
+                await expect(useServicesStore.getState().addLaundryRecord('', 'onsite')).rejects.toThrow('Guest ID is required');
+            });
+
+            it('throws error when wash type is missing for addLaundryRecord', async () => {
+                await expect(useServicesStore.getState().addLaundryRecord('g1', '')).rejects.toThrow('Wash type is required');
+            });
+
+            it('throws error when Supabase insert fails for addLaundryRecord', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addLaundryRecord('g1', 'onsite')).rejects.toThrow('Unable to save laundry record');
+            });
+
+            it('throws error when Supabase insert fails for addLaundryWaitlist', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addLaundryWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
+            });
+
+            it('handles deleteLaundryRecord failure gracefully', async () => {
+                useServicesStore.setState({ laundryRecords: [createMockLaundryRecord({ id: 'l1' })] });
+                mockSupabase.delete.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+
+                // Should not throw
+                await useServicesStore.getState().deleteLaundryRecord('l1');
+                expect(useServicesStore.getState().laundryRecords).toHaveLength(0);
+            });
+
+            it('reverts updateLaundryStatus on failure', async () => {
+                useServicesStore.setState({ laundryRecords: [createMockLaundryRecord({ id: 'l1', status: 'waiting' })] });
+                mockSupabase.update.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Update failed' } });
+
+                const success = await useServicesStore.getState().updateLaundryStatus('l1', 'washing');
+
+                expect(success).toBe(false);
+                expect(useServicesStore.getState().laundryRecords[0].status).toBe('waiting');
+            });
+
+            it('returns false when updating status of non-existent laundry record', async () => {
+                const success = await useServicesStore.getState().updateLaundryStatus('non-existent', 'washing');
+                expect(success).toBe(false);
+            });
+
+            it('reverts updateLaundryBagNumber on failure', async () => {
+                useServicesStore.setState({ laundryRecords: [createMockLaundryRecord({ id: 'l1', bagNumber: '1' })] });
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Update failed' } });
+
+                const success = await useServicesStore.getState().updateLaundryBagNumber('l1', '2');
+
+                expect(success).toBe(false);
+                expect(useServicesStore.getState().laundryRecords[0].bagNumber).toBe('1');
+            });
+
+            it('returns false when updating bag number of non-existent laundry record', async () => {
+                const success = await useServicesStore.getState().updateLaundryBagNumber('non-existent', '2');
+                expect(success).toBe(false);
+            });
+        });
+
+        describe('bicycle errors', () => {
+            it('throws error when guest ID is missing for addBicycleRecord', async () => {
+                await expect(useServicesStore.getState().addBicycleRecord('')).rejects.toThrow('Guest ID is required');
+            });
+
+            it('throws error when Supabase insert fails for addBicycleRecord', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addBicycleRecord('g1')).rejects.toThrow('Unable to save bicycle record');
+            });
+
+            it('throws error when updating non-existent bicycle record', async () => {
+                await expect(useServicesStore.getState().updateBicycleRecord('non-existent', {})).rejects.toThrow('Bicycle record not found');
+            });
+
+            it('reverts updateBicycleRecord on failure', async () => {
+                useServicesStore.setState({ bicycleRecords: [createMockBicycleRecord({ id: 'b1', status: 'pending' })] });
+                mockSupabase.update.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Update failed' } });
+
+                await expect(useServicesStore.getState().updateBicycleRecord('b1', { status: 'done' }))
+                    .rejects.toThrow('Unable to update bicycle repair');
+
+                const record = useServicesStore.getState().bicycleRecords[0];
+                expect(record.status).toBe('pending');
+                expect(record.doneAt).toBeUndefined();
+            });
+
+            it('handles deleteBicycleRecord failure gracefully', async () => {
+                useServicesStore.setState({ bicycleRecords: [createMockBicycleRecord({ id: 'b1' })] });
+                mockSupabase.delete.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+
+                // Should not throw
+                await useServicesStore.getState().deleteBicycleRecord('b1');
+                expect(useServicesStore.getState().bicycleRecords).toHaveLength(0);
+            });
+        });
+
+        describe('haircut errors', () => {
+            it('throws error when guest ID is missing for addHaircutRecord', async () => {
+                await expect(useServicesStore.getState().addHaircutRecord('')).rejects.toThrow('Guest ID is required');
+            });
+
+            it('throws error when Supabase insert fails for addHaircutRecord', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addHaircutRecord('g1')).rejects.toThrow('Unable to save haircut record');
+            });
+
+            it('handles deleteHaircutRecord failure gracefully', async () => {
+                useServicesStore.setState({
+                    haircutRecords: [
+                        { id: 'h1', guestId: 'g1', date: '2025-01-06', type: 'haircut' }
+                    ]
+                });
+                mockSupabase.delete.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+
+                await useServicesStore.getState().deleteHaircutRecord('h1');
+                expect(useServicesStore.getState().haircutRecords).toHaveLength(0);
+            });
+        });
+
+        describe('holiday errors', () => {
+            it('throws error when guest ID is missing for addHolidayRecord', async () => {
+                await expect(useServicesStore.getState().addHolidayRecord('')).rejects.toThrow('Guest ID is required');
+            });
+
+            it('throws error when Supabase insert fails for addHolidayRecord', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
+                await expect(useServicesStore.getState().addHolidayRecord('g1')).rejects.toThrow('Unable to save holiday record');
+            });
+
+            it('handles deleteHolidayRecord failure gracefully', async () => {
+                useServicesStore.setState({
+                    holidayRecords: [
+                        { id: 'hol1', guestId: 'g1', date: '2025-01-06', type: 'holiday' }
+                    ]
+                });
+                mockSupabase.delete.mockReturnThis();
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
+
+                await useServicesStore.getState().deleteHolidayRecord('hol1');
+                expect(useServicesStore.getState().holidayRecords).toHaveLength(0);
+            });
+        });
+
+        describe('load errors', () => {
+            it('handles loadFromSupabase failure gracefully', async () => {
+                const { fetchAllPaginated } = await import('@/lib/utils/supabasePagination');
+                vi.mocked(fetchAllPaginated).mockRejectedValue(new Error('Load failed'));
+
+                // Should not throw, just log
+                await useServicesStore.getState().loadFromSupabase();
+                expect(useServicesStore.getState().showerRecords).toEqual([]);
             });
         });
     });
