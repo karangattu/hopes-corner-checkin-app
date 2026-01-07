@@ -34,7 +34,9 @@ vi.mock('@/lib/utils/mappers', () => ({
         count: row.quantity,
         date: row.served_on,
         recordedAt: row.recorded_at,
-        type: row.meal_type || 'guest'
+        type: row.meal_type || 'guest',
+        pickedUpByGuestId: row.picked_up_by_guest_id || null,
+        pickedUpByProxyId: row.picked_up_by_guest_id || null
     })),
     mapHolidayRow: vi.fn(row => ({
         id: row.id,
@@ -224,6 +226,41 @@ describe('useMealsStore', () => {
 
                 expect(dayWorkerMealRecords).toHaveLength(1);
                 expect(dayWorkerMealRecords[0].count).toBe(50);
+            });
+
+            // Proxy / Deduplication Logic
+            it('persists proxy information correctly when adding meal', async () => {
+                const proxyId = 'proxy-guest-id';
+                const receiverId = 'receiver-guest-id';
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: {
+                        id: 'meal-proxy',
+                        guest_id: receiverId,
+                        quantity: 1,
+                        picked_up_by_guest_id: proxyId,
+                        meal_type: 'guest',
+                        served_on: '2025-01-06'
+                    },
+                    error: null
+                });
+
+                // Add meal for receiver, picked up by proxy
+                await useMealsStore.getState().addMealRecord(receiverId, 1, proxyId);
+
+                // Verify Insert Payload
+                expect(mockSupabase.from).toHaveBeenCalledWith('meal_attendance');
+                expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                    guest_id: receiverId,
+                    quantity: 1,
+                    picked_up_by_guest_id: proxyId
+                }));
+
+                // Verify Store Update
+                const records = useMealsStore.getState().mealRecords;
+                expect(records).toHaveLength(1);
+                // The mapper maps pickup_by_guest_id -> pickedUpByGuestId
+                expect(records[0].pickedUpByGuestId).toBe(proxyId);
             });
 
             it('does not duplicate entries', async () => {

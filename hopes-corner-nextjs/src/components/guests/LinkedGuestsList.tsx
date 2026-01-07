@@ -67,7 +67,9 @@ export default function LinkedGuestsList({ guestId, className = '' }: LinkedGues
         if (isPending) return;
         setIsPending(true);
         try {
-            const record = await addMealRecord(linkedGuestId, quantity);
+            // guestId (prop) is the Guest currently at the window (Proxy)
+            // linkedGuestId is the Guest receiving the meal
+            const record = await addMealRecord(linkedGuestId, quantity, guestId);
             addAction('MEAL_ADDED', { recordId: record.id, guestId: linkedGuestId, count: quantity });
             toast.success(`${quantity} Meal${quantity > 1 ? 's' : ''} logged for ${linkedGuestName}`);
         } catch (error: any) {
