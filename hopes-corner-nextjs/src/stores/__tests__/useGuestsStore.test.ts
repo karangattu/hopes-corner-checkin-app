@@ -154,6 +154,41 @@ describe('useGuestsStore', () => {
             expect(linked).toHaveLength(1);
             expect(linked[0].id).toBe('g2');
         });
+
+        it('returns reverse linked guests', () => {
+            const g1 = createMockGuest({ id: 'g1' });
+            const g2 = createMockGuest({ id: 'g2' });
+            useGuestsStore.setState({
+                guests: [g1, g2],
+                guestProxies: [{ id: 'p1', guestId: 'g2', proxyId: 'g1', createdAt: '' }]
+            });
+            const linked = useGuestsStore.getState().getLinkedGuests('g1');
+            expect(linked).toHaveLength(1);
+            expect(linked[0].id).toBe('g2');
+        });
+    });
+
+    describe('getLinkedGuestsCount', () => {
+        it('counts linked guests correctly', () => {
+            useGuestsStore.setState({
+                guestProxies: [
+                    { id: '1', guestId: 'g1', proxyId: 'g2', createdAt: '' },
+                    { id: '2', guestId: 'g1', proxyId: 'g3', createdAt: '' },
+                ],
+            });
+            expect(useGuestsStore.getState().getLinkedGuestsCount('g1')).toBe(2);
+        });
+
+        it('counts reverse links', () => {
+            useGuestsStore.setState({
+                guestProxies: [{ id: '1', guestId: 'g2', proxyId: 'g1', createdAt: '' }]
+            });
+            expect(useGuestsStore.getState().getLinkedGuestsCount('g1')).toBe(1);
+        });
+
+        it('returns 0 if no links', () => {
+            expect(useGuestsStore.getState().getLinkedGuestsCount('g1')).toBe(0);
+        });
     });
 
     describe('async actions', () => {
@@ -273,6 +308,12 @@ describe('useGuestsStore', () => {
         });
 
         describe('loadGuestProxiesFromSupabase', () => {
+            it('loads proxies successfully', async () => {
+                mockSupabase.select.mockResolvedValueOnce({ data: [{ id: 'p1', guest_id: 'g1', proxy_id: 'g2', created_at: '2025-01-01' }], error: null });
+                await useGuestsStore.getState().loadGuestProxiesFromSupabase();
+                expect(useGuestsStore.getState().guestProxies).toHaveLength(1);
+            });
+
             it('handles load error', async () => {
                 mockSupabase.select.mockResolvedValueOnce({ data: null, error: { message: 'Proxy Load failed' } });
                 const spy = vi.spyOn(console, 'error').mockImplementation(() => { });
@@ -321,6 +362,23 @@ describe('useGuestsStore', () => {
             it('handles error', async () => {
                 mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Fail' } });
                 await expect(useGuestsStore.getState().addGuestWarning('g1', { message: 'W', severity: 1 })).rejects.toThrow();
+            });
+        });
+
+        describe('removeGuestWarning', () => {
+            it('removes warning successfully', async () => {
+                useGuestsStore.setState({ warnings: [{ id: 'w1', guestId: 'g1', message: 'M', severity: 1, active: true, createdAt: '', updatedAt: '' }] });
+                mockSupabase.eq.mockResolvedValueOnce({ error: null });
+                const result = await useGuestsStore.getState().removeGuestWarning('w1');
+                expect(result).toBe(true);
+                expect(useGuestsStore.getState().warnings).toHaveLength(0);
+            });
+
+            it('handles failure', async () => {
+                useGuestsStore.setState({ warnings: [{ id: 'w1', guestId: 'g1', message: 'M', severity: 1, active: true, createdAt: '', updatedAt: '' }] });
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Fail' } });
+                const result = await useGuestsStore.getState().removeGuestWarning('w1');
+                expect(result).toBe(false);
             });
         });
     });
