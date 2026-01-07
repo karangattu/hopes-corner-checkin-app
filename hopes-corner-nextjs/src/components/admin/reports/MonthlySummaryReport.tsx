@@ -250,23 +250,15 @@ const ColumnTooltip = ({ label, description }: { label: string, description: str
 );
 
 export default function MonthlySummaryReport() {
-    const { mealRecords, extraMealRecords, rvMealRecords, unitedEffortMealRecords } = useMealsStore();
-    // Assuming lunchBagRecords would be in a store if fully implemented, 
-    // for now we'll simulate or use what we have. 
-    // The previous implementation used `useAppContext` which had everything.
-    // In new app, lunch bags might be part of services or a missing piece?
-    // Checking `useServicesStore`... it has `shower, laundry, bicycle`.
-    // Checking `useMealsStore`... it has `mealRecords, extraMealRecords, rvMealRecords, unitedEffortMealRecords`.
-    // It seems `lunchBagRecords` and `dayWorkerMealRecords` might be missing in the new stores or named differently.
-    // For now, I will use placeholders or try to find them. 
-    // Wait, `extraMealRecords` is used for "Extra Meals". 
-    // Let's assume standard meal records with specific types might cover some.
-    // But based on `useMealsStore`, we have `rvMealRecords`.
-
-    // NOTE: In the interest of getting the structure up, I'll default missing arrays to empty.
-    const dayWorkerMealRecords: any[] = []; // TODO: Add to store if missing
-    const lunchBagRecords: any[] = []; // TODO: Add to store if missing
-    const shelterMealRecords: any[] = []; // TODO: Add to store if missing
+    const {
+        mealRecords,
+        extraMealRecords,
+        rvMealRecords,
+        unitedEffortMealRecords,
+        dayWorkerMealRecords,
+        lunchBagRecords,
+        shelterMealRecords
+    } = useMealsStore();
 
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const currentYear = new Date().getFullYear();
@@ -337,10 +329,13 @@ export default function MonthlySummaryReport() {
             const shelter = sumQuantities(filterRecords(shelterMealRecords, selectedYear, month));
             const unitedEffort = sumQuantities(filterRecords(unitedEffortMealRecords, selectedYear, month));
 
-            // Proxy pickups (logic from old app: check `pickedUpByProxyId` or similar)
-            // Assuming new meal record has similar field? `useMealsStore` types should verify.
-            // If not present yet, default to 0.
-            const proxyPickups = 0; // TODO: Implement if store has this data
+            // Proxy pickups: Count meals where pickedUpByGuestId is present and different from guestId
+            const proxyPickups = mealsInMonth.reduce((sum, r) => {
+                if (r.pickedUpByGuestId && r.pickedUpByGuestId !== r.guestId) {
+                    return sum + (r.count || 1);
+                }
+                return sum;
+            }, 0);
 
             const totalHotMeals = mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
                 dayWorker + extra + rvWedSat + rvMonThu + shelter + unitedEffort;

@@ -535,7 +535,7 @@ export const useMealsStore = create<MealsState>()(
                             const [mealRows, holidayRows, haircutRows] = await Promise.all([
                                 fetchAllPaginated(supabase, {
                                     table: 'meal_attendance',
-                                    select: 'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at',
+                                    select: 'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at,picked_up_by_guest_id',
                                     orderBy: 'recorded_at',
                                     ascending: false,
                                     pageSize: 1000,
