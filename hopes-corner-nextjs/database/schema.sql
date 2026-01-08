@@ -214,10 +214,98 @@ create table if not exists public.guests (
   )
 );
 
+
+
 drop trigger if exists trg_guests_updated_at on public.guests;
 create trigger trg_guests_updated_at
 before update on public.guests
 for each row execute function public.touch_updated_at();
+
+-- 3a. Guest Warnings (from migrations)
+create table if not exists public.guest_warnings (
+  id uuid primary key default gen_random_uuid(),
+  guest_id uuid references public.guests(id) on delete cascade,
+  message text not null,
+  severity smallint not null default 1, -- 1:low, 2:medium, 3:high
+  issued_by text, -- optional: staff id or name
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists guest_warnings_guest_id_idx on public.guest_warnings (guest_id);
+create index if not exists guest_warnings_created_at_idx on public.guest_warnings (created_at desc);
+
+drop trigger if exists trg_guest_warnings_updated_at on public.guest_warnings;
+create trigger trg_guest_warnings_updated_at
+before update on public.guest_warnings
+for each row execute function public.touch_updated_at();
+
+-- 3b. Guest Proxies (from migrations)
+create table if not exists public.guest_proxies (
+    id uuid primary key default gen_random_uuid(),
+    guest_id uuid not null references public.guests(id) on delete cascade,
+    proxy_id uuid not null references public.guests(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    
+    constraint guest_proxies_no_self_link check (guest_id <> proxy_id),
+    constraint guest_proxies_unique_link unique (guest_id, proxy_id)
+);
+
+create index if not exists guest_proxies_guest_id_idx on public.guest_proxies (guest_id);
+create index if not exists guest_proxies_proxy_id_idx on public.guest_proxies (proxy_id);
+
+alter table public.guest_proxies enable row level security;
+
+drop policy if exists "Authenticated users can view guest proxies" on public.guest_proxies;
+create policy "Authenticated users can view guest proxies"
+    on public.guest_proxies for select
+    to authenticated, anon
+    using (true);
+
+drop policy if exists "Authenticated users can manage guest proxies" on public.guest_proxies;
+create policy "Authenticated users can manage guest proxies"
+    on public.guest_proxies for all
+    to authenticated, anon
+    using (true)
+    with check (true);
+
+-- Function to maintain symmetry (A->B implies B->A)
+create or replace function public.maintain_guest_proxy_symmetry()
+returns trigger as $$
+begin
+    if (TG_OP = 'INSERT') then
+        insert into public.guest_proxies (guest_id, proxy_id)
+        values (new.proxy_id, new.guest_id)
+        on conflict (guest_id, proxy_id) do nothing;
+    elsif (TG_OP = 'DELETE') then
+        delete from public.guest_proxies
+        where guest_id = old.proxy_id and proxy_id = old.guest_id;
+    end if;
+    return null;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_maintain_guest_proxy_symmetry on public.guest_proxies;
+create trigger trg_maintain_guest_proxy_symmetry
+after insert or delete on public.guest_proxies
+for each row execute function public.maintain_guest_proxy_symmetry();
+
+-- Function to check limit of 3 proxies
+create or replace function public.check_guest_proxy_limit()
+returns trigger as $$
+begin
+    if (select count(*) from public.guest_proxies where guest_id = new.guest_id) >= 3 then
+        raise exception 'A guest can have at most 3 linked accounts.';
+    end if;
+    return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_check_guest_proxy_limit on public.guest_proxies;
+create trigger trg_check_guest_proxy_limit
+before insert on public.guest_proxies
+for each row execute function public.check_guest_proxy_limit();
 
 create index if not exists guests_banned_until_idx
   on public.guests (banned_until)
@@ -241,6 +329,7 @@ create table if not exists public.meal_attendance (
   meal_type public.meal_type_enum not null default 'guest',
   quantity smallint not null check (quantity > 0),
   served_on date not null,
+  deduplication_key text unique default null,
   recorded_at timestamptz not null default now(),
   notes text,
   created_at timestamptz not null default now(),
@@ -271,6 +360,10 @@ create index if not exists meal_attendance_guest_id_idx
 
 create index if not exists meal_attendance_created_at_idx
   on public.meal_attendance (created_at desc);
+
+create index if not exists meal_attendance_picked_up_by_idx
+  on public.meal_attendance (picked_up_by_guest_id)
+  where picked_up_by_guest_id is not null;
 
 create table if not exists public.shower_reservations (
   id uuid primary key default gen_random_uuid(),
@@ -326,6 +419,35 @@ for each row execute function public.ensure_guest_not_banned('laundry');
 
 create unique index if not exists laundry_one_per_day
   on public.laundry_bookings (guest_id, scheduled_for);
+
+create table if not exists public.blocked_slots (
+  id uuid default gen_random_uuid() primary key,
+  service_type text not null, -- 'shower' or 'laundry'
+  slot_time text not null, -- e.g. '09:00', '10:30 - 12:00'
+  date text not null, -- YYYY-MM-DD
+  created_at timestamptz default now() not null,
+  blocked_by uuid -- references auth.users(id) -- Optional: who blocked it
+);
+
+create index if not exists idx_blocked_slots_lookup 
+  on public.blocked_slots(date, service_type);
+
+alter table public.blocked_slots enable row level security;
+
+create policy "Enable read access for authenticated users"
+  on public.blocked_slots for select
+  to authenticated
+  using (true);
+
+create policy "Enable insert access for authenticated users"
+  on public.blocked_slots for insert
+  to authenticated
+  with check (true);
+
+create policy "Enable delete access for authenticated users"
+  on public.blocked_slots for delete
+  to authenticated
+  using (true);
 
 create table if not exists public.bicycle_repairs (
   id uuid primary key default gen_random_uuid(),
