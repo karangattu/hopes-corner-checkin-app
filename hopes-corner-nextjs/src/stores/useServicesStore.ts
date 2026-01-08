@@ -86,6 +86,8 @@ interface ServicesState {
     updateLaundryStatus: (recordId: string, status: string) => Promise<boolean>;
     updateLaundryBagNumber: (recordId: string, bagNumber: string) => Promise<boolean>;
     updateShowerStatus: (recordId: string, status: string) => Promise<boolean>;
+    cancelMultipleShowers: (recordIds: string[]) => Promise<boolean>;
+    cancelMultipleLaundry: (recordIds: string[]) => Promise<boolean>;
     addBicycleRecord: (guestId: string, repairOptions?: any) => Promise<BicycleRecord | Partial<BicycleRecord>>;
     updateBicycleRecord: (recordId: string, updates: Partial<BicycleRecord>) => Promise<void>;
     deleteBicycleRecord: (recordId: string) => Promise<void>;
@@ -370,6 +372,85 @@ export const useServicesStore = create<ServicesState>()(
                             set((state) => {
                                 const index = state.showerRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) state.showerRecords[index].status = target.status;
+                            });
+                            return false;
+                        }
+                        return true;
+                    },
+
+                    // End Service Day - Cancel Multiple Actions
+                    cancelMultipleShowers: async (recordIds: string[]) => {
+                        if (!recordIds.length) return true;
+
+                        const { showerRecords } = get();
+                        const previousStatuses = new Map<string, string>();
+
+                        // Store previous statuses for potential rollback
+                        recordIds.forEach((id) => {
+                            const record = showerRecords.find((r) => r.id === id);
+                            if (record) previousStatuses.set(id, record.status);
+                        });
+
+                        // Optimistic update
+                        set((state) => {
+                            state.showerRecords = state.showerRecords.map((r) =>
+                                recordIds.includes(r.id) ? { ...r, status: 'cancelled' } : r
+                            );
+                        });
+
+                        const supabase = createClient();
+                        const { error } = await supabase
+                            .from('shower_reservations')
+                            .update({ status: 'cancelled' })
+                            .in('id', recordIds);
+
+                        if (error) {
+                            console.error('Failed to cancel showers:', error);
+                            // Rollback
+                            set((state) => {
+                                state.showerRecords = state.showerRecords.map((r) => {
+                                    const prev = previousStatuses.get(r.id);
+                                    return prev ? { ...r, status: prev } : r;
+                                });
+                            });
+                            return false;
+                        }
+                        return true;
+                    },
+
+                    cancelMultipleLaundry: async (recordIds: string[]) => {
+                        if (!recordIds.length) return true;
+
+                        const { laundryRecords } = get();
+                        const previousStatuses = new Map<string, string>();
+
+                        // Store previous statuses for potential rollback
+                        recordIds.forEach((id) => {
+                            const record = laundryRecords.find((r) => r.id === id);
+                            if (record) previousStatuses.set(id, record.status);
+                        });
+
+                        // Optimistic update
+                        set((state) => {
+                            state.laundryRecords = state.laundryRecords.map((r) =>
+                                recordIds.includes(r.id) ? { ...r, status: 'cancelled' } : r
+                            );
+                        });
+
+                        const supabase = createClient();
+                        const { error } = await supabase
+                            .from('laundry_reservations')
+                            .update({ status: 'cancelled' })
+                            .in('id', recordIds);
+
+                        if (error) {
+                            console.error('Failed to cancel laundry:', error);
+                            // Rollback
+                            set((state) => {
+                                state.laundryRecords = state.laundryRecords.map((r) => {
+                                    const prev = previousStatuses.get(r.id);
+                                    return prev ? { ...r, status: prev } : r;
+                                });
                             });
                             return false;
                         }

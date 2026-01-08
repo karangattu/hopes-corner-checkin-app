@@ -28,6 +28,22 @@ export default defineConfig({
                 },
             },
         },
+        deps: {
+            inline: [
+                'next-auth',
+                'framer-motion',
+                '@supabase/supabase-js',
+            ],
+        },
+        server: {
+            deps: {
+                inline: [
+                    'next-auth',
+                    'framer-motion',
+                    '@supabase/supabase-js',
+                ],
+            },
+        },
     },
     resolve: {
         alias: {

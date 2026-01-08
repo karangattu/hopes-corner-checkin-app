@@ -12,6 +12,8 @@ import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import CompactLaundryList from './CompactLaundryList';
 import { LayoutGrid, List, Settings } from 'lucide-react';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
+import { EndServiceDayPanel } from './EndServiceDayPanel';
+import { useSession } from 'next-auth/react';
 
 const STATUS_COLUMNS = [
     { id: 'waiting', title: 'Waiting', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', badgeClass: 'bg-amber-100 text-amber-700' },
@@ -54,8 +56,9 @@ const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
 };
 
 export function LaundrySection() {
-    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber } = useServicesStore();
+    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry } = useServicesStore();
     const { guests } = useGuestsStore();
+    const { data: session } = useSession();
 
     const today = todayPacificDateString();
 
@@ -74,6 +77,26 @@ export function LaundrySection() {
 
     const onsiteLaundry = activeLaundry.filter(r => r.laundryType === 'onsite' || !r.laundryType);
     const offsiteLaundry = activeLaundry.filter(r => r.laundryType === 'offsite');
+
+    // Calculate pending on-site laundry for End Service Day (only 'waiting' status)
+    const pendingOnsiteLaundry = onsiteLaundry.filter(r => r.status === 'waiting');
+
+    // Check if user is admin/staff
+    const userRole = (session?.user as any)?.role || '';
+    const isAdmin = ['admin', 'board', 'staff'].includes(userRole);
+
+    const handleEndLaundryDay = async () => {
+        if (pendingOnsiteLaundry.length === 0) {
+            toast.error('No pending on-site laundry to cancel.');
+            return;
+        }
+        const success = await cancelMultipleLaundry(pendingOnsiteLaundry.map((r) => r.id));
+        if (success) {
+            toast.success(`Cancelled ${pendingOnsiteLaundry.length} laundry loads.`);
+        } else {
+            toast.error('Failed to cancel laundry.');
+        }
+    };
 
     // Drag and drop state
     const [draggedItem, setDraggedItem] = useState<any>(null);
@@ -182,6 +205,16 @@ export function LaundrySection() {
 
     return (
         <div className="space-y-8">
+            {/* End Service Day Panel */}
+            <EndServiceDayPanel
+                showShower={false}
+                showLaundry={true}
+                pendingLaundryCount={pendingOnsiteLaundry.length}
+                onEndShowerDay={async () => { }}
+                onEndLaundryDay={handleEndLaundryDay}
+                isAdmin={isAdmin}
+            />
+
             {/* On-site Laundry Kanban */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">

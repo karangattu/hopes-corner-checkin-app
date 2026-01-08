@@ -13,11 +13,14 @@ import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import CompactShowerList from './CompactShowerList';
 import { ShowerDetailModal } from './ShowerDetailModal';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
+import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { LayoutGrid, List, Settings } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 export function ShowersSection() {
-    const { showerRecords } = useServicesStore();
+    const { showerRecords, cancelMultipleShowers } = useServicesStore();
     const { guests } = useGuestsStore();
+    const { data: session } = useSession();
 
     const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'waitlist'>('active');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -32,8 +35,26 @@ export function ShowersSection() {
     const activeShowers = todaysRecords.filter(r => r.status === 'booked' || r.status === 'awaiting');
     const completedShowers = todaysRecords.filter(r => r.status === 'done');
     const waitlistedShowers = todaysRecords.filter(r => r.status === 'waitlisted');
+    const pendingShowers = todaysRecords.filter(r => r.status !== 'done' && r.status !== 'cancelled');
 
     const currentList = activeTab === 'active' ? activeShowers : activeTab === 'completed' ? completedShowers : waitlistedShowers;
+
+    // Check if user is admin/staff
+    const userRole = (session?.user as any)?.role || '';
+    const isAdmin = ['admin', 'board', 'staff'].includes(userRole);
+
+    const handleEndShowerDay = async () => {
+        if (pendingShowers.length === 0) {
+            toast.error('No pending showers to cancel.');
+            return;
+        }
+        const success = await cancelMultipleShowers(pendingShowers.map((r) => r.id));
+        if (success) {
+            toast.success(`Cancelled ${pendingShowers.length} showers.`);
+        } else {
+            toast.error('Failed to cancel showers.');
+        }
+    };
 
     const handleGuestClick = (guestId: string, recordId: string) => {
         const record = showerRecords.find(r => r.id === recordId);
@@ -45,6 +66,16 @@ export function ShowersSection() {
 
     return (
         <div className="space-y-6">
+            {/* End Service Day Panel */}
+            <EndServiceDayPanel
+                showShower={true}
+                showLaundry={false}
+                pendingShowerCount={pendingShowers.length}
+                onEndShowerDay={handleEndShowerDay}
+                onEndLaundryDay={async () => { }}
+                isAdmin={isAdmin}
+            />
+
             <div className="flex items-center justify-between">
                 {/* Tab Navigation */}
                 <div className="flex p-1 bg-gray-100 rounded-2xl w-fit">
