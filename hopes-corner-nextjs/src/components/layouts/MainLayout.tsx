@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut, Menu, X } from 'lucide-react';
 import { getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
+import { TutorialModal } from '@/components/modals/TutorialModal';
 
 interface NavItem {
     id: string;
@@ -25,6 +26,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const { data: session } = useSession();
     const pathname = usePathname();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     const role = (session?.user?.role as UserRole) || 'checkin';
     const roleLabel = getRoleLabel(role);
@@ -150,6 +152,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             </span>
                             <div className="w-px h-5 bg-emerald-700/50" />
                             <button
+                                onClick={() => setShowTutorial(true)}
                                 className="p-2 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-800/50 transition-colors"
                                 aria-label="Help"
                                 title="Need help?"
@@ -225,6 +228,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     <div className="flex justify-center items-center gap-3">
                         <AppVersion />
                         <button
+                            onClick={() => setShowTutorial(true)}
                             className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
                             aria-label="Help"
                         >
@@ -252,6 +256,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     <AppVersion />
                 </div>
             </footer>
+
+            <TutorialModal
+                isOpen={showTutorial}
+                onClose={() => setShowTutorial(false)}
+            />
         </div>
     );
 }
