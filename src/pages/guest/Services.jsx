@@ -3784,6 +3784,53 @@ const Services = () => {
                     })()}
                   </div>
 
+                  {/* Warning Messages Display */}
+                  {(() => {
+                    const warnings = getWarningsForGuest(record.guestId) || [];
+                    return warnings.length > 0 ? (
+                      <div className="space-y-2 mt-2">
+                        {warnings.map((warning) => (
+                          <div
+                            key={warning.id}
+                            className={`p-2 rounded text-xs border ${warning.severity >= 3
+                              ? "bg-red-50 border-red-200"
+                              : warning.severity === 2
+                                ? "bg-orange-50 border-orange-200"
+                                : "bg-yellow-50 border-yellow-200"
+                              }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle size={14} className={`flex-shrink-0 mt-0.5 ${warning.severity >= 3
+                                ? "text-red-600"
+                                : warning.severity === 2
+                                  ? "text-orange-600"
+                                  : "text-yellow-600"
+                                }`} />
+                              <div className="flex-1">
+                                <p className={`font-semibold ${warning.severity >= 3
+                                  ? "text-red-800"
+                                  : warning.severity === 2
+                                    ? "text-orange-800"
+                                    : "text-yellow-800"
+                                  }`}>
+                                  {warning.message}
+                                </p>
+                                {warning.createdAt && (
+                                  <p className="text-[10px] text-gray-600 mt-1">
+                                    {new Date(warning.createdAt).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+
                   <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
                     <div className="flex items-center gap-1.5">
                       <Clock size={14} className={isWaitlisted ? "text-amber-500" : "text-blue-500"} />
