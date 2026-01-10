@@ -2087,6 +2087,12 @@ export const AppProvider = ({ children }) => {
       next.setHours(0, 0, 0, 0);
       return next;
     }
+    if (item === "jacket") {
+      const next = new Date(last);
+      next.setDate(next.getDate() + 15);
+      next.setHours(0, 0, 0, 0);
+      return next;
+    }
     return null;
   };
   const canGiveItem = (guestId, item) => {

@@ -14,6 +14,7 @@ import {
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
 import { CompactWaiverIndicator } from "../ui/CompactWaiverIndicator";
+import { useGuestsStore } from "../../stores/useGuestsStore";
 
 /**
  * Calculates and formats time elapsed from an ISO timestamp to now
@@ -65,6 +66,7 @@ const LaundryKanban = ({
   cancelLaundryRecord,
   attemptLaundryStatusChange,
 }) => {
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
   
@@ -411,6 +413,19 @@ const LaundryKanban = ({
             {!isCompleted && (
               <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
             )}
+            {/* Show warning indicator if guest has warnings */}
+            {(() => {
+              const warnings = getWarningsForGuest(record.guestId) || [];
+              return warnings.length > 0 ? (
+                <div
+                  className="text-red-600 flex-shrink-0"
+                  title={`⚠️ ${warnings.length} warning${warnings.length > 1 ? 's' : ''}`}
+                  aria-label={`Guest has warning${warnings.length > 1 ? 's' : ''}`}
+                >
+                  <AlertTriangle size={14} />
+                </div>
+              ) : null;
+            })()}
             <button
               type="button"
               onClick={() => toggleCard(record.id)}
@@ -528,7 +543,7 @@ const LaundryKanban = ({
         </div>
       </div>
     );
-  }, [getGuestNameDetails, expandedCards, draggedItem, handleDragStart, handleDragEnd, toggleCard, updateLaundryBagNumber, processStatusChange, cancelLaundryRecord, formatSlotTime]);
+  }, [getGuestNameDetails, expandedCards, draggedItem, handleDragStart, handleDragEnd, toggleCard, updateLaundryBagNumber, processStatusChange, cancelLaundryRecord, formatSlotTime, getWarningsForGuest]);
 
   return (
     <div className="space-y-6">

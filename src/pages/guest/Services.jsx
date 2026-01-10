@@ -51,9 +51,12 @@ import {
   Filter,
   ArrowUpDown,
   MessageSquare,
+  Layers,
+  AlertTriangle,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
+import { useGuestsStore } from "../../stores/useGuestsStore";
 import ShowerBooking from "../../components/ShowerBooking";
 import LaundryBooking from "../../components/LaundryBooking";
 import StickyQuickActions from "../../components/StickyQuickActions";
@@ -119,6 +122,7 @@ const getPacificWeekdayLabel = (pacificDateStr) => {
 };
 
 const Services = () => {
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const {
     getTodayMetrics,
     getTodayLaundryWithGuests,
@@ -284,6 +288,39 @@ const Services = () => {
 
     return () => clearInterval(interval);
   }, [autoMealsAdded, addAutomaticMealEntries, hasAutomaticMealsForDay]);
+
+  // Handle Thursday retroactive meals on Friday
+  useEffect(() => {
+    const today = todayPacificDateString();
+    const dateObj = new Date(today + 'T12:00:00');
+    const dayOfWeek = dateObj.getDay();
+
+    // Only process on Friday (day 5)
+    if (dayOfWeek !== 5) return;
+
+    // Check if we already tried to add Thursday's meals today
+    const stored = localStorage.getItem('hopes-corner-thursday-meals-added-check');
+    if (stored === today) return;
+
+    // Calculate Thursday's date
+    const thursdayDate = new Date(dateObj);
+    thursdayDate.setDate(thursdayDate.getDate() - 1);
+    const thursdayStr = pacificDateStringFrom(thursdayDate);
+
+    // Mark as checked today immediately to prevent race conditions
+    localStorage.setItem('hopes-corner-thursday-meals-added-check', today);
+
+    // Call addAutomaticMealEntries for Thursday
+    addAutomaticMealEntries(thursdayStr)
+      .then((result) => {
+        if (result.success && result.added > 0) {
+          toast.success(`✅ Retroactively added Thursday's meal entries: ${result.summary}`);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to add retroactive Thursday meal entries:', error);
+      });
+  }, [addAutomaticMealEntries]);
 
   const todayLaundryWithGuests = getTodayLaundryWithGuests();
 
@@ -3572,18 +3609,21 @@ const Services = () => {
       const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
       const canTent = guest ? canGiveItem(guest.id, "tent") : false;
       const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
+      const canJacket = guest ? canGiveItem(guest.id, "jacket") : false;
 
       const daysT = guest ? getDaysUntilAvailable(guest.id, "tshirt") : 0;
       const daysSB = guest ? getDaysUntilAvailable(guest.id, "sleeping_bag") : 0;
       const daysBP = guest ? getDaysUntilAvailable(guest.id, "backpack") : 0;
       const daysTent = guest ? getDaysUntilAvailable(guest.id, "tent") : 0;
       const daysFF = guest ? getDaysUntilAvailable(guest.id, "flip_flops") : 0;
+      const daysJacket = guest ? getDaysUntilAvailable(guest.id, "jacket") : 0;
 
       const lastTGuest = guest ? getLastGivenItem(guest.id, "tshirt") : null;
       const lastSBGuest = guest ? getLastGivenItem(guest.id, "sleeping_bag") : null;
       const lastBPGuest = guest ? getLastGivenItem(guest.id, "backpack") : null;
       const lastTentGuest = guest ? getLastGivenItem(guest.id, "tent") : null;
       const lastFFGuest = guest ? getLastGivenItem(guest.id, "flip_flops") : null;
+      const lastJacketGuest = guest ? getLastGivenItem(guest.id, "jacket") : null;
 
       const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
       const isDone = record.status === "done";
@@ -3651,6 +3691,16 @@ const Services = () => {
             lastRecord: lastFFGuest,
             daysRemaining: daysFF,
             successMessage: "Flip Flops given",
+          },
+          {
+            key: "jacket",
+            label: "Jacket",
+            buttonLabel: "Give Jacket",
+            icon: Layers,
+            canGive: canJacket,
+            lastRecord: lastJacketGuest,
+            daysRemaining: daysJacket,
+            successMessage: "Jacket given",
           },
         ]
         : [];
@@ -3723,6 +3773,15 @@ const Services = () => {
                         Priority
                       </span>
                     )}
+                    {(() => {
+                      const warnings = getWarningsForGuest(record.guestId) || [];
+                      return warnings.length > 0 ? (
+                        <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wide flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          ⚠️ Warning
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
