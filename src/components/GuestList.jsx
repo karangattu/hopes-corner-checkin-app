@@ -94,6 +94,7 @@ const GuestList = () => {
     transferAllGuestRecords,
     addLunchBagRecord,
   } = useAppContext();
+
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
   const { banGuest, clearGuestBan } = useAppContext();
@@ -644,10 +645,6 @@ const GuestList = () => {
         // Auto-add lunch bag for each guest getting a meal
         try {
           addLunchBagRecord(1, today);
-          // If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest
-          if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-            addLunchBagRecord(1, today);
-          }
         } catch (lunchBagError) {
           console.warn('Failed to auto-add lunch bag:', lunchBagError);
         }
@@ -681,6 +678,20 @@ const GuestList = () => {
   const handleAddExtraMeals = async (guestId, count, guestName = "guest") => {
     if (!guestId || pendingExtraMealGuests.has(guestId)) return;
     const friendlyName = guestName || "guest";
+
+    // Check if guest already has a standard meal today
+    const today = todayPacificDateString();
+    const hasStandardMeal = mealRecords.some(
+      (record) =>
+        record.guestId === guestId &&
+        pacificDateStringFrom(record.date) === today
+    );
+
+    if (!hasStandardMeal) {
+      haptics.error();
+      toast.error("Guest must check in for a regular meal first");
+      return;
+    }
 
     try {
       haptics.buttonPress();
@@ -972,7 +983,7 @@ const GuestList = () => {
 
     // Helper to add service if it's from today
     const addTodayService = (guestId, record, serviceType, icon, iconClass) => {
-      if (!guestId || !record?.date) return;
+      if (!guestId || !record || !record.date) return;
       const recordDate = pacificDateStringFrom(record.date);
       if (recordDate === today) {
         if (!map.has(guestId)) map.set(guestId, []);
@@ -980,7 +991,7 @@ const GuestList = () => {
       }
     };
 
-    mealRecords.forEach((record) =>
+    (mealRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -989,7 +1000,7 @@ const GuestList = () => {
         "text-green-600",
       ),
     );
-    extraMealRecords.forEach((record) =>
+    (extraMealRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -998,7 +1009,7 @@ const GuestList = () => {
         "text-green-500",
       ),
     );
-    showerRecords.forEach((record) =>
+    (showerRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1007,7 +1018,7 @@ const GuestList = () => {
         "text-emerald-600",
       ),
     );
-    laundryRecords.forEach((record) =>
+    (laundryRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1016,7 +1027,7 @@ const GuestList = () => {
         "text-emerald-700",
       ),
     );
-    holidayRecords.forEach((record) =>
+    (holidayRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1025,7 +1036,7 @@ const GuestList = () => {
         "text-amber-500",
       ),
     );
-    haircutRecords.forEach((record) =>
+    (haircutRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1034,7 +1045,7 @@ const GuestList = () => {
         "text-pink-500",
       ),
     );
-    bicycleRecords.forEach((record) =>
+    (bicycleRecords || []).forEach((record) =>
       addTodayService(record.guestId, record, "Bicycle", Bike, "text-sky-500"),
     );
 

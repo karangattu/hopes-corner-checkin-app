@@ -1,62 +1,16 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import {
   WashingMachine,
-  ChevronDown,
-  ChevronUp,
   CheckCircle2Icon,
   Clock,
-  Trash2,
   Wind,
   Package,
-  AlertTriangle,
-  Timer,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
-import { CompactWaiverIndicator } from "../ui/CompactWaiverIndicator";
 import { useGuestsStore } from "../../stores/useGuestsStore";
 
-/**
- * Calculates and formats time elapsed from an ISO timestamp to now
- * @param {string|null} isoTimestamp - ISO format timestamp
- * @returns {string|null} - Human-readable time elapsed, e.g., "2h 15m", "45m", "< 1m"
- */
-const formatTimeElapsed = (isoTimestamp) => {
-  if (!isoTimestamp) return null;
-
-  try {
-    const timestamp = new Date(isoTimestamp);
-    if (isNaN(timestamp.getTime())) return null;
-
-    const now = new Date();
-    const diffMs = now - timestamp;
-
-    // Don't show negative times (future timestamps)
-    if (diffMs < 0) return null;
-
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMinutes / 60);
-    const remainingMinutes = diffMinutes % 60;
-
-    if (diffMinutes < 1) {
-      return "< 1m";
-    } else if (diffHours < 1) {
-      return `${diffMinutes}m`;
-    } else if (diffHours < 24) {
-      return remainingMinutes > 0 
-        ? `${diffHours}h ${remainingMinutes}m` 
-        : `${diffHours}h`;
-    } else {
-      const days = Math.floor(diffHours / 24);
-      const remainingHours = diffHours % 24;
-      return remainingHours > 0 
-        ? `${days}d ${remainingHours}h` 
-        : `${days}d`;
-    }
-  } catch {
-    return null;
-  }
-};
+import LaundryCard from "./LaundryCard";
 
 const LaundryKanban = ({
   laundryRecords,
@@ -69,7 +23,7 @@ const LaundryKanban = ({
   const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
-  
+
   // Use ref to track dragged item for optimistic updates without re-renders
   const draggedItemRef = useRef(null);
 
@@ -166,20 +120,6 @@ const LaundryKanban = ({
       sortKey: legalName.toLowerCase(),
     };
   }, [guestMap]);
-
-  const formatSlotTime = useCallback((slotTime) => {
-    if (!slotTime) return null;
-    // Slot can be a range like "8:30 - 9:30"
-    const [start] = String(slotTime).split(" - ");
-    const [hoursStr, minutesStr] = String(start).split(":");
-    const hours = Number(hoursStr);
-    const minutes = Number(minutesStr);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return slotTime;
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes, 0, 0);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }, []);
 
   const toggleCard = useCallback((recordId) => {
     setExpandedCards((prev) => ({
@@ -363,187 +303,20 @@ const LaundryKanban = ({
     },
   ];
 
-  const renderCard = useCallback((record, isOffsite = false) => {
-    const nameDetails = getGuestNameDetails(record.guestId);
-    const isExpanded = expandedCards[record.id];
-    const isCompleted =
-      record.status === LAUNDRY_STATUS.PICKED_UP ||
-      record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP;
-    const isDragging = draggedItem?.id === record.id;
+  const ONSITE_STATUS_OPTIONS = [
+    { value: LAUNDRY_STATUS.WAITING, label: "Waiting" },
+    { value: LAUNDRY_STATUS.WASHER, label: "In Washer" },
+    { value: LAUNDRY_STATUS.DRYER, label: "In Dryer" },
+    { value: LAUNDRY_STATUS.DONE, label: "Done" },
+    { value: LAUNDRY_STATUS.PICKED_UP, label: "Picked Up" },
+  ];
 
-    const statusOptions = isOffsite
-      ? [
-          { value: LAUNDRY_STATUS.PENDING, label: "Pending" },
-          { value: LAUNDRY_STATUS.TRANSPORTED, label: "Transported" },
-          { value: LAUNDRY_STATUS.RETURNED, label: "Returned" },
-          { value: LAUNDRY_STATUS.OFFSITE_PICKED_UP, label: "Picked Up" },
-        ]
-      : [
-          { value: LAUNDRY_STATUS.WAITING, label: "Waiting" },
-          { value: LAUNDRY_STATUS.WASHER, label: "In Washer" },
-          { value: LAUNDRY_STATUS.DRYER, label: "In Dryer" },
-          { value: LAUNDRY_STATUS.DONE, label: "Done" },
-          { value: LAUNDRY_STATUS.PICKED_UP, label: "Picked Up" },
-        ];
-
-    return (
-      <div
-        key={record.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, record)}
-        onDragEnd={handleDragEnd}
-        data-testid={`laundry-card-${record.id}`}
-        style={{ willChange: isDragging ? 'transform, opacity' : 'auto' }}
-        className={`bg-white rounded-lg border-2 shadow-sm p-3 cursor-move transition-all duration-75 hover:shadow-md ${
-          isDragging ? "opacity-50 scale-105" : ""
-        } ${
-          isCompleted
-            ? "border-emerald-200 hover:border-emerald-300"
-            : "border-gray-200 hover:border-gray-300"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
-          <div className="flex-1 min-w-0">
-            <div className="font-medium text-xs text-gray-900 leading-tight break-words line-clamp-2" title={nameDetails.displayName}>
-              {nameDetails.primaryName}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Show waiver indicator for non-completed records */}
-            {!isCompleted && (
-              <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
-            )}
-            {/* Show warning indicator if guest has warnings */}
-            {(() => {
-              const warnings = getWarningsForGuest(record.guestId) || [];
-              return warnings.length > 0 ? (
-                <div
-                  className="text-red-600 flex-shrink-0"
-                  title={`⚠️ ${warnings.length} warning${warnings.length > 1 ? 's' : ''}`}
-                  aria-label={`Guest has warning${warnings.length > 1 ? 's' : ''}`}
-                >
-                  <AlertTriangle size={14} />
-                </div>
-              ) : null;
-            })()}
-            <button
-              type="button"
-              onClick={() => toggleCard(record.id)}
-              className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-              aria-label={`${
-                isExpanded ? "Collapse" : "Expand"
-              } laundry details for ${nameDetails.primaryName}`}
-            >
-              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Secondary info line */}
-        {(nameDetails.hasPreferred || (!isOffsite && record.time)) && (
-          <div className="text-[9px] text-gray-500 mb-2 line-clamp-1">
-            {nameDetails.hasPreferred && nameDetails.legalName}
-            {nameDetails.hasPreferred && !isOffsite && record.time && " • "}
-            {!isOffsite && record.time && formatSlotTime(record.time)}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {record.bagNumber && (
-            <div className="flex items-start gap-1.5 text-xs text-gray-600 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
-              <Package
-                size={12}
-                className="text-purple-600 flex-shrink-0 mt-0.5"
-              />
-              <span>Bag #{record.bagNumber}</span>
-            </div>
-          )}
-
-          {isOffsite && (
-            <div className="text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1">
-              <span className="font-semibold text-blue-700">
-                Off-site laundry
-              </span>
-            </div>
-          )}
-
-          {/* Time tracking indicator - show for non-completed records */}
-          {!isCompleted && (record.createdAt || record.lastUpdated) && (
-            <div 
-              className="flex items-center gap-1.5 text-[10px] text-gray-500 bg-gray-50 rounded px-2 py-1 cursor-help"
-              title={`Dropoff: ${record.createdAt ? formatTimeElapsed(record.createdAt) + " ago" : "N/A"}\nIn current status: ${record.lastUpdated ? formatTimeElapsed(record.lastUpdated) + " ago" : "N/A"}`}
-              data-testid={`laundry-time-tracker-${record.id}`}
-            >
-              <Timer size={10} className="text-gray-400 flex-shrink-0" />
-              <span>
-                {formatTimeElapsed(record.createdAt) || "—"}
-                {record.lastUpdated && record.lastUpdated !== record.createdAt && (
-                  <span className="text-gray-400"> • {formatTimeElapsed(record.lastUpdated)} in status</span>
-                )}
-              </span>
-            </div>
-          )}
-
-          {isExpanded && (
-            <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Bag Number
-                </label>
-                <input
-                  type="text"
-                  value={record.bagNumber || ""}
-                  onChange={(e) =>
-                    updateLaundryBagNumber(record.id, e.target.value)
-                  }
-                  placeholder="Enter bag number"
-                  className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Status
-                </label>
-                <select
-                  value={record.status}
-                  onChange={(e) =>
-                    processStatusChange(record, e.target.value)
-                  }
-                  className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                  aria-label={`Update laundry status for ${nameDetails.primaryName}`}
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Cancel laundry booking for ${nameDetails.primaryName}?`,
-                    )
-                  ) {
-                    cancelLaundryRecord(record.id);
-                    toast.success("Laundry booking cancelled");
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
-              >
-                <Trash2 size={12} />
-                Cancel Booking
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }, [getGuestNameDetails, expandedCards, draggedItem, handleDragStart, handleDragEnd, toggleCard, updateLaundryBagNumber, processStatusChange, cancelLaundryRecord, formatSlotTime, getWarningsForGuest]);
+  const OFFSITE_STATUS_OPTIONS = [
+    { value: LAUNDRY_STATUS.PENDING, label: "Pending" },
+    { value: LAUNDRY_STATUS.TRANSPORTED, label: "Transported" },
+    { value: LAUNDRY_STATUS.RETURNED, label: "Returned" },
+    { value: LAUNDRY_STATUS.OFFSITE_PICKED_UP, label: "Picked Up" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -578,11 +351,10 @@ const LaundryKanban = ({
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, column.id)}
                 data-testid={`onsite-column-${column.id}`}
-                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[180px] ${
-                  draggedItem?.status !== column.id && !draggedItem?.offsite
-                    ? "hover:border-opacity-75"
-                    : ""
-                }`}
+                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[180px] ${draggedItem?.status !== column.id && !draggedItem?.offsite
+                  ? "hover:border-opacity-75"
+                  : ""
+                  }`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -608,7 +380,24 @@ const LaundryKanban = ({
                       </p>
                     </div>
                   ) : (
-                    records.map((record) => renderCard(record, false))
+                    records.map((record) => (
+                      <LaundryCard
+                        key={record.id}
+                        record={record}
+                        isOffsite={false}
+                        isExpanded={expandedCards[record.id]}
+                        isDragging={draggedItem?.id === record.id}
+                        guestDetails={getGuestNameDetails(record.guestId)}
+                        warnings={getWarningsForGuest(record.guestId) || []}
+                        onToggle={toggleCard}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onUpdateBagNumber={updateLaundryBagNumber}
+                        onUpdateStatus={processStatusChange}
+                        onCancel={cancelLaundryRecord}
+                        statusOptions={ONSITE_STATUS_OPTIONS}
+                      />
+                    ))
                   )}
                 </div>
               </div>
@@ -649,11 +438,10 @@ const LaundryKanban = ({
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
                   data-testid={`offsite-column-${column.id}`}
-                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[200px] ${
-                    draggedItem?.status !== column.id && draggedItem?.offsite
-                      ? "hover:border-opacity-75"
-                      : ""
-                  }`}
+                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[200px] ${draggedItem?.status !== column.id && draggedItem?.offsite
+                    ? "hover:border-opacity-75"
+                    : ""
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -681,7 +469,24 @@ const LaundryKanban = ({
                         </p>
                       </div>
                     ) : (
-                      records.map((record) => renderCard(record, true))
+                      records.map((record) => (
+                        <LaundryCard
+                          key={record.id}
+                          record={record}
+                          isOffsite={true}
+                          isExpanded={expandedCards[record.id]}
+                          isDragging={draggedItem?.id === record.id}
+                          guestDetails={getGuestNameDetails(record.guestId)}
+                          warnings={getWarningsForGuest(record.guestId) || []}
+                          onToggle={toggleCard}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onUpdateBagNumber={updateLaundryBagNumber}
+                          onUpdateStatus={processStatusChange}
+                          onCancel={cancelLaundryRecord}
+                          statusOptions={OFFSITE_STATUS_OPTIONS}
+                        />
+                      ))
                     )}
                   </div>
                 </div>

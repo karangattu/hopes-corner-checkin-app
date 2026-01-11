@@ -22,15 +22,53 @@ export const useServicesStore = create(
           bicycleRecords: [],
 
           // Shower Actions
-          addShowerRecord: async (guestId) => {
+          addShowerRecord: async (guestId, slotTime) => {
             if (!guestId) throw new Error('Guest ID is required');
 
             const todayStr = todayPacificDateString();
 
             if (isSupabaseEnabled() && supabase) {
+              // Validation: Check if guest already has a shower booked today
+              const { data: existingBooking, error: checkError } = await supabase
+                .from('shower_reservations')
+                .select('id')
+                .eq('guest_id', guestId)
+                .eq('scheduled_for', todayStr)
+                .neq('status', 'cancelled') // Ignore cancelled bookings
+                .maybeSingle();
+
+              if (checkError) {
+                console.error('Error checking existing shower booking:', checkError);
+                throw new Error('Failed to validate shower availability');
+              }
+
+              if (existingBooking) {
+                throw new Error('Guest already has a shower booked for today');
+              }
+
+              // Validation: Check slot capacity if a specific time is requested
+              if (slotTime) {
+                const { count, error: countError } = await supabase
+                  .from('shower_reservations')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('scheduled_for', todayStr)
+                  .eq('scheduled_time', slotTime)
+                  .neq('status', 'cancelled');
+
+                if (countError) {
+                  console.error('Error checking shower slot capacity:', countError);
+                  throw new Error('Failed to check slot capacity');
+                }
+
+                if (count >= 2) {
+                  throw new Error('This shower slot is already full');
+                }
+              }
+
               const payload = {
                 guest_id: guestId,
                 scheduled_for: todayStr,
+                scheduled_time: slotTime || null,
                 status: 'booked',
               };
 
@@ -56,6 +94,7 @@ export const useServicesStore = create(
               id: `local-shower-${Date.now()}`,
               guestId,
               date: todayStr,
+              time: slotTime || null,
               createdAt: new Date().toISOString(),
             };
 
@@ -98,6 +137,24 @@ export const useServicesStore = create(
             const todayStr = todayPacificDateString();
 
             if (isSupabaseEnabled() && supabase) {
+              // Validation: Check if guest already has laundry booked today
+              const { data: existingBooking, error: checkError } = await supabase
+                .from('laundry_bookings')
+                .select('id')
+                .eq('guest_id', guestId)
+                .eq('scheduled_for', todayStr)
+                .neq('status', 'cancelled')
+                .maybeSingle();
+
+              if (checkError) {
+                console.error('Error checking existing laundry booking:', checkError);
+                throw new Error('Failed to validate laundry availability');
+              }
+
+              if (existingBooking) {
+                throw new Error('Guest already has laundry booked for today');
+              }
+
               const payload = {
                 guest_id: guestId,
                 laundry_type: washType.toLowerCase(),
