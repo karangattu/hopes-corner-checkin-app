@@ -11,6 +11,13 @@ const __dirname = dirname(__filename);
 const guestListPath = join(__dirname, '../GuestList.jsx');
 const guestListContent = readFileSync(guestListPath, 'utf-8');
 
+// Read the GuestListRow.jsx file content (where card rendering was extracted)
+const guestListRowPath = join(__dirname, '../GuestListRow.jsx');
+const guestListRowContent = readFileSync(guestListRowPath, 'utf-8');
+
+// Combined content for tests that need to check either file
+const combinedContent = guestListContent + '\n' + guestListRowContent;
+
 describe('GuestList - Compact Layout Optimizations', () => {
   describe('Threshold Configuration', () => {
     it('should have COMPACT_THRESHOLD set to 3 for aggressive compaction', () => {
@@ -62,51 +69,54 @@ describe('GuestList - Compact Layout Optimizations', () => {
 
   describe('Row Layout Optimization', () => {
     it('should use flex-row layout for name and actions on same line', () => {
-      // Verify horizontal layout
-      const hasFlexRow = guestListContent.includes('flex-row items-center justify-between');
+      // Verify horizontal layout (in GuestListRow.jsx where cards are rendered)
+      const hasFlexRow = combinedContent.includes('flex-row items-center justify-between');
       expect(hasFlexRow).toBe(true);
     });
 
     it('should use flex-shrink-0 for action buttons to prevent wrapping', () => {
-      // Verify buttons don't wrap
-      const hasShrinkNone = guestListContent.includes('flex-shrink-0');
+      // Verify buttons don't wrap (in GuestListRow.jsx where cards are rendered)
+      const hasShrinkNone = combinedContent.includes('flex-shrink-0');
       expect(hasShrinkNone).toBe(true);
     });
 
     it('should not use flex-wrap for main action button container', () => {
-      // Action buttons should NOT wrap in the main container
-      const actionContainerPattern = /flex items-center flex-shrink-0.*gap/;
-      expect(actionContainerPattern.test(guestListContent)).toBe(true);
+      // Action buttons should NOT wrap in the main container (in GuestListRow.jsx)
+      const actionContainerPattern = /flex items-center flex-shrink-0/;
+      expect(actionContainerPattern.test(combinedContent)).toBe(true);
     });
   });
 
   describe('Padding Configuration', () => {
     it('should have compact padding (px-3 py-2)', () => {
-      const hasCompactPadding = guestListContent.includes('px-3 py-2');
+      // Card padding is in GuestListRow.jsx
+      const hasCompactPadding = combinedContent.includes('px-3 py-2');
       expect(hasCompactPadding).toBe(true);
     });
 
     it('should have adaptive padding (px-4 py-3)', () => {
-      const hasAdaptivePadding = guestListContent.includes('px-4 py-3');
+      // Card padding is in GuestListRow.jsx
+      const hasAdaptivePadding = combinedContent.includes('px-4 py-3');
       expect(hasAdaptivePadding).toBe(true);
     });
 
     it('should have normal padding (p-4)', () => {
-      const hasNormalPadding = guestListContent.includes('p-4');
+      // Card padding is in GuestListRow.jsx
+      const hasNormalPadding = combinedContent.includes('p-4');
       expect(hasNormalPadding).toBe(true);
     });
   });
 
   describe('Button Gap Configuration', () => {
     it('should have reduced gap in compact mode (gap-0.5)', () => {
-      // Verify compact gap for buttons
-      const hasCompactGap = guestListContent.includes('gap-0.5');
+      // Button gaps are in GuestListRow.jsx
+      const hasCompactGap = combinedContent.includes('gap-0.5');
       expect(hasCompactGap).toBe(true);
     });
 
     it('should have normal gap in non-compact mode (gap-1 or gap-2)', () => {
-      // Verify normal gaps exist
-      const hasNormalGap = guestListContent.includes('gap-1') || guestListContent.includes('gap-2');
+      // Button gaps are in GuestListRow.jsx
+      const hasNormalGap = combinedContent.includes('gap-1') || combinedContent.includes('gap-2');
       expect(hasNormalGap).toBe(true);
     });
   });
@@ -114,22 +124,23 @@ describe('GuestList - Compact Layout Optimizations', () => {
 
 describe('GuestList - Meal Buttons Row Optimization', () => {
   it('meal buttons should stay in same row as guest name on larger screens', () => {
-    // The key pattern: flex-row layout keeps everything on one line
-    const hasRowLayout = guestListContent.includes('flex-row items-center justify-between');
+    // The key pattern: flex-row layout keeps everything on one line (in GuestListRow.jsx)
+    const hasRowLayout = combinedContent.includes('flex-row items-center justify-between');
     expect(hasRowLayout).toBe(true);
   });
 
   it('meal buttons container should not wrap', () => {
-    // Verify no flex-wrap on action container
-    const actionContainerSection = guestListContent.substring(
-      guestListContent.indexOf('Quick Action Buttons'),
-      guestListContent.indexOf('Quick Action Buttons') + 500
+    // Verify no flex-wrap on action container (in GuestListRow.jsx)
+    const actionContainerSection = guestListRowContent.substring(
+      guestListRowContent.indexOf('Actions Section'),
+      guestListRowContent.indexOf('Actions Section') + 500
     );
     expect(actionContainerSection.includes('flex-wrap')).toBe(false);
   });
 
   it('should use gap-2 for normal mode meal buttons', () => {
-    const hasNormalGap = guestListContent.includes('sm:gap-2');
+    // Gap configuration is in GuestListRow.jsx
+    const hasNormalGap = combinedContent.includes('sm:gap-2');
     expect(hasNormalGap).toBe(true);
   });
 });
