@@ -40,6 +40,9 @@ const CompactShowerCard = memo(({
     updateShowerStatus,
     rescheduleShower,
     cancelShowerRecord,
+    // Undo support
+    actionHistory = [],
+    undoAction,
     // Data
     showerSlotOptions,
     laundryLinked,
@@ -183,6 +186,31 @@ const CompactShowerCard = memo(({
             toast.success(successMessage);
         } catch (error) {
             toast.error(error.message);
+        }
+    };
+
+    // Find the most recent ITEM_GIVEN action for this guest and item (for undo)
+    const findItemAction = (itemKey) => {
+        if (!guest || !actionHistory || actionHistory.length === 0) return null;
+        return actionHistory.find(
+            (a) =>
+                a.type === "ITEM_GIVEN" &&
+                a.data?.guestId === guest.id &&
+                a.data?.item === itemKey
+        );
+    };
+
+    const handleUndoItem = async (action, itemLabel) => {
+        if (!action || !undoAction) return;
+        try {
+            const success = await undoAction(action.id);
+            if (success) {
+                toast.success(`Undid ${itemLabel}`);
+            } else {
+                toast.error(`Unable to undo ${itemLabel}`);
+            }
+        } catch (error) {
+            toast.error(error.message || `Unable to undo ${itemLabel}`);
         }
     };
 
@@ -462,17 +490,21 @@ const CompactShowerCard = memo(({
                                     {essentialsConfig.map((item) => {
                                         const Icon = item.icon;
                                         const isAvailable = item.canGive;
+                                        const itemAction = findItemAction(item.key);
+                                        const canUndo = Boolean(itemAction && undoAction);
 
                                         return (
                                             <div
                                                 key={item.key}
                                                 className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isAvailable
                                                     ? "bg-white border-emerald-100 hover:border-emerald-300"
-                                                    : "bg-gray-50 border-gray-100 opacity-75"
+                                                    : canUndo
+                                                        ? "bg-orange-50 border-orange-200"
+                                                        : "bg-gray-50 border-gray-100 opacity-75"
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-3 min-w-0">
-                                                    <div className={`p-2 rounded-lg ${isAvailable ? "bg-emerald-50 text-emerald-600" : "bg-gray-200 text-gray-400"
+                                                    <div className={`p-2 rounded-lg ${isAvailable ? "bg-emerald-50 text-emerald-600" : canUndo ? "bg-orange-100 text-orange-600" : "bg-gray-200 text-gray-400"
                                                         }`}>
                                                         <Icon size={18} />
                                                     </div>
@@ -481,7 +513,9 @@ const CompactShowerCard = memo(({
                                                             {item.label}
                                                         </div>
                                                         <div className="text-[11px] text-gray-500">
-                                                            {isAvailable ? (
+                                                            {canUndo ? (
+                                                                <span className="text-orange-600 font-medium">Just given - can undo</span>
+                                                            ) : isAvailable ? (
                                                                 item.lastRecord ? (
                                                                     `Last: ${new Date(item.lastRecord.date).toLocaleDateString()}`
                                                                 ) : (
@@ -496,17 +530,30 @@ const CompactShowerCard = memo(({
                                                     </div>
                                                 </div>
 
-                                                <button
-                                                    type="button"
-                                                    disabled={!isAvailable}
-                                                    onClick={() => handleGiveItem(item.key, item.successMessage)}
-                                                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${isAvailable
-                                                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                                        }`}
-                                                >
-                                                    {item.buttonLabel}
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    {canUndo && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleUndoItem(itemAction, item.label)}
+                                                            className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm bg-orange-100 text-orange-700 hover:bg-orange-200 flex items-center gap-1"
+                                                            title={`Undo ${item.label}`}
+                                                        >
+                                                            <RotateCcw size={12} />
+                                                            Undo
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isAvailable}
+                                                        onClick={() => handleGiveItem(item.key, item.successMessage)}
+                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${isAvailable
+                                                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                                            }`}
+                                                    >
+                                                        {item.buttonLabel}
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     })}

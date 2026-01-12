@@ -423,20 +423,22 @@ const GuestListRow = memo(({ index, style, data }) => {
 
                 {/* Actions Section */}
                 <div className={`flex items-center flex-shrink-0 ${compact ? "gap-1" : "gap-2"}`}>
-                    {/* Mobile Quick Add */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            haptics.buttonPress();
-                            setMobileServiceSheet({ isOpen: true, guest });
-                        }}
-                        className="sm:hidden flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform"
-                        title="Quick Add Services"
-                    >
-                        <Plus size={22} strokeWidth={2.5} />
-                    </button>
+                    {/* Mobile Quick Add - only show on narrow screens (< 768px) */}
+                    <div className="md:hidden">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                haptics.buttonPress();
+                                setMobileServiceSheet({ isOpen: true, guest });
+                            }}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform"
+                            title="Quick Add Services"
+                        >
+                            <Plus size={22} strokeWidth={2.5} />
+                        </button>
+                    </div>
 
-                    <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+                    <div className="hidden md:flex items-center gap-1 md:gap-2">
                         {/* Meal Buttons */}
                         {!isBannedFromMeals && (
                             <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>

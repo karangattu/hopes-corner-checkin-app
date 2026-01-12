@@ -3617,6 +3617,10 @@ const Services = () => {
           rescheduleShower={rescheduleShower}
           cancelShowerRecord={cancelShowerRecord}
 
+          // Undo support for essential supplies
+          actionHistory={actionHistory}
+          undoAction={undoAction}
+
           // Helpers
           sectionrefreshButton={null} // not needed inside card
           showerSlotOptions={showerSlotOptions}
