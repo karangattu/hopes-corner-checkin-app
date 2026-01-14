@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="houseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- House base -->
+  <rect x="8" y="18" width="16" height="10" fill="url(#houseGradient)" rx="1"/>
+  
+  <!-- Roof -->
+  <path d="M6 18 L16 8 L26 18 Z" fill="#1f2937"/>
+  
+  <!-- Door -->
+  <rect x="13" y="21" width="6" height="7" fill="#f9fafb" rx="0.5"/>
+  <circle cx="17.5" cy="24.5" r="0.5" fill="#4f46e5"/>
+  
+  <!-- Windows -->
+  <rect x="10" y="20" width="2.5" height="2.5" fill="#fbbf24" rx="0.3"/>
+  <rect x="19.5" y="20" width="2.5" height="2.5" fill="#fbbf24" rx="0.3"/>
+  
+  <!-- Heart symbol for "Hope" -->
+  <path d="M16 13.5 C14.5 11.5 12 11.5 12 13.5 C12 15.5 16 19 16 19 S20 15.5 20 13.5 C20 11.5 17.5 11.5 16 13.5 Z" fill="#ef4444"/>
+</svg>
