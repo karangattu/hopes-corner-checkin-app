@@ -438,7 +438,7 @@ const GuestListRow = memo(({ index, style, data }) => {
                         </button>
                     </div>
 
-                    <div className="hidden md:flex items-center gap-1 md:gap-2">
+                    <div className="hidden md:flex items-center gap-1 sm:gap-2">
                         {/* Meal Buttons */}
                         {!isBannedFromMeals && (
                             <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
