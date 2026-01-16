@@ -23,8 +23,12 @@ const createMockGuest = (overrides: Partial<Guest> = {}): Guest => ({
     bannedUntil: null,
     banReason: '',
     isBanned: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    bannedFromBicycle: false,
+    bannedFromMeals: false,
+    bannedFromShower: false,
+    bannedFromLaundry: false,
+    createdAt: '2023-01-01T00:00:00Z',
+    updatedAt: '2023-01-01T00:00:00Z',
     ...overrides,
 });
 

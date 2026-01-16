@@ -1,6 +1,7 @@
 'use client';
 
-import { Users, Utensils, Droplets, Shirt, TrendingUp } from 'lucide-react';
+import { Users, Utensils, Droplets, Shirt, TrendingUp, Package } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminPage() {
   const today = new Date().toLocaleDateString('en-US', {
@@ -66,6 +67,29 @@ export default function AdminPage() {
               <p className="text-xl font-bold text-gray-900">0</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Data Entry Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Data Entry</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            href="/admin/donations"
+            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-400 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <Package className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Log Donations</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Record incoming food and La Plaza donations
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
       </div>
 

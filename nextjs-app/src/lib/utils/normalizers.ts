@@ -26,7 +26,7 @@ export function normalizeBicycleDescription(desc: string | undefined | null): st
 // Normalize housing status
 export function normalizeHousingStatus(status: string | undefined | null): HousingStatus {
   if (!status) return 'Unhoused';
-  
+
   const normalized = status.trim();
   const validStatuses: HousingStatus[] = [
     'Unhoused',
@@ -34,12 +34,12 @@ export function normalizeHousingStatus(status: string | undefined | null): Housi
     'Temp. shelter',
     'RV or vehicle',
   ];
-  
+
   // Case-insensitive match
   const match = validStatuses.find(
     (s) => s.toLowerCase() === normalized.toLowerCase()
   );
-  
+
   return match || 'Unhoused';
 }
 
@@ -52,14 +52,14 @@ export function computeIsGuestBanned(bannedUntil: string | null | undefined): bo
 // Map database row to Guest type
 export function mapGuestRow(row: Record<string, unknown>): Guest {
   const bannedUntil = row.banned_until as string | null;
-  
+
   return {
     id: row.id as string,
     guestId: row.external_id as string,
     firstName: toTitleCase((row.first_name as string) || ''),
     lastName: toTitleCase((row.last_name as string) || ''),
     name: toTitleCase(
-      (row.full_name as string) || 
+      (row.full_name as string) ||
       `${(row.first_name as string) || ''} ${(row.last_name as string) || ''}`
     ),
     preferredName: normalizePreferredName(row.preferred_name as string),
@@ -73,6 +73,10 @@ export function mapGuestRow(row: Record<string, unknown>): Guest {
     bannedUntil,
     banReason: (row.ban_reason as string) || '',
     isBanned: computeIsGuestBanned(bannedUntil),
+    bannedFromBicycle: !!row.banned_from_bicycle,
+    bannedFromMeals: !!row.banned_from_meals,
+    bannedFromShower: !!row.banned_from_shower,
+    bannedFromLaundry: !!row.banned_from_laundry,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

@@ -21,11 +21,54 @@ export interface Guest {
   bannedUntil: string | null;
   banReason: string;
   isBanned: boolean;
+  bannedFromBicycle: boolean;
+  bannedFromMeals: boolean;
+  bannedFromShower: boolean;
+  bannedFromLaundry: boolean;
   banned?: boolean; // Legacy alias for isBanned
   visitCount?: number;
   lastVisit?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface GuestInput {
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  preferredName?: string;
+  housingStatus?: string;
+  age: AgeGroup;
+  gender: Gender;
+  location: string;
+  notes?: string;
+  bicycleDescription?: string;
+  guestId?: string;
+  bannedFromBicycle?: boolean;
+  bannedFromMeals?: boolean;
+  bannedFromShower?: boolean;
+  bannedFromLaundry?: boolean;
+}
+
+export interface GuestUpdate {
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  preferredName?: string;
+  housingStatus?: string;
+  age?: AgeGroup;
+  gender?: Gender;
+  location?: string;
+  notes?: string;
+  bicycleDescription?: string;
+  guestId?: string;
+  bannedAt?: string | null;
+  bannedUntil?: string | null;
+  banReason?: string;
+  bannedFromBicycle?: boolean;
+  bannedFromMeals?: boolean;
+  bannedFromShower?: boolean;
+  bannedFromLaundry?: boolean;
 }
 
 export type HousingStatus = 'Unhoused' | 'Housed' | 'Temp. shelter' | 'RV or vehicle';

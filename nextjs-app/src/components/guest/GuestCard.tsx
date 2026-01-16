@@ -121,9 +121,8 @@ export function GuestCard({
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 rounded-xl border ${
-        isBanned ? 'border-red-300 dark:border-red-700' : 'border-gray-200 dark:border-gray-700'
-      } shadow-sm transition-all ${className}`}
+      className={`bg-white dark:bg-gray-800 rounded-xl border ${isBanned ? 'border-red-300 dark:border-red-700' : 'border-gray-200 dark:border-gray-700'
+        } shadow-sm transition-all ${className}`}
     >
       {/* Header - Always visible */}
       <div
@@ -134,33 +133,55 @@ export function GuestCard({
         onKeyDown={
           onToggleExpand
             ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onToggleExpand();
-                }
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onToggleExpand();
               }
+            }
             : undefined
         }
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                isBanned
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
-                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
-              }`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center ${isBanned
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
+                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                }`}
             >
               <User size={20} />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                {getDisplayName(guest)}
-                {isBanned && (
-                  <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
-                    <Ban size={12} /> Banned
-                  </span>
-                )}
+              <h3 className="font-semibold text-gray-900 dark:text-white flex flex-col gap-1">
+                <span>{getDisplayName(guest)}</span>
+                {/* Ban Status Badges */}
+                <div className="flex flex-wrap gap-1">
+                  {isBanned && (
+                    <span className="inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
+                      <Ban size={12} /> Global Ban
+                    </span>
+                  )}
+                  {guest.bannedFromMeals && (
+                    <span className="inline-flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-full">
+                      <Utensils size={12} /> No Meals
+                    </span>
+                  )}
+                  {guest.bannedFromShower && (
+                    <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
+                      <Droplets size={12} /> No Showers
+                    </span>
+                  )}
+                  {guest.bannedFromLaundry && (
+                    <span className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded-full">
+                      <WashingMachine size={12} /> No Laundry
+                    </span>
+                  )}
+                  {guest.bannedFromBicycle && (
+                    <span className="inline-flex items-center gap-1 text-xs text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20 px-2 py-0.5 rounded-full">
+                      <Bike size={12} /> No Bikes
+                    </span>
+                  )}
+                </div>
               </h3>
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                 <span className="flex items-center gap-1">
@@ -276,58 +297,56 @@ export function GuestCard({
           {showActions && (
             <div className="flex flex-wrap gap-2 pt-2">
               {/* Service buttons */}
-              {!isBanned && (
-                <>
-                  {onAddMeal && !hasMealToday && (
-                    <button
-                      onClick={() => onAddMeal(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <Utensils size={14} /> Meal
-                    </button>
-                  )}
-                  {onAddShower && !hasShowerToday && (
-                    <button
-                      onClick={() => onAddShower(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <Droplets size={14} /> Shower
-                    </button>
-                  )}
-                  {onAddLaundry && !hasLaundryToday && (
-                    <button
-                      onClick={() => onAddLaundry(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <WashingMachine size={14} /> Laundry
-                    </button>
-                  )}
-                  {onAddHaircut && !hasHaircutToday && (
-                    <button
-                      onClick={() => onAddHaircut(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <Scissors size={14} /> Haircut
-                    </button>
-                  )}
-                  {onAddHoliday && !hasHolidayToday && (
-                    <button
-                      onClick={() => onAddHoliday(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg hover:bg-pink-200 dark:hover:bg-pink-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <Gift size={14} /> Holiday
-                    </button>
-                  )}
-                  {onAddBicycle && !hasBicycleToday && (
-                    <button
-                      onClick={() => onAddBicycle(guest.id)}
-                      className="px-3 py-1.5 text-sm bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors flex items-center gap-1"
-                    >
-                      <Bike size={14} /> Bicycle
-                    </button>
-                  )}
-                </>
-              )}
+              <>
+                {onAddMeal && !hasMealToday && !isBanned && !guest.bannedFromMeals && (
+                  <button
+                    onClick={() => onAddMeal(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <Utensils size={14} /> Meal
+                  </button>
+                )}
+                {onAddShower && !hasShowerToday && !isBanned && !guest.bannedFromShower && (
+                  <button
+                    onClick={() => onAddShower(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <Droplets size={14} /> Shower
+                  </button>
+                )}
+                {onAddLaundry && !hasLaundryToday && !isBanned && !guest.bannedFromLaundry && (
+                  <button
+                    onClick={() => onAddLaundry(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <WashingMachine size={14} /> Laundry
+                  </button>
+                )}
+                {onAddHaircut && !hasHaircutToday && !isBanned && (
+                  <button
+                    onClick={() => onAddHaircut(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <Scissors size={14} /> Haircut
+                  </button>
+                )}
+                {onAddHoliday && !hasHolidayToday && !isBanned && (
+                  <button
+                    onClick={() => onAddHoliday(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg hover:bg-pink-200 dark:hover:bg-pink-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <Gift size={14} /> Holiday
+                  </button>
+                )}
+                {onAddBicycle && !hasBicycleToday && !isBanned && !guest.bannedFromBicycle && (
+                  <button
+                    onClick={() => onAddBicycle(guest.id)}
+                    className="px-3 py-1.5 text-sm bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-lg hover:bg-cyan-200 dark:hover:bg-cyan-900/50 transition-colors flex items-center gap-1"
+                  >
+                    <Bike size={14} /> Bicycle
+                  </button>
+                )}
+              </>
 
               {/* Admin buttons */}
               <div className="flex-1" />

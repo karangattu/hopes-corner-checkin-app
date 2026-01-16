@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { Guest, AgeGroup, Gender } from '../types';
+import type { Guest, GuestInput, GuestUpdate, AgeGroup, Gender } from '../types';
 import { getSupabaseClient, isSupabaseEnabled } from '../supabase/client';
 import {
   toTitleCase,
@@ -11,37 +11,6 @@ import {
   mapGuestRow,
 } from '../utils/normalizers';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '../types';
-
-interface GuestInput {
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  preferredName?: string;
-  housingStatus?: string;
-  age: AgeGroup;
-  gender: Gender;
-  location: string;
-  notes?: string;
-  bicycleDescription?: string;
-  guestId?: string;
-}
-
-interface GuestUpdate {
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  preferredName?: string;
-  housingStatus?: string;
-  age?: AgeGroup;
-  gender?: Gender;
-  location?: string;
-  notes?: string;
-  bicycleDescription?: string;
-  guestId?: string;
-  bannedAt?: string | null;
-  bannedUntil?: string | null;
-  banReason?: string;
-}
 
 interface GuestsState {
   guests: Guest[];
@@ -209,7 +178,12 @@ export const useGuestsStore = create<GuestsState & GuestsActions>()(
               bannedAt: null,
               bannedUntil: null,
               banReason: '',
+              bannedFromBicycle: guest.bannedFromBicycle || false,
+              bannedFromMeals: guest.bannedFromMeals || false,
+              bannedFromShower: guest.bannedFromShower || false,
+              bannedFromLaundry: guest.bannedFromLaundry || false,
               isBanned: false,
+              visitCount: 0,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             };
@@ -233,6 +207,10 @@ export const useGuestsStore = create<GuestsState & GuestsActions>()(
             location: guest.location,
             notes: guest.notes || '',
             bicycle_description: bicycleDescription,
+            banned_from_bicycle: guest.bannedFromBicycle || false,
+            banned_from_meals: guest.bannedFromMeals || false,
+            banned_from_shower: guest.bannedFromShower || false,
+            banned_from_laundry: guest.bannedFromLaundry || false,
           };
 
           const { data, error } = await supabase
@@ -301,6 +279,14 @@ export const useGuestsStore = create<GuestsState & GuestsActions>()(
               payload.banned_until = updates.bannedUntil;
             if (updates.banReason !== undefined)
               payload.ban_reason = updates.banReason;
+            if (updates.bannedFromBicycle !== undefined)
+              payload.banned_from_bicycle = updates.bannedFromBicycle;
+            if (updates.bannedFromMeals !== undefined)
+              payload.banned_from_meals = updates.bannedFromMeals;
+            if (updates.bannedFromShower !== undefined)
+              payload.banned_from_shower = updates.bannedFromShower;
+            if (updates.bannedFromLaundry !== undefined)
+              payload.banned_from_laundry = updates.bannedFromLaundry;
 
             if (Object.keys(payload).length === 0) return true;
 

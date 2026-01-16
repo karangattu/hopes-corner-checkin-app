@@ -146,6 +146,54 @@ const MEAL_COLUMN_DEFINITIONS: ColumnDefinition[] = [
     isNumeric: true,
   },
   {
+    key: 'dayWorkerMeals',
+    label: 'Day Worker',
+    description: 'Meals served to day laborers.',
+    align: 'right',
+    headerBg: 'bg-purple-50',
+    cellBg: 'bg-purple-50',
+    totalCellBg: 'bg-purple-50',
+    bodyClass: 'tabular-nums',
+    totalBodyClass: 'tabular-nums font-semibold text-gray-900',
+    isNumeric: true,
+  },
+  {
+    key: 'shelterMeals',
+    label: 'Shelter',
+    description: 'Meals delivered to shelters.',
+    align: 'right',
+    headerBg: 'bg-pink-50',
+    cellBg: 'bg-pink-50',
+    totalCellBg: 'bg-pink-50',
+    bodyClass: 'tabular-nums',
+    totalBodyClass: 'tabular-nums font-semibold text-gray-900',
+    isNumeric: true,
+  },
+  {
+    key: 'unitedEffortMeals',
+    label: 'United Effort',
+    description: 'Meals for United Effort.',
+    align: 'right',
+    headerBg: 'bg-indigo-50',
+    cellBg: 'bg-indigo-50',
+    totalCellBg: 'bg-indigo-50',
+    bodyClass: 'tabular-nums',
+    totalBodyClass: 'tabular-nums font-semibold text-gray-900',
+    isNumeric: true,
+  },
+  {
+    key: 'lunchBagMeals',
+    label: 'Lunch Bags',
+    description: 'Sack lunches distributed.',
+    align: 'right',
+    headerBg: 'bg-yellow-50',
+    cellBg: 'bg-yellow-50',
+    totalCellBg: 'bg-yellow-50',
+    bodyClass: 'tabular-nums',
+    totalBodyClass: 'tabular-nums font-semibold text-gray-900',
+    isNumeric: true,
+  },
+  {
     key: 'totalHotMeals',
     label: 'TOTAL HOT MEALS',
     description: 'All hot meals served across all programs.',
@@ -166,7 +214,9 @@ const MEAL_COLUMN_MAP = MEAL_COLUMN_DEFINITIONS.reduce((acc, column) => {
 
 const MEAL_DETAIL_COLUMN_KEYS = [
   'mondayMeals', 'wednesdayMeals', 'fridayMeals', 'saturdayMeals',
-  'uniqueGuests', 'newGuests', 'rvMeals', 'extraMeals', 'totalHotMeals',
+  'uniqueGuests', 'newGuests', 'rvMeals', 'extraMeals',
+  'dayWorkerMeals', 'shelterMeals', 'unitedEffortMeals', 'lunchBagMeals',
+  'totalHotMeals',
 ];
 
 const formatNumber = (value: number | null | undefined): string => {
@@ -258,6 +308,10 @@ interface MonthlyMealData {
   newGuests: number;
   rvMeals: number;
   extraMeals: number;
+  dayWorkerMeals: number;
+  shelterMeals: number;
+  unitedEffortMeals: number;
+  lunchBagMeals: number;
   totalHotMeals: number;
   [key: string]: string | number;
 }
@@ -298,7 +352,15 @@ interface BicycleRow {
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
  */
 const MonthlySummaryReport: React.FC = () => {
-  const { mealRecords, rvMealRecords, extraMealRecords } = useMealsStore();
+  const {
+    mealRecords,
+    rvMealRecords,
+    extraMealRecords,
+    shelterMealRecords,
+    unitedEffortMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+  } = useMealsStore();
   const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
   const { guests } = useGuestsStore();
 
@@ -375,8 +437,22 @@ const MonthlySummaryReport: React.FC = () => {
       const fridayMeals = sumQuantities(filterRecords(mealRecords, reportYear, month, [5]));
       const rvMeals = sumQuantities(filterRecords(rvMealRecords, reportYear, month));
       const extraMeals = sumQuantities(filterRecords(extraMealRecords, reportYear, month));
+      const shelterMeals = sumQuantities(filterRecords(shelterMealRecords, reportYear, month));
+      const unitedEffortMeals = sumQuantities(filterRecords(unitedEffortMealRecords, reportYear, month));
+      const dayWorkerMeals = sumQuantities(filterRecords(dayWorkerMealRecords, reportYear, month));
+      const lunchBagMeals = sumQuantities(filterRecords(lunchBagRecords, reportYear, month));
 
-      const totalHotMeals = mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals + rvMeals + extraMeals;
+      const totalHotMeals =
+        mondayMeals +
+        wednesdayMeals +
+        saturdayMeals +
+        fridayMeals +
+        rvMeals +
+        extraMeals +
+        shelterMeals +
+        unitedEffortMeals +
+        dayWorkerMeals +
+        lunchBagMeals;
 
       // Calculate unique guests
       const monthMealRecords = filterRecords(mealRecords, reportYear, month);
@@ -419,6 +495,10 @@ const MonthlySummaryReport: React.FC = () => {
         newGuests,
         rvMeals,
         extraMeals,
+        shelterMeals,
+        unitedEffortMeals,
+        dayWorkerMeals,
+        lunchBagMeals,
         totalHotMeals,
       });
     }
@@ -444,11 +524,26 @@ const MonthlySummaryReport: React.FC = () => {
       newGuests: months.reduce((sum, m) => sum + m.newGuests, 0),
       rvMeals: months.reduce((sum, m) => sum + m.rvMeals, 0),
       extraMeals: months.reduce((sum, m) => sum + m.extraMeals, 0),
+      shelterMeals: months.reduce((sum, m) => sum + m.shelterMeals, 0),
+      unitedEffortMeals: months.reduce((sum, m) => sum + m.unitedEffortMeals, 0),
+      dayWorkerMeals: months.reduce((sum, m) => sum + m.dayWorkerMeals, 0),
+      lunchBagMeals: months.reduce((sum, m) => sum + m.lunchBagMeals, 0),
       totalHotMeals: months.reduce((sum, m) => sum + m.totalHotMeals, 0),
     };
 
     return { months, totals };
-  }, [mealRecords, rvMealRecords, extraMealRecords, filterRecords, reportYear, currentMonth]);
+  }, [
+    mealRecords,
+    rvMealRecords,
+    extraMealRecords,
+    shelterMealRecords,
+    unitedEffortMealRecords,
+    dayWorkerMealRecords,
+    lunchBagRecords,
+    filterRecords,
+    reportYear,
+    currentMonth,
+  ]);
 
   // Summary insights
   const summaryInsights = useMemo(() => {
@@ -766,6 +861,10 @@ const MonthlySummaryReport: React.FC = () => {
         'New Guests': row.newGuests,
         'RV Meals': row.rvMeals,
         'Extra Meals': row.extraMeals,
+        'Shelter Meals': row.shelterMeals,
+        'United Effort': row.unitedEffortMeals,
+        'Day Worker': row.dayWorkerMeals,
+        'Lunch Bags': row.lunchBagMeals,
         'TOTAL HOT MEALS': row.totalHotMeals,
       })),
       {
@@ -778,6 +877,10 @@ const MonthlySummaryReport: React.FC = () => {
         'New Guests': monthlyData.totals.newGuests,
         'RV Meals': monthlyData.totals.rvMeals,
         'Extra Meals': monthlyData.totals.extraMeals,
+        'Shelter Meals': monthlyData.totals.shelterMeals,
+        'United Effort': monthlyData.totals.unitedEffortMeals,
+        'Day Worker': monthlyData.totals.dayWorkerMeals,
+        'Lunch Bags': monthlyData.totals.lunchBagMeals,
         'TOTAL HOT MEALS': monthlyData.totals.totalHotMeals,
       },
     ];

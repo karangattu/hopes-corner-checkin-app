@@ -70,6 +70,10 @@ interface MealsState {
   mealRecords: MealRecord[];
   rvMealRecords: MealRecord[];
   extraMealRecords: MealRecord[];
+  shelterMealRecords: MealRecord[];
+  unitedEffortMealRecords: MealRecord[];
+  dayWorkerMealRecords: MealRecord[];
+  lunchBagRecords: MealRecord[];
   holidayRecords: HolidayRecord[];
   haircutRecords: HaircutRecord[];
   isLoading: boolean;
@@ -81,33 +85,53 @@ interface MealsActions {
   // Meal Actions
   addMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
   deleteMealRecord: (recordId: string) => Promise<void>;
-  
+
   // RV Meal Actions
   addRvMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
   deleteRvMealRecord: (recordId: string) => Promise<void>;
-  
+
   // Extra Meal Actions
   addExtraMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
   deleteExtraMealRecord: (recordId: string) => Promise<void>;
-  
+
+  // Shelter Meal Actions
+  addShelterMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
+  deleteShelterMealRecord: (recordId: string) => Promise<void>;
+
+  // United Effort Meal Actions
+  addUnitedEffortMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
+  deleteUnitedEffortMealRecord: (recordId: string) => Promise<void>;
+
+  // Day Worker Meal Actions
+  addDayWorkerMealRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
+  deleteDayWorkerMealRecord: (recordId: string) => Promise<void>;
+
+  // Lunch Bag Actions
+  addLunchBagRecord: (guestId: string, quantity?: number) => Promise<MealRecord>;
+  deleteLunchBagRecord: (recordId: string) => Promise<void>;
+
   // Holiday Records
   addHolidayRecord: (guestId: string) => Promise<HolidayRecord>;
   deleteHolidayRecord: (recordId: string) => Promise<void>;
-  
+
   // Haircut Records
   addHaircutRecord: (guestId: string) => Promise<HaircutRecord>;
   deleteHaircutRecord: (recordId: string) => Promise<void>;
-  
+
   // Load from Supabase
   loadFromSupabase: () => Promise<void>;
-  
+
   // Clear all records
   clearMealRecords: () => void;
-  
+
   // Selectors
   getTodayMeals: () => MealRecord[];
   getTodayRvMeals: () => MealRecord[];
   getTodayExtraMeals: () => MealRecord[];
+  getTodayShelterMeals: () => MealRecord[];
+  getTodayUnitedEffortMeals: () => MealRecord[];
+  getTodayDayWorkerMeals: () => MealRecord[];
+  getTodayLunchBags: () => MealRecord[];
   getTodayHolidays: () => HolidayRecord[];
   getTodayHaircuts: () => HaircutRecord[];
 }
@@ -123,6 +147,10 @@ export const useMealsStore = create<MealsStore>()(
           mealRecords: [],
           rvMealRecords: [],
           extraMealRecords: [],
+          shelterMealRecords: [],
+          unitedEffortMealRecords: [],
+          dayWorkerMealRecords: [],
+          lunchBagRecords: [],
           holidayRecords: [],
           haircutRecords: [],
           isLoading: false,
@@ -336,6 +364,278 @@ export const useMealsStore = create<MealsStore>()(
             }
           },
 
+          // Shelter Meal Actions
+          addShelterMealRecord: async (guestId: string, quantity = 1): Promise<MealRecord> => {
+            if (!guestId) throw new Error('Guest ID is required');
+
+            const todayStr = todayPacificDateString();
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const payload = {
+                guest_id: guestId,
+                quantity,
+                served_on: todayStr,
+                meal_type: 'shelter' as MealType,
+              };
+
+              const { data, error } = await supabase
+                .from('meal_attendance')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) {
+                console.error('Failed to add shelter meal record to Supabase:', error);
+                throw new Error('Unable to save shelter meal record');
+              }
+
+              const mapped = mapMealRow(data as MealAttendanceRow);
+              set((state) => {
+                state.shelterMealRecords.push(mapped);
+              });
+              return mapped;
+            }
+
+            const fallbackRecord: MealRecord = {
+              id: `local-shelter-meal-${Date.now()}`,
+              guestId,
+              count: quantity,
+              date: todayStr,
+              recordedAt: new Date().toISOString(),
+              servedOn: todayStr,
+              createdAt: new Date().toISOString(),
+              type: 'shelter',
+            };
+
+            set((state) => {
+              state.shelterMealRecords.push(fallbackRecord);
+            });
+            return fallbackRecord;
+          },
+
+          deleteShelterMealRecord: async (recordId: string): Promise<void> => {
+            set((state) => {
+              state.shelterMealRecords = state.shelterMealRecords.filter((r) => r.id !== recordId);
+            });
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const { error } = await supabase
+                .from('meal_attendance')
+                .delete()
+                .eq('id', recordId);
+
+              if (error) {
+                console.error('Failed to delete shelter meal record from Supabase:', error);
+              }
+            }
+          },
+
+          // United Effort Meal Actions
+          addUnitedEffortMealRecord: async (guestId: string, quantity = 1): Promise<MealRecord> => {
+            if (!guestId) throw new Error('Guest ID is required');
+
+            const todayStr = todayPacificDateString();
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const payload = {
+                guest_id: guestId,
+                quantity,
+                served_on: todayStr,
+                meal_type: 'united_effort' as MealType,
+              };
+
+              const { data, error } = await supabase
+                .from('meal_attendance')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) {
+                console.error('Failed to add united effort meal record to Supabase:', error);
+                throw new Error('Unable to save united effort meal record');
+              }
+
+              const mapped = mapMealRow(data as MealAttendanceRow);
+              set((state) => {
+                state.unitedEffortMealRecords.push(mapped);
+              });
+              return mapped;
+            }
+
+            const fallbackRecord: MealRecord = {
+              id: `local-united-effort-meal-${Date.now()}`,
+              guestId,
+              count: quantity,
+              date: todayStr,
+              recordedAt: new Date().toISOString(),
+              servedOn: todayStr,
+              createdAt: new Date().toISOString(),
+              type: 'united_effort',
+            };
+
+            set((state) => {
+              state.unitedEffortMealRecords.push(fallbackRecord);
+            });
+            return fallbackRecord;
+          },
+
+          deleteUnitedEffortMealRecord: async (recordId: string): Promise<void> => {
+            set((state) => {
+              state.unitedEffortMealRecords = state.unitedEffortMealRecords.filter((r) => r.id !== recordId);
+            });
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const { error } = await supabase
+                .from('meal_attendance')
+                .delete()
+                .eq('id', recordId);
+
+              if (error) {
+                console.error('Failed to delete united effort meal record from Supabase:', error);
+              }
+            }
+          },
+
+          // Day Worker Meal Actions
+          addDayWorkerMealRecord: async (guestId: string, quantity = 1): Promise<MealRecord> => {
+            if (!guestId) throw new Error('Guest ID is required');
+
+            const todayStr = todayPacificDateString();
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const payload = {
+                guest_id: guestId,
+                quantity,
+                served_on: todayStr,
+                meal_type: 'day_worker' as MealType,
+              };
+
+              const { data, error } = await supabase
+                .from('meal_attendance')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) {
+                console.error('Failed to add day worker meal record to Supabase:', error);
+                throw new Error('Unable to save day worker meal record');
+              }
+
+              const mapped = mapMealRow(data as MealAttendanceRow);
+              set((state) => {
+                state.dayWorkerMealRecords.push(mapped);
+              });
+              return mapped;
+            }
+
+            const fallbackRecord: MealRecord = {
+              id: `local-day-worker-meal-${Date.now()}`,
+              guestId,
+              count: quantity,
+              date: todayStr,
+              recordedAt: new Date().toISOString(),
+              servedOn: todayStr,
+              createdAt: new Date().toISOString(),
+              type: 'day_worker',
+            };
+
+            set((state) => {
+              state.dayWorkerMealRecords.push(fallbackRecord);
+            });
+            return fallbackRecord;
+          },
+
+          deleteDayWorkerMealRecord: async (recordId: string): Promise<void> => {
+            set((state) => {
+              state.dayWorkerMealRecords = state.dayWorkerMealRecords.filter((r) => r.id !== recordId);
+            });
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const { error } = await supabase
+                .from('meal_attendance')
+                .delete()
+                .eq('id', recordId);
+
+              if (error) {
+                console.error('Failed to delete day worker meal record from Supabase:', error);
+              }
+            }
+          },
+
+          // Lunch Bag Actions
+          addLunchBagRecord: async (guestId: string, quantity = 1): Promise<MealRecord> => {
+            if (!guestId) throw new Error('Guest ID is required');
+
+            const todayStr = todayPacificDateString();
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const payload = {
+                guest_id: guestId,
+                quantity,
+                served_on: todayStr,
+                meal_type: 'lunch_bag' as MealType,
+              };
+
+              const { data, error } = await supabase
+                .from('meal_attendance')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) {
+                console.error('Failed to add lunch bag record to Supabase:', error);
+                throw new Error('Unable to save lunch bag record');
+              }
+
+              const mapped = mapMealRow(data as MealAttendanceRow);
+              set((state) => {
+                state.lunchBagRecords.push(mapped);
+              });
+              return mapped;
+            }
+
+            const fallbackRecord: MealRecord = {
+              id: `local-lunch-bag-${Date.now()}`,
+              guestId,
+              count: quantity,
+              date: todayStr,
+              recordedAt: new Date().toISOString(),
+              servedOn: todayStr,
+              createdAt: new Date().toISOString(),
+              type: 'lunch_bag',
+            };
+
+            set((state) => {
+              state.lunchBagRecords.push(fallbackRecord);
+            });
+            return fallbackRecord;
+          },
+
+          deleteLunchBagRecord: async (recordId: string): Promise<void> => {
+            set((state) => {
+              state.lunchBagRecords = state.lunchBagRecords.filter((r) => r.id !== recordId);
+            });
+
+            if (isSupabaseEnabled()) {
+              const supabase = createClient();
+              const { error } = await supabase
+                .from('meal_attendance')
+                .delete()
+                .eq('id', recordId);
+
+              if (error) {
+                console.error('Failed to delete lunch bag record from Supabase:', error);
+              }
+            }
+          },
+
           // Holiday Records
           addHolidayRecord: async (guestId: string): Promise<HolidayRecord> => {
             if (!guestId) throw new Error('Guest ID is required');
@@ -497,15 +797,23 @@ export const useMealsStore = create<MealsStore>()(
               const guestMeals = meals.filter((m) => m.type === 'guest');
               const rvMeals = meals.filter((m) => m.type === 'rv');
               const extraMeals = meals.filter((m) => m.type === 'extra');
+              const shelterMeals = meals.filter((m) => m.type === 'shelter');
+              const unitedEffortMeals = meals.filter((m) => m.type === 'united_effort');
+              const dayWorkerMeals = meals.filter((m) => m.type === 'day_worker');
+              const lunchBags = meals.filter((m) => m.type === 'lunch_bag');
 
               set((state) => {
                 state.mealRecords = guestMeals;
                 state.rvMealRecords = rvMeals;
                 state.extraMealRecords = extraMeals;
-                state.holidayRecords = (holidayRes.data || []).map((row) => 
+                state.shelterMealRecords = shelterMeals;
+                state.unitedEffortMealRecords = unitedEffortMeals;
+                state.dayWorkerMealRecords = dayWorkerMeals;
+                state.lunchBagRecords = lunchBags;
+                state.holidayRecords = (holidayRes.data || []).map((row) =>
                   mapHolidayRow(row as HolidayVisitRow)
                 );
-                state.haircutRecords = (haircutRes.data || []).map((row) => 
+                state.haircutRecords = (haircutRes.data || []).map((row) =>
                   mapHaircutRow(row as HaircutVisitRow)
                 );
                 state.isLoading = false;
@@ -525,6 +833,10 @@ export const useMealsStore = create<MealsStore>()(
               state.mealRecords = [];
               state.rvMealRecords = [];
               state.extraMealRecords = [];
+              state.shelterMealRecords = [];
+              state.unitedEffortMealRecords = [];
+              state.dayWorkerMealRecords = [];
+              state.lunchBagRecords = [];
               state.holidayRecords = [];
               state.haircutRecords = [];
             });
@@ -552,6 +864,34 @@ export const useMealsStore = create<MealsStore>()(
             );
           },
 
+          getTodayShelterMeals: (): MealRecord[] => {
+            const today = todayPacificDateString();
+            return get().shelterMealRecords.filter(
+              (r) => pacificDateStringFrom(r.date) === today
+            );
+          },
+
+          getTodayUnitedEffortMeals: (): MealRecord[] => {
+            const today = todayPacificDateString();
+            return get().unitedEffortMealRecords.filter(
+              (r) => pacificDateStringFrom(r.date) === today
+            );
+          },
+
+          getTodayDayWorkerMeals: (): MealRecord[] => {
+            const today = todayPacificDateString();
+            return get().dayWorkerMealRecords.filter(
+              (r) => pacificDateStringFrom(r.date) === today
+            );
+          },
+
+          getTodayLunchBags: (): MealRecord[] => {
+            const today = todayPacificDateString();
+            return get().lunchBagRecords.filter(
+              (r) => pacificDateStringFrom(r.date) === today
+            );
+          },
+
           getTodayHolidays: (): HolidayRecord[] => {
             const today = todayPacificDateString();
             return get().holidayRecords.filter(
@@ -572,6 +912,10 @@ export const useMealsStore = create<MealsStore>()(
             mealRecords: state.mealRecords,
             rvMealRecords: state.rvMealRecords,
             extraMealRecords: state.extraMealRecords,
+            shelterMealRecords: state.shelterMealRecords,
+            unitedEffortMealRecords: state.unitedEffortMealRecords,
+            dayWorkerMealRecords: state.dayWorkerMealRecords,
+            lunchBagRecords: state.lunchBagRecords,
             holidayRecords: state.holidayRecords,
             haircutRecords: state.haircutRecords,
           }),

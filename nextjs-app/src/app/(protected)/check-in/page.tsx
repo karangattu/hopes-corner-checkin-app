@@ -1,31 +1,185 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGuestsStore } from '@/lib/stores/useGuestsStore';
-import { Search, UserPlus, RefreshCw } from 'lucide-react';
+import { useMealsStore } from '@/lib/stores/useMealsStore';
+import { useServicesStore } from '@/lib/stores/useServicesStore';
+import GuestList from '@/components/guest/GuestList';
+import { Guest, GuestInput, AgeGroup, Gender, GuestUpdate } from '@/lib/types';
+import { GuestFormData } from '@/components/guest/GuestCreateForm';
+import { BanGuestModal } from '@/components/guest/BanGuestModal';
+import toast from 'react-hot-toast';
 
 export default function CheckInPage() {
-  const { guests, fetchGuests, isLoading } = useGuestsStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedGuestForBan, setSelectedGuestForBan] = useState<Guest | null>(null);
+
+  const {
+    guests,
+    fetchGuests,
+    addGuest,
+    updateGuest,
+    isLoading: guestsLoading
+  } = useGuestsStore();
+
+  const {
+    addMealRecord,
+    addHaircutRecord,
+    addHolidayRecord,
+    getTodayMeals,
+    getTodayHaircuts,
+    getTodayHolidays,
+    loadFromSupabase: loadMeals
+  } = useMealsStore();
+
+  const {
+    addShowerRecord,
+    addLaundryRecord,
+    addBicycleRecord,
+    getTodayShowers,
+    getTodayLaundry,
+    getTodayBicycles,
+    loadFromSupabase: loadServices
+  } = useServicesStore();
 
   useEffect(() => {
     fetchGuests();
-  }, [fetchGuests]);
+    loadMeals();
+    loadServices();
+  }, [fetchGuests, loadMeals, loadServices]);
 
-  const filteredGuests = guests.filter((guest) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      guest.name?.toLowerCase().includes(searchLower) ||
-      guest.firstName?.toLowerCase().includes(searchLower) ||
-      guest.lastName?.toLowerCase().includes(searchLower) ||
-      guest.guestId?.toLowerCase().includes(searchLower)
-    );
-  });
+  // Wrappers for actions
+  const handleAddMeal = async (guestId: string) => {
+    try {
+      await addMealRecord(guestId);
+      toast.success('Meal recorded');
+    } catch (error) {
+      toast.error('Failed to record meal');
+      console.error(error);
+    }
+  };
+
+  const handleAddHaircut = async (guestId: string) => {
+    try {
+      await addHaircutRecord(guestId);
+      toast.success('Haircut recorded');
+    } catch (error) {
+      toast.error('Failed to record haircut');
+      console.error(error);
+    }
+  };
+
+  const handleAddHoliday = async (guestId: string) => {
+    try {
+      await addHolidayRecord(guestId);
+      toast.success('Holiday visit recorded');
+    } catch (error) {
+      toast.error('Failed to record holiday visit');
+      console.error(error);
+    }
+  };
+
+  const handleAddShower = async (guestId: string) => {
+    try {
+      await addShowerRecord(guestId);
+      toast.success('Shower scheduled');
+    } catch (error) {
+      toast.error('Failed to schedule shower');
+      console.error(error);
+    }
+  };
+
+  const handleAddLaundry = async (guestId: string) => {
+    try {
+      await addLaundryRecord(guestId, 'Regular'); // Default to Regular
+      toast.success('Laundry scheduled');
+    } catch (error) {
+      toast.error('Failed to schedule laundry');
+      console.error(error);
+    }
+  };
+
+  const handleAddBicycle = async (guestId: string) => {
+    try {
+      await addBicycleRecord(guestId);
+      toast.success('Bicycle repair requested');
+    } catch (error) {
+      toast.error('Failed to request bicycle repair');
+      console.error(error);
+    }
+  };
+
+  const handleCreateGuest = async (formData: GuestFormData) => {
+    // Map formData to GuestInput
+    try {
+      if (!formData.age || !formData.gender) {
+        toast.error('Age and Gender are required');
+        return;
+      }
+      const guestInput: GuestInput = {
+        ...formData,
+        age: formData.age as AgeGroup,
+        gender: formData.gender as Gender,
+      };
+      await addGuest(guestInput);
+      toast.success('Guest added successfully');
+    } catch (error) {
+      toast.error('Failed to add guest');
+      console.error(error);
+    }
+  };
+
+  const handleEditGuest = async (guest: Guest) => {
+    console.log('Edit requested', guest);
+  };
+
+  const handleBanGuest = async (guestId: string) => {
+    const guest = guests.find(g => g.id === guestId);
+    if (guest) {
+      setSelectedGuestForBan(guest);
+    }
+  };
+
+  const handleUpdateBan = async (guestId: string, updates: GuestUpdate) => {
+    try {
+      await updateGuest(guestId, updates);
+      toast.success('Ban settings updated');
+      setSelectedGuestForBan(null);
+    } catch (error) {
+      toast.error('Failed to update ban');
+      console.error(error);
+    }
+  };
+
+  const handleClearBan = async (guestId: string) => {
+    if (confirm('Clear ALL bans for this guest?')) {
+      try {
+        await updateGuest(guestId, {
+          bannedAt: null,
+          bannedUntil: null,
+          banReason: '',
+          bannedFromBicycle: false,
+          bannedFromMeals: false,
+          bannedFromShower: false,
+          bannedFromLaundry: false
+        });
+        toast.success('Bans cleared');
+      } catch (error) {
+        toast.error('Failed to clear ban');
+        console.error(error);
+      }
+    }
+  }
+
+  // Transform records to generic ServiceRecord { guestId, date }
+  const todayMeals = getTodayMeals().map(m => ({ guestId: m?.guestId || '', date: m?.createdAt }));
+  const todayHaircuts = getTodayHaircuts().map(h => ({ guestId: h.guestId, date: h.date }));
+  const todayHolidays = getTodayHolidays().map(h => ({ guestId: h.guestId, date: h.date }));
+  const todayShowers = getTodayShowers().map(s => ({ guestId: s.guestId, date: s.scheduledFor || s.lastUpdated || '' }));
+  const todayLaundry = getTodayLaundry().map(l => ({ guestId: l.guestId, date: l.createdAt }));
+  const todayBicycles = getTodayBicycles().map(b => ({ guestId: b.guestId || '', date: b.date }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Guest Check-in</h1>
         <p className="text-gray-500 mt-1">
@@ -33,127 +187,38 @@ export default function CheckInPage() {
         </p>
       </div>
 
-      {/* Search and Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={20}
-          />
-          <input
-            type="text"
-            placeholder="Search by name or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
-          />
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => fetchGuests()}
-            disabled={isLoading}
-            className="px-4 py-3 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 rounded-lg flex items-center gap-2 text-gray-700 transition-colors"
-          >
-            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <UserPlus size={18} />
-            Add Guest
-          </button>
-        </div>
-      </div>
+      <GuestList
+        guests={guests}
+        isLoading={guestsLoading}
+        onAddMeal={handleAddMeal}
+        onAddHaircut={handleAddHaircut}
+        onAddHoliday={handleAddHoliday}
+        onAddShower={handleAddShower}
+        onAddLaundry={handleAddLaundry}
+        onAddBicycle={handleAddBicycle}
+        onCreateGuest={handleCreateGuest}
+        onEditGuest={handleEditGuest}
+        onBanGuest={handleBanGuest}
+        onClearBan={handleClearBan}
+        todayMealRecords={todayMeals}
+        todayHaircutRecords={todayHaircuts}
+        todayHolidayRecords={todayHolidays}
+        todayShowerRecords={todayShowers}
+        todayLaundryRecords={todayLaundry}
+        todayBicycleRecords={todayBicycles}
+        enableSearch={true}
+        enableSort={true}
+        showActions={true}
+        showCreateForm={true}
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Total Guests</p>
-          <p className="text-2xl font-bold text-gray-900">{guests.length}</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Search Results</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {searchTerm ? filteredGuests.length : '-'}
-          </p>
-        </div>
-      </div>
-
-      {/* Guest List */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center">
-            <RefreshCw className="animate-spin mx-auto mb-4 text-blue-600" size={32} />
-            <p className="text-gray-500">Loading guests...</p>
-          </div>
-        ) : filteredGuests.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-gray-500">
-              {searchTerm
-                ? 'No guests found matching your search.'
-                : 'No guests yet. Add your first guest to get started.'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {filteredGuests.slice(0, 50).map((guest) => (
-              <div
-                key={guest.id}
-                className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {guest.name || `${guest.firstName} ${guest.lastName}`}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      ID: {guest.guestId} • {guest.location}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                      {guest.age}
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                      {guest.gender}
-                    </span>
-                    {guest.isBanned && (
-                      <span className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded">
-                        Banned
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {filteredGuests.length > 50 && (
-              <div className="p-4 text-center text-gray-500 text-sm">
-                Showing 50 of {filteredGuests.length} guests. Refine your search
-                to see more.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Add Guest Modal Placeholder */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Guest</h2>
-            <p className="text-gray-500 mb-4">
-              Guest form coming soon. This is a placeholder.
-            </p>
-            <button
-              onClick={() => setShowAddForm(false)}
-              className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+      {selectedGuestForBan && (
+        <BanGuestModal
+          guest={selectedGuestForBan}
+          isOpen={true}
+          onClose={() => setSelectedGuestForBan(null)}
+          onBan={handleUpdateBan}
+        />
       )}
     </div>
   );
