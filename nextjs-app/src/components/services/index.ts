@@ -6,3 +6,5 @@ export { ShowerQueue } from './ShowerQueue';
 export { LaundryList } from './LaundryList';
 export { CompactShowerList } from './CompactShowerList';
 export { CompactLaundryList } from './CompactLaundryList';
+export { EssentialsKit } from './EssentialsKit';
+export { LaundryLinkedBadge } from './LaundryLinkedBadge';

@@ -9,7 +9,10 @@ import {
   ChevronUp,
   AlertCircle,
   Eye,
+  Sparkles,
 } from 'lucide-react';
+import { EssentialsKit } from './EssentialsKit';
+import { LaundryLinkedBadge } from './LaundryLinkedBadge';
 import { todayPacificDateString, pacificDateStringFrom } from '@/utils/date';
 
 interface ShowerRecord {
@@ -33,10 +36,17 @@ interface ShowerSlot {
   time: string;
 }
 
+interface LaundryRecord {
+  id: string;
+  guestId: string;
+  date: string | Date;
+}
+
 interface CompactShowerListProps {
   showerRecords: ShowerRecord[];
   guests: Guest[];
   allShowerSlots?: ShowerSlot[];
+  laundryRecords?: LaundryRecord[];
 }
 
 function formatTimeLabel(timeStr?: string): string {
@@ -87,9 +97,25 @@ export function CompactShowerList({
   showerRecords,
   guests,
   allShowerSlots,
+  laundryRecords = [],
 }: CompactShowerListProps) {
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const todayString = todayPacificDateString();
+
+  const todayLaundryGuestIds = useMemo(() => {
+    const ids = new Set<string>();
+    (laundryRecords || []).forEach((r) => {
+      if (pacificDateStringFrom(r.date) === todayString) {
+        ids.add(r.guestId);
+      }
+    });
+    return ids;
+  }, [laundryRecords, todayString]);
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const showerData = useMemo(() => {
     const todaysRecords = (showerRecords || []).filter(
@@ -188,26 +214,54 @@ export function CompactShowerList({
 
       {/* Compact List */}
       <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-80 overflow-y-auto">
-        {showerData.booked.map((booking) => (
-          <div
-            key={booking.id}
-            className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${
-              booking.status === 'done'
-                ? 'bg-emerald-50/50 dark:bg-emerald-900/20'
-                : ''
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
-                {booking.timeLabel}
-              </span>
-              <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
-                {booking.name}
-              </span>
+        {showerData.booked.map((booking) => {
+          const hasLaundry = todayLaundryGuestIds.has(booking.guestId);
+          const isExpanded = expandedRows[booking.id] || false;
+          return (
+            <div key={booking.id}>
+              <div
+                className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${booking.status === 'done'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-900/20'
+                    : ''
+                  }`}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">
+                    {booking.timeLabel}
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
+                    {booking.name}
+                  </span>
+                  {hasLaundry && <LaundryLinkedBadge />}
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={booking.status} />
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(booking.id)}
+                    className={`p-1.5 rounded-lg border transition-all ${isExpanded
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                      }`}
+                    title="Essentials & Notes"
+                    aria-label="Toggle essentials"
+                    data-testid={`expand-essentials-${booking.id}`}
+                  >
+                    <Sparkles size={14} />
+                  </button>
+                </div>
+              </div>
+              {isExpanded && (
+                <div
+                  className="px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700"
+                  data-testid={`essentials-section-${booking.id}`}
+                >
+                  <EssentialsKit guestId={booking.guestId} />
+                </div>
+              )}
             </div>
-            <StatusBadge status={booking.status} />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Waitlist Section */}

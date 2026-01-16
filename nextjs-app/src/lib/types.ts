@@ -44,13 +44,13 @@ export interface MealRecord {
   type: MealType;
 }
 
-export type MealType = 
-  | 'guest' 
-  | 'extra' 
-  | 'rv' 
-  | 'shelter' 
-  | 'united_effort' 
-  | 'day_worker' 
+export type MealType =
+  | 'guest'
+  | 'extra'
+  | 'rv'
+  | 'shelter'
+  | 'united_effort'
+  | 'day_worker'
   | 'lunch_bag';
 
 // Service Types
@@ -81,15 +81,15 @@ export interface LaundryRecord {
 }
 
 export type LaundryType = 'onsite' | 'offsite';
-export type LaundryStatus = 
-  | 'waiting' 
-  | 'washer' 
-  | 'dryer' 
-  | 'done' 
-  | 'picked_up' 
-  | 'pending' 
-  | 'transported' 
-  | 'returned' 
+export type LaundryStatus =
+  | 'waiting'
+  | 'washer'
+  | 'dryer'
+  | 'done'
+  | 'picked_up'
+  | 'pending'
+  | 'transported'
+  | 'returned'
   | 'offsite_picked_up';
 
 export interface BicycleRepair {
@@ -123,6 +123,14 @@ export interface HaircutRecord {
   type: 'haircut';
 }
 
+// Essential Items Tracking
+export interface ItemRecord {
+  id: string;
+  guestId: string;
+  item: 'tshirt' | 'sleeping_bag' | 'backpack' | 'tent' | 'flip_flops';
+  date: string;
+}
+
 // Donation Types
 export interface Donation {
   id: string;
@@ -139,14 +147,14 @@ export interface Donation {
   updatedAt: string;
 }
 
-export type DonationType = 
-  | 'Protein' 
-  | 'Carbs' 
-  | 'Vegetables' 
-  | 'Fruit' 
-  | 'Veggie Protein' 
-  | 'Deli Foods' 
-  | 'Pastries' 
+export type DonationType =
+  | 'Protein'
+  | 'Carbs'
+  | 'Vegetables'
+  | 'Fruit'
+  | 'Veggie Protein'
+  | 'Deli Foods'
+  | 'Pastries'
   | 'School lunch';
 
 export interface LaPlazaDonation {
@@ -160,14 +168,14 @@ export interface LaPlazaDonation {
   updatedAt: string;
 }
 
-export type LaPlazaCategory = 
-  | 'Bakery' 
-  | 'Beverages' 
-  | 'Dairy' 
-  | 'Meat' 
-  | 'Mix' 
-  | 'Nonfood' 
-  | 'Prepared/Perishable' 
+export type LaPlazaCategory =
+  | 'Bakery'
+  | 'Beverages'
+  | 'Dairy'
+  | 'Meat'
+  | 'Mix'
+  | 'Nonfood'
+  | 'Prepared/Perishable'
   | 'Produce';
 
 // App Settings

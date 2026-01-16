@@ -95,3 +95,22 @@ export type ServiceType = (typeof SERVICE_TYPES)[number];
 export const USER_ROLES = ['admin', 'staff'] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
+
+// Essential items for supplies tracking
+export const ESSENTIAL_ITEMS = {
+  TSHIRT: 'tshirt',
+  SLEEPING_BAG: 'sleeping_bag',
+  BACKPACK: 'backpack',
+  TENT: 'tent',
+  FLIP_FLOPS: 'flip_flops',
+} as const;
+
+export type EssentialItemKey = (typeof ESSENTIAL_ITEMS)[keyof typeof ESSENTIAL_ITEMS];
+
+export const ESSENTIAL_ITEM_LABELS: Record<EssentialItemKey, string> = {
+  tshirt: 'T-Shirt',
+  sleeping_bag: 'Sleeping Bag',
+  backpack: 'Backpack/Duffel Bag',
+  tent: 'Tent',
+  flip_flops: 'Flip Flops',
+};
