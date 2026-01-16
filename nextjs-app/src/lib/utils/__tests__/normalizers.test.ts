@@ -182,8 +182,31 @@ describe('normalizers utilities', () => {
       expect(guest.notes).toBe('Some notes');
       expect(guest.bicycleDescription).toBe('Red bike');
       expect(guest.isBanned).toBe(false);
+      expect(guest.bannedFromBicycle).toBe(false);
+      expect(guest.bannedFromMeals).toBe(false);
+      expect(guest.bannedFromShower).toBe(false);
+      expect(guest.bannedFromLaundry).toBe(false);
       expect(guest.createdAt).toBe('2025-01-01T00:00:00Z');
       expect(guest.updatedAt).toBe('2025-01-02T00:00:00Z');
+    });
+
+    it('maps granular ban fields correctly from database row', () => {
+      const row = {
+        id: 'uuid-123',
+        banned_from_bicycle: true,
+        banned_from_meals: false,
+        banned_from_shower: true,
+        banned_from_laundry: false,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-02T00:00:00Z',
+      };
+
+      const guest = mapGuestRow(row);
+
+      expect(guest.bannedFromBicycle).toBe(true);
+      expect(guest.bannedFromMeals).toBe(false);
+      expect(guest.bannedFromShower).toBe(true);
+      expect(guest.bannedFromLaundry).toBe(false);
     });
 
     it('uses default location when not provided', () => {

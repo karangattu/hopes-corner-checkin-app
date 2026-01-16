@@ -20,6 +20,10 @@ const createMockGuest = (overrides: Partial<Guest> = {}): Guest => ({
   bannedUntil: null,
   banReason: '',
   isBanned: false,
+  bannedFromBicycle: false,
+  bannedFromMeals: false,
+  bannedFromShower: false,
+  bannedFromLaundry: false,
   banned: false,
   visitCount: 5,
   lastVisit: '2024-01-15',
@@ -59,19 +63,30 @@ describe('GuestCard', () => {
     it('shows banned indicator for banned guests', () => {
       const guest = createMockGuest({ isBanned: true });
       render(<GuestCard guest={guest} />);
-      expect(screen.getByText(/banned/i)).toBeInTheDocument();
+      expect(screen.getByText(/ban/i)).toBeInTheDocument();
     });
 
     it('shows banned indicator when banned field is true', () => {
       const guest = createMockGuest({ banned: true });
       render(<GuestCard guest={guest} />);
-      expect(screen.getByText(/banned/i)).toBeInTheDocument();
+      expect(screen.getByText(/ban/i)).toBeInTheDocument();
     });
 
     it('applies banned styling', () => {
       const guest = createMockGuest({ isBanned: true });
       const { container } = render(<GuestCard guest={guest} />);
       expect(container.firstChild).toHaveClass('border-red-300');
+    });
+
+    it('shows granular ban badges', () => {
+      const guest = createMockGuest({
+        bannedFromMeals: true,
+        bannedFromBicycle: true
+      });
+      render(<GuestCard guest={guest} />);
+      expect(screen.getByText('No Meals')).toBeInTheDocument();
+      expect(screen.getByText('No Bikes')).toBeInTheDocument();
+      expect(screen.queryByText('No Shower')).not.toBeInTheDocument();
     });
   });
 
@@ -94,7 +109,7 @@ describe('GuestCard', () => {
       const onToggleExpand = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} onToggleExpand={onToggleExpand} />);
-      
+
       // The clickable area has role="button" when onToggleExpand is provided
       const button = screen.getByRole('button', { name: /expand/i });
       fireEvent.click(button);
@@ -105,7 +120,7 @@ describe('GuestCard', () => {
       const onToggleExpand = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} onToggleExpand={onToggleExpand} />);
-      
+
       const button = screen.getByRole('button', { name: /expand/i });
       fireEvent.keyDown(button, { key: 'Enter' });
       // Note: The button click via keyboard should work
@@ -117,8 +132,8 @@ describe('GuestCard', () => {
     it('shows meal indicator when guest has meal today', () => {
       const guest = createMockGuest();
       render(
-        <GuestCard 
-          guest={guest} 
+        <GuestCard
+          guest={guest}
           todayMealRecords={[{ guestId: 'guest-1', date: '2024-01-15' }]}
         />
       );
@@ -129,8 +144,8 @@ describe('GuestCard', () => {
     it('shows shower indicator when guest has shower today', () => {
       const guest = createMockGuest();
       render(
-        <GuestCard 
-          guest={guest} 
+        <GuestCard
+          guest={guest}
           todayShowerRecords={[{ guestId: 'guest-1', date: '2024-01-15' }]}
         />
       );
@@ -143,7 +158,7 @@ describe('GuestCard', () => {
       const onEdit = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} isExpanded={true} onEdit={onEdit} />);
-      
+
       const editButton = screen.getByRole('button', { name: /edit/i });
       fireEvent.click(editButton);
       expect(onEdit).toHaveBeenCalledWith(guest);
@@ -153,7 +168,7 @@ describe('GuestCard', () => {
       const onDelete = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} isExpanded={true} onDelete={onDelete} />);
-      
+
       const deleteButton = screen.getByRole('button', { name: /delete/i });
       fireEvent.click(deleteButton);
       expect(onDelete).toHaveBeenCalledWith('guest-1');
@@ -163,7 +178,7 @@ describe('GuestCard', () => {
       const onBan = vi.fn();
       const guest = createMockGuest({ isBanned: false });
       render(<GuestCard guest={guest} isExpanded={true} onBan={onBan} />);
-      
+
       const banButton = screen.getByRole('button', { name: /ban/i });
       expect(banButton).toBeInTheDocument();
     });
@@ -172,7 +187,7 @@ describe('GuestCard', () => {
       const onClearBan = vi.fn();
       const guest = createMockGuest({ isBanned: true });
       render(<GuestCard guest={guest} isExpanded={true} onClearBan={onClearBan} />);
-      
+
       const clearBanButton = screen.getByRole('button', { name: /clear ban|unban/i });
       expect(clearBanButton).toBeInTheDocument();
     });
@@ -182,15 +197,15 @@ describe('GuestCard', () => {
       const onDelete = vi.fn();
       const guest = createMockGuest();
       render(
-        <GuestCard 
-          guest={guest} 
-          isExpanded={true} 
+        <GuestCard
+          guest={guest}
+          isExpanded={true}
           onEdit={onEdit}
           onDelete={onDelete}
-          showActions={false} 
+          showActions={false}
         />
       );
-      
+
       expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
     });
@@ -201,7 +216,7 @@ describe('GuestCard', () => {
       const onAddMeal = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} isExpanded={true} onAddMeal={onAddMeal} />);
-      
+
       const mealButton = screen.getByRole('button', { name: /meal/i });
       fireEvent.click(mealButton);
       expect(onAddMeal).toHaveBeenCalledWith('guest-1');
@@ -211,7 +226,7 @@ describe('GuestCard', () => {
       const onAddShower = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} isExpanded={true} onAddShower={onAddShower} />);
-      
+
       const showerButton = screen.getByRole('button', { name: /shower/i });
       fireEvent.click(showerButton);
       expect(onAddShower).toHaveBeenCalledWith('guest-1');
@@ -221,7 +236,7 @@ describe('GuestCard', () => {
       const onAddLaundry = vi.fn();
       const guest = createMockGuest();
       render(<GuestCard guest={guest} isExpanded={true} onAddLaundry={onAddLaundry} />);
-      
+
       const laundryButton = screen.getByRole('button', { name: /laundry/i });
       fireEvent.click(laundryButton);
       expect(onAddLaundry).toHaveBeenCalledWith('guest-1');

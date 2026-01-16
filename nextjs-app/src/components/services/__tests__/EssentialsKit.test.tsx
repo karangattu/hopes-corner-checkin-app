@@ -41,9 +41,10 @@ describe('EssentialsKit', () => {
     });
 
     describe('rendering', () => {
-        it('renders all 5 essential items', () => {
+        it('renders all 6 essential items', () => {
             render(<EssentialsKit guestId={guestId} />);
 
+            expect(screen.getByTestId('essential-item-jacket')).toBeInTheDocument();
             expect(screen.getByTestId('essential-item-tshirt')).toBeInTheDocument();
             expect(screen.getByTestId('essential-item-sleeping_bag')).toBeInTheDocument();
             expect(screen.getByTestId('essential-item-backpack')).toBeInTheDocument();
@@ -54,6 +55,7 @@ describe('EssentialsKit', () => {
         it('displays correct labels for items', () => {
             render(<EssentialsKit guestId={guestId} />);
 
+            expect(screen.getByText('Jacket')).toBeInTheDocument();
             expect(screen.getByText('T-Shirt')).toBeInTheDocument();
             expect(screen.getByText('Sleeping Bag')).toBeInTheDocument();
             expect(screen.getByText('Backpack/Duffel Bag')).toBeInTheDocument();
@@ -65,7 +67,7 @@ describe('EssentialsKit', () => {
             mockCanGiveItem.mockReturnValue(true);
             render(<EssentialsKit guestId={guestId} />);
 
-            expect(screen.getByText('5 available')).toBeInTheDocument();
+            expect(screen.getByText('6 available')).toBeInTheDocument();
         });
     });
 

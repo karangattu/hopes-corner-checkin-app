@@ -221,7 +221,7 @@ describe('getNextAvailabilityDate', () => {
         it('adds 30 days for sleeping_bag', () => {
             const date = '2025-01-15T10:00:00Z';
             const result = getNextAvailabilityDate('sleeping_bag', date);
-            const expected = new Date('2025-02-14');
+            const expected = new Date(2025, 1, 14); // Feb 14
             expected.setHours(0, 0, 0, 0);
             expect(result?.getDate()).toBe(expected.getDate());
             expect(result?.getMonth()).toBe(expected.getMonth());
@@ -230,7 +230,7 @@ describe('getNextAvailabilityDate', () => {
         it('adds 30 days for backpack', () => {
             const date = '2025-01-01T10:00:00Z';
             const result = getNextAvailabilityDate('backpack', date);
-            const expected = new Date('2025-01-31');
+            const expected = new Date(2025, 0, 31); // Jan 31
             expected.setHours(0, 0, 0, 0);
             expect(result?.getDate()).toBe(expected.getDate());
         });
@@ -252,7 +252,7 @@ describe('getNextAvailabilityDate', () => {
         it('adds 15 days for jacket', () => {
             const date = '2025-01-15T10:00:00Z';
             const result = getNextAvailabilityDate('jacket', date);
-            const expected = new Date('2025-01-30');
+            const expected = new Date(2025, 0, 30); // Jan 30
             expected.setHours(0, 0, 0, 0);
             expect(result?.getDate()).toBe(expected.getDate());
             expect(result?.getMonth()).toBe(expected.getMonth());

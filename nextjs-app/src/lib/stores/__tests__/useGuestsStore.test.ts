@@ -65,7 +65,7 @@ describe('useGuestsStore', () => {
   describe('addGuest', () => {
     it('should add a guest to local state when Supabase is disabled', async () => {
       const { addGuest } = useGuestsStore.getState();
-      
+
       await act(async () => {
         await addGuest(createTestGuestInput());
       });
@@ -78,7 +78,7 @@ describe('useGuestsStore', () => {
 
     it('should generate full name correctly', async () => {
       const { addGuest } = useGuestsStore.getState();
-      
+
       await act(async () => {
         await addGuest(createTestGuestInput({
           firstName: 'Jane',
@@ -91,11 +91,56 @@ describe('useGuestsStore', () => {
     });
   });
 
+  describe('updateGuest', () => {
+    it('should update guest data in local state', async () => {
+      const { addGuest, updateGuest } = useGuestsStore.getState();
+
+      await act(async () => {
+        await addGuest(createTestGuestInput({ firstName: 'Original' }));
+      });
+
+      const { guests: initialGuests } = useGuestsStore.getState();
+      const guestId = initialGuests[0].id;
+
+      await act(async () => {
+        await updateGuest(guestId, { firstName: 'Updated' });
+      });
+
+      const { guests: finalGuests } = useGuestsStore.getState();
+      expect(finalGuests[0].firstName).toBe('Updated');
+    });
+
+    it('should support granular ban updates', async () => {
+      const { addGuest, updateGuest } = useGuestsStore.getState();
+
+      await act(async () => {
+        await addGuest(createTestGuestInput());
+      });
+
+      const { guests: initialGuests } = useGuestsStore.getState();
+      const guestId = initialGuests[0].id;
+
+      await act(async () => {
+        await updateGuest(guestId, {
+          bannedFromMeals: true,
+          bannedFromBicycle: true,
+          banReason: 'Specific misconduct'
+        });
+      });
+
+      const { guests: finalGuests } = useGuestsStore.getState();
+      expect(finalGuests[0].bannedFromMeals).toBe(true);
+      expect(finalGuests[0].bannedFromBicycle).toBe(true);
+      expect(finalGuests[0].bannedFromShower).toBe(false); // Should remain false
+      expect(finalGuests[0].banReason).toBe('Specific misconduct');
+    });
+  });
+
   describe('deleteGuest', () => {
     it('should remove a guest from local state', async () => {
       // First add a guest
       const { addGuest, deleteGuest } = useGuestsStore.getState();
-      
+
       await act(async () => {
         await addGuest(createTestGuestInput());
       });
@@ -116,7 +161,7 @@ describe('useGuestsStore', () => {
     it('should clear all guests from state', async () => {
       // Add some guests first
       const { addGuest, clearGuests } = useGuestsStore.getState();
-      
+
       await act(async () => {
         await addGuest(createTestGuestInput());
         await addGuest(createTestGuestInput({
@@ -137,7 +182,7 @@ describe('useGuestsStore', () => {
   describe('getGuestById', () => {
     it('should return correct guest by ID', async () => {
       const { addGuest, getGuestById } = useGuestsStore.getState();
-      
+
       await act(async () => {
         await addGuest(createTestGuestInput());
       });

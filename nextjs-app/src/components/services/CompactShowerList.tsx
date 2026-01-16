@@ -125,12 +125,12 @@ export function CompactShowerList({
     );
 
     const getGuestName = (guestId: string): string => {
-      if (guestsLoading || !guests || guests.length === 0) {
+      if (guestsLoading) {
         return 'Loading...';
       }
-      const guest = guests.find((g) => g.id === guestId);
+      const guest = (guests || []).find((g) => g.id === guestId);
       if (!guest) {
-        return 'Unknown Guest';
+        return 'Guest';
       }
       return (
         guest.name ||
