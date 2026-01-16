@@ -120,11 +120,10 @@ export function GuestCreateForm({
               value={formData.firstName}
               onChange={onChange}
               onBlur={onNameBlur}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors dark:bg-gray-700 dark:text-white ${
-                fieldErrors.firstName
-                  ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
-                  : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'
-              }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors dark:bg-gray-700 dark:text-white ${fieldErrors.firstName
+                ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'
+                }`}
               placeholder="Enter first name"
               required
               disabled={isCreating}
@@ -149,11 +148,10 @@ export function GuestCreateForm({
               value={formData.lastName}
               onChange={onChange}
               onBlur={onNameBlur}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors dark:bg-gray-700 dark:text-white ${
-                fieldErrors.lastName
-                  ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
-                  : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'
-              }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors dark:bg-gray-700 dark:text-white ${fieldErrors.lastName
+                ? 'border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'
+                }`}
               placeholder="Enter last name"
               required
               disabled={isCreating}
@@ -198,13 +196,13 @@ export function GuestCreateForm({
             <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-start gap-1.5">
               <span className="text-blue-500 font-medium">💙</span>
               <span>
-                Please ask: "Do you have stable housing right now?" Select the option that best
+                Please ask: &quot;Do you have stable housing right now?&quot; Select the option that best
                 describes their current situation.
                 <span className="block mt-1 text-[11px] text-gray-600 dark:text-gray-400">
-                  Spanish: "¿Tiene una vivienda estable en este momento?"
+                  Spanish: &quot;¿Tiene una vivienda estable en este momento?&quot;
                 </span>
                 <span className="block mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
-                  Mandarin: "您现在有稳定的住处吗？"
+                  Mandarin: &quot;您现在有稳定的住处吗？&quot;
                 </span>
               </span>
             </p>
@@ -347,7 +345,7 @@ export function GuestCreateForm({
             disabled={isCreating}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Helps confirm it's the same bicycle when logging repairs.
+            Helps confirm it&apos;s the same bicycle when logging repairs.
           </p>
         </div>
 

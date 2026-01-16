@@ -480,10 +480,10 @@ const MealReport: React.FC<MealReportProps> = ({
 
   const isCurrentMonth = selectedYear === currentDate.getFullYear() && selectedMonth === currentDate.getMonth();
 
-  // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: MonthData }> }) => {
+  const renderCustomTooltip = useCallback((props: { active?: boolean; payload?: readonly unknown[] }) => {
+    const { active, payload } = props;
     if (!active || !payload || !payload.length) return null;
-    const data = payload[0]?.payload;
+    const data = (payload[0] as { payload?: MonthData })?.payload;
     if (!data) return null;
 
     return (
@@ -501,7 +501,7 @@ const MealReport: React.FC<MealReportProps> = ({
         </div>
       </div>
     );
-  };
+  }, []);
 
   return (
     <div className="min-h-screen space-y-4 pb-8">
@@ -568,11 +568,10 @@ const MealReport: React.FC<MealReportProps> = ({
               <button
                 key={day.value}
                 onClick={() => toggleDay(day.value)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-all ${
-                  selectedDays.includes(day.value)
-                    ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50'
-                }`}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-all ${selectedDays.includes(day.value)
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                  : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                  }`}
               >
                 {day.short}
               </button>
@@ -617,9 +616,8 @@ const MealReport: React.FC<MealReportProps> = ({
               return (
                 <label
                   key={option.key}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all cursor-pointer ${
-                    isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
-                  }`}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all cursor-pointer ${isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/50'
+                    }`}
                 >
                   <input
                     type="checkbox"
@@ -722,9 +720,8 @@ const MealReport: React.FC<MealReportProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('overview')}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                activeTab === 'overview' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'overview' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <PieChart size={16} />
               Overview
@@ -732,9 +729,8 @@ const MealReport: React.FC<MealReportProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('trends')}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                activeTab === 'trends' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'trends' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <BarChart3 size={16} />
               Trends
@@ -742,9 +738,8 @@ const MealReport: React.FC<MealReportProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('export')}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                activeTab === 'export' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === 'export' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <Download size={16} />
               Export
@@ -912,7 +907,7 @@ const MealReport: React.FC<MealReportProps> = ({
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                       <YAxis yAxisId="left" tick={{ fontSize: 12 }} label={{ value: 'Total Meals', angle: -90, position: 'insideLeft', offset: 10 }} />
                       <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} label={{ value: 'Guests/Day', angle: -90, position: 'insideRight', offset: -5 }} />
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={renderCustomTooltip} />
                       <Legend wrapperStyle={{ paddingTop: '20px' }} />
                       <Bar yAxisId="left" dataKey="guestMeals" stackId="a" fill="#3b82f6" name="Guest Meals" />
                       <Bar yAxisId="left" dataKey="extras" stackId="a" fill="#f97316" name="Extras" />

@@ -40,7 +40,7 @@ type ProgressCallback = (progress: { completed: number; total: number }) => void
  */
 const classifyError = (error: Error): ErrorInfo => {
   const message = error.message.toLowerCase();
-  
+
   if (message.includes('network') || message.includes('fetch') || message.includes('offline')) {
     return {
       type: 'network',
@@ -49,7 +49,7 @@ const classifyError = (error: Error): ErrorInfo => {
       severity: 'low',
     };
   }
-  
+
   if (message.includes('validation') || message.includes('invalid')) {
     return {
       type: 'validation',
@@ -58,7 +58,7 @@ const classifyError = (error: Error): ErrorInfo => {
       severity: 'medium',
     };
   }
-  
+
   if (message.includes('conflict') || message.includes('duplicate')) {
     return {
       type: 'conflict',
@@ -67,7 +67,7 @@ const classifyError = (error: Error): ErrorInfo => {
       severity: 'medium',
     };
   }
-  
+
   if (message.includes('permission') || message.includes('unauthorized') || message.includes('forbidden')) {
     return {
       type: 'permission',
@@ -76,7 +76,7 @@ const classifyError = (error: Error): ErrorInfo => {
       severity: 'high',
     };
   }
-  
+
   return {
     type: 'unknown',
     userMessage: 'An unexpected error occurred',
@@ -151,7 +151,7 @@ const processOperation = async (
   operation: QueueItem,
   executeFunc: ExecuteFunction
 ): Promise<{ success: boolean; shouldRetry?: boolean; delay?: number; error?: string; errorType?: string; userMessage?: string; maxRetriesReached?: boolean }> => {
-  const { id, payload, retryCount, operationType } = operation;
+  const { id, payload, retryCount, operationType: _operationType } = operation;
 
   if (id === undefined) {
     return { success: false, error: 'Operation has no ID' };
@@ -196,8 +196,7 @@ const processOperation = async (
     } else {
       // Max retries reached or non-retriable error - move to failed store
       console.error(
-        `[OfflineQueue] Operation ${id} failed (${
-          shouldRetry ? 'max retries reached' : errorInfo.type
+        `[OfflineQueue] Operation ${id} failed (${shouldRetry ? 'max retries reached' : errorInfo.type
         }): ${err.message}`
       );
 
@@ -261,7 +260,7 @@ export const syncPendingOperations = async (
       const results = await Promise.all(
         batch.map(async (operation) => {
           const executeFunc = executeFunctions[operation.operationType];
-          
+
           if (!executeFunc) {
             console.warn(`[OfflineQueue] No execute function for ${operation.operationType}`);
             return { success: false, error: 'No execute function' };
@@ -295,7 +294,7 @@ export const syncPendingOperations = async (
     // Process retry queue with delays
     for (const { operation, delay } of retryQueue) {
       await new Promise(resolve => setTimeout(resolve, delay));
-      
+
       const executeFunc = executeFunctions[operation.operationType];
       if (executeFunc) {
         const result = await processOperation(operation, executeFunc);

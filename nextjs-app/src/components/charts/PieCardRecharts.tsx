@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
   PieChart,
   Pie,
@@ -66,7 +66,7 @@ export const PieCardRecharts: React.FC<PieCardRechartsProps> = ({
     try {
       // Dynamic import for html2canvas (only when needed)
       const html2canvas = (await import('html2canvas')).default;
-      
+
       if (!chartRef.current) {
         toast.error('Chart not found');
         return;
@@ -90,10 +90,11 @@ export const PieCardRecharts: React.FC<PieCardRechartsProps> = ({
     }
   };
 
-  const CustomTooltip: React.FC<TooltipProps> = ({ active, payload }) => {
+  const renderCustomTooltip = useCallback((props: { active?: boolean; payload?: readonly unknown[] }) => {
+    const { active, payload } = props;
     if (!active || !payload || !payload.length) return null;
 
-    const item = payload[0];
+    const item = payload[0] as { name: string; value: number };
     const total = chartData.reduce((sum, d) => sum + d.value, 0);
     const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
 
@@ -105,7 +106,7 @@ export const PieCardRecharts: React.FC<PieCardRechartsProps> = ({
         </p>
       </div>
     );
-  };
+  }, [chartData]);
 
   const renderCustomizedLabel = ({
     cx,
@@ -117,8 +118,8 @@ export const PieCardRecharts: React.FC<PieCardRechartsProps> = ({
     name,
   }: LabelProps) => {
     // Guard against undefined values
-    if (cx === undefined || cy === undefined || midAngle === undefined || 
-        outerRadius === undefined || percent === undefined) {
+    if (cx === undefined || cy === undefined || midAngle === undefined ||
+      outerRadius === undefined || percent === undefined) {
       return null;
     }
 
@@ -183,7 +184,7 @@ export const PieCardRecharts: React.FC<PieCardRechartsProps> = ({
               <Cell key={`cell-${index}`} fill={entry.fill} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={renderCustomTooltip} />
         </PieChart>
       </ResponsiveContainer>
     </div>
