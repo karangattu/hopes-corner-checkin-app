@@ -29,7 +29,7 @@ const MainLayout = ({ children }) => {
   const navItems = navItemsAll.filter((item) => {
     if (role === "admin") return true;
     if (role === "board") return item.id === "admin";
-    if (role === "staff") return item.id !== "admin";
+    if (role === "staff") return true;
     if (role === "checkin") return item.id === "check-in";
     return false;
   });
@@ -91,63 +91,69 @@ const MainLayout = ({ children }) => {
     <div className="min-h-screen bg-emerald-50 flex flex-col">
       <header className="bg-green-950 text-white shadow-lg">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center h-12 md:h-16">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center h-12 md:h-16">
+            {/* Left Zone: Brand */}
+            <div className="flex items-center gap-3 shrink-0">
               <a href="/" className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200">
                 <img src="/hope-corner-logo-v2.svg" alt="Hope's Corner logo" className="h-8 md:h-10 w-auto" />
               </a>
-              <div>
+              <div className="hidden sm:block">
                 <h1 className="text-lg md:text-xl font-bold leading-tight">
                   {settings?.siteName || "Hope's Corner"}
                 </h1>
-                <p className="text-emerald-100 text-[10px] md:text-xs hidden sm:block">
+                <p className="text-emerald-100 text-[10px] md:text-xs">
                   Guest Check-In System
                 </p>
               </div>
             </div>
 
-            <div className="md:hidden" />
+            {/* Mobile spacer */}
+            <div className="md:hidden flex-1" />
 
-            <div className="hidden md:flex items-center gap-3">
+            {/* Center Zone: Primary Navigation (desktop only) */}
+            <nav className="hidden md:flex flex-1 justify-center">
+              <div className="inline-flex items-center gap-1 bg-emerald-900/50 rounded-xl p-1">
+                {navItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    type="button"
+                    aria-current={activeTab === item.id ? "page" : undefined}
+                    className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${activeTab === item.id
+                      ? "bg-white text-emerald-900 shadow-md"
+                      : "text-emerald-100 hover:bg-emerald-800/60 hover:text-white"
+                      }`}
+                  >
+                    <SpringIcon>
+                      <item.icon size={18} aria-hidden="true" />
+                    </SpringIcon>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+
+            {/* Right Zone: User Controls (desktop only) */}
+            <div className="hidden md:flex items-center gap-2 shrink-0">
+              <span className="px-2 py-1 rounded-md text-emerald-200/80 text-[11px] font-medium bg-emerald-800/30">
+                {headerRoleDisplay.replace(/[()]/g, '')}
+              </span>
+              <div className="w-px h-5 bg-emerald-700/50" />
               <button
                 onClick={() => setShowTutorial(true)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded text-emerald-100 hover:text-white hover:bg-emerald-700 text-sm transition-colors"
+                className="p-2 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-800/50 transition-colors"
                 aria-label="Open help tutorial"
+                title="Need help?"
               >
-                <HelpCircle size={16} />
-                <span>Need help?</span>
+                <HelpCircle size={18} />
               </button>
-              <span className="text-emerald-100 text-sm">
-                {user?.name} {headerRoleDisplay}
-              </span>
               <button
                 onClick={logout}
-                className="px-3 py-1 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-sm"
+                className="px-3 py-1.5 rounded-lg bg-emerald-700/80 hover:bg-emerald-600 text-white text-sm font-medium transition-colors"
               >
                 Logout
               </button>
             </div>
-
-            <nav className="hidden md:flex space-x-1">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  type="button"
-                  aria-current={activeTab === item.id ? "page" : undefined}
-                  className={`relative flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${
-                    activeTab === item.id
-                      ? "border-white/70 bg-white text-emerald-900 shadow-sm"
-                      : "border-transparent text-emerald-100 hover:border-white/40 hover:bg-emerald-800/60 hover:text-white"
-                  }`}
-                >
-                  <SpringIcon>
-                    <item.icon size={18} aria-hidden="true" />
-                  </SpringIcon>
-                  <span className="hidden lg:block">{item.label}</span>
-                </button>
-              ))}
-            </nav>
           </div>
         </div>
       </header>
@@ -159,12 +165,6 @@ const MainLayout = ({ children }) => {
         <div className="max-w-7xl mx-auto space-y-4">
           <SyncStatus />
           {children}
-          
-          {/* Data sync notice */}
-          <p className="text-xs text-gray-400 text-center mt-4">
-            Data syncs automatically with Supabase. If multiple users are using the app,
-            reload the page to see the latest changes from other sessions.
-          </p>
         </div>
       </main>
 
@@ -186,11 +186,10 @@ const MainLayout = ({ children }) => {
                 onClick={() => setActiveTab(item.id)}
                 type="button"
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
-                  active
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow"
-                    : "border-transparent text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/70"
-                }`}
+                className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${active
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow"
+                  : "border-transparent text-gray-700 hover:border-emerald-200 hover:bg-emerald-50/70"
+                  }`}
               >
                 <SpringIcon
                   className={`mb-1 rounded-lg p-2 ${active ? "bg-emerald-100" : "bg-gray-100"}`}
@@ -238,9 +237,9 @@ const MainLayout = ({ children }) => {
         </div>
       </footer>
 
-      <TutorialModal 
-        isOpen={showTutorial} 
-        onClose={() => setShowTutorial(false)} 
+      <TutorialModal
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
       />
     </div>
   );

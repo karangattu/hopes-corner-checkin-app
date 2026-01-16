@@ -13,12 +13,13 @@ import {
   computeIsGuestBanned,
   normalizeDateInputToISO,
 } from '../context/utils/normalizers';
-import { mapGuestRow, mapGuestProxyRow } from '../context/utils/mappers';
+import { mapGuestRow, mapGuestProxyRow, mapGuestWarningRow } from '../context/utils/mappers';
 import {
   HOUSING_STATUSES,
   AGE_GROUPS,
   GENDERS,
 } from '../context/constants';
+import { clearSearchIndexCache } from '../utils/flexibleNameSearch';
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 const MAX_LINKED_GUESTS = 3;
@@ -30,6 +31,17 @@ export const useGuestsStore = create(
         // State
         guests: [],
         guestProxies: [], // Linked guest relationships
+        // Guest warnings persisted in Supabase
+        warnings: [],
+
+        // Sync guests from external source (AppContext)
+        // This resolves conflicts when running locally where AppContext owns the data
+        syncGuests: (externalGuests) => {
+          set((state) => {
+            state.guests = externalGuests;
+          });
+          clearSearchIndexCache();
+        },
 
         // Helper functions
         migrateGuestData: (guestList) => {
@@ -37,12 +49,21 @@ export const useGuestsStore = create(
             const bannedUntil = guest?.bannedUntil ?? guest?.banned_until ?? null;
             const bannedAt = guest?.bannedAt ?? guest?.banned_at ?? null;
             const banReason = guest?.banReason ?? guest?.ban_reason ?? '';
+            // Program-specific bans
+            const bannedFromBicycle = guest?.bannedFromBicycle ?? guest?.banned_from_bicycle ?? false;
+            const bannedFromMeals = guest?.bannedFromMeals ?? guest?.banned_from_meals ?? false;
+            const bannedFromShower = guest?.bannedFromShower ?? guest?.banned_from_shower ?? false;
+            const bannedFromLaundry = guest?.bannedFromLaundry ?? guest?.banned_from_laundry ?? false;
             const withBanMetadata = {
               ...guest,
               bannedUntil,
               bannedAt,
               banReason,
               isBanned: computeIsGuestBanned(bannedUntil),
+              bannedFromBicycle,
+              bannedFromMeals,
+              bannedFromShower,
+              bannedFromLaundry,
             };
 
             const baseGuest = withBanMetadata;
@@ -124,6 +145,46 @@ export const useGuestsStore = create(
             lastName = toTitleCase(nameParts.slice(1).join(' ') || '');
           }
 
+          // DATA INTEGRITY: Validate that we have a valid first name
+          // This prevents creating guests that would appear as "Unknown Guest"
+          if (!firstName) {
+            console.error(
+              '[DATA INTEGRITY] Attempted to create guest without first name:',
+              JSON.stringify(guest, null, 2)
+            );
+            throw new Error('First name is required. Cannot create guest without a name.');
+          }
+
+          // DATA INTEGRITY: Ensure last name has at least something
+          if (!lastName) {
+            console.warn(
+              '[DATA INTEGRITY] Creating guest with empty last name, using first letter of first name:',
+              { firstName, originalGuest: guest }
+            );
+            lastName = firstName.charAt(0).toUpperCase();
+          }
+
+          // DATA INTEGRITY: Prevent duplicate guests with exact same first and last name
+          // Case-insensitive comparison to prevent "Stephen S" and "stephen s" duplicates
+          const normalizedFirstName = firstName.toLowerCase().trim();
+          const normalizedLastName = lastName.toLowerCase().trim();
+          const existingDuplicate = guests.find((g) => {
+            const existingFirst = (g.firstName || '').toLowerCase().trim();
+            const existingLast = (g.lastName || '').toLowerCase().trim();
+            return existingFirst === normalizedFirstName && existingLast === normalizedLastName;
+          });
+
+          if (existingDuplicate) {
+            const existingName = `${existingDuplicate.firstName} ${existingDuplicate.lastName}`.trim();
+            console.error(
+              '[DATA INTEGRITY] Attempted to create duplicate guest:',
+              { newGuest: { firstName, lastName }, existingGuest: existingDuplicate }
+            );
+            throw new Error(
+              `A guest named "${existingName}" already exists. Please use a different name or find the existing guest.`
+            );
+          }
+
           const requiredFields = ['location', 'age', 'gender'];
           for (const field of requiredFields) {
             if (
@@ -185,6 +246,8 @@ export const useGuestsStore = create(
             set((state) => {
               state.guests.push(mapped);
             });
+            // Clear search cache after adding guest
+            clearSearchIndexCache();
             return mapped;
           }
 
@@ -203,11 +266,57 @@ export const useGuestsStore = create(
           set((state) => {
             state.guests.push(fallbackGuest);
           });
+          // Clear search cache after adding guest
+          clearSearchIndexCache();
           return fallbackGuest;
         },
 
         updateGuest: async (id, updates) => {
           const { guests } = get();
+
+          // DATA INTEGRITY: Prevent name fields from being set to empty values
+          // This helps prevent the "Unknown Guest" data corruption issue
+          const validateNameUpdates = (updates, originalGuest) => {
+            const issues = [];
+
+            // Check firstName - if being updated, must not be empty
+            if (updates.firstName !== undefined) {
+              const newFirstName = (updates.firstName || '').trim();
+              if (!newFirstName) {
+                issues.push('firstName cannot be empty');
+              }
+            }
+
+            // Check lastName - if being updated, must not be empty
+            if (updates.lastName !== undefined) {
+              const newLastName = (updates.lastName || '').trim();
+              if (!newLastName) {
+                issues.push('lastName cannot be empty');
+              }
+            }
+
+            // Check name (full name) - if being updated, must not be empty
+            if (updates.name !== undefined) {
+              const newName = (updates.name || '').trim();
+              if (!newName) {
+                issues.push('name (full name) cannot be empty');
+              }
+            }
+
+            // Log if there's a potential issue with partial name updates
+            if (issues.length > 0) {
+              console.error(
+                '[DATA INTEGRITY] Attempted to update guest with empty name field(s):',
+                issues,
+                '\nGuest ID:', id,
+                '\nOriginal guest:', JSON.stringify(originalGuest, null, 2),
+                '\nUpdates:', JSON.stringify(updates, null, 2)
+              );
+              return { isValid: false, issues };
+            }
+
+            return { isValid: true, issues: [] };
+          };
 
           const normalizedUpdates = {
             ...updates,
@@ -222,6 +331,15 @@ export const useGuestsStore = create(
 
           const target = guests.find((g) => g.id === id);
           const originalGuest = target ? { ...target } : null;
+
+          // DATA INTEGRITY: Validate name updates before proceeding
+          const nameValidation = validateNameUpdates(normalizedUpdates, originalGuest);
+          if (!nameValidation.isValid) {
+            enhancedToast.error(
+              `Cannot update guest: ${nameValidation.issues.join(', ')}. Name fields cannot be empty.`
+            );
+            return false;
+          }
 
           set((state) => {
             const guestIndex = state.guests.findIndex((g) => g.id === id);
@@ -264,6 +382,34 @@ export const useGuestsStore = create(
 
             if (Object.keys(payload).length === 0) return true;
 
+            // DATA INTEGRITY: Double-check payload doesn't have empty name fields
+            if (payload.first_name !== undefined && !payload.first_name.trim()) {
+              console.error('[DATA INTEGRITY] Blocking update with empty first_name in payload');
+              enhancedToast.error('Cannot save: first name cannot be empty');
+              if (originalGuest) {
+                set((state) => {
+                  const guestIndex = state.guests.findIndex((g) => g.id === id);
+                  if (guestIndex !== -1) {
+                    state.guests[guestIndex] = originalGuest;
+                  }
+                });
+              }
+              return false;
+            }
+            if (payload.full_name !== undefined && !payload.full_name.trim()) {
+              console.error('[DATA INTEGRITY] Blocking update with empty full_name in payload');
+              enhancedToast.error('Cannot save: full name cannot be empty');
+              if (originalGuest) {
+                set((state) => {
+                  const guestIndex = state.guests.findIndex((g) => g.id === id);
+                  if (guestIndex !== -1) {
+                    state.guests[guestIndex] = originalGuest;
+                  }
+                });
+              }
+              return false;
+            }
+
             try {
               const { data, error } = await supabase
                 .from('guests')
@@ -282,6 +428,8 @@ export const useGuestsStore = create(
                     state.guests[guestIndex] = mapped;
                   }
                 });
+                // Clear search cache after updating guest
+                clearSearchIndexCache();
               }
             } catch (error) {
               console.error('Failed to update guest in Supabase:', error);
@@ -305,11 +453,34 @@ export const useGuestsStore = create(
           const { guests } = get();
           const target = guests.find((g) => g.id === id);
 
+          // DATA INTEGRITY: Cleanup related data in local state
           set((state) => {
             state.guests = state.guests.filter((g) => g.id !== id);
+            // Remove any proxy relationships involving this guest
+            state.guestProxies = (state.guestProxies || []).filter(
+              (p) => p.guestId !== id && p.proxyId !== id
+            );
+            // Remove any warnings for this guest
+            state.warnings = (state.warnings || []).filter((w) => w.guestId !== id);
           });
 
+          // Clear search cache after removing guest
+          clearSearchIndexCache();
+
           if (isSupabaseEnabled() && supabase && target) {
+            // DATA INTEGRITY: Cleanup related data in Supabase before deleting guest
+            // This prevents foreign key violations or orphaned records
+
+            // 1. Delete proxy relationships
+            await supabase
+              .from('guest_proxies')
+              .delete()
+              .or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+
+            // 2. Delete guest warnings
+            await supabase.from('guest_warnings').delete().eq('guest_id', id);
+
+            // 3. Finally delete the guest record
             const { error } = await supabase.from('guests').delete().eq('id', id);
 
             if (error) {
@@ -320,7 +491,16 @@ export const useGuestsStore = create(
 
         banGuest: async (
           guestId,
-          { bannedUntil, banReason = '', bannedAt: bannedAtOverride } = {}
+          {
+            bannedUntil,
+            banReason = '',
+            bannedAt: bannedAtOverride,
+            // Program-specific bans - if all false, it's a blanket ban from all services
+            bannedFromBicycle = false,
+            bannedFromMeals = false,
+            bannedFromShower = false,
+            bannedFromLaundry = false,
+          } = {}
         ) => {
           const { guests } = get();
 
@@ -355,6 +535,10 @@ export const useGuestsStore = create(
                 bannedUntil: normalizedUntil,
                 bannedAt: normalizedBannedAt,
                 isBanned: true,
+                bannedFromBicycle,
+                bannedFromMeals,
+                bannedFromShower,
+                bannedFromLaundry,
               };
             }
           });
@@ -367,6 +551,10 @@ export const useGuestsStore = create(
                   ban_reason: sanitizedReason || null,
                   banned_until: normalizedUntil,
                   banned_at: normalizedBannedAt,
+                  banned_from_bicycle: bannedFromBicycle,
+                  banned_from_meals: bannedFromMeals,
+                  banned_from_shower: bannedFromShower,
+                  banned_from_laundry: bannedFromLaundry,
                 })
                 .eq('id', guestId)
                 .select()
@@ -419,6 +607,10 @@ export const useGuestsStore = create(
                 bannedUntil: null,
                 bannedAt: null,
                 isBanned: false,
+                bannedFromBicycle: false,
+                bannedFromMeals: false,
+                bannedFromShower: false,
+                bannedFromLaundry: false,
               };
             }
           });
@@ -431,6 +623,10 @@ export const useGuestsStore = create(
                   ban_reason: null,
                   banned_until: null,
                   banned_at: null,
+                  banned_from_bicycle: false,
+                  banned_from_meals: false,
+                  banned_from_shower: false,
+                  banned_from_laundry: false,
                 })
                 .eq('id', guestId)
                 .select()
@@ -704,6 +900,8 @@ export const useGuestsStore = create(
                 );
                 state.guests = [...filtered, ...insertedRecords];
               });
+              // Clear search cache after bulk import
+              clearSearchIndexCache();
             }
 
             const failedCount = newGuests.length - insertedRecords.length;
@@ -754,6 +952,9 @@ export const useGuestsStore = create(
             state.guests = [...state.guests, ...newGuests];
           });
 
+          // Clear search cache after bulk import
+          clearSearchIndexCache();
+
           return {
             importedGuests: newGuests,
             failedCount: 0,
@@ -785,6 +986,10 @@ export const useGuestsStore = create(
               'banned_until',
               'banned_at',
               'ban_reason',
+              'banned_from_bicycle',
+              'banned_from_meals',
+              'banned_from_shower',
+              'banned_from_laundry',
               'created_at',
               'updated_at',
             ].join(',');
@@ -806,8 +1011,33 @@ export const useGuestsStore = create(
                 housingStatus: normalizeHousingStatus(g.housingStatus),
               }));
             });
+
+            // Clear search cache after loading guests from Supabase
+            // This ensures the search index is rebuilt with the latest data
+            clearSearchIndexCache();
           } catch (error) {
             console.error('Failed to load guests from Supabase:', error);
+          }
+        },
+
+        // Load guest warnings from Supabase
+        loadGuestWarningsFromSupabase: async () => {
+          if (!isSupabaseEnabled() || !supabase) return;
+          try {
+            const warningsData = await fetchAllPaginated(supabase, {
+              table: 'guest_warnings',
+              select: 'id, guest_id, message, severity, issued_by, active, created_at, updated_at',
+              orderBy: 'created_at',
+              ascending: false,
+              pageSize: 1000,
+              mapper: (r) => mapGuestWarningRow(r),
+            });
+
+            set((state) => {
+              state.warnings = warningsData || [];
+            });
+          } catch (error) {
+            console.error('Failed to load guest warnings from Supabase:', error);
           }
         },
 
@@ -815,6 +1045,106 @@ export const useGuestsStore = create(
         clearGuests: () => {
           set((state) => {
             state.guests = [];
+          });
+          // Clear search cache when clearing all guests
+          clearSearchIndexCache();
+        },
+
+        // Get warnings for a guest
+        getWarningsForGuest: (guestId) => {
+          const { warnings } = get();
+          if (!guestId) return [];
+          return (warnings || []).filter((w) => w.guestId === guestId && w.active);
+        },
+
+        // Add a warning for a guest (persisted to Supabase when enabled)
+        addGuestWarning: async (guestId, { message, severity = 1, issuedBy = null } = {}) => {
+          if (!guestId) throw new Error('guestId is required');
+          if (!message || !String(message).trim()) throw new Error('Warning message is required');
+
+          const payload = {
+            guest_id: guestId,
+            message: String(message).trim(),
+            severity: Number(severity) || 1,
+            issued_by: issuedBy || null,
+            active: true,
+          };
+
+          // Optimistic local update
+          const localWarning = {
+            id: `local-${Date.now()}`,
+            guestId,
+            message: payload.message,
+            severity: payload.severity,
+            issuedBy: payload.issued_by,
+            active: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          set((state) => {
+            state.warnings = [localWarning, ...(state.warnings || [])];
+          });
+
+          if (isSupabaseEnabled() && supabase) {
+            try {
+              const { data, error } = await supabase
+                .from('guest_warnings')
+                .insert(payload)
+                .select()
+                .single();
+
+              if (error) throw error;
+
+              const mapped = mapGuestWarningRow(data);
+
+              // Replace local with persisted
+              set((state) => {
+                state.warnings = [mapped, ...(state.warnings || []).filter((w) => !String(w.id).startsWith('local-'))];
+              });
+
+              return mapped;
+            } catch (error) {
+              console.error('Failed to persist guest warning:', error);
+              enhancedToast.error('Unable to save warning. It will remain locally until sync.');
+              return localWarning;
+            }
+          }
+
+          return localWarning;
+        },
+
+        // Remove (delete) a guest warning by ID
+        removeGuestWarning: async (warningId) => {
+          if (!warningId) return false;
+
+          const existing = (get().warnings || []).find((w) => w.id === warningId);
+          if (!existing) return false;
+
+          // Optimistic remove
+          set((state) => {
+            state.warnings = (state.warnings || []).filter((w) => w.id !== warningId);
+          });
+
+          if (isSupabaseEnabled() && supabase && !String(warningId).startsWith('local-')) {
+            try {
+              const { error } = await supabase.from('guest_warnings').delete().eq('id', warningId);
+              if (error) throw error;
+            } catch (error) {
+              console.error('Failed to delete guest warning from Supabase:', error);
+              enhancedToast.error('Unable to delete warning from server');
+              // Note: we won't re-add automatically; user can reload or re-sync
+              return false;
+            }
+          }
+
+          return true;
+        },
+
+        // Clear warnings (useful for tests)
+        clearGuestWarnings: () => {
+          set((state) => {
+            state.warnings = [];
           });
         },
 
@@ -824,7 +1154,7 @@ export const useGuestsStore = create(
         getLinkedGuests: (guestId) => {
           const { guests, guestProxies } = get();
           if (!guestId) return [];
-          
+
           // Find all proxy relationships where this guest is involved
           const linkedGuestIds = new Set();
           guestProxies.forEach((proxy) => {
@@ -843,7 +1173,7 @@ export const useGuestsStore = create(
         getLinkedGuestsCount: (guestId) => {
           const { guestProxies } = get();
           if (!guestId) return 0;
-          
+
           const linkedGuestIds = new Set();
           guestProxies.forEach((proxy) => {
             if (proxy.guestId === guestId) {
@@ -1048,7 +1378,7 @@ export const useGuestsStore = create(
           });
         },
       })),
-      createPersistConfig('hopes-corner-guests')
+      createPersistConfig('hopes-corner-guests-v2')
     ),
     { name: 'GuestsStore' }
   )

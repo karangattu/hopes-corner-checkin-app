@@ -1,5 +1,6 @@
 import { addShowerWithOffline } from '../../utils/offlineOperations';
 import { mapShowerStatusToDb } from './mappers';
+import { globalSyncManager } from '../SupabaseSync';
 
 export const createShowerMutations = ({
   supabaseEnabled,
@@ -20,6 +21,18 @@ export const createShowerMutations = ({
   normalizeDateInputToISO,
   onServiceCompleted, // Callback when a service is marked complete
 }) => {
+  /**
+   * Trigger a sync for other users to see updated slots immediately
+   */
+  const triggerShowerSync = () => {
+    try {
+      // Reset the last sync time to force an immediate sync
+      globalSyncManager?.lastSync.set('showers', 0);
+    } catch (error) {
+      console.warn('Could not trigger shower sync:', error);
+    }
+  };
+
   /**
    * Validates slot availability by checking database directly (if online)
    * This helps prevent race conditions when multiple users book simultaneously
@@ -144,6 +157,8 @@ export const createShowerMutations = ({
           data: { recordId: mapped.id, guestId, time },
           description: `Booked shower at ${time} for guest`,
         });
+        // Trigger sync so other users see the new booking immediately
+        triggerShowerSync();
         return mapped;
       } catch (error) {
         console.error("Failed to create shower booking:", error);
@@ -247,41 +262,119 @@ export const createShowerMutations = ({
     const record = showerRecords.find((candidate) => candidate.id === recordId);
     if (!record) return false;
 
-    setShowerRecords((prev) => prev.filter((candidate) => candidate.id !== recordId));
-    setShowerSlots((prev) =>
-      prev.filter(
-        (slot) => !(slot.guestId === record.guestId && slot.time === record.time),
-      ),
-    );
+    // Create snapshots for rollback
+    const recordsSnapshot = showerRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = showerSlots.map((s) => ({ ...s }));
 
-    if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
-      try {
+    try {
+      // Apply optimistic update immediately
+      setShowerRecords((prev) =>
+        prev.map((candidate) =>
+          candidate.id === recordId ? { ...candidate, status: "cancelled" } : candidate
+        )
+      );
+      
+      setShowerSlots((prev) =>
+        prev.map((slot) =>
+          slot.guestId === record.guestId && slot.time === record.time
+            ? { ...slot, status: "cancelled" }
+            : slot
+        )
+      );
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
         const { error } = await supabaseClient
           .from("shower_reservations")
-          .delete()
+          .update({ status: "cancelled" })
           .eq("id", recordId);
         if (error) throw error;
-      } catch (error) {
-        console.error("Failed to cancel shower booking:", error);
-        toast.error("Unable to cancel shower booking.");
-        return false;
       }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "SHOWER_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: {
+          recordId,
+          guestId: record.guestId,
+          time: record.time,
+          snapshot: { ...record },
+        },
+        description: `Cancelled shower at ${record.time}`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to cancel shower booking:", error);
+      setShowerRecords(recordsSnapshot);
+      setShowerSlots(slotsSnapshot);
+      toast.error("Unable to cancel shower booking.");
+      return false;
     }
+  };
 
-    pushAction({
-      id: Date.now() + Math.random(),
-      type: "SHOWER_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        time: record.time,
-        snapshot: { ...record },
-      },
-      description: `Cancelled shower at ${record.time}`,
-    });
+  const cancelMultipleShowers = async (recordIds) => {
+    if (!recordIds || recordIds.length === 0) return true;
 
-    return true;
+    const recordsToCancel = showerRecords.filter((r) => recordIds.includes(r.id));
+    if (recordsToCancel.length === 0) return true;
+
+    // Create snapshots for rollback
+    const recordsSnapshot = showerRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = showerSlots.map((s) => ({ ...s }));
+
+    try {
+      // Update local state optimistically
+      setShowerRecords((prev) =>
+        prev.map((candidate) =>
+          recordIds.includes(candidate.id)
+            ? { ...candidate, status: "cancelled" }
+            : candidate,
+        ),
+      );
+
+      setShowerSlots((prev) =>
+        prev.map((slot) => {
+          const matchingRecord = recordsToCancel.find(
+            (r) => r.guestId === slot.guestId && r.time === slot.time,
+          );
+          return matchingRecord ? { ...slot, status: "cancelled" } : slot;
+        }),
+      );
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient) {
+        const nonLocalIds = recordIds.filter(
+          (id) => !String(id).startsWith("local-"),
+        );
+        if (nonLocalIds.length > 0) {
+          const { error } = await supabaseClient
+            .from("shower_reservations")
+            .update({ status: "cancelled" })
+            .in("id", nonLocalIds);
+          if (error) throw error;
+        }
+      }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "SHOWER_BULK_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: { recordIds, count: recordIds.length },
+        description: `Bulk cancelled ${recordIds.length} showers`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to bulk cancel shower bookings:", error);
+      setShowerRecords(recordsSnapshot);
+      setShowerSlots(slotsSnapshot);
+      toast.error("Unable to cancel some shower bookings.");
+      return false;
+    }
   };
 
   const rescheduleShower = async (recordId, newTime) => {
@@ -450,6 +543,9 @@ export const createShowerMutations = ({
       onServiceCompleted(previousRecord.guestId, "shower");
     }
 
+    // Trigger sync so other users see the status update immediately
+    triggerShowerSync();
+
     return true;
   };
 
@@ -492,6 +588,7 @@ export const createShowerMutations = ({
     addShowerRecord,
     addShowerWaitlist,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     importShowerAttendanceRecord,

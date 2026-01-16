@@ -17,13 +17,24 @@ declare
   ban_until timestamptz;
   ban_reason text;
   guest_name text;
+  bicycle_ban boolean;
+  meal_ban boolean;
+  shower_ban boolean;
+  laundry_ban boolean;
+  has_program_specific boolean;
+  normalized_service text;
+  formatted_until text;
+  service_label text;
 begin
   if new.guest_id is null then
     return new;
   end if;
 
-  select g.banned_until, g.ban_reason, g.full_name
-    into ban_until, ban_reason, guest_name
+  select g.banned_until, g.ban_reason, g.full_name,
+         g.banned_from_bicycle, g.banned_from_meals,
+         g.banned_from_shower, g.banned_from_laundry
+    into ban_until, ban_reason, guest_name,
+         bicycle_ban, meal_ban, shower_ban, laundry_ban
   from public.guests g
   where g.id = new.guest_id;
 
@@ -31,14 +42,82 @@ begin
     return new;
   end if;
 
-  if ban_until > now() then
-    raise exception using
-  message = format('Guest %s is banned from services until %s', coalesce(guest_name, new.guest_id::text), to_char(ban_until at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI"Z"')),
-      detail = coalesce(ban_reason, ''),
-      hint = 'Update the guest''s ban settings or wait until it expires.';
+  if ban_until <= now() then
+    return new;
   end if;
 
-  return new;
+  formatted_until := to_char(ban_until at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI"Z"');
+
+  has_program_specific := coalesce(bicycle_ban, false)
+    or coalesce(meal_ban, false)
+    or coalesce(shower_ban, false)
+    or coalesce(laundry_ban, false);
+
+  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
+  normalized_service := lower(trim(coalesce(service_label, '')));
+
+  if has_program_specific then
+    if normalized_service in ('meals', 'meal service', 'meal') then
+      if meal_ban then
+        raise exception using
+          message = format(
+            'Guest %s is banned from meals until %s',
+            coalesce(guest_name, new.guest_id::text),
+            formatted_until
+          ),
+          detail = coalesce(ban_reason, ''),
+          hint = 'Update the guest''s ban settings or wait until it expires.';
+      end if;
+      return new;
+    elsif normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings') then
+      if shower_ban then
+        raise exception using
+          message = format(
+            'Guest %s is banned from showers until %s',
+            coalesce(guest_name, new.guest_id::text),
+            formatted_until
+          ),
+          detail = coalesce(ban_reason, ''),
+          hint = 'Update the guest''s ban settings or wait until it expires.';
+      end if;
+      return new;
+    elsif normalized_service in ('laundry', 'laundry booking', 'laundry bookings') then
+      if laundry_ban then
+        raise exception using
+          message = format(
+            'Guest %s is banned from laundry until %s',
+            coalesce(guest_name, new.guest_id::text),
+            formatted_until
+          ),
+          detail = coalesce(ban_reason, ''),
+          hint = 'Update the guest''s ban settings or wait until it expires.';
+      end if;
+      return new;
+    elsif normalized_service in ('bicycle repairs', 'bicycle repair', 'bicycle') then
+      if bicycle_ban then
+        raise exception using
+          message = format(
+            'Guest %s is banned from bicycle repairs until %s',
+            coalesce(guest_name, new.guest_id::text),
+            formatted_until
+          ),
+          detail = coalesce(ban_reason, ''),
+          hint = 'Update the guest''s ban settings or wait until it expires.';
+      end if;
+      return new;
+    else
+      return new;
+    end if;
+  end if;
+
+  raise exception using
+    message = format(
+      'Guest %s is banned from services until %s',
+      coalesce(guest_name, new.guest_id::text),
+      formatted_until
+    ),
+    detail = coalesce(ban_reason, ''),
+    hint = 'Update the guest''s ban settings or wait until it expires.';
 end;
 $$ language plpgsql;
 
@@ -77,7 +156,7 @@ END$$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'donation_type_enum') THEN
-    CREATE TYPE public.donation_type_enum AS enum ('Protein','Carbs','Vegetables','Fruit','Veggie Protein','Deli Foods','Pastries','School lunch');
+    CREATE TYPE public.donation_type_enum AS enum ('Protein','Carbs','Vegetables','Fruit','Veggie Protein','Deli Foods','Pastries','School Lunch');
   END IF;
 END$$;
 
@@ -158,6 +237,7 @@ create index if not exists guests_external_id_idx
 create table if not exists public.meal_attendance (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete set null,
+  picked_up_by_guest_id uuid references public.guests(id) on delete set null,  -- Tracks who physically picked up the meal (linked/proxy guest)
   meal_type public.meal_type_enum not null default 'guest',
   quantity smallint not null check (quantity > 0),
   served_on date not null,
@@ -175,7 +255,7 @@ for each row execute function public.touch_updated_at();
 drop trigger if exists trg_meal_attendance_ban_guard on public.meal_attendance;
 create trigger trg_meal_attendance_ban_guard
 before insert or update on public.meal_attendance
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('meals');
 
 -- Enforce one primary meal per guest per day
 create unique index if not exists meal_attendance_guest_unique
@@ -212,7 +292,7 @@ for each row execute function public.touch_updated_at();
 drop trigger if exists trg_shower_reservations_ban_guard on public.shower_reservations;
 create trigger trg_shower_reservations_ban_guard
 before insert or update on public.shower_reservations
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('shower');
 
 create unique index if not exists shower_one_per_day
   on public.shower_reservations (guest_id, scheduled_for);
@@ -242,7 +322,7 @@ for each row execute function public.touch_updated_at();
 drop trigger if exists trg_laundry_bookings_ban_guard on public.laundry_bookings;
 create trigger trg_laundry_bookings_ban_guard
 before insert or update on public.laundry_bookings
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('laundry');
 
 create unique index if not exists laundry_one_per_day
   on public.laundry_bookings (guest_id, scheduled_for);
@@ -270,7 +350,7 @@ for each row execute function public.touch_updated_at();
 drop trigger if exists trg_bicycle_repairs_ban_guard on public.bicycle_repairs;
 create trigger trg_bicycle_repairs_ban_guard
 before insert or update on public.bicycle_repairs
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('bicycle repairs');
 
 create table if not exists public.holiday_visits (
   id uuid primary key default gen_random_uuid(),
@@ -282,7 +362,7 @@ create table if not exists public.holiday_visits (
 drop trigger if exists trg_holiday_visits_ban_guard on public.holiday_visits;
 create trigger trg_holiday_visits_ban_guard
 before insert or update on public.holiday_visits
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('holiday');
 
 create table if not exists public.haircut_visits (
   id uuid primary key default gen_random_uuid(),
@@ -294,7 +374,7 @@ create table if not exists public.haircut_visits (
 drop trigger if exists trg_haircut_visits_ban_guard on public.haircut_visits;
 create trigger trg_haircut_visits_ban_guard
 before insert or update on public.haircut_visits
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('haircut');
 
 create table if not exists public.items_distributed (
   id uuid primary key default gen_random_uuid(),
@@ -307,7 +387,7 @@ create table if not exists public.items_distributed (
 drop trigger if exists trg_items_distributed_ban_guard on public.items_distributed;
 create trigger trg_items_distributed_ban_guard
 before insert or update on public.items_distributed
-for each row execute function public.ensure_guest_not_banned();
+for each row execute function public.ensure_guest_not_banned('items');
 
 create index if not exists items_distributed_lookup
   on public.items_distributed (guest_id, item_key, distributed_at desc);
@@ -558,6 +638,9 @@ where
   );
 
 -- Helper functions for waivers
+-- has_active_waiver: checks if a guest has an acknowledged waiver for THIS calendar year
+-- When staff confirms a waiver is signed, dismiss_waiver() sets dismissed_at = now()
+-- So an "active" waiver is one where dismissed_at IS NOT NULL (was acknowledged) AND dismissed_at >= year_start
 create or replace function public.has_active_waiver(
   p_guest_id uuid,
   p_service_type text
@@ -565,14 +648,15 @@ create or replace function public.has_active_waiver(
 declare
   v_year_start timestamptz;
 begin
-  v_year_start := date_trunc('year', now())::date;
+  v_year_start := date_trunc('year', now());
+  -- A waiver is "active" if it was dismissed (acknowledged) this year
   return exists (
     select 1
     from public.service_waivers sw
     where sw.guest_id = p_guest_id
       and sw.service_type = p_service_type
-      and sw.dismissed_at is null
-      and sw.created_at >= v_year_start
+      and sw.dismissed_at is not null
+      and sw.dismissed_at >= v_year_start
   );
 end;
 $$ language plpgsql stable;

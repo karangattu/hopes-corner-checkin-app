@@ -1,6 +1,11 @@
 import React from "react";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
+// Mock TrendLineRecharts before importing the report so it is used during module init
+vi.mock("../charts/TrendLineRecharts", () => ({
+  default: () => <div data-testid="proxy-trend" />,
+}));
+
 import MonthlySummaryReport from "../MonthlySummaryReport";
 import { LAUNDRY_STATUS } from "../../../context/constants";
 
@@ -29,6 +34,8 @@ vi.mock("firebase/functions", () => ({
 vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContext || {},
 }));
+
+
 
 vi.mock("react-hot-toast", () => ({
   default: {
@@ -158,6 +165,7 @@ describe("MonthlySummaryReport", () => {
     expect(thead.textContent).toContain("RV Wed+Sat");
     expect(thead.textContent).toContain("RV Mon+Thu");
     expect(thead.textContent).toContain("Lunch Bags");
+    expect(thead.textContent).toContain("Proxy Pickups");
     expect(thead.textContent).toContain("TOTAL HOT MEALS");
     expect(thead.textContent).toContain("Total w/ Lunch Bags");
     expect(thead.textContent).toContain("Onsite Hot Meals");
@@ -233,6 +241,39 @@ describe("MonthlySummaryReport", () => {
     // RV Mon+Thu should be 10 + 7 = 17
     expect(januaryRow.textContent).toContain("13");
     expect(januaryRow.textContent).toContain("17");
+  });
+
+  it("counts proxy pickups correctly and does not double-count totals", () => {
+    // One proxy pickup (count=1) and one regular pickup (count=2) on same Monday
+    setupMockContext({
+      mealRecords: [
+        { date: "2025-01-06T12:00:00Z", count: 1, guestId: "g1", pickedUpByProxyId: "proxy-1" },
+        { date: "2025-01-06T12:00:00Z", count: 2, guestId: "g2" },
+      ],
+    });
+
+    render(<MonthlySummaryReport />);
+
+    const [mealsTable] = screen.getAllByRole("table");
+    const rows = mealsTable.querySelectorAll("tbody tr");
+    const januaryRow = Array.from(rows).find((row) =>
+      row.textContent.includes("January"),
+    );
+
+    expect(januaryRow).toBeTruthy();
+    // Proxy pickups column should show 1
+    expect(januaryRow.textContent).toContain("1");
+
+    // TOTAL HOT MEALS should be 3 (1 + 2)
+    const totalHotMealsIndex = getMealsTableHeaderIndex(
+      mealsTable,
+      "TOTAL HOT MEALS",
+    );
+    const totalHotMealsCell = getRowCellByHeader(
+      januaryRow,
+      totalHotMealsIndex,
+    );
+    expect(totalHotMealsCell.textContent).toBe("3");
   });
 
   it("calculates TOTAL HOT MEALS correctly", () => {
@@ -340,6 +381,7 @@ describe("MonthlySummaryReport", () => {
     expect(csvData[0]).toHaveProperty("Month");
     expect(csvData[0]).toHaveProperty("Monday");
     expect(csvData[0]).toHaveProperty("TOTAL HOT MEALS");
+    expect(csvData[0]).toHaveProperty("Proxy Pickups");
 
     // Verify we have at least the months and a totals row
     expect(csvData.length).toBeGreaterThanOrEqual(2);
@@ -364,6 +406,7 @@ describe("MonthlySummaryReport", () => {
     expect(screen.getByText("Shower Program")).toBeInTheDocument();
     expect(screen.getByText("New Laundry Guests")).toBeInTheDocument();
   });
+
 
   it("exports bicycle summary via the dedicated button", () => {
     setupMockContext({

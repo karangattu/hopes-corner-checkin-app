@@ -97,13 +97,13 @@ class SyncManager {
         businessHours: true,
       },
       showers: {
-        interval: SYNC_INTERVALS.STANDARD,
-        priority: "normal",
+        interval: SYNC_INTERVALS.CRITICAL,
+        priority: "critical",
         businessHours: true,
       },
       laundry: {
-        interval: SYNC_INTERVALS.STANDARD,
-        priority: "normal",
+        interval: SYNC_INTERVALS.CRITICAL,
+        priority: "critical",
         businessHours: true,
       },
       itemsGiven: {

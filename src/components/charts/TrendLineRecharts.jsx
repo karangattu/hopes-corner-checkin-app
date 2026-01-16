@@ -20,6 +20,7 @@ const METRIC_COLORS = {
   haircuts: "#f43f5e",
   holidays: "#f59e0b",
   bicycles: "#06b6d4",
+  proxyPickups: "#f59e0b", // amber tone for proxy pickups
 };
 
 const METRIC_LABELS = {
@@ -29,6 +30,7 @@ const METRIC_LABELS = {
   haircuts: "Haircuts",
   holidays: "Holiday",
   bicycles: "Bicycle",
+  proxyPickups: "Proxy Pickups",
 };
 
 const TrendLineRecharts = ({

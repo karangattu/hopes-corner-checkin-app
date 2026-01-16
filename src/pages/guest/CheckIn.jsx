@@ -1,36 +1,107 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Users, Search } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
+import MealServiceTimer from "../../components/MealServiceTimer";
+import TodayStats from "../../components/TodayStats";
+import { useAppContext } from "../../context/useAppContext";
 
 const CheckIn = () => {
+  const { setActiveTab, setActiveServiceSection } = useAppContext();
+
+  // Auto-refresh service slots every 2 minutes when page is in focus
+  useEffect(() => {
+    let refreshInterval;
+
+    const startAutoRefresh = () => {
+      // Set up interval for every 2 minutes
+      refreshInterval = setInterval(() => {
+        if (navigator.onLine) {
+          // Trigger sync by dispatching a storage event that SyncContext listens for
+          const now = Date.now().toString();
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: "hopes-corner-sync-trigger",
+              newValue: now,
+            })
+          );
+        }
+      }, 2 * 60 * 1000); // 2 minutes
+    };
+
+    const stopAutoRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        startAutoRefresh();
+      }
+    };
+
+    // Start auto-refresh if page is visible
+    if (!document.hidden) {
+      startAutoRefresh();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopAutoRefresh();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  const handleShowerClick = () => {
+    setActiveServiceSection("showers");
+    setActiveTab("services");
+    // Scroll to the services tab
+    setTimeout(() => {
+      const servicesTab = document.querySelector('[aria-current="page"]');
+      if (servicesTab) {
+        servicesTab.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
+  const handleLaundryClick = () => {
+    setActiveServiceSection("laundry");
+    setActiveTab("services");
+    // Scroll to the services tab
+    setTimeout(() => {
+      const servicesTab = document.querySelector('[aria-current="page"]');
+      if (servicesTab) {
+        servicesTab.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 100);
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-indigo-600 p-6 md:p-8 text-white shadow-lg">
-        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,white)]" />
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/20 blur-2xl" />
-        
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
-              <Search size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                Guest Search & Check-In
-              </h1>
-              <p className="text-blue-100 text-sm md:text-base mt-0.5">
-                Find existing guests or register new arrivals
-              </p>
-            </div>
+      {/* Header - Matching Services Management style */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold mb-1 flex items-center gap-2 text-emerald-800">
+            <Search /> Guest Search & Check-In
+          </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <p className="text-gray-500">
+              Find existing guests or register new arrivals
+            </p>
+            <TodayStats />
           </div>
         </div>
+        {/* Meal Service Timer - subtle indicator for volunteers */}
+        <MealServiceTimer />
       </div>
 
       {/* Service Status Overview - At-a-glance availability */}
-      <ServiceStatusOverview />
+      <ServiceStatusOverview onShowerClick={handleShowerClick} onLaundryClick={handleLaundryClick} />
 
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -42,7 +113,7 @@ const CheckIn = () => {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Find or Add Guests</h2>
               <p className="text-sm text-gray-500">
-                Type a name to search • Press Enter to create if not found
+                Type a name to search • Type first AND last name, then press Enter to create
               </p>
             </div>
           </div>

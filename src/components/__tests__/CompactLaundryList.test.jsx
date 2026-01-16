@@ -28,6 +28,8 @@ let mockContext = {
     RETURNED: "returned",
     OFFSITE_PICKED_UP: "offsite_picked_up",
   },
+  guestNeedsWaiverReminder: vi.fn(() => Promise.resolve(false)),
+  hasActiveWaiver: vi.fn(() => Promise.resolve(false)),
 };
 
 vi.mock("../../context/useAppContext", () => ({
@@ -218,6 +220,11 @@ describe("CompactLaundryList", () => {
     render(<CompactLaundryList />);
 
     expect(screen.getByText("Dryer")).toBeInTheDocument();
+    
+    // Expand Done Laundry to see Done status
+    const doneButton = screen.getByText(/Done Laundry/);
+    fireEvent.click(doneButton);
+    
     expect(screen.getByText("Done")).toBeInTheDocument();
   });
 
@@ -235,6 +242,10 @@ describe("CompactLaundryList", () => {
     ];
 
     render(<CompactLaundryList />);
+
+    // Expand Done Laundry to see Picked Up status
+    const doneButton = screen.getByText(/Done Laundry/);
+    fireEvent.click(doneButton);
 
     expect(screen.getByText("Picked Up")).toBeInTheDocument();
     // Verify the "Picked Up" status is shown which indicates completion
@@ -282,5 +293,99 @@ describe("CompactLaundryList", () => {
     fireEvent.click(offsiteButton);
 
     expect(screen.getByText("Transported")).toBeInTheDocument();
+  });
+
+  describe("onGuestClick interaction", () => {
+    it("calls onGuestClick when an on-site laundry row is clicked", () => {
+      const onGuestClick = vi.fn();
+      mockContext.laundryRecords = [
+        {
+          id: "laundry-1",
+          guestId: "guest-1",
+          time: "08:00 - 09:00",
+          date: "2025-01-15T08:00:00Z",
+          status: "waiting",
+          laundryType: "onsite",
+          createdAt: "2025-01-15T07:00:00Z",
+        },
+      ];
+
+      render(<CompactLaundryList onGuestClick={onGuestClick} />);
+
+      const guestRow = screen.getByText("John Doe").closest("div[class*='cursor-pointer']");
+      fireEvent.click(guestRow);
+
+      expect(onGuestClick).toHaveBeenCalledWith("guest-1", "laundry-1");
+    });
+
+    it("calls onGuestClick when an off-site laundry row is clicked", () => {
+      const onGuestClick = vi.fn();
+      mockContext.laundryRecords = [
+        {
+          id: "laundry-1",
+          guestId: "guest-1",
+          date: "2025-01-15T08:00:00Z",
+          status: "pending",
+          laundryType: "offsite",
+          createdAt: "2025-01-15T07:00:00Z",
+        },
+      ];
+
+      render(<CompactLaundryList onGuestClick={onGuestClick} />);
+
+      // First expand the off-site section
+      const offsiteButton = screen.getByText("Off-site (1)");
+      fireEvent.click(offsiteButton);
+
+      // Then click the guest row
+      const guestRow = screen.getByText("John Doe").closest("div[class*='cursor-pointer']");
+      fireEvent.click(guestRow);
+
+      expect(onGuestClick).toHaveBeenCalledWith("guest-1", "laundry-1");
+    });
+
+    it("shows cursor-pointer style when onGuestClick is provided", () => {
+      const onGuestClick = vi.fn();
+      mockContext.laundryRecords = [
+        {
+          id: "laundry-1",
+          guestId: "guest-1",
+          time: "08:00 - 09:00",
+          date: "2025-01-15T08:00:00Z",
+          status: "waiting",
+          laundryType: "onsite",
+          createdAt: "2025-01-15T07:00:00Z",
+        },
+      ];
+
+      render(<CompactLaundryList onGuestClick={onGuestClick} />);
+
+      // Find the clickable row by looking for an element with both cursor-pointer and the guest name
+      const guestName = screen.getByText("John Doe");
+      // Navigate up to find the clickable container (the one with cursor-pointer class)
+      const clickableRow = guestName.closest("[class*='cursor-pointer']");
+      expect(clickableRow).toBeInTheDocument();
+    });
+
+    it("does not show cursor-pointer when onGuestClick is not provided", () => {
+      mockContext.laundryRecords = [
+        {
+          id: "laundry-1",
+          guestId: "guest-1",
+          time: "08:00 - 09:00",
+          date: "2025-01-15T08:00:00Z",
+          status: "waiting",
+          laundryType: "onsite",
+          createdAt: "2025-01-15T07:00:00Z",
+        },
+      ];
+
+      render(<CompactLaundryList />);
+
+      // Without onGuestClick, the row should not have cursor-pointer class
+      const guestName = screen.getByText("John Doe");
+      const clickableRow = guestName.closest("[class*='cursor-pointer']");
+      expect(clickableRow).not.toBeInTheDocument();
+    });
   });
 });

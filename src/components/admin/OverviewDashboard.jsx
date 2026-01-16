@@ -278,13 +278,28 @@ const OverviewDashboard = ({
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
+    // Parse date safely - if it's a date-only string (YYYY-MM-DD), 
+    // append T12:00:00 to ensure local timezone interpretation
+    const parseDate = (date) => {
+      if (!date) return null;
+      const dateStr = typeof date === 'string' ? date : date.toISOString?.();
+      if (!dateStr) return null;
+      // If it's a date-only format (YYYY-MM-DD), parse it as local noon to avoid timezone issues
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(dateStr + 'T12:00:00');
+      }
+      return new Date(dateStr);
+    };
+
     const isCurrentMonth = (date) => {
-      const d = new Date(date);
+      const d = parseDate(date);
+      if (!d || isNaN(d.getTime())) return false;
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     };
 
     const isCurrentYear = (date) => {
-      const d = new Date(date);
+      const d = parseDate(date);
+      if (!d || isNaN(d.getTime())) return false;
       return d.getFullYear() === currentYear;
     };
 

@@ -4,7 +4,7 @@ export const DENSITY_SERVINGS = {
   high: 30,
 };
 
-export const MINIMAL_TYPES = new Set(["School lunch", "Pastries", "Deli Foods"]);
+export const MINIMAL_TYPES = new Set(["School Lunch", "Pastries", "Deli Foods"]);
 
 export const calculateServings = (type, weightLbs, trays = 0, density = "medium") => {
   const parsedTrays = Number(trays) || 0;

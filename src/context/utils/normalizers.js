@@ -2,15 +2,32 @@ import { pacificDateStringFrom } from "../../utils/date";
 import { HOUSING_STATUSES } from "../constants";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const PACIFIC_TIME_ZONE = "America/Los_Angeles";
+const GMT_OFFSET_REGEX = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/;
+
+const parseGmtOffsetMinutes = (value) => {
+  if (!value) return 0;
+  const match = GMT_OFFSET_REGEX.exec(value.trim());
+  if (!match) return 0;
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return sign * (hours * 60 + minutes);
+};
 
 export const toTitleCase = (str) => {
   if (!str || typeof str !== "string") return "";
+  // Preserve single spaces between words (for middle names like "John Michael")
+  // Only collapse multiple consecutive spaces into one
   return str
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 0)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
+    .replace(/\s+/g, ' ') // Collapse multiple spaces to single space
+    .split(' ')
+    .map((word) => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ')
     .trim();
 };
 
@@ -100,9 +117,37 @@ export const normalizeDateInputToISO = (value) => {
   if (DATE_ONLY_REGEX.test(raw)) {
     const [year, month, day] = raw.split("-").map(Number);
     if ([year, month, day].some(Number.isNaN)) return null;
-    const isoDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-    if (Number.isNaN(isoDate.getTime())) return null;
-    return isoDate.toISOString();
+    const now = new Date();
+    const pacificTime = new Date(
+      now.toLocaleString("en-US", { timeZone: PACIFIC_TIME_ZONE }),
+    );
+    const hours = pacificTime.getHours();
+    const minutes = pacificTime.getMinutes();
+    const seconds = pacificTime.getSeconds();
+    const milliseconds = pacificTime.getMilliseconds();
+
+    const offsetDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    if (Number.isNaN(offsetDate.getTime())) return null;
+
+    const timezoneParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: PACIFIC_TIME_ZONE,
+      timeZoneName: "shortOffset",
+    }).formatToParts(offsetDate);
+    const timezoneName = timezoneParts.find((part) => part.type === "timeZoneName")?.value;
+    const timezoneOffsetMinutes = parseGmtOffsetMinutes(timezoneName);
+
+    const utcTimestamp = Date.UTC(
+      year,
+      month - 1,
+      day,
+      hours,
+      minutes,
+      seconds,
+      milliseconds,
+    ) - timezoneOffsetMinutes * 60 * 1000;
+
+    if (Number.isNaN(utcTimestamp)) return null;
+    return new Date(utcTimestamp).toISOString();
   }
 
   const parsed = new Date(raw);

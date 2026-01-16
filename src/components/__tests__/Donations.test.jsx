@@ -21,7 +21,7 @@ vi.mock("react-hot-toast", () => ({
 describe("Donations Component", () => {
   const mockDate = "2025-01-15";
   const mockContext = {
-    DONATION_TYPES: ["Protein", "Produce", "Dairy", "Bakery", "Prepared", "School lunch", "Pastries", "Deli Foods"],
+    DONATION_TYPES: ["Protein", "Produce", "Dairy", "Bakery", "Prepared", "School Lunch", "Pastries", "Deli Foods"],
     donationRecords: [],
     addDonation: vi.fn(),
     getRecentDonations: vi.fn(() => []),
@@ -353,13 +353,13 @@ describe("Donations Component", () => {
       expect(screen.getByText("Medium (20 servings)")).toBeInTheDocument();
     });
 
-    it("requires item name for non-minimal types (not School lunch or Pastries)", async () => {
+    it("requires item name for non-minimal types (not School Lunch or Pastries)", async () => {
       const user = userEvent.setup();
       const { container } = render(<Donations />);
 
-      // Ensure type is not School lunch (default is Protein)
+      // Ensure type is not School Lunch (default is Protein)
       const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
-      expect(typeSelect.value).not.toBe("School lunch");
+      expect(typeSelect.value).not.toBe("School Lunch");
 
       // Ensure item name is blank
       const itemInput = screen.getByPlaceholderText(/e.g., Chicken tikka masala, Fresh vegetables/i);
@@ -373,13 +373,13 @@ describe("Donations Component", () => {
       expect(toast.error).toHaveBeenCalledWith("Item name is required");
     });
 
-    it("allows adding a School lunch donation with item name, donor, and weight", async () => {
+    it("allows adding a School Lunch donation with item name, donor, and weight", async () => {
       const user = userEvent.setup();
       render(<Donations />);
 
-      // Select 'School lunch'
+      // Select 'School Lunch'
       const typeSelect = screen.getByRole("option", { name: /Protein/i }).closest('select');
-      await user.selectOptions(typeSelect, "School lunch");
+      await user.selectOptions(typeSelect, "School Lunch");
 
       // Fill in item name, donor, and weight
       const itemInput = screen.getByPlaceholderText(/e.g., Sandwich, Cookie, Brownie/i);
@@ -399,7 +399,7 @@ describe("Donations Component", () => {
 
       expect(mockContext.addDonation).toHaveBeenCalledTimes(1);
       const calledWith = mockContext.addDonation.mock.calls[0][0];
-      expect(calledWith.type).toBe("School lunch");
+      expect(calledWith.type).toBe("School Lunch");
       expect(calledWith.itemName).toBe("Sandwich");
       expect(calledWith.donor).toBe("Local Elementary");
       expect(calledWith.weightLbs).toBe(12);

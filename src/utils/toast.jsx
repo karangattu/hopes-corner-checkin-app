@@ -1,105 +1,65 @@
 import toast from "react-hot-toast";
-import {
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  Info,
-  AlertCircle,
-} from "lucide-react";
 import { bulkOperationManager } from "./bulkOperationContext";
 
-// Enhanced toast with context-specific icons and colors
+// Default durations for different toast types (in milliseconds)
+const DURATIONS = {
+  success: 2000,
+  error: 4000,
+  warning: 3000,
+  info: 2500,
+  loading: Infinity,
+};
+
+// Enhanced toast with reliable auto-dismiss behavior
+// Uses native react-hot-toast methods without custom overrides for proper lifecycle
 const createToast = (type, message, options = {}) => {
   // Suppress toasts during bulk operations unless explicitly forced
   if (bulkOperationManager.shouldSuppressToast() && !options.force) {
     return null;
   }
-  const config = {
-    success: {
-      icon: <CheckCircle size={16} className="text-green-500" />,
-      style: {
-        background: "#f0fdf4", // green-50
-        border: "1px solid #bbf7d0", // green-200
-        color: "#166534", // green-800
-      },
-      ariaLabel: "Success notification",
-    },
-    error: {
-      icon: <XCircle size={16} className="text-red-500" />,
-      style: {
-        background: "#fef2f2", // red-50
-        border: "1px solid #fecaca", // red-200
-        color: "#991b1b", // red-800
-      },
-      ariaLabel: "Error notification",
-    },
-    warning: {
-      icon: <AlertTriangle size={16} className="text-amber-500" />,
-      style: {
-        background: "#fffbeb", // amber-50
-        border: "1px solid #fde68a", // amber-200
-        color: "#92400e", // amber-800
-      },
-      ariaLabel: "Warning notification",
-    },
-    info: {
-      icon: <Info size={16} className="text-blue-500" />,
-      style: {
-        background: "#eff6ff", // blue-50
-        border: "1px solid #bfdbfe", // blue-200
-        color: "#1e40af", // blue-800
-      },
-      ariaLabel: "Information notification",
-    },
-    loading: {
-      icon: <AlertCircle size={16} className="text-gray-500 animate-spin" />,
-      style: {
-        background: "#f9fafb", // gray-50
-        border: "1px solid #e5e7eb", // gray-200
-        color: "#374151", // gray-700
-      },
-      ariaLabel: "Loading notification",
-    },
+  
+  const duration = options.duration ?? DURATIONS[type] ?? 2500;
+  
+  // Use minimal options to ensure proper toast lifecycle handling
+  // Avoid overriding icons/styles which can interfere with auto-dismiss
+  const toastOptions = {
+    duration,
+    id: options.id, // Allow custom IDs to prevent duplicates
   };
-
-  const typeConfig = config[type] || config.info;
-
-  return toast.custom(
-    (t) => (
-      <div
-        className={`${
-          t.visible ? "animate-enter" : "animate-leave"
-        } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
-        style={typeConfig.style}
-        role="alert"
-        aria-label={typeConfig.ariaLabel}
-        aria-live="polite"
-      >
-        <div className="flex-1 w-0 p-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0 pt-0.5">{typeConfig.icon}</div>
-            <div className="ml-3 flex-1">
-              <p className="text-sm font-medium">{message}</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex border-l border-gray-200">
-          <button
-            onClick={() => toast.dismiss(t.id)}
-            className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-600 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            aria-label="Dismiss notification"
-          >
-            <XCircle size={16} />
-          </button>
-        </div>
-      </div>
-    ),
-    {
-      duration: options.duration || 4000,
-      position: options.position || "top-right",
-      ...options,
-    },
-  );
+  
+  // Map to appropriate toast method for proper lifecycle handling
+  switch (type) {
+    case "success":
+      return toast.success(message, toastOptions);
+    case "error":
+      return toast.error(message, toastOptions);
+    case "loading":
+      return toast.loading(message, { ...toastOptions, duration: Infinity });
+    case "warning":
+      // Warning uses custom styling but still with proper duration
+      return toast(message, {
+        ...toastOptions,
+        icon: " ",
+        style: {
+          background: "#fffbeb",
+          border: "1px solid #fde68a",
+          color: "#92400e",
+        },
+      });
+    case "info":
+      // Info uses custom styling but still with proper duration
+      return toast(message, {
+        ...toastOptions,
+        icon: "9",
+        style: {
+          background: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          color: "#1e40af",
+        },
+      });
+    default:
+      return toast(message, toastOptions);
+  }
 };
 
 // Enhanced toast methods with accessibility and context

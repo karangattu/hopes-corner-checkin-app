@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 let mockContext = {
   showerPickerGuest: { id: "1", name: "Alice" },
@@ -10,6 +10,8 @@ let mockContext = {
   addShowerWaitlist: vi.fn(),
   showerRecords: [],
   guests: [{ id: "1", name: "Alice" }],
+  blockedSlots: [],
+  refreshServiceSlots: vi.fn(),
 };
 
 const toastMock = vi.hoisted(() => ({
@@ -54,6 +56,7 @@ describe("ShowerBooking", () => {
     mockContext.setShowerPickerGuest = mockSetShowerPickerGuest;
     mockContext.addShowerRecord = mockAddShowerRecord;
     mockContext.addShowerWaitlist = mockAddShowerWaitlist;
+    mockContext.refreshServiceSlots = vi.fn();
     mockContext.showerPickerGuest = { id: "1", name: "Alice" };
 
     vi.clearAllMocks();
@@ -93,6 +96,45 @@ describe("ShowerBooking", () => {
     expect(screen.getByText("1/2")).toBeInTheDocument();
   });
 
+  it("counts cancelled records towards slot capacity", () => {
+    mockContext.showerRecords = [
+      {
+        id: "rec1",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+    ];
+    render(<ShowerBooking />);
+
+    // Check if slot shows count (component renders like "1/2")
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+  });
+
+  it("marks slot as full if it has 2 cancelled records", () => {
+    mockContext.showerRecords = [
+      {
+        id: "rec1",
+        guestId: "2",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+      {
+        id: "rec2",
+        guestId: "3",
+        time: "08:00",
+        date: "2025-10-09",
+        status: "cancelled",
+      },
+    ];
+    render(<ShowerBooking />);
+
+    // Check if slot shows "2/2"
+    expect(screen.getByText("2/2")).toBeInTheDocument();
+  });
+
   it("allows booking a shower slot", async () => {
     render(<ShowerBooking />);
 
@@ -124,10 +166,12 @@ describe("ShowerBooking", () => {
     fireEvent.click(bookButtons[0]);
     // Ensure addShowerRecord was invoked and component displays error
     expect(mockAddShowerRecord).toHaveBeenCalled();
-    expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Slot unavailable")).toBeInTheDocument();
+    });
   });
 
-  it("allows adding to waitlist when all slots full", () => {
+  it("allows adding to waitlist when all slots full", async () => {
     mockContext.showerRecords = [
       {
         id: "rec2",
@@ -191,8 +235,10 @@ describe("ShowerBooking", () => {
     const waitlistButton = screen.getByRole("button", { name: /waitlist/i });
     fireEvent.click(waitlistButton);
 
-    expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
-    expect(toastMock.success).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockAddShowerWaitlist).toHaveBeenCalledWith("1");
+      expect(toastMock.success).toHaveBeenCalled();
+    });
   });
 
   it("displays guest shower history", () => {
@@ -266,7 +312,7 @@ describe("ShowerBooking", () => {
     // First slot should be available (8:30), then full (8:00)
   });
 
-  it("handles waitlist error", () => {
+  it("handles waitlist error", async () => {
     mockAddShowerWaitlist.mockImplementation(() => {
       throw new Error("Waitlist full");
     });
@@ -336,7 +382,9 @@ describe("ShowerBooking", () => {
     });
     fireEvent.click(waitlistButton);
 
-    expect(screen.getByText("Waitlist full")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Waitlist full")).toBeInTheDocument();
+    });
   });
 
   describe("Book Next Available", () => {
@@ -391,7 +439,7 @@ describe("ShowerBooking", () => {
       expect(screen.queryByTestId("book-next-available-btn")).not.toBeInTheDocument();
     });
 
-    it("shows error message if booking next available slot fails", () => {
+    it("shows error message if booking next available slot fails", async () => {
       mockAddShowerRecord.mockImplementation(() => {
         throw new Error("Booking failed");
       });
@@ -401,7 +449,132 @@ describe("ShowerBooking", () => {
       const bookNextBtn = screen.getByTestId("book-next-available-btn");
       fireEvent.click(bookNextBtn);
       
-      expect(screen.getByText("Booking failed")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Booking failed")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Blocked Slots", () => {
+    it("excludes blocked slots from available selection", () => {
+      mockContext.blockedSlots = [
+        { serviceType: "shower", slotTime: "08:00", date: "2025-10-09" },
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      // The 8:00 AM slot should not be clickable/visible in slot selection
+      // We have 4 slots, blocking 1 should leave 3 visible
+      const availableSlotButtons = screen.getAllByRole("button", { name: /Available/i });
+      // Without blocked slot, we'd have all 4, with 1 blocked we should have 3
+      expect(availableSlotButtons.length).toBe(3);
+    });
+
+    it("shows blocked slots count indicator", () => {
+      mockContext.blockedSlots = [
+        { serviceType: "shower", slotTime: "08:00", date: "2025-10-09" },
+        { serviceType: "shower", slotTime: "08:30", date: "2025-10-09" },
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      expect(screen.getByText(/2 slots blocked today/i)).toBeInTheDocument();
+    });
+
+    it("excludes blocked slots from capacity calculation", () => {
+      // 4 slots, 2 guests per slot = 8 total capacity
+      // Block 1 slot = 6 total capacity
+      mockContext.blockedSlots = [
+        { serviceType: "shower", slotTime: "08:00", date: "2025-10-09" },
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      // Should show 6 remaining (3 slots x 2 = 6, not 8)
+      expect(screen.getByText(/6 spots remaining/i)).toBeInTheDocument();
+    });
+
+    it("skips blocked slots when finding next available", () => {
+      mockContext.blockedSlots = [
+        { serviceType: "shower", slotTime: "08:00", date: "2025-10-09" },
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      // Next available should be 08:30, not 08:00 (which is blocked)
+      const bookNextBtn = screen.getByTestId("book-next-available-btn");
+      expect(bookNextBtn).toHaveTextContent(/Book 8:30 AM/);
+    });
+
+    it("does not filter out blocked slots for other dates", () => {
+      mockContext.blockedSlots = [
+        { serviceType: "shower", slotTime: "08:00", date: "2025-10-10" }, // Different date
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      // All 4 slots should be available since the blocked slot is for a different date
+      const availableSlotButtons = screen.getAllByRole("button", { name: /Available/i });
+      expect(availableSlotButtons.length).toBe(4);
+    });
+
+    it("does not filter out blocked laundry slots", () => {
+      mockContext.blockedSlots = [
+        { serviceType: "laundry", slotTime: "08:00", date: "2025-10-09" }, // Laundry, not shower
+      ];
+      mockContext.showerRecords = [];
+      render(<ShowerBooking />);
+
+      // All 4 shower slots should be available since the blocked slot is for laundry
+      const availableSlotButtons = screen.getAllByRole("button", { name: /Available/i });
+      expect(availableSlotButtons.length).toBe(4);
+    });
+  });
+
+  describe("Slot Refresh Functionality", () => {
+    it("calls refreshServiceSlots with 'shower' when modal opens", () => {
+      const refreshSpy = vi.fn();
+      mockContext.refreshServiceSlots = refreshSpy;
+
+      render(<ShowerBooking />);
+
+      // Should call refreshServiceSlots immediately when guest is selected
+      expect(refreshSpy).toHaveBeenCalledWith("shower");
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call refreshServiceSlots when guest is null", () => {
+      const refreshSpy = vi.fn();
+      mockContext.refreshServiceSlots = refreshSpy;
+      mockContext.showerPickerGuest = null;
+
+      render(<ShowerBooking />);
+
+      // Should not call refreshServiceSlots when no guest is selected
+      expect(refreshSpy).not.toHaveBeenCalled();
+    });
+
+    it("calls refreshServiceSlots again when a new guest is selected", () => {
+      const refreshSpy = vi.fn();
+      mockContext.refreshServiceSlots = refreshSpy;
+
+      const { rerender } = render(<ShowerBooking />);
+      expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+      // Change the guest
+      mockContext.showerPickerGuest = { id: "2", name: "Bob" };
+      rerender(<ShowerBooking />);
+
+      // Should call refreshServiceSlots again with the new guest
+      expect(refreshSpy).toHaveBeenCalledTimes(2);
+      expect(refreshSpy).toHaveBeenCalledWith("shower");
+    });
+
+    it("handles missing refreshServiceSlots gracefully", () => {
+      mockContext.refreshServiceSlots = undefined;
+
+      // Should not throw an error when refreshServiceSlots is undefined
+      expect(() => render(<ShowerBooking />)).not.toThrow();
     });
   });
 });

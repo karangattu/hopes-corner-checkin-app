@@ -1,17 +1,18 @@
 import React, { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { todayPacificDateString, isoFromPacificDateString } from "../utils/date";
-import { ChevronLeft, ChevronRight, Save, Package } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Package, Pencil, Trash2, X } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { sanitizeString, isValidNumber } from "../utils/validation";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const LaPlazaDonations = () => {
-  const { laPlazaDonations, addLaPlazaDonation, LA_PLAZA_CATEGORIES = [] } = useAppContext();
+  const { laPlazaDonations, addLaPlazaDonation, updateLaPlazaDonation, deleteLaPlazaDonation, LA_PLAZA_CATEGORIES = [] } = useAppContext();
   const todayKey = todayPacificDateString();
   const [selectedDate, setSelectedDate] = useState(() => todayKey);
   const [form, setForm] = useState({ category: LA_PLAZA_CATEGORIES?.[0] || "Produce", weightLbs: "", notes: "" });
+  const [editingRecord, setEditingRecord] = useState(null);
 
   const selectedDayRecords = useMemo(() => {
     if (!selectedDate) return [];
@@ -35,14 +36,39 @@ const LaPlazaDonations = () => {
       if (!LA_PLAZA_CATEGORIES.includes(category)) throw new Error("Invalid category");
       if (!isValidNumber(weightLbs, { min: 0.0001 })) throw new Error("Weight must be a positive number");
 
-      // Convert Pacific date to ISO timestamp and pass the dateKey explicitly
-      const receivedAt = isoFromPacificDateString(selectedDate);
-      const dateKey = selectedDate; // This is already a Pacific date string (YYYY-MM-DD)
-      await addLaPlazaDonation({ category, weightLbs, notes, receivedAt, dateKey });
+      if (editingRecord) {
+        await updateLaPlazaDonation(editingRecord.id, { category, weightLbs, notes });
+        toast.success("Donation updated");
+        setEditingRecord(null);
+      } else {
+        // Convert Pacific date to ISO timestamp and pass the dateKey explicitly
+        const receivedAt = isoFromPacificDateString(selectedDate);
+        const dateKey = selectedDate; // This is already a Pacific date string (YYYY-MM-DD)
+        await addLaPlazaDonation({ category, weightLbs, notes, receivedAt, dateKey });
+        toast.success("Donation added");
+      }
       setForm({ category: LA_PLAZA_CATEGORIES[0] || "Produce", weightLbs: "", notes: "" });
     } catch (err) {
-      toast.error(err?.message || "Failed to add donation");
+      toast.error(err?.message || "Failed to save donation");
     }
+  };
+
+  const handleEdit = (record) => {
+    setEditingRecord(record);
+    setForm({
+      category: record.category,
+      weightLbs: record.weightLbs,
+      notes: record.notes || "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingRecord(null);
+    setForm({
+      category: LA_PLAZA_CATEGORIES[0] || "Produce",
+      weightLbs: "",
+      notes: "",
+    });
   };
 
   return (
@@ -56,12 +82,12 @@ const LaPlazaDonations = () => {
           </button>
           <div className="flex items-center gap-2">
             <div className="text-xs sm:text-sm font-medium text-gray-700">{selectedDate}</div>
-            <input 
-              aria-label="select-date" 
-              type="date" 
-              value={selectedDate} 
-              onChange={(e)=> setSelectedDate(e.target.value)} 
-              className="p-1.5 sm:p-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+            <input
+              aria-label="select-date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="p-1.5 sm:p-2 border border-gray-300 rounded-lg text-xs sm:text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
             />
           </div>
           <button aria-label="next-day" type="button" onClick={() => shiftDate(1)} className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-rose-100 text-rose-700 transition hover:bg-rose-200 hover:scale-110 active:scale-95">
@@ -74,39 +100,50 @@ const LaPlazaDonations = () => {
       <div className="space-y-2">
         <div className="text-[10px] sm:text-xs text-gray-500">Add donation for selected day</div>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-2 sm:gap-3">
-          <select 
-            value={form.category} 
-            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} 
+          <select
+            value={form.category}
+            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
           >
             {LA_PLAZA_CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <input 
-            type="number" 
-            min="0" 
-            step="0.01" 
-            placeholder="Weight (lbs)" 
-            value={form.weightLbs} 
-            onChange={(e)=> setForm((f)=> ({ ...f, weightLbs: e.target.value }))} 
-            className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Weight (lbs)"
+            value={form.weightLbs}
+            onChange={(e) => setForm((f) => ({ ...f, weightLbs: e.target.value }))}
+            className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
           />
           <div className="flex gap-2">
-            <input 
-              placeholder="Notes (optional)" 
-              value={form.notes} 
-              onChange={(e)=> setForm((f)=> ({ ...f, notes: e.target.value }))} 
-              className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 flex-1 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition" 
+            <input
+              placeholder="Notes (optional)"
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              className="p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg text-sm font-medium placeholder-gray-400 flex-1 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
             />
-            <button 
-              className="px-3 sm:px-4 py-2.5 sm:py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold flex items-center gap-1.5 sm:gap-2 shadow-md transition active:scale-95" 
+            <button
+              className={`px-3 sm:px-4 py-2.5 sm:py-3 text-white rounded-lg font-semibold flex items-center gap-1.5 sm:gap-2 shadow-md transition active:scale-95 ${editingRecord ? 'bg-blue-600 hover:bg-blue-700' : 'bg-rose-600 hover:bg-rose-700'}`}
               type="submit"
             >
-              <Save size={16} className="sm:hidden" /> 
+              <Save size={16} className="sm:hidden" />
               <Save size={18} className="hidden sm:block" />
-              <span className="text-xs sm:text-sm">Save</span>
+              <span className="text-xs sm:text-sm">{editingRecord ? "Update" : "Save"}</span>
             </button>
+            {editingRecord && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold flex items-center gap-1.5 sm:gap-2 shadow-sm transition active:scale-95"
+              >
+                <X size={16} className="sm:hidden" />
+                <X size={18} className="hidden sm:block" />
+                <span className="text-xs sm:text-sm text-gray-700">Cancel</span>
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -129,8 +166,29 @@ const LaPlazaDonations = () => {
                   {r.notes && <div className="text-[10px] sm:text-xs text-gray-500 truncate">{r.notes}</div>}
                 </div>
               </div>
-              <div className="text-xs sm:text-sm font-bold text-rose-600 flex-shrink-0 ml-2">
-                {Number(r.weightLbs || 0).toFixed(2)} lbs
+              <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                <div className="text-xs sm:text-sm font-bold text-rose-600">
+                  {Number(r.weightLbs || 0).toFixed(2)} lbs
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleEdit(r)}
+                  className="p-1 text-gray-400 hover:text-blue-600 transition"
+                  title="Edit"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm("Delete this donation?")) return;
+                    deleteLaPlazaDonation(r.id);
+                  }}
+                  className="p-1 text-gray-400 hover:text-red-600 transition"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </li>
           ))}

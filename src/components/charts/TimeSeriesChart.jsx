@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -98,42 +98,45 @@ const TimeSeriesChart = ({
     };
   }, [chartData, series, showTrend]);
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useCallback(
+    ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
 
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {formatDateForDisplay(label, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        <div className="space-y-1">
-          {payload.map((entry, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between gap-4"
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-sm text-gray-700">{entry.name}:</span>
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {formatDateForDisplay(label, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+          <div className="space-y-1">
+            {payload.map((entry, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-sm text-gray-700">{entry.name}:</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {typeof entry.value === "number"
+                    ? entry.value.toLocaleString()
+                    : entry.value}
+                </span>
               </div>
-              <span className="text-sm font-semibold text-gray-900">
-                {typeof entry.value === "number"
-                  ? entry.value.toLocaleString()
-                  : entry.value}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    []
+  );
 
   if (!chartData.length) {
     return (

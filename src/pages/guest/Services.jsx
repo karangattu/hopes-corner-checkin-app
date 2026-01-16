@@ -21,8 +21,10 @@ import {
   ChevronRight,
   Truck,
   Edit3,
+  BrushCleaning,
   RotateCcw,
   X,
+  XCircle,
   History,
   BarChart3,
   Users,
@@ -33,32 +35,25 @@ import {
   HeartHandshake,
   SquarePlus,
   Scissors,
-  Gift,
-  Shirt,
   Bed,
-  Backpack,
   Bike,
-  TentTree,
-  Footprints,
-  TrendingUp,
   Download,
   Trash2,
   FileText,
-  ArrowRight,
-  Package,
-  Filter,
-  ArrowUpDown,
-  MessageSquare,
+  AlertTriangle,
 } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
 import { useAuth } from "../../context/useAuth";
+import { useGuestsStore } from "../../stores/useGuestsStore";
 import ShowerBooking from "../../components/ShowerBooking";
+import CompactShowerCard from "../../components/CompactShowerCard";
 import LaundryBooking from "../../components/LaundryBooking";
 import StickyQuickActions from "../../components/StickyQuickActions";
 import Selectize from "../../components/Selectize";
 import DonutCardRecharts from "../../components/charts/DonutCardRecharts";
 import TrendLineRecharts from "../../components/charts/TrendLineRecharts";
 import LaundryKanban from "../../components/lanes/LaundryKanban";
+import OrphanedLaundryTracker from "../../components/OrphanedLaundryTracker";
 import { WaiverBadge } from "../../components/ui/WaiverBadge";
 import Donations from "../../components/Donations";
 import LaPlazaDonations from "../../components/LaPlazaDonations";
@@ -74,6 +69,7 @@ import {
   pacificDateStringFrom,
   isoFromPacificDateString,
 } from "../../utils/date";
+import { getMealServiceStatus } from "../../utils/mealServiceTime";
 import {
   getBicycleServiceCount,
   isBicycleStatusCountable,
@@ -91,6 +87,9 @@ import OverviewSection from "./services/sections/OverviewSection";
 import TimelineSection from "./services/sections/TimelineSection";
 import CompactShowerList from "../../components/CompactShowerList";
 import CompactLaundryList from "../../components/CompactLaundryList";
+import ShowerDetailModal from "../../components/ShowerDetailModal";
+import SlotBlockManager from "../../components/SlotBlockManager";
+import SectionRefreshButton from "../../components/SectionRefreshButton";
 
 const pacificWeekdayFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Los_Angeles",
@@ -112,11 +111,10 @@ const getPacificWeekdayLabel = (pacificDateStr) => {
 };
 
 const Services = () => {
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const {
     getTodayMetrics,
     getTodayLaundryWithGuests,
-    getPreviousServiceDay,
-    getLaundryForDateWithGuests,
     mealRecords,
     rvMealRecords,
     addRvMealRecord,
@@ -126,11 +124,19 @@ const Services = () => {
     unitedEffortMealRecords,
     extraMealRecords,
     addExtraMealRecord,
+    deleteExtraMealRecord,
     dayWorkerMealRecords,
     removeMealAttendanceRecord,
     addDayWorkerMealRecord,
+    deleteDayWorkerMealRecord,
     lunchBagRecords,
     addLunchBagRecord,
+    deleteLunchBagRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
+    addAutomaticMealEntries,
+    hasAutomaticMealsForDay,
     laundryRecords,
     showerRecords,
     haircutRecords,
@@ -147,12 +153,12 @@ const Services = () => {
     undoAction,
     clearActionHistory,
     allShowerSlots,
-    allLaundrySlots,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     cancelLaundryRecord,
-    rescheduleLaundry,
+    cancelMultipleLaundry,
     canGiveItem,
     getLastGivenItem,
     giveItem,
@@ -162,13 +168,207 @@ const Services = () => {
     deleteBicycleRecord,
     setBicycleStatus,
     moveBicycleRecord,
-    settings,
     BICYCLE_REPAIR_STATUS,
+    activeServiceSection: activeSection,
+    setActiveServiceSection: setActiveSection,
   } = useAppContext();
   const { user } = useAuth();
   const quickActionRole = user?.role ?? "staff";
 
-  const [activeSection, setActiveSection] = useState("overview");
+  const handleEndShowerDay = async () => {
+    const today = todayPacificDateString();
+    const pendingShowers = showerRecords.filter(
+      (r) =>
+        pacificDateStringFrom(r.date) === today &&
+        r.status !== "done"
+    );
+
+    if (pendingShowers.length === 0) {
+      toast.error("No pending showers to cancel.");
+      return;
+    }
+
+    if (
+      window.confirm(
+        `Are you sure you want to end the service day? This will cancel all ${pendingShowers.length} remaining showers (booked, awaiting, and waitlisted).`,
+      )
+    ) {
+      const success = await cancelMultipleShowers(
+        pendingShowers.map((r) => r.id),
+      );
+      if (success) {
+        toast.success(`Cancelled ${pendingShowers.length} showers.`);
+      }
+    }
+  };
+
+  const handleEndLaundryDay = async () => {
+    const today = todayPacificDateString();
+    const pendingLaundry = laundryRecords.filter(
+      (r) =>
+        pacificDateStringFrom(r.date) === today &&
+        r.laundryType === "onsite" &&
+        r.status === LAUNDRY_STATUS.WAITING,
+    );
+
+    if (pendingLaundry.length === 0) {
+      toast.error("No pending on-site laundry to cancel.");
+      return;
+    }
+
+    if (
+      window.confirm(
+        `Are you sure you want to end the service day? This will cancel all ${pendingLaundry.length} pending on-site laundry loads.`,
+      )
+    ) {
+      const success = await cancelMultipleLaundry(
+        pendingLaundry.map((r) => r.id),
+      );
+      if (success) {
+        toast.success(`Cancelled ${pendingLaundry.length} laundry loads.`);
+      }
+    }
+  };
+
+  // Auto-add preset meal entries when meal service ends
+  const [autoMealsAdded, setAutoMealsAdded] = useState(() => {
+    // Check if we already added auto meals for today
+    const stored = localStorage.getItem('hopes-corner-auto-meals-date');
+    return stored === todayPacificDateString();
+  });
+
+  useEffect(() => {
+    // Only run this effect if we haven't already added auto meals today
+    if (autoMealsAdded) return;
+
+    const today = todayPacificDateString();
+    const dayOfWeek = new Date(today + 'T12:00:00').getDay();
+
+    // Check if today has automatic meal entries configured
+    if (!hasAutomaticMealsForDay || !hasAutomaticMealsForDay(dayOfWeek)) return;
+
+    const checkAndTrigger = () => {
+      const status = getMealServiceStatus();
+
+      // If meal service has ended and we haven't added entries yet
+      if (status.type === 'ended' && !autoMealsAdded) {
+        // Mark as added immediately to prevent double-triggering
+        setAutoMealsAdded(true);
+        localStorage.setItem('hopes-corner-auto-meals-date', today);
+
+        // Add the automatic meal entries
+        addAutomaticMealEntries(today)
+          .then((result) => {
+            if (result.success) {
+              toast.success(`✅ Automatic meal entries added: ${result.summary}`);
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to add automatic meal entries:', error);
+          });
+      }
+    };
+
+    // Check immediately
+    checkAndTrigger();
+
+    // Also check periodically (every minute) in case the user leaves the page open
+    const interval = setInterval(checkAndTrigger, 60000);
+
+    return () => clearInterval(interval);
+  }, [autoMealsAdded, addAutomaticMealEntries, hasAutomaticMealsForDay]);
+
+  // Handle Thursday retroactive meals on Friday
+  useEffect(() => {
+    const today = todayPacificDateString();
+    const dateObj = new Date(today + 'T12:00:00');
+    const dayOfWeek = dateObj.getDay();
+
+    // Only process on Friday (day 5)
+    if (dayOfWeek !== 5) return;
+
+    // Check if we already tried to add Thursday's meals today
+    const stored = localStorage.getItem('hopes-corner-thursday-meals-added-check');
+    if (stored === today) return;
+
+    // Calculate Thursday's date
+    const thursdayDate = new Date(dateObj);
+    thursdayDate.setDate(thursdayDate.getDate() - 1);
+    const thursdayStr = pacificDateStringFrom(thursdayDate);
+
+    // Mark as checked today immediately to prevent race conditions
+    localStorage.setItem('hopes-corner-thursday-meals-added-check', today);
+
+    // Call addAutomaticMealEntries for Thursday
+    addAutomaticMealEntries(thursdayStr)
+      .then((result) => {
+        if (result.success && result.added > 0) {
+          toast.success(`✅ Retroactively added Thursday's meal entries: ${result.summary}`);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to add retroactive Thursday meal entries:', error);
+      });
+  }, [addAutomaticMealEntries]);
+
+  const todayLaundryWithGuests = getTodayLaundryWithGuests();
+
+  // Create set of guest IDs that have laundry today for filtering showers
+  const laundryGuestIdsSet = new Set(
+    (todayLaundryWithGuests || []).map((l) => l.guestId),
+  );
+
+  const parseTimeToMinutes = useCallback((t) => {
+    if (!t) return Number.POSITIVE_INFINITY;
+    const [h, m] = String(t).split(":");
+    const hh = parseInt(h, 10);
+    const mm = parseInt(m, 10);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return Number.POSITIVE_INFINITY;
+    return hh * 60 + mm;
+  }, []);
+
+  const getGuestNameDetails = useCallback(
+    (guestId) => {
+      // Robust lookup: try primary UUID first (string-safe), then fall back to human-readable external_id
+      const guest =
+        guests.find((g) => String(g.id) === String(guestId)) ||
+        guests.find((g) => String(g.guestId) === String(guestId)) ||
+        null;
+      const fallback = "Unknown Guest";
+      const isOrphaned = !guest && guestId; // Has guestId but no matching guest
+      const legalName =
+        guest?.name ||
+        `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
+        fallback;
+      const preferredName = (guest?.preferredName || "").trim();
+      const hasPreferred =
+        Boolean(preferredName) &&
+        preferredName.toLowerCase() !== legalName.toLowerCase();
+      const displayName = hasPreferred
+        ? `${preferredName} (${legalName})`
+        : legalName;
+
+      // Log orphaned records for debugging
+      if (isOrphaned) {
+        console.warn(
+          '[DATA INTEGRITY] Orphaned record detected - guest not found:',
+          { guestId, message: 'This record references a guest that no longer exists' }
+        );
+      }
+
+      return {
+        guest,
+        legalName,
+        preferredName,
+        hasPreferred,
+        displayName,
+        sortKey: legalName.toLowerCase(),
+        isOrphaned, // Flag to identify orphaned records in UI
+        originalGuestId: guestId, // Expose for debugging
+      };
+    },
+    [guests],
+  );
 
   // Report generation state - only compute expensive metrics when explicitly requested
   const [reportsGenerated, setReportsGenerated] = useState(false);
@@ -183,8 +383,10 @@ const Services = () => {
   const [showCompletedTimeline, setShowCompletedTimeline] = useState(false);
 
   // View mode state for compact vs detailed views
-  const [showerViewMode, setShowerViewMode] = useState("detailed"); // "detailed" or "compact"
+  const [showerViewMode, setShowerViewMode] = useState("compact"); // "detailed" or "compact"
   const [showerTab, setShowerTab] = useState("active"); // "active", "completed", "waitlist"
+  const [selectedShowerRecord, setSelectedShowerRecord] = useState(null); // For modal detail view
+  const [expandedCompletedShowers, setExpandedCompletedShowers] = useState(false); // Collapse/expand completed showers section
 
   const [editingBagNumber, setEditingBagNumber] = useState(null);
   const [newBagNumber, setNewBagNumber] = useState("");
@@ -205,6 +407,7 @@ const Services = () => {
   const [isAddingLunchBags, setIsAddingLunchBags] = useState(false);
   const [dayWorkerMealCount, setDayWorkerMealCount] = useState("");
   const [isAddingDayWorkerMeals, setIsAddingDayWorkerMeals] = useState(false);
+  const [mealTypeTab, setMealTypeTab] = useState("guest");
   const today = todayPacificDateString();
   const [mealsDate, setMealsDate] = useState(today);
 
@@ -231,6 +434,24 @@ const Services = () => {
       return null;
     }
   }, []);
+
+  // Optimized lookup maps for quick record retrieval - prevents slow .find() operations
+  const showerRecordsMap = useMemo(() => {
+    const map = new Map();
+    (showerRecords || []).forEach(r => map.set(r.id, r));
+    return map;
+  }, [showerRecords]);
+
+  // Optimized handler for shower guest click - uses map lookup instead of .find()
+  const handleShowerGuestClickOptimized = useCallback((guestId, recordId) => {
+    const record = showerRecordsMap.get(recordId);
+    if (record) {
+      // Use startTransition for non-urgent UI updates to improve responsiveness
+      startTransition(() => {
+        setSelectedShowerRecord(record);
+      });
+    }
+  }, [showerRecordsMap]);
 
   // Scroll detection for quick actions visibility
   useEffect(() => {
@@ -273,6 +494,54 @@ const Services = () => {
     };
   }, []);
 
+  // Auto-refresh service slots every 2 minutes when page is in focus
+  useEffect(() => {
+    let refreshInterval;
+
+    const startAutoRefresh = () => {
+      // Set up interval for every 2 minutes
+      refreshInterval = setInterval(() => {
+        if (navigator.onLine) {
+          // Trigger sync by dispatching a storage event that SyncContext listens for
+          const now = Date.now().toString();
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: "hopes-corner-sync-trigger",
+              newValue: now,
+            })
+          );
+        }
+      }, 2 * 60 * 1000); // 2 minutes
+    };
+
+    const stopAutoRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else {
+        startAutoRefresh();
+      }
+    };
+
+    // Start auto-refresh if page is visible
+    if (!document.hidden) {
+      startAutoRefresh();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopAutoRefresh();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   const [showerLaundryFilter, setShowerLaundryFilter] = useState(
     () => savedFilters?.showerLaundryFilter ?? "any",
   );
@@ -281,39 +550,20 @@ const Services = () => {
   );
   const [expandedShowerRows, setExpandedShowerRows] = useState({});
 
-  const [laundryTypeFilter, setLaundryTypeFilter] = useState(
-    () => savedFilters?.laundryTypeFilter ?? "any",
-  );
-  const [laundryStatusFilter, setLaundryStatusFilter] = useState(
-    () => savedFilters?.laundryStatusFilter ?? "any",
-  );
-  const [laundrySort, setLaundrySort] = useState(
-    () => savedFilters?.laundrySort ?? "time-asc",
-  );
-  const [showCompletedLaundry, setShowCompletedLaundry] = useState(() =>
-    Boolean(savedFilters?.showCompletedLaundry),
-  );
   const [expandedCompletedBicycleCards, setExpandedCompletedBicycleCards] =
     useState({});
   const [bicycleViewMode, setBicycleViewMode] = useState(
     () => savedFilters?.bicycleViewMode ?? "kanban",
   );
   const [laundryViewMode, setLaundryViewMode] = useState(
-    () => savedFilters?.laundryViewMode ?? "list",
+    () => savedFilters?.laundryViewMode === "list" ? "kanban" : (savedFilters?.laundryViewMode ?? "kanban"),
   );
-  const [showPreviousServiceDay, setShowPreviousServiceDay] = useState(false);
-  
+
   // Laundry time-travel feature: allow staff to view and manage laundry from past dates
   const [laundryViewDate, setLaundryViewDate] = useState(today);
 
-  // Calculate previous service day laundry data
-  const previousServiceDay = getPreviousServiceDay();
-  const previousServiceDayLaundry = useMemo(() => {
-    if (!showPreviousServiceDay) return [];
-    return getLaundryForDateWithGuests(previousServiceDay).filter(
-      (r) => r.laundryType === "offsite"
-    );
-  }, [showPreviousServiceDay, previousServiceDay, getLaundryForDateWithGuests]);
+  // Bicycle time-travel feature: allow staff to view and manage bicycle repairs from past dates
+  const [bicycleViewDate, setBicycleViewDate] = useState(today);
 
   // Format date for display
   const formatServiceDayLabel = (dateString) => {
@@ -356,15 +606,76 @@ const Services = () => {
     });
   }, [today]);
 
+  // Shower time-travel feature: allow staff to view and manage showers from past dates
+  const [showerViewDate, setShowerViewDate] = useState(today);
+
+  // Helper to go to previous shower date (go back 1 day at a time through history)
+  const goToPreviousShowerDate = useCallback(() => {
+    setShowerViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() - 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      return `${newYear}-${newMonth}-${newDay}`;
+    });
+  }, []);
+
+  // Helper to go to next shower date (go forward 1 day at a time, but not past today)
+  const goToNextShowerDate = useCallback(() => {
+    setShowerViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      const newDateString = `${newYear}-${newMonth}-${newDay}`;
+      // Don't go past today
+      if (newDateString > today) {
+        return today;
+      }
+      return newDateString;
+    });
+  }, [today]);
+
+  // Helper to go to previous bicycle date (go back 1 day at a time through history)
+  const goToPreviousBicycleDate = useCallback(() => {
+    setBicycleViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() - 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      return `${newYear}-${newMonth}-${newDay}`;
+    });
+  }, []);
+
+  // Helper to go to next bicycle date (go forward 1 day at a time, but not past today)
+  const goToNextBicycleDate = useCallback(() => {
+    setBicycleViewDate((prevDate) => {
+      const [year, month, day] = prevDate.split("-").map(Number);
+      const currentDate = new Date(year, month - 1, day);
+      currentDate.setDate(currentDate.getDate() + 1);
+      const newYear = currentDate.getFullYear();
+      const newMonth = String(currentDate.getMonth() + 1).padStart(2, "0");
+      const newDay = String(currentDate.getDate()).padStart(2, "0");
+      const newDateString = `${newYear}-${newMonth}-${newDay}`;
+      // Don't go past today
+      if (newDateString > today) {
+        return today;
+      }
+      return newDateString;
+    });
+  }, [today]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const payload = {
       showerLaundryFilter,
       showerSort,
-      laundryTypeFilter,
-      laundryStatusFilter,
-      laundrySort,
-      showCompletedLaundry,
       bicycleViewMode,
       laundryViewMode,
     };
@@ -376,13 +687,23 @@ const Services = () => {
   }, [
     showerLaundryFilter,
     showerSort,
-    laundryTypeFilter,
-    laundryStatusFilter,
-    laundrySort,
-    showCompletedLaundry,
     bicycleViewMode,
     laundryViewMode,
   ]);
+
+  const parseLaundryStartToMinutes = useCallback(
+    (range) => {
+      if (!range) return Number.POSITIVE_INFINITY;
+      const [start] = String(range).split(" - ");
+      return parseTimeToMinutes(start);
+    },
+    [parseTimeToMinutes],
+  );
+
+  const getGuestName = useCallback(
+    (guestId) => getGuestNameDetails(guestId).displayName,
+    [getGuestNameDetails],
+  );
 
   const todayMetrics = getTodayMetrics();
 
@@ -397,7 +718,7 @@ const Services = () => {
   );
 
   const todayShowerRecords = showerRecords.filter(
-    (record) => pacificDateStringFrom(record.date) === todayShorthand,
+    (record) => pacificDateStringFrom(record.date) === showerViewDate,
   );
   const todayWaitlisted = todayShowerRecords
     .filter((r) => {
@@ -423,26 +744,6 @@ const Services = () => {
     });
   const todayBookedShowers = todayShowerRecords.filter(
     (r) => r.status !== "waitlisted",
-  );
-
-  const todayLaundryWithGuests = getTodayLaundryWithGuests();
-
-  const parseTimeToMinutes = useCallback((t) => {
-    if (!t) return Number.POSITIVE_INFINITY;
-    const [h, m] = String(t).split(":");
-    const hh = parseInt(h, 10);
-    const mm = parseInt(m, 10);
-    if (Number.isNaN(hh) || Number.isNaN(mm)) return Number.POSITIVE_INFINITY;
-    return hh * 60 + mm;
-  }, []);
-
-  const parseLaundryStartToMinutes = useCallback(
-    (range) => {
-      if (!range) return Number.POSITIVE_INFINITY;
-      const [start] = String(range).split(" - ");
-      return parseTimeToMinutes(start);
-    },
-    [parseTimeToMinutes],
   );
 
   const formatTimeLabel = useCallback((timeStr) => {
@@ -479,40 +780,6 @@ const Services = () => {
     [formatTimeLabel],
   );
 
-  const getGuestNameDetails = useCallback(
-    (guestId) => {
-      const guest = guests.find((g) => g.id === guestId) || null;
-      const fallback = "Unknown Guest";
-      const legalName =
-        guest?.name ||
-        `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||
-        fallback;
-      const preferredName = (guest?.preferredName || "").trim();
-      const hasPreferred =
-        Boolean(preferredName) &&
-        preferredName.toLowerCase() !== legalName.toLowerCase();
-      const primaryName = hasPreferred ? preferredName : legalName;
-      const displayName = hasPreferred
-        ? `${preferredName} (${legalName})`
-        : legalName;
-      return {
-        guest,
-        legalName,
-        preferredName,
-        hasPreferred,
-        primaryName,
-        displayName,
-        sortKey: legalName.toLowerCase(),
-      };
-    },
-    [guests],
-  );
-
-  const getGuestName = useCallback(
-    (guestId) => getGuestNameDetails(guestId).displayName,
-    [getGuestNameDetails],
-  );
-
   const getShowerStatusInfo = useCallback((status) => {
     switch (status) {
       case "done":
@@ -540,13 +807,21 @@ const Services = () => {
           chipClass: "bg-amber-50 text-amber-700 border border-amber-200",
           badgeClass: "bg-amber-100 text-amber-700 border border-amber-200",
         };
+      case "cancelled":
+        return {
+          label: "Cancelled",
+          icon: XCircle,
+          iconClass: "text-red-500",
+          chipClass: "bg-red-50 text-red-700 border border-red-200",
+          badgeClass: "bg-red-100 text-red-700 border border-red-200",
+        };
       default:
         return {
           label: "Scheduled",
-          icon: ShowerHead,
-          iconClass: "text-slate-500",
-          chipClass: "bg-slate-50 text-slate-700 border border-slate-200",
-          badgeClass: "bg-slate-100 text-slate-700 border border-slate-200",
+          icon: CalendarClock,
+          iconClass: "text-blue-500",
+          chipClass: "bg-blue-50 text-blue-700 border border-blue-200",
+          badgeClass: "bg-blue-100 text-blue-700 border border-blue-200",
         };
     }
   }, []);
@@ -639,21 +914,20 @@ const Services = () => {
     [LAUNDRY_STATUS],
   );
 
-  const laundryGuestIdsSet = new Set(
-    (todayLaundryWithGuests || []).map((l) => l.guestId),
-  );
-  const filteredShowers = [...(todayBookedShowers || [])]
-    .filter((r) => {
-      if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
-        return false;
-      if (
-        showerLaundryFilter === "without" &&
-        laundryGuestIdsSet.has(r.guestId)
-      )
-        return false;
-      return true;
-    })
-    .sort((a, b) => {
+  const filteredShowers = [...(todayBookedShowers || [])].filter((r) => {
+    if (showerLaundryFilter === "with" && !laundryGuestIdsSet.has(r.guestId))
+      return false;
+    if (
+      showerLaundryFilter === "without" &&
+      laundryGuestIdsSet.has(r.guestId)
+    )
+      return false;
+    return true;
+  });
+
+  const sortShowersForDisplay = (records) => {
+    const list = [...records];
+    list.sort((a, b) => {
       if (showerSort === "name") {
         const an = getGuestNameDetails(a.guestId).sortKey;
         const bn = getGuestNameDetails(b.guestId).sortKey;
@@ -670,55 +944,28 @@ const Services = () => {
         return parseTimeToMinutes(b.time) - parseTimeToMinutes(a.time);
       return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
     });
-
-  const statusOrder = {
-    [LAUNDRY_STATUS?.WAITING]: 0,
-    [LAUNDRY_STATUS?.WASHER]: 1,
-    [LAUNDRY_STATUS?.DRYER]: 2,
-    [LAUNDRY_STATUS?.DONE]: 3,
-    [LAUNDRY_STATUS?.PICKED_UP]: 4,
-    [LAUNDRY_STATUS?.PENDING]: 0,
-    [LAUNDRY_STATUS?.TRANSPORTED]: 1,
-    [LAUNDRY_STATUS?.RETURNED]: 2,
-    [LAUNDRY_STATUS?.OFFSITE_PICKED_UP]: 3,
+    return list;
   };
+
   const filteredLaundry = [...(todayLaundryWithGuests || [])]
-    .filter((r) => {
-      if (laundryTypeFilter !== "any" && r.laundryType !== laundryTypeFilter)
-        return false;
-      if (laundryStatusFilter !== "any" && r.status !== laundryStatusFilter)
-        return false;
-      return true;
-    })
     .sort((a, b) => {
-      if (laundrySort === "name")
-        return (a.guestSortKey || "").localeCompare(b.guestSortKey || "");
-      if (laundrySort === "status") {
-        const ar = statusOrder[a.status] ?? 99;
-        const br = statusOrder[b.status] ?? 99;
-        const diff = ar - br;
-        if (diff !== 0) return diff;
-        return (
-          parseLaundryStartToMinutes(a.time) -
-          parseLaundryStartToMinutes(b.time)
-        );
-      }
-      if (laundrySort === "time-desc")
-        return (
-          parseLaundryStartToMinutes(b.time) -
-          parseLaundryStartToMinutes(a.time)
-        );
       return (
         parseLaundryStartToMinutes(a.time) - parseLaundryStartToMinutes(b.time)
       );
     });
 
-  const activeShowers = filteredShowers.filter(
-    (record) => record.status !== "done",
+  const activeShowers = sortShowersForDisplay(
+    filteredShowers.filter((record) => record.status !== "done"),
   );
-  const completedShowers = filteredShowers.filter(
-    (record) => record.status === "done",
-  );
+
+  // Sort completed showers by when they were actually completed (lastUpdated timestamp)
+  // This maintains the order they were completed in the default view
+  const completedShowers = [...filteredShowers.filter((record) => record.status === "done")]
+    .sort((a, b) => {
+      const aTime = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
+      const bTime = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
+      return aTime - bTime;
+    });
 
   const completedLaundryStatuses = useMemo(
     () =>
@@ -903,12 +1150,6 @@ const Services = () => {
     true,
   );
   const waitlistTrail = useStagger((todayWaitlisted || []).length, true);
-  const activeLaundryTrail = useStagger((activeLaundry || []).length, true);
-  const completedLaundryTrail = useStagger(
-    (completedLaundry || []).length,
-    true,
-  );
-
   const timelineEvents = useMemo(() => {
     const events = [];
 
@@ -1059,13 +1300,13 @@ const Services = () => {
     (record) => pacificDateStringFrom(record.date || "") === selectedDate,
   );
 
-  const todayBicycleRepairs = (bicycleRecords || []).filter(
-    (r) => pacificDateStringFrom(r.date || "") === today,
+  const selectedDateBicycleRepairs = (bicycleRecords || []).filter(
+    (r) => pacificDateStringFrom(r.date || "") === bicycleViewDate,
   );
 
   const renderBicycleRepairsSection = () => (
     <BicycleRepairsSection
-      todayBicycleRepairs={todayBicycleRepairs}
+      bicycleRepairs={selectedDateBicycleRepairs}
       bicycleViewMode={bicycleViewMode}
       onChangeViewMode={setBicycleViewMode}
       guests={guests}
@@ -1077,6 +1318,11 @@ const Services = () => {
       onToggleCompletedCard={toggleCompletedBicycleCard}
       BICYCLE_REPAIR_STATUS={BICYCLE_REPAIR_STATUS}
       getGuestNameDetails={getGuestNameDetails}
+      bicycleViewDate={bicycleViewDate}
+      onPreviousDate={goToPreviousBicycleDate}
+      onNextDate={goToNextBicycleDate}
+      formatServiceDayLabel={formatServiceDayLabel}
+      today={today}
     />
   );
 
@@ -1182,15 +1428,6 @@ const Services = () => {
     if (success) {
       const info = getLaundryStatusInfo(newStatus);
       enhancedToast.success(`Laundry status updated to ${info.label}`);
-    }
-  };
-
-  const handleBagNumberUpdate = async (recordId, bagNumber) => {
-    const success = await updateLaundryBagNumber(recordId, bagNumber);
-    if (success) {
-      setEditingBagNumber(null);
-      setNewBagNumber("");
-      enhancedToast.success("Bag number updated");
     }
   };
 
@@ -1442,11 +1679,10 @@ const Services = () => {
               );
             }
           }}
-          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${
-            isCompleted
-              ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300"
-              : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300"
-          }`}
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border font-medium text-sm transition-all ${isCompleted
+            ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300"
+            : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-300"
+            }`}
           title={isCompleted ? "Reopen shower" : "Mark as done"}
         >
           {isCompleted ? (
@@ -1636,6 +1872,9 @@ const Services = () => {
       handleBagNumberEdit={handleBagNumberEdit}
       editingBagNumber={editingBagNumber}
       newBagNumber={newBagNumber}
+      isAdmin={user?.role === "admin" || user?.role === "board" || user?.role === "staff"}
+      onEndShowerDay={handleEndShowerDay}
+      onEndLaundryDay={handleEndLaundryDay}
     />
   );
 
@@ -1651,7 +1890,7 @@ const Services = () => {
       completedLaundry={completedLaundry}
       todayWaitlisted={todayWaitlisted}
       todayLaundryWithGuests={todayLaundryWithGuests}
-      todayBicycleRepairs={todayBicycleRepairs}
+      todayBicycleRepairs={selectedDateBicycleRepairs}
       timelineEvents={timelineEvents}
       selectedGuestMealRecords={selectedGuestMealRecords}
       setActiveSection={setActiveSection}
@@ -1659,6 +1898,9 @@ const Services = () => {
       isGeneratingReports={isGeneratingReports}
       onGenerateReports={handleGenerateReports}
       onRefreshReports={handleRefreshReports}
+      onEndShowerDay={handleEndShowerDay}
+      onEndLaundryDay={handleEndLaundryDay}
+      isAdmin={user?.role === "admin" || user?.role === "board" || user?.role === "staff"}
     />
   );
 
@@ -1819,7 +2061,7 @@ const Services = () => {
     mealReportEnd,
     mealReportStart,
     mealReportTypes,
-  shelterMealRecords,
+    shelterMealRecords,
     rvMealRecords,
     toCountValue,
     unitedEffortMealRecords,
@@ -1872,9 +2114,9 @@ const Services = () => {
     );
     const canDownloadMealReport = Boolean(
       mealReportStart &&
-        mealReportEnd &&
-        !mealReportRangeInvalid &&
-        activeMealTypeCount > 0,
+      mealReportEnd &&
+      !mealReportRangeInvalid &&
+      activeMealTypeCount > 0,
     );
 
     return (
@@ -1890,6 +2132,36 @@ const Services = () => {
             or share with partners.
           </p>
         </div>
+
+        {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-red-900 flex items-center gap-2">
+                <XCircle size={18} className="text-red-600" /> End Service Day
+              </h3>
+              <p className="text-sm text-red-700">
+                Bulk cancel all remaining booked/waiting showers and waiting laundry for today.
+                This is typically done at the end of the service day to clear the queues.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleEndShowerDay}
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors border border-red-200"
+              >
+                <ShowerHead size={18} />
+                End Shower Day
+              </button>
+              <button
+                onClick={handleEndLaundryDay}
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors border border-red-200"
+              >
+                <WashingMachine size={18} />
+                End Laundry Day
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 space-y-6">
           <div className="flex flex-col gap-2">
@@ -1946,11 +2218,10 @@ const Services = () => {
                 return (
                   <label
                     key={option.id}
-                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
-                      isActive
-                        ? "border-blue-200 bg-blue-50/80 shadow-sm"
-                        : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
-                    }`}
+                    className={`flex items-start gap-3 rounded-xl border px-4 py-3 transition-all ${isActive
+                      ? "border-blue-200 bg-blue-50/80 shadow-sm"
+                      : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/60"
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -1988,19 +2259,19 @@ const Services = () => {
               <button
                 type="button"
                 onClick={resetMealReportTypes}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:border-blue-200 hover:text-blue-600"
+                aria-label="Reset defaults"
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:border-blue-200 hover:text-blue-600"
               >
-                <RotateCcw size={12} /> Reset defaults
+                <BrushCleaning size={16} /> Reset defaults
               </button>
               <button
                 type="button"
                 onClick={handleDownloadMealReport}
                 disabled={!canDownloadMealReport}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${
-                  canDownloadMealReport
-                    ? "bg-blue-600 hover:bg-blue-500"
-                    : "cursor-not-allowed bg-gray-300"
-                }`}
+                className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition ${canDownloadMealReport
+                  ? "bg-blue-600 hover:bg-blue-500"
+                  : "cursor-not-allowed bg-gray-300"
+                  }`}
               >
                 <Download size={12} /> Download CSV
               </button>
@@ -2016,6 +2287,30 @@ const Services = () => {
       ...selectedGuestMealRecords,
       ...selectedGuestExtraMealRecords,
     ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Identify new guests (first meal ever) for the selected day
+    const newGuestIds = new Set();
+    const uniqueGuestIds = new Set();
+
+    selectedGuestMealRecords.forEach((record) => {
+      if (record.guestId) {
+        uniqueGuestIds.add(record.guestId);
+
+        // Check if this guest has any meal records before the selected date
+        const hasPreviousMeals = mealRecords.some((r) =>
+          r.guestId === record.guestId &&
+          pacificDateStringFrom(r.date) < selectedDate
+        );
+
+        if (!hasPreviousMeals) {
+          newGuestIds.add(record.guestId);
+        }
+      }
+    });
+
+    const totalUniqueGuests = uniqueGuestIds.size;
+    const totalNewGuests = newGuestIds.size;
+
     const totalGuestMeals = mergedGuestMeals.reduce(
       (sum, record) => sum + record.count,
       0,
@@ -2155,10 +2450,26 @@ const Services = () => {
           </div>
         </div>
 
+        {/* Auto-entries status indicator */}
+        {hasAutomaticMealsForDay && hasAutomaticMealsForDay(new Date(selectedDate + 'T12:00:00').getDay()) && (
+          <div className="flex items-center justify-center">
+            {autoMealsAdded ? (
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700">
+                <CheckCircle size={18} />
+                Preset meals auto-added for today
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-2 text-sm font-medium text-amber-700">
+                <Clock size={18} />
+                Preset meals will be added when service ends
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Stats Overview Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-emerald-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-emerald-100 p-3">
@@ -2178,7 +2489,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-blue-100 p-3">
@@ -2198,7 +2508,44 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/50 blur-2xl" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-teal-100 p-3">
+                  <Users size={24} className="text-teal-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Unique Guests
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-gray-900">
+                {totalUniqueGuests.toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                {totalNewGuests > 0 ? `${totalNewGuests} new` : 'returning guests'}
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-6 shadow-sm transition hover:shadow-md" title="Number of meal records picked up by a different guest on behalf of the intended recipient. Counts meals, not unique proxies.">
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="rounded-xl bg-orange-100 p-3">
+                  <Users size={24} className="text-orange-600" />
+                </div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                  Proxy Pickups
+                </span>
+              </div>
+              <p className="mt-4 text-3xl font-bold text-orange-900">
+                {mergedGuestMeals.filter(r => r.pickedUpByProxyId).length}
+              </p>
+              <p className="mt-1 text-sm text-orange-700">
+                meal records picked up by proxies
+              </p>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-amber-100 p-3">
@@ -2216,7 +2563,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/50 blur-2xl" />
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div className="rounded-xl bg-purple-100 p-3">
@@ -2244,7 +2590,6 @@ const Services = () => {
         {/* Meal Category Breakdown */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-blue-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-blue-100 p-3">
@@ -2267,7 +2612,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-indigo-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-indigo-100 p-3">
@@ -2290,7 +2634,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-orange-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-orange-100 p-3">
@@ -2311,7 +2654,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-purple-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-purple-100 p-3">
@@ -2332,7 +2674,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-sky-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-sky-100 p-3">
@@ -2353,7 +2694,6 @@ const Services = () => {
           </div>
 
           <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-            <div className="absolute right-0 top-0 h-24 w-24 -translate-y-6 translate-x-6 rounded-full bg-amber-100/30 blur-2xl" />
             <div className="relative">
               <div className="mb-4 flex items-center justify-between">
                 <div className="rounded-xl bg-amber-100 p-3">
@@ -2376,11 +2716,37 @@ const Services = () => {
           </div>
         </div>
 
+        {/* Meal Type Tabs */}
+        <div className="flex flex-wrap gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+          {[
+            { id: "guest", label: "Guest Meals", icon: Users },
+            { id: "dw", label: "Day Worker", icon: SquarePlus },
+            { id: "rv", label: "RV Meals", icon: Caravan },
+            { id: "shelter", label: "Shelter", icon: Bed },
+            { id: "ue", label: "United Effort", icon: HeartHandshake },
+            { id: "extras", label: "Extra Meals", icon: Sparkles },
+            { id: "lunch", label: "Lunch Bags", icon: Apple },
+            // eslint-disable-next-line no-unused-vars
+          ].map(({ id, label, icon: IconComponent }) => (
+            <button
+              key={id}
+              onClick={() => setMealTypeTab(id)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${mealTypeTab === id
+                ? "bg-emerald-600 text-white shadow-md"
+                : "text-gray-700 hover:bg-gray-100"
+                }`}
+            >
+              <IconComponent size={18} />
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Meal Input Forms */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          {/* Day Worker Section */}
+          <div style={{ display: mealTypeTab === "dw" ? "block" : "none" }} className="space-y-4">
             <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-indigo-100/30 blur-3xl" />
               <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -2455,12 +2821,21 @@ const Services = () => {
                           key={record.id}
                           className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                         >
-                          <span className="text-xs text-gray-600">
-                            {new Date(record.date).toLocaleTimeString()}
-                          </span>
-                          <span className="text-sm font-bold text-indigo-700">
-                            {record.count} meals
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-indigo-700">
+                              {record.count} meals
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => deleteDayWorkerMealRecord(record.id)}
+                            className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                            title="Delete this entry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -2472,10 +2847,12 @@ const Services = () => {
                 )}
               </div>
             </div>
+          </div>
 
+          {/* RV and Shelter Section */}
+          <div style={{ display: mealTypeTab === "rv" || mealTypeTab === "shelter" ? "block" : "none" }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-orange-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "rv" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2524,12 +2901,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-orange-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-orange-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteRvMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2542,8 +2928,7 @@ const Services = () => {
                 </div>
               </div>
 
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-purple-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "shelter" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2594,12 +2979,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-purple-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-purple-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteShelterMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2612,10 +3006,12 @@ const Services = () => {
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* United Effort and Extra Meals Section */}
+          <div style={{ display: mealTypeTab === "ue" || mealTypeTab === "extras" ? "block" : "none" }}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-sky-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "ue" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2662,12 +3058,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-sky-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-sky-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteUnitedEffortMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2680,8 +3085,7 @@ const Services = () => {
                 </div>
               </div>
 
-              <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-                <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-amber-100/30 blur-3xl" />
+              <div style={{ display: mealTypeTab === "extras" ? "block" : "none" }} className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
                 <div className="relative space-y-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -2732,12 +3136,21 @@ const Services = () => {
                             key={record.id}
                             className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                           >
-                            <span className="text-xs text-gray-600">
-                              {new Date(record.date).toLocaleTimeString()}
-                            </span>
-                            <span className="text-sm font-bold text-amber-700">
-                              {record.count} meals
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">
+                                {new Date(record.date).toLocaleTimeString()}
+                              </span>
+                              <span className="text-sm font-bold text-amber-700">
+                                {record.count} meals
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => deleteExtraMealRecord(record.id)}
+                              className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                              title="Delete this entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </li>
                         ))}
                       </ul>
@@ -2750,9 +3163,11 @@ const Services = () => {
                 </div>
               </div>
             </div>
+          </div>
 
+          {/* Lunch Bags Section */}
+          <div style={{ display: mealTypeTab === "lunch" ? "block" : "none" }} className="w-full">
             <div className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-              <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-lime-100/30 blur-3xl" />
               <div className="relative space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -2822,12 +3237,21 @@ const Services = () => {
                           key={record.id}
                           className="flex items-center justify-between rounded-lg bg-white/80 px-3 py-2"
                         >
-                          <span className="text-xs text-gray-600">
-                            {new Date(record.date).toLocaleTimeString()}
-                          </span>
-                          <span className="text-sm font-bold text-lime-700">
-                            {record.count} bag{record.count > 1 ? "s" : ""}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600">
+                              {new Date(record.date).toLocaleTimeString()}
+                            </span>
+                            <span className="text-sm font-bold text-lime-700">
+                              {record.count} bag{record.count > 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => deleteLunchBagRecord(record.id)}
+                            className="flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-100 hover:text-red-600"
+                            title="Delete this entry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -2843,10 +3267,8 @@ const Services = () => {
         </div>
 
         {/* Guest Meal Log - Revamped */}
-        <div className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
-          <div className="absolute right-0 top-0 h-40 w-40 -translate-y-12 translate-x-12 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-200/40 blur-3xl" />
-          <div className="absolute left-0 bottom-0 h-32 w-32 translate-y-8 -translate-x-8 rounded-full bg-gradient-to-tr from-blue-200/30 to-emerald-200/30 blur-3xl" />
-          
+        <div style={{ display: mealTypeTab === "guest" ? "block" : "none" }} className="relative overflow-hidden rounded-3xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-8 shadow-lg">
+
           <div className="relative space-y-6">
             {/* Header Section */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -2903,30 +3325,60 @@ const Services = () => {
                     rec.guestId &&
                     extraMealRecords.some((er) => er.id === rec.id)
                   );
+                  const isNewGuest = newGuestIds.has(rec.guestId);
+                  const guestDetails = getGuestNameDetails(rec.guestId);
+                  const isOrphaned = guestDetails.isOrphaned;
                   return (
                     <div
                       key={rec.id}
-                      className="group relative overflow-visible rounded-2xl border border-emerald-200/60 bg-white/70 backdrop-blur-sm p-4 shadow-sm transition hover:shadow-md hover:border-emerald-300 hover:bg-white/90"
+                      className={`group relative overflow-visible rounded-2xl border p-4 shadow-sm transition hover:shadow-md ${isOrphaned
+                        ? 'border-red-300 bg-red-50/70 hover:border-red-400 hover:bg-red-50/90'
+                        : 'border-emerald-200/60 bg-white/70 hover:border-emerald-300 hover:bg-white/90'
+                        } backdrop-blur-sm`}
                     >
-                      <div className="absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b from-emerald-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      
+                      <div className={`absolute left-0 top-0 w-1 h-full rounded-l-2xl bg-gradient-to-b ${isOrphaned
+                        ? 'from-red-400 to-orange-400'
+                        : 'from-emerald-400 to-teal-400'
+                        } opacity-0 group-hover:opacity-100 transition-opacity`} />
+
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         {/* Guest Info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-sm">
+                            <div className={`flex-shrink-0 h-8 w-8 rounded-lg bg-gradient-to-br ${isOrphaned
+                              ? 'from-red-400 to-orange-500'
+                              : 'from-emerald-400 to-teal-500'
+                              } flex items-center justify-center shadow-sm`}>
                               <span className="text-xs font-bold text-white">
                                 {index + 1}
                               </span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="truncate font-semibold text-gray-900 text-sm">
-                                {getGuestName(rec.guestId)}
+                              <h3 className={`truncate font-semibold text-sm ${isOrphaned ? 'text-red-700' : 'text-gray-900'}`}>
+                                {guestDetails.displayName}
                               </h3>
                             </div>
+                            {isOrphaned && (
+                              <span
+                                className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200"
+                                title={`Guest ID: ${guestDetails.originalGuestId || "unknown"} (Loaded: ${guests.length} guests)`}
+                              >
+                                ⚠️ Orphaned Record ({String(guestDetails.originalGuestId)})
+                              </span>
+                            )}
+                            {isNewGuest && !isExtraGuestMeal && !isOrphaned && (
+                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                                ✨ New Guest
+                              </span>
+                            )}
                             {isExtraGuestMeal && (
                               <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
                                 ★ Extra
+                              </span>
+                            )}
+                            {rec.pickedUpByProxyId && (
+                              <span className="flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200" title={`Picked up by proxy: ${getGuestNameDetails(rec.pickedUpByProxyId).displayName}`}>
+                                🤝 Proxy Pickup
                               </span>
                             )}
                           </div>
@@ -2938,6 +3390,11 @@ const Services = () => {
                                 minute: "2-digit",
                               })}
                             </span>
+                            {rec.pickedUpByProxyId && (
+                              <span className="text-xs text-orange-600">
+                                via {getGuestNameDetails(rec.pickedUpByProxyId).displayName}
+                              </span>
+                            )}
                             {rec.pendingSync && (
                               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 animate-pulse">
                                 ⟳ Syncing
@@ -3049,6 +3506,55 @@ const Services = () => {
     </div>
   );
 
+  // Shared End Service Day component for consistent UI across sections
+  const EndServiceDayActions = ({ onEndShowerDay, onEndLaundryDay, showShower = false, showLaundry = false }) => {
+    const isAdmin = user?.role === "admin" || user?.role === "board" || user?.role === "staff";
+    if (!isAdmin || (!showShower && !showLaundry)) return null;
+
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-red-100 rounded-lg">
+            <XCircle size={20} className="text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-red-900">End Service Day</h3>
+            <p className="text-xs text-red-700">
+              Cancel all remaining bookings to close for the day
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
+          {showShower && (
+            <button
+              onClick={onEndShowerDay}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-300 rounded-lg hover:bg-red-100 hover:border-red-400 transition-all"
+            >
+              <ShowerHead size={16} />
+              End Showers
+            </button>
+          )}
+          {showLaundry && (
+            <button
+              onClick={onEndLaundryDay}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-red-700 bg-white border-2 border-red-300 rounded-lg hover:bg-red-100 hover:border-red-400 transition-all"
+            >
+              <WashingMachine size={16} />
+              End Laundry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const handleToggleShowerDetails = useCallback((recordId) => {
+    setExpandedShowerRows((prev) => ({
+      ...prev,
+      [recordId]: !prev[recordId],
+    }));
+  }, []);
+
   const renderShowersSection = () => {
     const slotDetails = allShowerSlots.map((slotTime) => {
       const bookings = todayBookedShowers.filter(
@@ -3087,408 +3593,41 @@ const Services = () => {
     }));
 
     const renderShowerCard = (record, animationStyle, context = {}) => {
-      if (!record) return null;
-      const { index = 0, section = "active" } = context;
       const guest = guests.find((g) => g.id === record.guestId);
-      const nameDetails = getGuestNameDetails(record.guestId);
-      const guestName = nameDetails.primaryName;
-      
-      // Essentials logic
-      const canT = guest ? canGiveItem(guest.id, "tshirt") : false;
-      const canSB = guest ? canGiveItem(guest.id, "sleeping_bag") : false;
-      const canBP = guest ? canGiveItem(guest.id, "backpack") : false;
-      const canTent = guest ? canGiveItem(guest.id, "tent") : false;
-      const canFF = guest ? canGiveItem(guest.id, "flip_flops") : false;
-      
-      const daysT = guest ? getDaysUntilAvailable(guest.id, "tshirt") : 0;
-      const daysSB = guest ? getDaysUntilAvailable(guest.id, "sleeping_bag") : 0;
-      const daysBP = guest ? getDaysUntilAvailable(guest.id, "backpack") : 0;
-      const daysTent = guest ? getDaysUntilAvailable(guest.id, "tent") : 0;
-      const daysFF = guest ? getDaysUntilAvailable(guest.id, "flip_flops") : 0;
-      
-      const lastTGuest = guest ? getLastGivenItem(guest.id, "tshirt") : null;
-      const lastSBGuest = guest ? getLastGivenItem(guest.id, "sleeping_bag") : null;
-      const lastBPGuest = guest ? getLastGivenItem(guest.id, "backpack") : null;
-      const lastTentGuest = guest ? getLastGivenItem(guest.id, "tent") : null;
-      const lastFFGuest = guest ? getLastGivenItem(guest.id, "flip_flops") : null;
-      
-      const hasLaundryToday = guest ? laundryGuestIdsSet.has(guest.id) : false;
-      const isDone = record.status === "done";
-      const slotLabel = formatShowerSlotLabel(record.time);
-      const bookedLabel = new Date(record.date).toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-      });
-      
-      const statusInfo = getShowerStatusInfo(record.status);
-      const StatusIcon = statusInfo.icon;
-      const isWaitlisted = record.status === "waitlisted";
-      const queuePosition = section === "active" || section === "waitlist" ? index + 1 : null;
-      const isPriority = isWaitlisted && queuePosition <= 2;
-      const rowExpanded = Boolean(expandedShowerRows[record.id]);
-      
-      const essentialsConfig = guest
-        ? [
-            {
-              key: "tshirt",
-              label: "T-Shirt",
-              buttonLabel: "Give T-Shirt",
-              icon: Shirt,
-              canGive: canT,
-              lastRecord: lastTGuest,
-              daysRemaining: daysT,
-              successMessage: "T-Shirt given",
-            },
-            {
-              key: "sleeping_bag",
-              label: "Sleeping Bag",
-              buttonLabel: "Give Sleeping Bag",
-              icon: Bed,
-              canGive: canSB,
-              lastRecord: lastSBGuest,
-              daysRemaining: daysSB,
-              successMessage: "Sleeping bag given",
-            },
-            {
-              key: "backpack",
-              label: "Backpack/Duffel Bag",
-              buttonLabel: "Give Backpack/Duffel Bag",
-              icon: Backpack,
-              canGive: canBP,
-              lastRecord: lastBPGuest,
-              daysRemaining: daysBP,
-              successMessage: "Backpack/Duffel Bag given",
-            },
-            {
-              key: "tent",
-              label: "Tent",
-              buttonLabel: "Give Tent",
-              icon: TentTree,
-              canGive: canTent,
-              lastRecord: lastTentGuest,
-              daysRemaining: daysTent,
-              successMessage: "Tent given",
-            },
-            {
-              key: "flip_flops",
-              label: "Flip Flops",
-              buttonLabel: "Give Flip Flops",
-              icon: Footprints,
-              canGive: canFF,
-              lastRecord: lastFFGuest,
-              daysRemaining: daysFF,
-              successMessage: "Flip Flops given",
-            },
-          ]
-        : [];
-        
-      const availableItems = essentialsConfig.filter((i) => i.canGive);
-
-      const handleGiveItem = (itemKey, successMessage) => {
-        if (!guest) return;
-        try {
-          giveItem(guest.id, itemKey);
-          toast.success(successMessage);
-        } catch (error) {
-          toast.error(error.message);
-        }
-      };
-
-      const handleToggleDetails = () => {
-        setExpandedShowerRows((prev) => ({
-          ...prev,
-          [record.id]: !prev[record.id],
-        }));
-      };
+      const { index = 0, section = "active" } = context;
 
       return (
-        <Animated.div
+        <CompactShowerCard
           key={record.id}
-          style={animationStyle}
-          className={`will-change-transform bg-white rounded-2xl shadow-sm border-2 transition-all duration-200 focus-within:z-50 relative ${
-            isDone
-              ? "border-emerald-100 bg-emerald-50/30"
-              : "border-blue-100 hover:border-blue-200 hover:shadow-md"
-          }`}
-        >
-          <div className="p-4 sm:p-5">
-            {/* Header Section */}
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
-              <div className="flex items-start gap-4 min-w-0">
-                {/* Status Icon/Queue Number */}
-                <div className={`flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl ${
-                  isDone 
-                    ? "bg-emerald-100 text-emerald-600" 
-                    : isPriority
-                    ? "bg-amber-500 text-white shadow-lg shadow-amber-200"
-                    : isWaitlisted
-                    ? "bg-amber-100 text-amber-600"
-                    : "bg-blue-100 text-blue-600"
-                }`}>
-                  {isDone ? (
-                    <CheckCircle2Icon size={24} />
-                  ) : (
-                    <div className="flex flex-col items-center leading-none">
-                      {isWaitlisted && <span className="text-[8px] uppercase font-bold mb-0.5">{isPriority ? "Next" : "Wait"}</span>}
-                      <span className="text-lg font-bold">
-                        {queuePosition ? `#${queuePosition}` : <ShowerHead size={24} />}
-                      </span>
-                    </div>
-                  )}
-                </div>
+          record={record}
+          guest={guest}
+          index={index}
+          section={section}
+          animationStyle={animationStyle}
+          isExpanded={Boolean(expandedShowerRows[record.id])}
+          onToggleExpand={() => handleToggleShowerDetails(record.id)}
 
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="text-lg font-bold text-gray-900 truncate">
-                      {guestName}
-                    </h3>
-                    {nameDetails.hasPreferred && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                        Legal: {nameDetails.legalName}
-                      </span>
-                    )}
-                    {isPriority && (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded uppercase tracking-wide animate-pulse">
-                        Priority
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={14} className={isWaitlisted ? "text-amber-500" : "text-blue-500"} />
-                      <span className="font-medium text-gray-700">
-                        {isWaitlisted ? `Joined ${bookedLabel}` : slotLabel}
-                      </span>
-                    </div>
-                    {isWaitlisted && (
-                      <>
-                        <span className="text-gray-300">•</span>
-                        <div className="flex items-center gap-1.5">
-                          <History size={14} />
-                          <span>Waiting {Math.round((Date.now() - new Date(record.date).getTime()) / 60000)}m</span>
-                        </div>
-                      </>
-                    )}
-                    {!isWaitlisted && (
-                      <>
-                        <span className="text-gray-300">•</span>
-                        <div className="flex items-center gap-1.5">
-                          <CalendarClock size={14} />
-                          <span>Added {bookedLabel}</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
+          // Context functions
+          canGiveItem={canGiveItem}
+          getDaysUntilAvailable={getDaysUntilAvailable}
+          getLastGivenItem={getLastGivenItem}
+          giveItem={giveItem}
+          getWarningsForGuest={getWarningsForGuest}
+          updateShowerStatus={updateShowerStatus}
+          rescheduleShower={rescheduleShower}
+          cancelShowerRecord={cancelShowerRecord}
 
-              <div className="flex flex-col items-end gap-2">
-                <span className={`${statusInfo.badgeClass} px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5`}>
-                  <StatusIcon size={14} />
-                  {statusInfo.label}
-                </span>
-                {hasLaundryToday && (
-                  <span className="bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1">
-                    <WashingMachine size={12} />
-                    Laundry Linked
-                  </span>
-                )}
-              </div>
-            </div>
+          // Undo support for essential supplies
+          actionHistory={actionHistory}
+          undoAction={undoAction}
 
-            {/* Action Bar */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Primary Action */}
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const nextStatus = isDone ? "awaiting" : "done";
-                    const success = await updateShowerStatus(record.id, nextStatus);
-                    if (success) {
-                      toast.success(nextStatus === "done" ? "Shower completed!" : "Shower reopened");
-                    }
-                  } catch (error) {
-                    toast.error(error.message);
-                  }
-                }}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
-                  isDone
-                    ? "bg-white border-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                    : isWaitlisted
-                    ? "bg-amber-600 text-white hover:bg-amber-700 hover:shadow-amber-200"
-                    : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
-                }`}
-              >
-                {isDone ? (
-                  <>
-                    <RotateCcw size={18} />
-                    Reopen
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2Icon size={18} />
-                    {isWaitlisted ? "Mark Complete" : "Complete Shower"}
-                  </>
-                )}
-              </button>
-
-              {/* Reschedule / Assign */}
-              <div className="flex-1 sm:flex-none min-w-[180px]">
-                <Selectize
-                  options={showerSlotOptions}
-                  value={record.time || ""}
-                  onChange={async (time) => {
-                    try {
-                      const updated = await rescheduleShower(record.id, time);
-                      if (!updated || updated.time !== time) return;
-                      if (record.status === "waitlisted") {
-                        await updateShowerStatus(record.id, "awaiting");
-                      }
-                      toast.success(`Moved to ${formatShowerSlotLabel(time)}`);
-                    } catch (error) {
-                      toast.error(error.message);
-                    }
-                  }}
-                  size="sm"
-                  className="w-full"
-                  buttonClassName={`w-full !rounded-xl !border-2 !py-2.5 !px-4 !font-bold !transition-all !shadow-sm ${
-                    isDone 
-                      ? "!border-emerald-100 !text-emerald-700 hover:!bg-emerald-50" 
-                      : "!border-blue-100 !text-blue-700 hover:!bg-blue-50"
-                  }`}
-                  placeholder={isWaitlisted ? "Assign to slot..." : "Reschedule..."}
-                  displayValue={record.time ? `Move: ${formatShowerSlotLabel(record.time)}` : isWaitlisted ? "Assign Slot" : "Reschedule"}
-                />
-              </div>
-
-              {/* More Actions */}
-              <div className="flex items-center gap-2 ml-auto">
-                <button
-                  type="button"
-                  onClick={handleToggleDetails}
-                  className={`p-2.5 rounded-xl border-2 transition-all ${
-                    rowExpanded 
-                      ? "bg-blue-50 border-blue-200 text-blue-600" 
-                      : "bg-white border-gray-100 text-gray-500 hover:border-gray-200 hover:text-gray-700"
-                  }`}
-                  title="Essentials & Notes"
-                >
-                  <Sparkles size={20} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm("Are you sure you want to cancel this booking?")) {
-                      try {
-                        cancelShowerRecord(record.id);
-                        toast.success("Booking cancelled");
-                      } catch (error) {
-                        toast.error(error.message);
-                      }
-                    }
-                  }}
-                  className="p-2.5 rounded-xl border-2 border-gray-100 text-gray-400 hover:border-red-100 hover:text-red-500 hover:bg-red-50 transition-all"
-                  title="Cancel Booking"
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Expanded Details */}
-            {rowExpanded && (
-              <div className="mt-5 pt-5 border-t border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Essentials Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                        <Sparkles size={14} />
-                        Essentials Kit
-                      </h4>
-                      <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                        {availableItems.length} available
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      {essentialsConfig.map((item) => {
-                        const Icon = item.icon;
-                        const isAvailable = item.canGive;
-                        
-                        return (
-                          <div
-                            key={item.key}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                              isAvailable
-                                ? "bg-white border-emerald-100 hover:border-emerald-300"
-                                : "bg-gray-50 border-gray-100 opacity-75"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`p-2 rounded-lg ${
-                                isAvailable ? "bg-emerald-50 text-emerald-600" : "bg-gray-200 text-gray-400"
-                              }`}>
-                                <Icon size={18} />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-sm font-bold text-gray-900 truncate">
-                                  {item.label}
-                                </div>
-                                <div className="text-[11px] text-gray-500">
-                                  {isAvailable ? (
-                                    item.lastRecord ? (
-                                      `Last: ${new Date(item.lastRecord.date).toLocaleDateString()}`
-                                    ) : (
-                                      <span className="text-emerald-600 font-medium">Never given</span>
-                                    )
-                                  ) : (
-                                    <span className="text-amber-600">
-                                      Available in {item.daysRemaining} days
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <button
-                              type="button"
-                              disabled={!isAvailable}
-                              onClick={() => handleGiveItem(item.key, item.successMessage)}
-                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                                isAvailable
-                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                              }`}
-                            >
-                              {item.buttonLabel}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Notes Section (Placeholder for now) */}
-                  <div className="space-y-4">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
-                      <MessageSquare size={14} />
-                      Staff Notes
-                    </h4>
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 h-full min-h-[120px] flex flex-col items-center justify-center text-center">
-                      <MessageSquare size={24} className="text-gray-300 mb-2" />
-                      <p className="text-xs text-gray-500 italic">
-                        No notes for this booking yet.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Animated.div>
+          // Helpers
+          sectionrefreshButton={null} // not needed inside card
+          showerSlotOptions={showerSlotOptions}
+          formatShowerSlotLabel={formatShowerSlotLabel}
+          laundryLinked={guest ? laundryGuestIdsSet.has(guest.id) : false}
+          onCloseModal={() => setSelectedShowerRecord(null)}
+        />
       );
     };
 
@@ -3496,31 +3635,88 @@ const Services = () => {
     if (showerViewMode === "compact") {
       return (
         <div className="space-y-6">
-          {/* View Mode Toggle */}
+          {/* Header */}
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <ShowerHead className="text-blue-600" size={20} />
-              <span>Today's Showers</span>
-            </h2>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">View:</span>
-              <button
-                type="button"
-                onClick={() => setShowerViewMode("detailed")}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
-              >
-                Detailed
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowerViewMode("compact")}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white"
-              >
-                Compact
-              </button>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <ShowerHead className="text-blue-600" size={20} />
+                <span>Today's Showers</span>
+              </h2>
+              <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
             </div>
           </div>
-          <CompactShowerList />
+
+          {/* End Service Day - Consistent placement at top of section */}
+          <EndServiceDayActions
+            onEndShowerDay={handleEndShowerDay}
+            onEndLaundryDay={handleEndLaundryDay}
+            showShower={true}
+            showLaundry={false}
+          />
+
+          {/* Date Navigation for Shower Time Travel */}
+          {showerViewDate !== today && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1">
+                  <History size={16} className="text-blue-600" />
+                  <span className="text-sm font-medium text-blue-900">
+                    Viewing Showers from {formatServiceDayLabel(showerViewDate)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowerViewDate(today)}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+                >
+                  Back to Today
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Date Navigation Buttons */}
+          <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
+            <button
+              type="button"
+              onClick={goToPreviousShowerDate}
+              className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1"
+            >
+              <ChevronLeft size={16} />
+              Previous Day
+            </button>
+
+            <div className="text-center text-sm font-medium text-gray-600">
+              {formatServiceDayLabel(showerViewDate)}
+            </div>
+
+            <button
+              type="button"
+              onClick={goToNextShowerDate}
+              disabled={showerViewDate >= today}
+              className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next Day
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          {/* Slot Block Manager - Only visible to admin/staff */}
+          <SlotBlockManager serviceType="shower" />
+
+          <CompactShowerList onGuestClick={handleShowerGuestClickOptimized} viewDate={showerViewDate} />
+
+          {/* Modal for detailed view */}
+          {selectedShowerRecord && (
+            <ShowerDetailModal
+              isOpen={!!selectedShowerRecord}
+              onClose={() => setSelectedShowerRecord(null)}
+              showerRecord={selectedShowerRecord}
+              guest={guests.find(g => g.id === selectedShowerRecord.guestId)}
+            >
+              {renderShowerCard(selectedShowerRecord, {}, { section: "modal" })}
+            </ShowerDetailModal>
+          )}
         </div>
       );
     }
@@ -3611,20 +3807,80 @@ const Services = () => {
           <div className="p-4 lg:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <ShowerHead className="text-blue-600" size={20} />
-                  <span>Today's Showers</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ShowerHead className="text-blue-600" size={20} />
+                    <span>Today's Showers</span>
+                  </h2>
+                  <SectionRefreshButton serviceType="shower" size="sm" variant="ghost" />
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Manage the flow of guests, update statuses, and keep
                   essentials stocked.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                {(user?.role === "admin" || user?.role === "board" || user?.role === "staff") && (
+                  <button
+                    onClick={handleEndShowerDay}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-full hover:bg-red-100 transition-all"
+                  >
+                    <XCircle size={14} />
+                    End Service Day
+                  </button>
+                )}
                 <span className="bg-blue-100 text-blue-700 font-medium px-3 py-1 rounded-full">
-                  {todayShowerRecords.length} total bookings
+                  {todayShowerRecords.filter((r) => r.status === "done").length}{" "}
+                  completed
                 </span>
               </div>
+            </div>
+
+            {/* Date Navigation for Shower Time Travel */}
+            {showerViewDate !== today && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <History size={16} className="text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">
+                      Viewing Showers from {formatServiceDayLabel(showerViewDate)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowerViewDate(today)}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-200 transition-colors whitespace-nowrap"
+                  >
+                    Back to Today
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Date Navigation Buttons */}
+            <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-lg p-2">
+              <button
+                type="button"
+                onClick={goToPreviousShowerDate}
+                className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Previous Day
+              </button>
+
+              <div className="text-center text-sm font-medium text-gray-600">
+                {formatServiceDayLabel(showerViewDate)}
+              </div>
+
+              <button
+                type="button"
+                onClick={goToNextShowerDate}
+                disabled={showerViewDate >= today}
+                className="px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next Day
+                <ChevronRight size={16} />
+              </button>
             </div>
 
             {/* Tab Navigation */}
@@ -3632,51 +3888,45 @@ const Services = () => {
               <button
                 type="button"
                 onClick={() => setShowerTab("active")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "active"
-                    ? "border-blue-500 text-blue-600 bg-blue-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "active"
+                  ? "border-blue-500 text-blue-600 bg-blue-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <Clock size={16} />
                 <span>Active Queue</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "active" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "active" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {activeShowers.length}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowerTab("completed")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "completed"
-                    ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "completed"
+                  ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <CheckCircle size={16} />
                 <span>Completed</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {completedShowers.length}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowerTab("waitlist")}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  showerTab === "waitlist"
-                    ? "border-amber-500 text-amber-600 bg-amber-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${showerTab === "waitlist"
+                  ? "border-amber-500 text-amber-600 bg-amber-50/50"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
               >
                 <History size={16} />
                 <span>Waitlist</span>
-                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                  showerTab === "waitlist" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
-                }`}>
+                <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${showerTab === "waitlist" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                  }`}>
                   {todayWaitlisted.length}
                 </span>
               </button>
@@ -3738,6 +3988,43 @@ const Services = () => {
                     )}
                   </div>
                 )}
+
+                {/* Collapsible Completed Showers Section */}
+                {completedShowers.length > 0 && (
+                  <div className="mt-8 rounded-xl border-2 border-emerald-100 bg-emerald-50 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCompletedShowers(!expandedCompletedShowers)}
+                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-emerald-100/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2Icon size={20} className="text-emerald-600" />
+                        <span className="text-base font-bold text-emerald-900">
+                          Done Showers
+                        </span>
+                        <span className="ml-2 px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-700">
+                          {completedShowers.length}
+                        </span>
+                      </div>
+                      {expandedCompletedShowers ? (
+                        <ChevronUp size={20} className="text-emerald-600" />
+                      ) : (
+                        <ChevronDown size={20} className="text-emerald-600" />
+                      )}
+                    </button>
+
+                    {expandedCompletedShowers && (
+                      <div className="border-t-2 border-emerald-100 bg-white p-6 space-y-4">
+                        {completedShowers.map((record, idx) =>
+                          renderShowerCard(record, completedShowersTrail[idx], {
+                            index: idx,
+                            section: "completed",
+                          }),
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -3758,7 +4045,7 @@ const Services = () => {
                       </select>
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
-                    
+
                     <div className="px-3 py-2 bg-emerald-50 border-2 border-emerald-100 rounded-xl flex items-center gap-2">
                       <CheckCircle2Icon size={14} className="text-emerald-600" />
                       <span className="text-sm font-bold text-emerald-700">
@@ -3824,7 +4111,7 @@ const Services = () => {
                       </select>
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
-                    
+
                     <div className="px-3 py-2 bg-amber-50 border-2 border-amber-100 rounded-xl flex items-center gap-2">
                       <History size={14} className="text-amber-600" />
                       <span className="text-sm font-bold text-amber-700">
@@ -3868,7 +4155,7 @@ const Services = () => {
                         section: "waitlist",
                       }),
                     )}
-                    
+
                     <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex items-start gap-3">
                       <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                         <Sparkles size={20} />
@@ -3876,7 +4163,7 @@ const Services = () => {
                       <div>
                         <h4 className="text-sm font-bold text-amber-900 mb-1">Waitlist Management</h4>
                         <p className="text-xs text-amber-700 leading-relaxed">
-                          Guests marked as <strong>Priority</strong> are next in line. 
+                          Guests marked as <strong>Priority</strong> are next in line.
                           Assign them to a slot or mark them complete as soon as a shower becomes available.
                         </p>
                       </div>
@@ -3892,577 +4179,30 @@ const Services = () => {
   };
 
   const renderLaundrySection = () => {
-    const onsiteCapacity = settings?.maxOnsiteLaundrySlots ?? 5;
-    const onsiteLoads = todayLaundryWithGuests.filter(
-      (record) => record.laundryType === "onsite",
-    );
-    const offsiteLoads = todayLaundryWithGuests.filter(
-      (record) => record.laundryType === "offsite",
-    );
-    const onsiteUsed = onsiteLoads.length;
-    const onsiteAvailable = Math.max(onsiteCapacity - onsiteUsed, 0);
-    const onsiteProgress = onsiteCapacity
-      ? Math.min((onsiteUsed / Math.max(onsiteCapacity, 1)) * 100, 100)
-      : 0;
-    const washerLoads = onsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.WASHER,
-    ).length;
-    const dryerLoads = onsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.DRYER,
-    ).length;
-    const pendingOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.PENDING,
-    ).length;
-    const transportedOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.TRANSPORTED,
-    ).length;
-    const returnedOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.RETURNED,
-    ).length;
-    const pickedUpOffsite = offsiteLoads.filter(
-      (record) => record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP,
-    ).length;
-    const readyForPickupCount = todayLaundryWithGuests.filter(
-      (record) =>
-        (record.laundryType === "onsite" &&
-          record.status === LAUNDRY_STATUS.DONE) ||
-        (record.laundryType === "offsite" &&
-          record.status === LAUNDRY_STATUS.RETURNED),
-    ).length;
-    const baglessLoads = onsiteLoads.filter(
-      (record) => !record.bagNumber || `${record.bagNumber}`.trim() === "",
-    ).length;
-
-    const typeOptions = [
-      { value: "onsite", label: "On-site" },
-      { value: "offsite", label: "Off-site" },
-    ];
-
-    const laundrySlotOptions = (allLaundrySlots || []).map((slot) => ({
-      value: slot,
-      label: formatLaundryRangeLabel(slot),
-    }));
-
-    const onsiteStatusButtons = [
-      {
-        value: LAUNDRY_STATUS.WAITING,
-        label: "Waiting",
-        icon: ShoppingBag,
-        activeClass: "bg-gray-200 text-gray-500 border-gray-300 cursor-default",
-        idleClass: "bg-white text-gray-700 border-gray-300 hover:bg-gray-100",
-      },
-      {
-        value: LAUNDRY_STATUS.WASHER,
-        label: "In Washer",
-        icon: DropletIcon,
-        activeClass: "bg-blue-100 text-blue-500 border-blue-200 cursor-default",
-        idleClass: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
-      },
-      {
-        value: LAUNDRY_STATUS.DRYER,
-        label: "In Dryer",
-        icon: FanIcon,
-        activeClass:
-          "bg-orange-100 text-orange-500 border-orange-200 cursor-default",
-        idleClass:
-          "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100",
-      },
-      {
-        value: LAUNDRY_STATUS.DONE,
-        label: "Done",
-        icon: CheckCircle2Icon,
-        activeClass:
-          "bg-emerald-100 text-emerald-500 border-emerald-200 cursor-default",
-        idleClass:
-          "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
-      },
-      {
-        value: LAUNDRY_STATUS.PICKED_UP,
-        label: "Picked Up",
-        icon: LogOutIcon,
-        activeClass:
-          "bg-purple-100 text-purple-500 border-purple-200 cursor-default",
-        idleClass:
-          "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
-      },
-    ];
-
-    const offsiteStatusButtons = [
-      {
-        value: LAUNDRY_STATUS.PENDING,
-        label: "Waiting",
-        icon: Clock,
-        activeClass:
-          "bg-yellow-100 text-yellow-500 border-yellow-200 cursor-default",
-        idleClass:
-          "bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100",
-      },
-      {
-        value: LAUNDRY_STATUS.TRANSPORTED,
-        label: "Transported",
-        icon: Truck,
-        activeClass: "bg-blue-100 text-blue-500 border-blue-200 cursor-default",
-        idleClass: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
-      },
-      {
-        value: LAUNDRY_STATUS.RETURNED,
-        label: "Returned",
-        icon: CheckCircle2Icon,
-        activeClass:
-          "bg-emerald-100 text-emerald-500 border-emerald-200 cursor-default",
-        idleClass:
-          "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
-      },
-      {
-        value: LAUNDRY_STATUS.OFFSITE_PICKED_UP,
-        label: "Picked Up",
-        icon: LogOutIcon,
-        activeClass:
-          "bg-purple-100 text-purple-500 border-purple-200 cursor-default",
-        idleClass:
-          "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100",
-      },
-    ];
-
-    const renderLaundryCard = (record, animationStyle) => {
-      if (!record) return null;
-      const statusInfo = getLaundryStatusInfo(record.status);
-      const StatusIcon = statusInfo.icon;
-      const isOnsite = record.laundryType === "onsite";
-      const isEditingBag = editingBagNumber === record.id;
-      const fallbackDetails = record.guestId
-        ? getGuestNameDetails(record.guestId)
-        : null;
-      const hasPreferred = Boolean(
-        record.guestHasPreferred ?? fallbackDetails?.hasPreferred,
-      );
-      const primaryName = hasPreferred
-        ? record.guestPreferredName ||
-          fallbackDetails?.primaryName ||
-          record.guestName ||
-          "Unknown Guest"
-        : record.guestName || fallbackDetails?.primaryName || "Unknown Guest";
-      const legalName =
-        record.guestLegalName ||
-        fallbackDetails?.legalName ||
-        record.guestName ||
-        "Unknown Guest";
-
-      // Consider these laundry statuses as completed for waiver visibility
-      const laundryCompletedStatuses = new Set([
-        LAUNDRY_STATUS.DONE,
-        LAUNDRY_STATUS.PICKED_UP,
-        LAUNDRY_STATUS.RETURNED,
-        LAUNDRY_STATUS.OFFSITE_PICKED_UP,
-      ]);
-      const isLaundryCompleted = laundryCompletedStatuses.has(record.status);
-
-      return (
-        <Animated.div
-          key={record.id}
-          style={animationStyle}
-          className="will-change-transform bg-white border border-purple-100 rounded-xl shadow-sm p-4"
-        >
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-base font-semibold text-gray-900">
-                    {primaryName}
-                  </span>
-                  {hasPreferred && (
-                    <span className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                      Legal: {legalName}
-                    </span>
-                  )}
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${isOnsite ? "bg-purple-100 text-purple-700 border border-purple-200" : "bg-blue-100 text-blue-700 border border-blue-200"}`}
-                  >
-                    {isOnsite ? "On-site" : "Off-site"}
-                  </span>
-                  {!isLaundryCompleted && (
-                    <WaiverBadge guestId={record.guestId} serviceType="laundry" />
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={12} />{" "}
-                    {isOnsite
-                      ? formatLaundryRangeLabel(record.time)
-                      : "Courier-managed window"}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <ShoppingBag size={12} />
-                    {isEditingBag ? (
-                      <input
-                        type="text"
-                        value={newBagNumber}
-                        onChange={(event) =>
-                          setNewBagNumber(event.target.value)
-                        }
-                        className="px-2 py-1 text-xs border border-purple-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-300"
-                        placeholder="Bag #"
-                        onBlur={() =>
-                          handleBagNumberUpdate(record.id, newBagNumber)
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            handleBagNumberUpdate(record.id, newBagNumber);
-                          }
-                          if (event.key === "Escape") {
-                            setEditingBagNumber(null);
-                            setNewBagNumber("");
-                          }
-                        }}
-                        autoFocus
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          startEditingBagNumber(record.id, record.bagNumber)
-                        }
-                        className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full hover:bg-purple-100"
-                      >
-                        Bag #{record.bagNumber || "Add"}
-                        <Edit3 size={10} className="opacity-60" />
-                      </button>
-                    )}
-                  </span>
-                </div>
-              </div>
-              <div
-                className={`${statusInfo.bgColor} ${statusInfo.textColor} px-3 py-1.5 text-xs font-medium rounded-full inline-flex items-center gap-1 border border-white/60`}
-              >
-                <StatusIcon size={14} />
-                <span>{statusInfo.label}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Selectize
-                options={typeOptions}
-                value={record.laundryType}
-                onChange={(value) => {
-                  try {
-                    rescheduleLaundry(record.id, {
-                      newLaundryType: value,
-                      newTime:
-                        value === "onsite"
-                          ? record.time || laundrySlotOptions[0]?.value || null
-                          : null,
-                    });
-                    toast.success("Laundry type updated");
-                  } catch (err) {
-                    toast.error(err.message);
-                  }
-                }}
-                size="xs"
-                className="w-32"
-                displayValue={
-                  record.laundryType === "offsite" ? "Off-site" : "On-site"
-                }
-              />
-              {isOnsite && (
-                <Selectize
-                  options={laundrySlotOptions}
-                  value={record.time || laundrySlotOptions[0]?.value || ""}
-                  onChange={(time) => {
-                    try {
-                      rescheduleLaundry(record.id, { newTime: time });
-                      toast.success("Laundry slot updated");
-                    } catch (err) {
-                      toast.error(err.message);
-                    }
-                  }}
-                  size="xs"
-                  className="w-44"
-                  placeholder="Select slot"
-                  displayValue={
-                    record.time
-                      ? formatLaundryRangeLabel(record.time)
-                      : "Select slot"
-                  }
-                />
-              )}
-              <button
-                onClick={() => {
-                  try {
-                    cancelLaundryRecord(record.id);
-                    toast.success("Laundry booking cancelled");
-                  } catch (err) {
-                    toast.error(err.message);
-                  }
-                }}
-                className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-200 text-red-700 hover:bg-red-50"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {(isOnsite ? onsiteStatusButtons : offsiteStatusButtons).map(
-                (buttonConfig) => {
-                  const Icon = buttonConfig.icon;
-                  const isActive = record.status === buttonConfig.value;
-                  return (
-                    <button
-                      key={buttonConfig.value}
-                      onClick={() =>
-                        attemptLaundryStatusChange(record, buttonConfig.value)
-                      }
-                      disabled={isActive}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${isActive ? buttonConfig.activeClass : buttonConfig.idleClass}`}
-                    >
-                      <Icon size={12} className="inline mr-1" />
-                      {buttonConfig.label}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-          </div>
-        </Animated.div>
-      );
-    };
-
-    const isCompletedLaundryOpen =
-      showCompletedLaundry || activeLaundry.length === 0;
-
     return (
-      <>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-100 p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-purple-600 text-xs font-semibold uppercase tracking-wide">
-              <WashingMachine size={16} className="text-purple-500" />
-              <span>On-site loads</span>
-            </div>
-            <div className="mt-3 text-xl font-semibold text-purple-900">
-              {onsiteUsed} / {onsiteCapacity}
-            </div>
-            <div className="mt-3 h-2 w-full bg-purple-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-purple-500 transition-all duration-500"
-                style={{ width: `${onsiteProgress}%` }}
-              />
-            </div>
-            <p className="mt-2 text-xs text-purple-700">
-              {onsiteAvailable} slot{onsiteAvailable === 1 ? "" : "s"} remaining
-              today
-            </p>
-            <p className="mt-3 text-[11px] text-purple-600">
-              {washerLoads} washer • {dryerLoads} dryer
-            </p>
-          </div>
+      <div className="space-y-6">
+        {/* End Service Day - Consistent placement at top of section */}
+        <EndServiceDayActions
+          onEndShowerDay={handleEndShowerDay}
+          onEndLaundryDay={handleEndLaundryDay}
+          showShower={false}
+          showLaundry={true}
+        />
 
-          <div className="rounded-xl border border-blue-100 bg-white p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-wide">
-              <Truck size={16} className="text-blue-500" />
-              <span>Off-site pipeline</span>
-            </div>
-            <div className="mt-3 text-xl font-semibold text-blue-900">
-              {offsiteLoads.length} bag{offsiteLoads.length === 1 ? "" : "s"}
-            </div>
-            <p className="mt-2 text-xs text-blue-700">
-              {pendingOffsite} waiting • {transportedOffsite} in transit
-            </p>
-            <p className="mt-3 text-[11px] text-blue-500">
-              Keep bag numbers handy for quick updates.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-emerald-700 text-xs font-semibold uppercase tracking-wide">
-              <CheckCircle2Icon size={16} className="text-emerald-600" />
-              <span>Ready for pickup</span>
-            </div>
-            <div className="mt-3 text-xl font-semibold text-emerald-900">
-              {readyForPickupCount}
-            </div>
-            <p className="mt-2 text-xs text-emerald-700">
-              Bagless loads: {baglessLoads}
-            </p>
-            <p className="mt-3 text-[11px] text-emerald-600">
-              Confirm bag numbers before changing status.
-            </p>
-          </div>
-        </div>
-
-        {/* Offsite Laundry Pipeline - Visual Status Flow */}
-        {offsiteLoads.length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 via-white to-indigo-50 rounded-xl border border-blue-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Truck className="text-white" size={18} />
-                <h3 className="font-semibold text-white">Offsite Laundry Pipeline</h3>
-              </div>
-              <span className="bg-white/20 text-white text-xs font-medium px-2.5 py-1 rounded-full">
-                {offsiteLoads.length} bag{offsiteLoads.length === 1 ? '' : 's'} total
-              </span>
-            </div>
-            
-            {/* Status Pipeline Visualization */}
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4 relative">
-                {/* Pipeline connector line */}
-                <div className="absolute top-5 left-0 right-0 h-1 bg-gray-200 rounded-full" />
-                <div 
-                  className="absolute top-5 left-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-full transition-all duration-500"
-                  style={{ 
-                    width: `${Math.max(0, ((pendingOffsite > 0 ? 25 : 0) + (transportedOffsite > 0 ? 50 : 0) + (returnedOffsite > 0 ? 75 : 0) + (pickedUpOffsite > 0 ? 100 : 0)) / 4)}%` 
-                  }}
-                />
-                
-                {/* Stage 1: Pending */}
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    pendingOffsite > 0 
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    <Clock size={18} />
-                  </div>
-                  <span className="mt-2 text-xs font-medium text-gray-600">Waiting</span>
-                  <span className={`text-lg font-bold ${pendingOffsite > 0 ? 'text-blue-600' : 'text-gray-400'}`}>
-                    {pendingOffsite}
-                  </span>
-                </div>
-
-                {/* Arrow */}
-                <ArrowRight className="text-gray-300 relative z-10" size={20} />
-
-                {/* Stage 2: Transported */}
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    transportedOffsite > 0 
-                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-200' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    <Truck size={18} />
-                  </div>
-                  <span className="mt-2 text-xs font-medium text-gray-600">In Transit</span>
-                  <span className={`text-lg font-bold ${transportedOffsite > 0 ? 'text-purple-600' : 'text-gray-400'}`}>
-                    {transportedOffsite}
-                  </span>
-                </div>
-
-                {/* Arrow */}
-                <ArrowRight className="text-gray-300 relative z-10" size={20} />
-
-                {/* Stage 3: Returned */}
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    returnedOffsite > 0 
-                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    <Package size={18} />
-                  </div>
-                  <span className="mt-2 text-xs font-medium text-gray-600">Returned</span>
-                  <span className={`text-lg font-bold ${returnedOffsite > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
-                    {returnedOffsite}
-                  </span>
-                </div>
-
-                {/* Arrow */}
-                <ArrowRight className="text-gray-300 relative z-10" size={20} />
-
-                {/* Stage 4: Picked Up */}
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    pickedUpOffsite > 0 
-                      ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    <CheckCircle size={18} />
-                  </div>
-                  <span className="mt-2 text-xs font-medium text-gray-600">Picked Up</span>
-                  <span className={`text-lg font-bold ${pickedUpOffsite > 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                    {pickedUpOffsite}
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Actions for Offsite Bags */}
-              {(pendingOffsite > 0 || transportedOffsite > 0 || returnedOffsite > 0) && (
-                <div className="mt-4 pt-4 border-t border-blue-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-medium text-gray-600">Quick Actions</span>
-                    <span className="text-xs text-gray-500">Click a bag to update status</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {offsiteLoads
-                      .filter(record => record.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP)
-                      .slice(0, 6)
-                      .map((record) => {
-                        const statusInfo = getLaundryStatusInfo(record.status);
-                        const StatusIcon = statusInfo.icon;
-                        const nextStatus = record.status === LAUNDRY_STATUS.PENDING 
-                          ? LAUNDRY_STATUS.TRANSPORTED 
-                          : record.status === LAUNDRY_STATUS.TRANSPORTED 
-                            ? LAUNDRY_STATUS.RETURNED 
-                            : LAUNDRY_STATUS.OFFSITE_PICKED_UP;
-                        const nextLabel = record.status === LAUNDRY_STATUS.PENDING 
-                          ? 'Mark Transported' 
-                          : record.status === LAUNDRY_STATUS.TRANSPORTED 
-                            ? 'Mark Returned' 
-                            : 'Mark Picked Up';
-                        
-                        return (
-                          <div 
-                            key={record.id}
-                            className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <ShoppingBag size={14} className="text-blue-500 flex-shrink-0" />
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  {record.guestName}
-                                </span>
-                              </div>
-                              <span className="text-xs text-gray-500 flex-shrink-0">
-                                #{record.bagNumber || '—'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2 py-0.5 text-xs font-medium rounded-full inline-flex items-center gap-1`}>
-                                <StatusIcon size={10} />
-                                {statusInfo.label}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  updateLaundryStatus(record.id, nextStatus);
-                                  toast.success(`${record.guestName}'s laundry updated`);
-                                }}
-                                className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                {nextLabel} →
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                  {offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length > 6 && (
-                    <p className="text-xs text-gray-500 text-center mt-3">
-                      +{offsiteLoads.filter(r => r.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP).length - 6} more bags in the list below
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Pending Pickup - Orphaned Laundry from Previous Days */}
+        <OrphanedLaundryTracker />
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="p-4 lg:p-6 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <WashingMachine className="text-purple-600" size={20} />
-                  <span>Today's Laundry</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <WashingMachine className="text-purple-600" size={20} />
+                    <span>Today's Laundry</span>
+                  </h2>
+                  <SectionRefreshButton serviceType="laundry" size="sm" variant="ghost" />
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Monitor bag progress, adjust slots, and update statuses in one
                   place.
@@ -4481,39 +4221,29 @@ const Services = () => {
                   <button
                     type="button"
                     onClick={() => setLaundryViewMode("kanban")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                      laundryViewMode === "kanban"
-                        ? "bg-white text-purple-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${laundryViewMode === "kanban"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     Kanban
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLaundryViewMode("list")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                      laundryViewMode === "list"
-                        ? "bg-white text-purple-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    List
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setLaundryViewMode("compact")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
-                      laundryViewMode === "compact"
-                        ? "bg-white text-purple-600 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${laundryViewMode === "compact"
+                      ? "bg-white text-purple-600 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                      }`}
                   >
                     Compact
                   </button>
                 </div>
               </div>
             </div>
+
+            {/* Slot Block Manager - Only visible to admin/staff, shown in both views */}
+            <SlotBlockManager serviceType="laundry" />
 
             {laundryViewMode === "kanban" ? (
               <LaundryKanban
@@ -4524,7 +4254,7 @@ const Services = () => {
                 cancelLaundryRecord={cancelLaundryRecord}
                 attemptLaundryStatusChange={attemptLaundryStatusChange}
               />
-            ) : laundryViewMode === "compact" ? (
+            ) : (
               <div className="space-y-3">
                 {/* Date Navigation for Laundry Time Travel */}
                 {laundryViewDate !== today && (
@@ -4546,7 +4276,7 @@ const Services = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Date Navigation Buttons */}
                 <div className="flex items-center justify-between gap-2 bg-purple-50 border border-purple-100 rounded-lg p-2">
                   <button
@@ -4557,11 +4287,11 @@ const Services = () => {
                     <ChevronLeft size={16} />
                     Previous Day
                   </button>
-                  
+
                   <div className="text-center text-sm font-medium text-gray-600">
                     {formatServiceDayLabel(laundryViewDate)}
                   </div>
-                  
+
                   <button
                     type="button"
                     onClick={goToNextLaundryDate}
@@ -4573,209 +4303,18 @@ const Services = () => {
                   </button>
                 </div>
 
-                <CompactLaundryList viewDate={laundryViewDate} />
+                <CompactLaundryList
+                  viewDate={laundryViewDate}
+                  onGuestClick={() => {
+                    // When clicking in compact view, switch to kanban for full interaction
+                    setLaundryViewMode("kanban");
+                  }}
+                />
               </div>
-            ) : (
-              <>
-                <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-3 md:space-y-0 md:flex md:flex-wrap md:gap-2">
-                  <select
-                    value={laundryTypeFilter}
-                    onChange={(event) =>
-                      setLaundryTypeFilter(event.target.value)
-                    }
-                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  >
-                    <option value="any">Type: Any</option>
-                    <option value="onsite">Type: On-site</option>
-                    <option value="offsite">Type: Off-site</option>
-                  </select>
-                  <select
-                    value={laundryStatusFilter}
-                    onChange={(event) =>
-                      setLaundryStatusFilter(event.target.value)
-                    }
-                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  >
-                    <option value="any">Status: Any</option>
-                    <option value={LAUNDRY_STATUS.WAITING}>Waiting</option>
-                    <option value={LAUNDRY_STATUS.WASHER}>In Washer</option>
-                    <option value={LAUNDRY_STATUS.DRYER}>In Dryer</option>
-                    <option value={LAUNDRY_STATUS.DONE}>Done</option>
-                    <option value={LAUNDRY_STATUS.PICKED_UP}>Picked Up</option>
-                    <option value={LAUNDRY_STATUS.PENDING}>
-                      Off-site Waiting
-                    </option>
-                    <option value={LAUNDRY_STATUS.TRANSPORTED}>
-                      Transported
-                    </option>
-                    <option value={LAUNDRY_STATUS.RETURNED}>Returned</option>
-                    <option value={LAUNDRY_STATUS.OFFSITE_PICKED_UP}>
-                      Off-site Picked Up
-                    </option>
-                  </select>
-                  <select
-                    value={laundrySort}
-                    onChange={(event) => setLaundrySort(event.target.value)}
-                    className="w-full md:w-auto text-xs font-medium bg-white border border-purple-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  >
-                    <option value="time-asc">Sort: Time ↑</option>
-                    <option value="time-desc">Sort: Time ↓</option>
-                    <option value="status">Sort: Status</option>
-                    <option value="name">Sort: Name</option>
-                  </select>
-                </div>
-
-                {/* Previous Service Day Section for Offsite Laundry Pickup */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowPreviousServiceDay((prev) => !prev)}
-                    className="w-full flex items-center justify-between text-sm font-medium text-amber-800"
-                  >
-                    <div className="flex items-center gap-2">
-                      <History size={16} className="text-amber-600" />
-                      <span>
-                        Previous Service Day Offsite Laundry
-                        <span className="ml-2 text-xs font-normal text-amber-600">
-                          ({formatServiceDayLabel(previousServiceDay)})
-                        </span>
-                      </span>
-                      {previousServiceDayLaundry.length > 0 && (
-                        <span className="bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full text-xs font-medium">
-                          {previousServiceDayLaundry.length} bags
-                        </span>
-                      )}
-                    </div>
-                    {showPreviousServiceDay ? (
-                      <ChevronUp size={16} />
-                    ) : (
-                      <ChevronDown size={16} />
-                    )}
-                  </button>
-                  <p className="text-xs text-amber-700 mt-2">
-                    View offsite laundry bags from the previous service day that may be ready for pickup today.
-                    Service days: Mon → Wed, Wed → Sat.
-                  </p>
-                  
-                  {showPreviousServiceDay && (
-                    <div className="mt-4 space-y-3">
-                      {previousServiceDayLaundry.length === 0 ? (
-                        <div className="text-center py-6 text-sm text-amber-700 bg-amber-100/50 rounded-lg border border-dashed border-amber-300">
-                          No offsite laundry from {formatServiceDayLabel(previousServiceDay)}.
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {previousServiceDayLaundry.map((record) => {
-                            const statusInfo = getLaundryStatusInfo(record.status);
-                            const StatusIcon = statusInfo.icon;
-                            return (
-                              <div
-                                key={record.id}
-                                className="bg-white rounded-lg border border-amber-200 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-shrink-0 p-2 bg-amber-100 rounded-lg">
-                                    <Truck size={16} className="text-amber-600" />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="font-medium text-gray-900 truncate">
-                                      {record.guestName}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                      <span className="inline-flex items-center gap-1">
-                                        <ShoppingBag size={12} />
-                                        Bag #{record.bagNumber || "—"}
-                                      </span>
-                                      <span className="text-amber-600">
-                                        From {formatServiceDayLabel(previousServiceDay)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`${statusInfo.bgColor} ${statusInfo.textColor} px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1`}
-                                  >
-                                    <StatusIcon size={12} />
-                                    {statusInfo.label}
-                                  </span>
-                                  {record.status !== LAUNDRY_STATUS.OFFSITE_PICKED_UP && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        updateLaundryStatus(record.id, LAUNDRY_STATUS.OFFSITE_PICKED_UP);
-                                        toast.success(`${record.guestName}'s laundry marked as picked up`);
-                                      }}
-                                      className="px-3 py-1.5 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full hover:bg-emerald-200 transition-colors"
-                                    >
-                                      Mark Picked Up
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {filteredLaundry.length === 0 ? (
-                  <div className="border border-dashed border-purple-200 rounded-lg text-center py-12 text-sm text-purple-700 bg-purple-50">
-                    No laundry bookings match your filters.
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {activeLaundry.length > 0 ? (
-                      <div className="space-y-4">
-                        {activeLaundry.map((record, idx) =>
-                          renderLaundryCard(record, activeLaundryTrail[idx]),
-                        )}
-                      </div>
-                    ) : (
-                      <div className="border border-dashed border-purple-200 rounded-lg text-center py-10 text-sm text-purple-600 bg-purple-50">
-                        No active laundry loads.
-                      </div>
-                    )}
-
-                    {completedLaundry.length > 0 && (
-                      <div className="pt-4 border-t border-purple-100">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowCompletedLaundry((prev) => !prev)
-                          }
-                          className="w-full flex items-center justify-between text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-lg px-4 py-2 transition-colors"
-                        >
-                          <span>
-                            Completed laundry ({completedLaundry.length})
-                          </span>
-                          {isCompletedLaundryOpen ? (
-                            <ChevronUp size={16} />
-                          ) : (
-                            <ChevronDown size={16} />
-                          )}
-                        </button>
-                        {isCompletedLaundryOpen && (
-                          <div className="mt-3 space-y-3">
-                            {completedLaundry.map((record, idx) =>
-                              renderLaundryCard(
-                                record,
-                                completedLaundryTrail[idx],
-                              ),
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
             )}
           </div>
         </div>
-      </>
+      </div>
     );
   };
 
@@ -4863,11 +4402,10 @@ const Services = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    activeSection === section.id
-                      ? "bg-blue-100 text-blue-700 border border-blue-200"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${activeSection === section.id
+                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
                 >
                   <SpringIcon>
                     <Icon size={16} />

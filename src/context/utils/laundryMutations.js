@@ -1,4 +1,5 @@
 import { addLaundryWithOffline } from '../../utils/offlineOperations';
+import { globalSyncManager } from '../SupabaseSync';
 
 export const createLaundryMutations = ({
   supabaseEnabled,
@@ -22,6 +23,100 @@ export const createLaundryMutations = ({
   normalizeDateInputToISO,
   onServiceCompleted, // Callback when a service is marked complete
 }) => {
+  /**
+   * Trigger a sync for other users to see updated slots immediately
+   */
+  const triggerLaundrySync = () => {
+    try {
+      // Reset the last sync time to force an immediate sync
+      globalSyncManager?.lastSync.set('laundry', 0);
+    } catch (error) {
+      console.warn('Could not trigger laundry sync:', error);
+    }
+  };
+
+  /**
+   * Validates slot availability by querying the database directly.
+   * This prevents race conditions when multiple users book simultaneously.
+   * Falls back to local state check when offline or on error.
+   */
+  const validateLaundrySlotAvailability = async (time, scheduledFor) => {
+    if (!supabaseEnabled || !supabaseClient || !navigator.onLine) {
+      // Fall back to local state check when offline or no supabase
+      const slotTaken = laundrySlots.some(
+        (slot) => slot.time === time
+      );
+      return !slotTaken;
+    }
+
+    try {
+      // Query database directly to check if slot is already taken
+      const { count, error } = await supabaseClient
+        .from("laundry_bookings")
+        .select("*", { count: "exact", head: true })
+        .eq("slot_label", time)
+        .eq("scheduled_for", scheduledFor)
+        .eq("laundry_type", "onsite");
+
+      if (error) {
+        console.error("Error validating laundry slot availability:", error);
+        // Fall back to local check on error
+        const slotTaken = laundrySlots.some(
+          (slot) => slot.time === time
+        );
+        return !slotTaken;
+      }
+
+      // Slot is available if no bookings exist for this time
+      return (count || 0) === 0;
+    } catch (err) {
+      console.error("Failed to validate laundry slot availability:", err);
+      // Fall back to local check on error
+      const slotTaken = laundrySlots.some(
+        (slot) => slot.time === time
+      );
+      return !slotTaken;
+    }
+  };
+
+  /**
+   * Validates that the total on-site slots haven't been exceeded.
+   * Queries the database to get accurate count.
+   */
+  const validateOnsiteCapacity = async (scheduledFor) => {
+    if (!supabaseEnabled || !supabaseClient || !navigator.onLine) {
+      // Fall back to local state check
+      const onsiteSlots = laundrySlots.filter(
+        (slot) => slot.laundryType === "onsite"
+      );
+      return onsiteSlots.length < settings.maxOnsiteLaundrySlots;
+    }
+
+    try {
+      const { count, error } = await supabaseClient
+        .from("laundry_bookings")
+        .select("*", { count: "exact", head: true })
+        .eq("scheduled_for", scheduledFor)
+        .eq("laundry_type", "onsite");
+
+      if (error) {
+        console.error("Error validating onsite capacity:", error);
+        const onsiteSlots = laundrySlots.filter(
+          (slot) => slot.laundryType === "onsite"
+        );
+        return onsiteSlots.length < settings.maxOnsiteLaundrySlots;
+      }
+
+      return (count || 0) < settings.maxOnsiteLaundrySlots;
+    } catch (err) {
+      console.error("Failed to validate onsite capacity:", err);
+      const onsiteSlots = laundrySlots.filter(
+        (slot) => slot.laundryType === "onsite"
+      );
+      return onsiteSlots.length < settings.maxOnsiteLaundrySlots;
+    }
+  };
+
   const addLaundryRecord = async (
     guestId,
     time,
@@ -29,34 +124,37 @@ export const createLaundryMutations = ({
     bagNumber = "",
     dateOverride = null,
   ) => {
+    const scheduledFor = dateOverride
+      ? pacificDateStringFrom(dateOverride)
+      : todayPacificDateString();
+
     if (laundryType === "onsite") {
-      const slotTaken = laundrySlots.some((slot) => slot.time === time);
-      if (slotTaken) {
-        throw new Error("That laundry slot is already taken.");
+      // Re-validate slot availability from database before booking
+      // This prevents race conditions when multiple users book simultaneously
+      const isSlotAvailable = await validateLaundrySlotAvailability(time, scheduledFor);
+      if (!isSlotAvailable) {
+        // Slot became full while user was selecting - show helpful message
+        toast.error("This slot just filled up. Please choose another time.");
+        throw new Error("That laundry slot is already taken. Please refresh and try another slot.");
       }
 
-      const onsiteSlots = laundrySlots.filter(
-        (slot) => slot.laundryType === "onsite",
-      );
-      if (onsiteSlots.length >= settings.maxOnsiteLaundrySlots) {
+      // Also validate total on-site capacity from database
+      const hasCapacity = await validateOnsiteCapacity(scheduledFor);
+      if (!hasCapacity) {
+        toast.error("All on-site slots are now full. Please try off-site laundry.");
         throw new Error("All on-site laundry slots are taken for today.");
       }
     }
 
     const timestamp = dateOverride || new Date().toISOString();
-    const today = dateOverride
-      ? pacificDateStringFrom(dateOverride)
-      : todayPacificDateString();
     const alreadyBooked = laundryRecords.some(
       (record) =>
-        record.guestId === guestId && pacificDateStringFrom(record.date) === today,
+        record.guestId === guestId && pacificDateStringFrom(record.date) === scheduledFor,
     );
 
     if (alreadyBooked) {
       throw new Error("Guest already has a laundry booking today.");
     }
-
-    const scheduledFor = today;
     const slotStart =
       laundryType === "onsite" ? extractLaundrySlotStart(time) : null;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
@@ -148,6 +246,8 @@ export const createLaundryMutations = ({
           data: { recordId: mapped.id, guestId, time, laundryType, bagNumber },
           description: `Booked ${laundryType} laundry${time ? ` at ${time}` : ""} for guest`,
         });
+        // Trigger sync so other users see the new booking immediately
+        triggerLaundrySync();
         return mapped;
       } catch (error) {
         console.error("Failed to create laundry booking:", error);
@@ -195,46 +295,118 @@ export const createLaundryMutations = ({
     const record = laundryRecords.find((candidate) => candidate.id === recordId);
     if (!record) return false;
 
-    setLaundryRecords((prev) => prev.filter((candidate) => candidate.id !== recordId));
-    if (record.laundryType === "onsite") {
-      setLaundrySlots((prev) =>
-        prev.filter(
-          (slot) => !(slot.guestId === record.guestId && slot.time === record.time),
-        ),
-      );
-    }
+    // Create snapshots for rollback
+    const recordsSnapshot = laundryRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = laundrySlots.map((s) => ({ ...s }));
 
-    if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
-      try {
+    try {
+      // Remove the record from local state optimistically
+      setLaundryRecords((prev) =>
+        prev.filter((candidate) => candidate.id !== recordId)
+      );
+
+      if (record.laundryType === "onsite") {
+        setLaundrySlots((prev) =>
+          prev.filter((slot) =>
+            !(slot.guestId === record.guestId && slot.time === record.time)
+          )
+        );
+      }
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient && !String(recordId).startsWith("local-")) {
         const { error } = await supabaseClient
           .from("laundry_bookings")
           .delete()
           .eq("id", recordId);
         if (error) throw error;
-      } catch (error) {
-        console.error("Failed to cancel laundry booking:", error);
-        toast.error("Unable to cancel laundry booking.");
-        return false;
       }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "LAUNDRY_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: {
+          recordId,
+          guestId: record.guestId,
+          time: record.time,
+          laundryType: record.laundryType,
+          snapshot: { ...record },
+        },
+        description: `Cancelled ${record.laundryType} laundry${record.time ? ` at ${record.time}` : ""
+          }`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to cancel laundry booking:", error);
+      setLaundryRecords(recordsSnapshot);
+      setLaundrySlots(slotsSnapshot);
+      toast.error("Unable to cancel laundry booking.");
+      return false;
     }
+  };
 
-    pushAction({
-      id: Date.now() + Math.random(),
-      type: "LAUNDRY_CANCELLED",
-      timestamp: new Date().toISOString(),
-      data: {
-        recordId,
-        guestId: record.guestId,
-        time: record.time,
-        laundryType: record.laundryType,
-        snapshot: { ...record },
-      },
-      description: `Cancelled ${record.laundryType} laundry${
-        record.time ? ` at ${record.time}` : ""
-      }`,
-    });
+  const cancelMultipleLaundry = async (recordIds) => {
+    if (!recordIds || recordIds.length === 0) return true;
 
-    return true;
+    const recordsToCancel = laundryRecords.filter((r) => recordIds.includes(r.id));
+    if (recordsToCancel.length === 0) return true;
+
+    // Create snapshots for rollback
+    const recordsSnapshot = laundryRecords.map((r) => ({ ...r }));
+    const slotsSnapshot = laundrySlots.map((s) => ({ ...s }));
+
+    try {
+      // Update local state optimistically
+      setLaundryRecords((prev) =>
+        prev.filter((candidate) => !recordIds.includes(candidate.id))
+      );
+
+      setLaundrySlots((prev) =>
+        prev.filter((slot) => {
+          const matchingRecord = recordsToCancel.find(
+            (r) =>
+              r.guestId === slot.guestId &&
+              r.time === slot.time &&
+              r.laundryType === "onsite",
+          );
+          return !matchingRecord;
+        }),
+      );
+
+      // Then sync to server if online
+      if (supabaseEnabled && supabaseClient) {
+        const nonLocalIds = recordIds.filter(
+          (id) => !String(id).startsWith("local-"),
+        );
+        if (nonLocalIds.length > 0) {
+          const { error } = await supabaseClient
+            .from("laundry_bookings")
+            .delete()
+            .in("id", nonLocalIds);
+          if (error) throw error;
+        }
+      }
+
+      pushAction({
+        id: Date.now() + Math.random(),
+        type: "LAUNDRY_BULK_CANCELLED",
+        timestamp: new Date().toISOString(),
+        data: { recordIds, count: recordIds.length },
+        description: `Bulk cancelled ${recordIds.length} laundry loads`,
+      });
+
+      return true;
+    } catch (error) {
+      // Rollback on failure
+      console.error("Failed to bulk cancel laundry bookings:", error);
+      setLaundryRecords(recordsSnapshot);
+      setLaundrySlots(slotsSnapshot);
+      toast.error("Unable to cancel some laundry bookings.");
+      return false;
+    }
   };
 
   const rescheduleLaundry = async (
@@ -246,31 +418,38 @@ export const createLaundryMutations = ({
 
     const targetType = newLaundryType || record.laundryType;
     const targetTime = targetType === "onsite" ? (newTime ?? record.time) : null;
+    const scheduledFor =
+      record.scheduledFor ||
+      pacificDateStringFrom(record.date) ||
+      todayPacificDateString();
 
     if (targetType === "onsite") {
       if (!targetTime) {
         throw new Error("A time slot is required for on-site laundry.");
       }
-      const slotTakenByOther = laundrySlots.some(
-        (slot) => slot.time === targetTime && slot.guestId !== record.guestId,
-      );
-      if (slotTakenByOther) {
-        throw new Error("That laundry slot is already taken.");
+
+      // If moving to a different time slot, validate from database
+      // (skip validation if keeping same time - guest is just updating type)
+      if (targetTime !== record.time) {
+        const isSlotAvailable = await validateLaundrySlotAvailability(targetTime, scheduledFor);
+        if (!isSlotAvailable) {
+          toast.error("This slot just filled up. Please choose another time.");
+          throw new Error("That laundry slot is already taken. Please refresh and try another slot.");
+        }
       }
-      const onsiteSlots = laundrySlots.filter(
-        (slot) => slot.laundryType === "onsite",
-      );
+
+      // If switching from offsite to onsite, check capacity
       const isNewToOnsite = record.laundryType !== "onsite";
-      if (isNewToOnsite && onsiteSlots.length >= settings.maxOnsiteLaundrySlots) {
-        throw new Error("All on-site laundry slots are taken for today.");
+      if (isNewToOnsite) {
+        const hasCapacity = await validateOnsiteCapacity(scheduledFor);
+        if (!hasCapacity) {
+          toast.error("All on-site slots are now full. Please try off-site laundry.");
+          throw new Error("All on-site laundry slots are taken for today.");
+        }
       }
     }
 
     const timestamp = new Date().toISOString();
-    const scheduledFor =
-      record.scheduledFor ||
-      pacificDateStringFrom(record.date) ||
-      todayPacificDateString();
     const slotStart =
       targetType === "onsite" ? extractLaundrySlotStart(targetTime) : null;
     const scheduledDateTime = combineDateAndTimeISO(scheduledFor, slotStart);
@@ -373,9 +552,8 @@ export const createLaundryMutations = ({
         from: { type: record.laundryType, time: record.time },
         to: { type: targetType, time: targetTime },
       },
-      description: `Updated laundry to ${targetType}${
-        targetTime ? ` at ${targetTime}` : ""
-      }`,
+      description: `Updated laundry to ${targetType}${targetTime ? ` at ${targetTime}` : ""
+        }`,
     });
 
     return updatedRecord;
@@ -402,7 +580,7 @@ export const createLaundryMutations = ({
     setLaundrySlots((prev) =>
       prev.map((slot) =>
         slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
+          slot.time === updatedRecord.time
           ? { ...slot, status: newStatus, bagNumber: updatedRecord.bagNumber }
           : slot,
       ),
@@ -447,6 +625,9 @@ export const createLaundryMutations = ({
       onServiceCompleted(originalRecord.guestId, "laundry");
     }
 
+    // Trigger sync so other users see the status update immediately
+    triggerLaundrySync();
+
     return true;
   };
 
@@ -471,7 +652,7 @@ export const createLaundryMutations = ({
     setLaundrySlots((prev) =>
       prev.map((slot) =>
         slot.guestId === updatedRecord.guestId &&
-        slot.time === updatedRecord.time
+          slot.time === updatedRecord.time
           ? { ...slot, bagNumber: bagNumber || "" }
           : slot,
       ),
@@ -550,9 +731,8 @@ export const createLaundryMutations = ({
       type: "LAUNDRY_IMPORTED",
       timestamp: timestampIso,
       data: { guestId, count: importedRecords.length },
-      description: `Imported ${importedRecords.length} laundry record${
-        importedRecords.length === 1 ? "" : "s"
-      }`,
+      description: `Imported ${importedRecords.length} laundry record${importedRecords.length === 1 ? "" : "s"
+        }`,
     });
 
     return importedRecords;
@@ -561,6 +741,7 @@ export const createLaundryMutations = ({
   return {
     addLaundryRecord,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     updateLaundryStatus,
     updateLaundryBagNumber,

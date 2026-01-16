@@ -15,6 +15,7 @@ import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import Modal from "./ui/Modal";
 import toast from "react-hot-toast";
+import { executeWithOptimisticUpdate } from "../utils/optimisticUpdates";
 
 const humanizeStatus = (status) => {
   if (!status) return "Pending";
@@ -45,6 +46,8 @@ const LaundryBooking = () => {
     guests,
     settings,
     LAUNDRY_STATUS,
+    blockedSlots,
+    refreshServiceSlots,
   } = useAppContext();
 
   const { user } = useAuth();
@@ -70,6 +73,22 @@ const LaundryBooking = () => {
 
   const todayString = todayPacificDateString();
 
+  // Get blocked laundry slots for today
+  const blockedLaundrySlots = useMemo(() => {
+    return new Set(
+      (blockedSlots || [])
+        .filter(slot => slot.serviceType === "laundry" && slot.date === todayString)
+        .map(slot => slot.slotTime)
+    );
+  }, [blockedSlots, todayString]);
+
+  // Refresh slot availability from database when modal opens
+  useEffect(() => {
+    if (laundryPickerGuest && refreshServiceSlots) {
+      refreshServiceSlots("laundry");
+    }
+  }, [laundryPickerGuest, refreshServiceSlots]);
+
   useEffect(() => {
     if (!laundryPickerGuest) {
       setSelectedLaundryType("onsite");
@@ -86,39 +105,62 @@ const LaundryBooking = () => {
   }, [selectedLaundryType]);
 
   const isSlotBooked = useCallback(
-    (slotTime) => laundrySlots.some((slot) => slot.time === slotTime),
+    (slotTime) => 
+      laundrySlots.some((slot) => slot.time === slotTime),
     [laundrySlots],
   );
 
-  const handleBookLaundry = (slotTime = null) => {
+  const handleBookLaundry = useCallback(async (slotTime = null) => {
     if (!laundryPickerGuest) return;
 
-    try {
-      addLaundryRecord(
+    // Optimistic update
+    const optimisticUpdate = () => {
+      setSuccess(true);
+      setError("");
+    };
+
+    const mutation = async () => {
+      return await addLaundryRecord(
         laundryPickerGuest.id,
         slotTime,
         selectedLaundryType,
         bagNumber.trim(),
       );
-      setSuccess(true);
-      setError("");
-      if (slotTime) {
-        // slotTime is typically a time or range string
-        toast.success(`${laundryPickerGuest?.name} booked for ${slotTime}`);
-      } else {
-        toast.success(`${laundryPickerGuest?.name} booked (off-site)`);
-      }
+    };
 
-      setTimeout(() => {
-        setSuccess(false);
-        setLaundryPickerGuest(null);
-        setBagNumber("");
-      }, 1500);
-    } catch (err) {
-      setError(err.message || "Failed to book laundry");
+    const rollback = () => {
       setSuccess(false);
+    };
+
+    try {
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            if (slotTime) {
+              toast.success(`${laundryPickerGuest?.name} booked for ${slotTime}`);
+            } else {
+              toast.success(`${laundryPickerGuest?.name} booked (off-site)`);
+            }
+
+            setTimeout(() => {
+              setSuccess(false);
+              setLaundryPickerGuest(null);
+              setBagNumber("");
+            }, 1500);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to book laundry");
+            setSuccess(false);
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Laundry booking error:", err);
     }
-  };
+  }, [laundryPickerGuest, selectedLaundryType, bagNumber, addLaundryRecord, setLaundryPickerGuest]);
 
   const onsiteCapacity = settings?.maxOnsiteLaundrySlots ?? 5;
   const onsiteSlotsTaken = useMemo(
@@ -150,6 +192,8 @@ const LaundryBooking = () => {
     laundrySlots.forEach((slot) => {
       if (!slot.time) return;
       if (slot.laundryType && slot.laundryType !== "onsite") return;
+      // Don't show assignment info for cancelled slots - they should appear unavailable
+      if (slot.status === LAUNDRY_STATUS?.CANCELLED) return;
       const guest = guests?.find((g) => g.id === slot.guestId);
       const matchingRecord = laundryRecords?.find(
         (record) =>
@@ -177,10 +221,17 @@ const LaundryBooking = () => {
     );
   }, [laundryPickerGuest, laundryRecords]);
 
+  // Filter out blocked slots for next available calculation
+  const availableLaundrySlots = useMemo(() => {
+    return allLaundrySlots.filter(slotTime => !blockedLaundrySlots.has(slotTime));
+  }, [allLaundrySlots, blockedLaundrySlots]);
+
+  const blockedCount = blockedLaundrySlots.size;
+
   const nextAvailableSlot = useMemo(() => {
     if (capacityReached) return null;
-    return allLaundrySlots.find((slotTime) => !isSlotBooked(slotTime));
-  }, [allLaundrySlots, capacityReached, isSlotBooked]);
+    return availableLaundrySlots.find((slotTime) => !isSlotBooked(slotTime));
+  }, [availableLaundrySlots, capacityReached, isSlotBooked]);
 
   const statusChipStyles = {
     [LAUNDRY_STATUS?.WAITING]: "bg-amber-100 text-amber-800",
@@ -417,16 +468,44 @@ const LaundryBooking = () => {
             </div>
           )}
 
-          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg flex gap-3 text-sm text-purple-900">
-            <Sparkles size={20} className="mt-1 shrink-0" aria-hidden="true" />
-            <div>
-              <p className="font-semibold">Laundry concierge overview</p>
-              <p className="leading-relaxed">
-                Choose the service that fits this guest best. On-site slots are
-                limited, while off-site bookings queue for the next courier run.
-              </p>
-            </div>
-          </div>
+          {/* Next Available Slot - Prominent at top for quick booking */}
+          {selectedLaundryType === "onsite" && (
+            <>
+              {nextAvailableSlot ? (
+                <div className="border-2 border-purple-500 rounded-lg p-3 bg-purple-50">
+                  <p className="text-xs uppercase text-purple-600 font-semibold tracking-wide mb-1">
+                    Next Available
+                  </p>
+                  <p className="text-xl font-bold text-gray-900 mb-0.5">
+                    {nextAvailableSlot}
+                  </p>
+                  <p className="text-xs text-gray-600 mb-2">
+                    Book now for the earliest available slot
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleBookLaundry(nextAvailableSlot)}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm"
+                    data-testid="book-next-available-laundry-btn"
+                  >
+                    Book {nextAvailableSlot}
+                  </button>
+                </div>
+              ) : (
+                <div className="border-2 border-yellow-300 rounded-lg p-3 bg-yellow-50">
+                  <div className="flex items-start gap-2 mb-2">
+                    <Info size={16} className="text-yellow-700 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                    <div>
+                      <p className="text-xs font-semibold text-yellow-900">All Slots Full</p>
+                      <p className="text-xs text-yellow-800 mt-0.5">
+                        No on-site laundry slots available today. Consider off-site service instead.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="border border-gray-100 rounded-lg p-4 bg-gray-50">
@@ -561,12 +640,18 @@ const LaundryBooking = () => {
                 </h3>
                 <p className="text-xs text-gray-500 mb-3">
                   Maximum of {onsiteCapacity} on-site laundry slots per day
+                  {blockedCount > 0 && (
+                    <span className="ml-2 text-red-600">
+                      • {blockedCount} slot{blockedCount !== 1 ? "s" : ""} blocked today
+                    </span>
+                  )}
                 </p>
 
-                <div className="grid grid-cols-1 gap-3">
-                  {allLaundrySlots.map((slotTime) => {
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {availableLaundrySlots.map((slotTime) => {
                     const booked = isSlotBooked(slotTime);
                     const slotInfo = slotAssignments.get(slotTime);
+                    const isNextAvailable = slotTime === nextAvailableSlot;
 
                     return (
                       <button
@@ -577,38 +662,36 @@ const LaundryBooking = () => {
                           handleBookLaundry(slotTime)
                         }
                         disabled={booked || capacityReached}
-                        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-4 border rounded-lg transition-all duration-200 text-left ${
+                        className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${
                           booked || capacityReached
                             ? "bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200"
-                            : "bg-white hover:bg-purple-50 text-gray-800 hover:border-purple-500 shadow-sm"
+                            : isNextAvailable
+                            ? "bg-purple-50 hover:bg-purple-100 hover:shadow-md active:scale-98 border-purple-300 text-gray-800 shadow-sm"
+                            : "bg-white hover:bg-purple-50 hover:shadow-md active:scale-98 text-gray-800 hover:border-purple-500 shadow-sm"
                         }`}
                       >
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2 text-base font-semibold text-gray-800">
-                            <Clock size={18} aria-hidden="true" />
-                            <span>{slotTime}</span>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            {booked
-                              ? "Currently assigned"
-                              : "Tap to reserve this hour"}
-                          </p>
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-lg sm:text-base font-semibold flex items-center gap-2">
+                            <Clock size={16} aria-hidden="true" />
+                            {slotTime}
+                          </span>
+                          {isNextAvailable && !booked && !capacityReached && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-200 text-purple-700 font-semibold">
+                              Next
+                            </span>
+                          )}
                         </div>
-
-                        <div className="flex flex-col items-start sm:items-end gap-1">
+                        <div className="flex flex-wrap gap-1 w-full">
                           {slotInfo ? (
-                            <>
-                              <span className="text-sm font-medium text-gray-700">
-                                {slotInfo.guestName}
-                              </span>
-                              <span
-                                className={`text-xs px-2 py-1 rounded-full font-medium ${statusChipStyles[slotInfo.status] || "bg-gray-200 text-gray-700"}`}
-                              >
-                                {humanizeStatus(slotInfo.status)}
-                              </span>
-                            </>
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 max-w-full truncate">
+                              {slotInfo.guestName}
+                            </span>
+                          ) : booked || capacityReached ? (
+                            <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-600">
+                              Full
+                            </span>
                           ) : (
-                            <span className="text-sm text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                            <span className="text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-600">
                               Available
                             </span>
                           )}

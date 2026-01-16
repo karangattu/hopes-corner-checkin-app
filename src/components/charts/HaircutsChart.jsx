@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -25,6 +25,52 @@ import { CHART_COLORS } from "./ChartTheme";
  * @param {number} props.target - Optional monthly target
  */
 const HaircutsChart = ({ days = [], target = null }) => {
+  const chartData = days ? days.map((day) => ({
+    date: day.date,
+    dateFormatted: new Date(day.date).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    }),
+    haircuts: day.haircuts || 0,
+  })) : [];
+
+  const totalHaircuts = chartData.reduce((sum, d) => sum + d.haircuts, 0);
+  const avgPerDay = totalHaircuts / (chartData.length || 1);
+  const peakDay = chartData.length > 0 ? chartData.reduce(
+    (max, d) => (d.haircuts > max.haircuts ? d : max),
+    chartData[0],
+  ) : null;
+
+  const targetProgress = target ? (totalHaircuts / target) * 100 : null;
+
+  const CustomTooltip = useCallback(
+    ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
+
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {new Date(label).toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Scissors size={14} className="text-yellow-600" />
+              <span className="text-sm text-gray-700">Haircuts:</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {payload[0].value}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    },
+    []
+  );
+
   if (!days || days.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8">
@@ -38,49 +84,6 @@ const HaircutsChart = ({ days = [], target = null }) => {
       </div>
     );
   }
-
-  const chartData = days.map((day) => ({
-    date: day.date,
-    dateFormatted: new Date(day.date).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    }),
-    haircuts: day.haircuts || 0,
-  }));
-
-  const totalHaircuts = chartData.reduce((sum, d) => sum + d.haircuts, 0);
-  const avgPerDay = totalHaircuts / (chartData.length || 1);
-  const peakDay = chartData.reduce(
-    (max, d) => (d.haircuts > max.haircuts ? d : max),
-    chartData[0],
-  );
-
-  const targetProgress = target ? (totalHaircuts / target) * 100 : null;
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
-
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {new Date(label).toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Scissors size={14} className="text-yellow-600" />
-            <span className="text-sm text-gray-700">Haircuts:</span>
-            <span className="text-sm font-semibold text-gray-900">
-              {payload[0].value}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

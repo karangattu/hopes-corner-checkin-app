@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
 import { isBicycleStatusCountable } from "../../utils/bicycles";
+import TrendLineRecharts from "../charts/TrendLineRecharts";
 
 const MONTH_NAMES = [
   "January",
@@ -101,6 +102,19 @@ const MEAL_COLUMN_DEFINITIONS = [
     headerBg: "bg-sky-50",
     cellBg: "bg-sky-50",
     totalCellBg: "bg-sky-50",
+    bodyClass: "font-metric",
+    totalBodyClass: "font-metric font-semibold text-gray-900",
+    isNumeric: true,
+  },
+  {
+    key: "proxyPickups",
+    label: "Proxy Pickups",
+    description:
+      "Meals picked up by a different guest on behalf of the intended guest (proxy/alternative pickups). Counts reflect the number of meals picked up by proxies, not unique guests.",
+    align: "right",
+    headerBg: "bg-amber-50",
+    cellBg: "bg-amber-50",
+    totalCellBg: "bg-amber-50",
     bodyClass: "font-metric",
     totalBodyClass: "font-metric font-semibold text-gray-900",
     isNumeric: true,
@@ -242,6 +256,7 @@ const MEAL_TABLE_GROUPS = [
       "saturdayMeals",
       "uniqueGuests",
       "newGuests",
+      "proxyPickups",
       "onsiteHotMeals",
     ],
   },
@@ -341,6 +356,20 @@ const TooltipHeader = ({ column }) => {
   );
 };
 
+const SummaryCard = ({ insight }) => (
+  <div className="flex flex-1 flex-col justify-between gap-1.5 rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+      <Lightbulb size={12} className="text-amber-500 flex-shrink-0" aria-hidden="true" />
+      <span className="truncate">{insight.title}</span>
+    </div>
+    <div>
+      <p className="text-2xl font-semibold text-gray-900 leading-tight">{insight.value}</p>
+      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{insight.context}</p>
+    </div>
+    <p className="text-xs text-gray-600 leading-snug line-clamp-2">{insight.description}</p>
+  </div>
+);
+
 /**
  * MonthlySummaryReport - Comprehensive monthly meal statistics table
  *
@@ -368,13 +397,29 @@ const MonthlySummaryReport = () => {
   const [showColumnGuide, setShowColumnGuide] = useState(false);
   const columnGuideId = "monthly-summary-column-guide";
 
+  // Year selector state - allows viewing previous years' data
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Generate available years for the dropdown (current year back to 2023 or earliest data year)
+  const availableYears = useMemo(() => {
+    const years = [];
+    const startYear = 2023; // Reasonable start year for data
+    for (let year = currentYear; year >= startYear; year--) {
+      years.push(year);
+    }
+    return years;
+  }, [currentYear]);
+
   const reportMetadata = useMemo(() => {
     const now = new Date();
+    const isCurrentYear = selectedYear === currentYear;
     return {
-      reportYear: now.getFullYear(),
-      currentMonth: now.getMonth(),
+      reportYear: selectedYear,
+      // If viewing current year, only show up to current month. If viewing past year, show all 12 months.
+      currentMonth: isCurrentYear ? now.getMonth() : 11,
     };
-  }, []);
+  }, [selectedYear, currentYear]);
 
   const reportYear = reportMetadata.reportYear;
   const currentMonth = reportMetadata.currentMonth;
@@ -475,6 +520,11 @@ const MonthlySummaryReport = () => {
         filterRecords(unitedEffortMealRecords, reportYear, month),
       );
 
+      // Proxy pickups: meals where someone else picked up on behalf of the guest
+      const proxyPickups = sumQuantities(
+        filterRecords(mealRecords, reportYear, month).filter((r) => r.pickedUpByProxyId),
+      );
+
       const totalHotMeals =
         mondayMeals +
         wednesdayMeals +
@@ -548,6 +598,7 @@ const MonthlySummaryReport = () => {
         rvWedSat,
         rvMonThu,
         lunchBags,
+        proxyPickups,
         totalHotMeals,
         totalWithLunchBags,
         onsiteHotMeals,
@@ -577,6 +628,7 @@ const MonthlySummaryReport = () => {
       rvWedSat: months.reduce((sum, m) => sum + m.rvWedSat, 0),
       rvMonThu: months.reduce((sum, m) => sum + m.rvMonThu, 0),
       lunchBags: months.reduce((sum, m) => sum + m.lunchBags, 0),
+      proxyPickups: months.reduce((sum, m) => sum + (m.proxyPickups || 0), 0),
       totalHotMeals: months.reduce((sum, m) => sum + m.totalHotMeals, 0),
       totalWithLunchBags: months.reduce(
         (sum, m) => sum + m.totalWithLunchBags,
@@ -611,7 +663,7 @@ const MonthlySummaryReport = () => {
     const averageHotMeals = Math.round(ytdHotMeals / months.length || 0);
     const topMonth = months.reduce((best, current) =>
       current.totalHotMeals > best.totalHotMeals ? current : best,
-    months[0]);
+      months[0]);
     const lunchBagCount = monthlyData.totals.lunchBags;
     const totalMealsWithLunch = monthlyData.totals.totalWithLunchBags;
     const lunchBagShare =
@@ -619,6 +671,12 @@ const MonthlySummaryReport = () => {
         ? Math.round((lunchBagCount / totalMealsWithLunch) * 100)
         : 0;
 
+    const ytdProxyPickups = monthlyData.totals.proxyPickups || 0;
+    const lastMonthPickups = months[months.length - 1]?.proxyPickups || 0;
+    const prevMonthPickups = months.length > 1 ? months[months.length - 2]?.proxyPickups || 0 : 0;
+    const proxyChange = lastMonthPickups - prevMonthPickups;
+    const proxyPercent = prevMonthPickups > 0 ? Math.round((proxyChange / prevMonthPickups) * 100) : (proxyChange > 0 ? 100 : 0);
+    const proxyContext = `Last month: ${formatNumber(lastMonthPickups)} (${proxyChange === 0 ? 'no change' : proxyChange > 0 ? `up ${proxyPercent}% vs previous month` : `down ${Math.abs(proxyPercent)}% vs previous month`})`;
     return [
       {
         title: "YTD Hot Meals",
@@ -639,6 +697,13 @@ const MonthlySummaryReport = () => {
         context: `${formatNumber(lunchBagCount)} lunch bags year-to-date`,
         description:
           "Portion of all meals that Volunteers pack every shift.",
+      },
+      {
+        title: "Proxy Pickups",
+        value: formatNumber(ytdProxyPickups),
+        context: proxyContext,
+        description:
+          "Number of meals picked up by a different guest (proxy pickup). Use this to monitor trends in proxy pickups.",
       },
     ];
   }, [monthlyData]);
@@ -738,6 +803,7 @@ const MonthlySummaryReport = () => {
         LAUNDRY_STATUS?.PICKED_UP,
         LAUNDRY_STATUS?.RETURNED,
         LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+        "attended",
       ]
         .filter(Boolean)
         .map((value) => value.toString().toLowerCase()),
@@ -751,7 +817,7 @@ const MonthlySummaryReport = () => {
           return acc;
         }
         const status = (record.status || "").toString().toLowerCase();
-        if (status && status !== "done") return acc;
+        if (status !== "done" && status !== "attended") return acc;
         acc.push({
           guestId: record.guestId != null ? String(record.guestId) : null,
           date,
@@ -1000,8 +1066,8 @@ const MonthlySummaryReport = () => {
       avgLaundryLoadsPerDay:
         totalsAccumulator.laundryServiceDays > 0
           ?
-              totalsAccumulator.laundryLoadsProcessed /
-              totalsAccumulator.laundryServiceDays
+          totalsAccumulator.laundryLoadsProcessed /
+          totalsAccumulator.laundryServiceDays
           : 0,
       newLaundryGuests: runningNewLaundryGuests,
       ytdNewGuestsLaundry: runningNewLaundryGuests,
@@ -1025,6 +1091,7 @@ const MonthlySummaryReport = () => {
         Saturday: row.saturdayMeals,
         "Unique Guests": row.uniqueGuests,
         "New Guests": row.newGuests,
+        "Proxy Pickups": row.proxyPickups || 0,
         "Onsite Hot Meals": row.onsiteHotMeals,
         "Day Worker Center": row.dayWorkerMeals,
         "Extra Meals": row.extraMeals,
@@ -1034,6 +1101,7 @@ const MonthlySummaryReport = () => {
         "TOTAL HOT MEALS": row.totalHotMeals,
         "Total w/ Lunch Bags": row.totalWithLunchBags,
       })),
+
       // Add totals row
       {
         Month: monthlyData.totals.month,
@@ -1043,6 +1111,7 @@ const MonthlySummaryReport = () => {
         Saturday: monthlyData.totals.saturdayMeals,
         "Unique Guests": monthlyData.totals.uniqueGuests,
         "New Guests": monthlyData.totals.newGuests,
+        "Proxy Pickups": monthlyData.totals.proxyPickups || 0,
         "Onsite Hot Meals": monthlyData.totals.onsiteHotMeals,
         "Day Worker Center": monthlyData.totals.dayWorkerMeals,
         "Extra Meals": monthlyData.totals.extraMeals,
@@ -1168,7 +1237,7 @@ const MonthlySummaryReport = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <Calendar className="text-blue-600" size={24} />
             <div>
@@ -1180,35 +1249,42 @@ const MonthlySummaryReport = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Download size={16} />
-            Meals Monthly Report
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Year Selector */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="year-selector" className="text-sm font-medium text-gray-700">
+                Year:
+              </label>
+              <select
+                id="year-selector"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleExportCSV}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Download size={16} />
+              Meals Monthly Report
+            </button>
+          </div>
         </div>
 
-        {summaryInsights.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {summaryInsights.length > 0 && (
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {summaryInsights.map((insight) => (
-              <div
-                key={insight.title}
-                className="rounded-lg border border-blue-100 bg-blue-50/70 p-4"
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
-                  <Lightbulb size={16} aria-hidden="true" />
-                  <span>{insight.title}</span>
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-gray-900">
-                  {insight.value}
-                </p>
-                <p className="mt-1 text-xs text-gray-600">{insight.context}</p>
-                <p className="mt-2 text-sm text-gray-700">{insight.description}</p>
-              </div>
+              <SummaryCard key={insight.title} insight={insight} />
             ))}
           </div>
-        ) : null}
+        )}
 
         {/* Table */}
         <div className="mt-6 overflow-x-auto">
@@ -1569,7 +1645,7 @@ const MonthlySummaryReport = () => {
                     <div className="font-semibold text-gray-900">
                       {row.unduplicatedLaundryUsers.toLocaleString()}
                     </div>
-                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-600">
+                    <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-gray-700">
                       <div>Adult · {row.laundryAdult.toLocaleString()}</div>
                       <div>Senior · {row.laundrySenior.toLocaleString()}</div>
                       <div>Child · {row.laundryChild.toLocaleString()}</div>
@@ -1577,7 +1653,7 @@ const MonthlySummaryReport = () => {
                   </td>
                   <td
                     data-column="new-laundry-guests"
-                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50 font-semibold text-gray-900"
+                    className="border border-gray-300 px-3 py-2 text-right bg-purple-50"
                   >
                     {row.newLaundryGuests.toLocaleString()}
                   </td>

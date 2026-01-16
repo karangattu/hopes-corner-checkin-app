@@ -10,14 +10,72 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // Changelog entries - add new entries at the top
 export const CHANGELOG = [
   {
+    version: "0.0.7",
+    date: "January 4, 2026",
+    highlights: [
+      {
+        type: "feature",
+        title: "Automatic Meal Entries",
+        description: "Meal presets can now automatically add meal records for guests on meal service days. This helps ensure the meals are recorded without staff needing to manually add each record every week",
+      },
+    ],
+  },
+  {
+    version: "0.0.6",
+    date: "January 1, 2026",
+    highlights: [
+      {
+        type: "fix",
+        title: "Waiver Annual Reset",
+        description: "Fixed waivers not resetting at the start of a new year. Guests who signed waivers last year will now correctly show as needing new waivers for 2026.",
+      },
+    ],
+  },
+  {
+    version: "0.0.5",
+    date: "December 28, 2025",
+    highlights: [
+      {
+        type: "feature",
+        title: "Search by Initials",
+        description: "You can now search using just the first letters of names. For example, typing \"JS\" will find \"John Smith\", or \"JMS\" will find \"John Michael Smith\".",
+      },
+      {
+        type: "feature",
+        title: "Better Name Matching",
+        description: "The search now works better with middle names, multiple words in names, and finds people even if you type their name parts in a different order.",
+      }
+    ],
+  },
+  {
     version: "0.0.4",
-    date: "December 18, 2025",
+    date: "December 22, 2025",
     highlights: [
       {
         type: "feature",
         title: "Linked Guests",
         description: "Link up to 3 guests together for families or groups who pick up meals together. When searching for one guest, quickly access their linked guests to assign meals without separate searches.",
       },
+      {
+        type: "feature",
+        title: "Quick Add Shower & Laundry in Guest List",
+        description: "Staff can now quickly add shower and laundry bookings directly from the guest list search results. No need to navigate away from guest search - just click the service icons next to each guest.",
+      },
+      {
+        type: "fix",
+        title: "Shower Slot Availability",
+        description: "Fixed an issue where blocked shower slots were not correctly reducing available capacity in the Services dashboard.",
+      },
+      {
+        type: "feature",
+        title: "Guest Warnings",
+        description: "Staff can now add warnings to guest profiles to flag important information. Warnings are visible during guest search and check-in.",
+      },
+      {
+        type: "feature",
+        title: "Ban guests for specific services",
+        description: "Staff can now ban guests from specific services (showers, laundry, bicycles, meals) without a full ban. Service-specific bans are indicated during guest search and check-in.",
+      }
     ],
   },
   {

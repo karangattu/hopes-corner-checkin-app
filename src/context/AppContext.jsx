@@ -15,6 +15,12 @@ import {
 import toast from "react-hot-toast";
 import enhancedToast from "../utils/toast";
 import performanceMonitor from "../utils/performanceMonitor";
+import {
+  getAutomaticMealsForDay,
+  hasAutomaticMealsForDay,
+  getAutomaticMealsSummary,
+  MEAL_TYPES,
+} from "../utils/automaticMealEntries";
 import { fetchAllPaginated } from "../utils/supabasePagination";
 import {
   addMealWithOffline,
@@ -67,9 +73,11 @@ import {
   mapItemRow as mapItemRowPure,
   mapDonationRow as mapDonationRowPure,
   mapLaPlazaDonationRow as mapLaPlazaDonationRowPure,
+  mapBlockedSlotRow as mapBlockedSlotRowPure,
   mapShowerStatusToDb,
 } from "./utils/mappers";
 import { persistentStore } from "../utils/persistentStore";
+import { useGuestsStore } from "../stores/useGuestsStore";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 
@@ -95,6 +103,8 @@ const STORAGE_KEYS = {
 export const AppProvider = ({ children }) => {
   const [guests, setGuests] = useState([]);
   const [settings, setSettings] = useState(() => createDefaultSettings());
+  // Track whether initial data has been loaded from either cache or cloud
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [mealRecords, setMealRecords] = useState([]);
   const [rvMealRecords, setRvMealRecords] = useState([]);
@@ -118,12 +128,19 @@ export const AppProvider = ({ children }) => {
 
   const [showerSlots, setShowerSlots] = useState([]);
   const [laundrySlots, setLaundrySlots] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
 
   const [activeTab, setActiveTab] = useState("check-in");
+  const [activeServiceSection, setActiveServiceSection] = useState("overview");
   const [showerPickerGuest, setShowerPickerGuest] = useState(null);
   const [laundryPickerGuest, setLaundryPickerGuest] = useState(null);
   const [bicyclePickerGuest, setBicyclePickerGuest] = useState(null);
   const [actionHistory, setActionHistory] = useState([]);
+  const [waiverVersion, setWaiverVersion] = useState(0);
+
+  const incrementWaiverVersion = useCallback(() => {
+    setWaiverVersion((v) => v + 1);
+  }, []);
 
   const pushAction = useCallback((action) => {
     if (!action) return;
@@ -135,12 +152,21 @@ export const AppProvider = ({ children }) => {
       const bannedUntil = guest?.bannedUntil ?? guest?.banned_until ?? null;
       const bannedAt = guest?.bannedAt ?? guest?.banned_at ?? null;
       const banReason = guest?.banReason ?? guest?.ban_reason ?? "";
+      // Program-specific bans
+      const bannedFromBicycle = guest?.bannedFromBicycle ?? guest?.banned_from_bicycle ?? false;
+      const bannedFromMeals = guest?.bannedFromMeals ?? guest?.banned_from_meals ?? false;
+      const bannedFromShower = guest?.bannedFromShower ?? guest?.banned_from_shower ?? false;
+      const bannedFromLaundry = guest?.bannedFromLaundry ?? guest?.banned_from_laundry ?? false;
       const withBanMetadata = {
         ...guest,
         bannedUntil,
         bannedAt,
         banReason,
         isBanned: computeIsGuestBanned(bannedUntil),
+        bannedFromBicycle,
+        bannedFromMeals,
+        bannedFromShower,
+        bannedFromLaundry,
       };
 
       const baseGuest = withBanMetadata;
@@ -210,6 +236,23 @@ export const AppProvider = ({ children }) => {
 
   const mapDonationRow = useCallback(mapDonationRowPure, []);
   const mapLaPlazaDonationRow = useCallback(mapLaPlazaDonationRowPure, []);
+  const mapBlockedSlotRow = useCallback(mapBlockedSlotRowPure, []);
+
+  /**
+   * Map service labels to their corresponding ban fields
+   */
+  const SERVICE_BAN_MAP = {
+    'bicycle repairs': 'bannedFromBicycle',
+    'bicycle repair': 'bannedFromBicycle',
+    'bicycle': 'bannedFromBicycle',
+    'meal service': 'bannedFromMeals',
+    'meals': 'bannedFromMeals',
+    'shower bookings': 'bannedFromShower',
+    'shower': 'bannedFromShower',
+    'showers': 'bannedFromShower',
+    'laundry bookings': 'bannedFromLaundry',
+    'laundry': 'bannedFromLaundry',
+  };
 
   const ensureGuestServiceEligible = useCallback(
     (guestId, serviceLabel = "this service") => {
@@ -227,6 +270,37 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
+      // Check if this is a program-specific ban
+      const banFieldKey = SERVICE_BAN_MAP[serviceLabel.toLowerCase()];
+      const hasProgramSpecificBans =
+        guest.bannedFromBicycle ||
+        guest.bannedFromMeals ||
+        guest.bannedFromShower ||
+        guest.bannedFromLaundry;
+
+      // If program-specific bans exist, only block if this specific service is banned
+      if (hasProgramSpecificBans) {
+        // If a specific ban field exists for this service and it's false, allow the service
+        if (banFieldKey && !guest[banFieldKey]) {
+          return; // Not banned from this specific service
+        }
+        // If banned from this specific service, throw error
+        if (banFieldKey && guest[banFieldKey]) {
+          const formatted = banDateFormatter.format(bannedUntil);
+          const reasonSuffix = guest.banReason
+            ? ` Reason: ${guest.banReason}`
+            : "";
+          const nameLabel = guest.name || guest.preferredName || "Guest";
+          throw new Error(
+            `${nameLabel} is banned from ${serviceLabel} until ${formatted}.${reasonSuffix ? ` ${reasonSuffix}` : ""}`,
+          );
+        }
+        // For services not in the map (like haircuts, holidays), allow if program-specific bans exist
+        // since those services weren't specifically banned
+        return;
+      }
+
+      // If no program-specific bans, it's a blanket ban - block all services
       const formatted = banDateFormatter.format(bannedUntil);
       const reasonSuffix = guest.banReason
         ? ` Reason: ${guest.banReason}`
@@ -614,6 +688,10 @@ export const AppProvider = ({ children }) => {
           "banned_until",
           "banned_at",
           "ban_reason",
+          "banned_from_bicycle",
+          "banned_from_meals",
+          "banned_from_shower",
+          "banned_from_laundry",
           "created_at",
           "updated_at",
         ].join(",");
@@ -634,7 +712,8 @@ export const AppProvider = ({ children }) => {
           fetchAllPaginated(supabase, {
             table: "guests",
             select: guestColumns,
-            orderBy: "updated_at",
+            // Use created_at for stable pagination (updated_at can be unstable during bulk updates)
+            orderBy: "created_at",
             ascending: false,
             pageSize: 1000,
             mapper: mapGuestRow,
@@ -642,7 +721,7 @@ export const AppProvider = ({ children }) => {
           fetchAllPaginated(supabase, {
             table: "meal_attendance",
             select:
-              "id,guest_id,quantity,served_on,meal_type,recorded_at,created_at",
+              "id,guest_id,quantity,served_on,meal_type,recorded_at,created_at,picked_up_by_guest_id",
             orderBy: "created_at",
             ascending: false,
             pageSize: 1000,
@@ -771,8 +850,13 @@ export const AppProvider = ({ children }) => {
           });
           setSettings(nextSettings);
         }
+
+        // Mark data as loaded after cloud fetch completes
+        setIsDataLoaded(true);
       } catch (error) {
         console.error("Failed to load Supabase data:", error);
+        // Even on error, mark as loaded so UI can proceed with cached data
+        setIsDataLoaded(true);
       }
     };
 
@@ -866,8 +950,14 @@ export const AppProvider = ({ children }) => {
 
         const savedLunchBags = storedValues[STORAGE_KEYS.lunchBagRecords];
         if (savedLunchBags) setLunchBagRecords(savedLunchBags);
+
+        // Mark data as loaded after persistent store load completes
+        // (this runs before cloud fetch, so if there's cached data, UI shows it immediately)
+        setIsDataLoaded(true);
       } catch (error) {
         console.error("Error loading data from persistent storage:", error);
+        // Even on error, mark as loaded so cloud fetch can proceed
+        setIsDataLoaded(true);
       }
     };
 
@@ -1111,7 +1201,7 @@ export const AppProvider = ({ children }) => {
 
   const generateUniqueGuestId = (preferredId, takenSet) => {
     let id;
-    
+
     // Accept any preferredId from CSV if not already taken (supports legacy IDs like M80926591)
     if (preferredId && !takenSet.has(preferredId)) {
       id = preferredId;
@@ -1121,7 +1211,7 @@ export const AppProvider = ({ children }) => {
     } else {
       id = generateGuestId();
     }
-    
+
     while (takenSet.has(id)) {
       id = generateGuestId();
     }
@@ -1140,6 +1230,46 @@ export const AppProvider = ({ children }) => {
       const nameParts = guest.name.trim().split(/\s+/);
       firstName = toTitleCase(nameParts[0] || "");
       lastName = toTitleCase(nameParts.slice(1).join(" ") || "");
+    }
+
+    // DATA INTEGRITY: Validate that we have a valid first name
+    // This prevents creating guests that would appear as "Unknown Guest"
+    if (!firstName) {
+      console.error(
+        '[DATA INTEGRITY] Attempted to create guest without first name:',
+        JSON.stringify(guest, null, 2)
+      );
+      throw new Error('First name is required. Cannot create guest without a name.');
+    }
+
+    // DATA INTEGRITY: Ensure last name has at least something
+    if (!lastName) {
+      console.warn(
+        '[DATA INTEGRITY] Creating guest with empty last name, using first letter of first name:',
+        { firstName, originalGuest: guest }
+      );
+      lastName = firstName.charAt(0).toUpperCase();
+    }
+
+    // DATA INTEGRITY: Prevent duplicate guests with exact same first and last name
+    // Case-insensitive comparison to prevent "Stephen S" and "stephen s" duplicates
+    const normalizedFirstName = firstName.toLowerCase().trim();
+    const normalizedLastName = lastName.toLowerCase().trim();
+    const existingDuplicate = guests.find((g) => {
+      const existingFirst = (g.firstName || '').toLowerCase().trim();
+      const existingLast = (g.lastName || '').toLowerCase().trim();
+      return existingFirst === normalizedFirstName && existingLast === normalizedLastName;
+    });
+
+    if (existingDuplicate) {
+      const existingName = `${existingDuplicate.firstName} ${existingDuplicate.lastName}`.trim();
+      console.error(
+        '[DATA INTEGRITY] Attempted to create duplicate guest:',
+        { newGuest: { firstName, lastName }, existingGuest: existingDuplicate }
+      );
+      throw new Error(
+        `A guest named "${existingName}" already exists. Please use a different name or find the existing guest.`
+      );
     }
 
     const requiredFields = ["location", "age", "gender"];
@@ -1277,7 +1407,7 @@ export const AppProvider = ({ children }) => {
         );
         housingStatus = caseInsensitiveMatch || housingStatus;
       }
-      
+
       // Default to "Adult 18-59" if empty/NULL, normalize case
       let age = (row.age || "").trim() || "Adult 18-59";
       // Try to find case-insensitive match if not found
@@ -1287,7 +1417,7 @@ export const AppProvider = ({ children }) => {
         );
         age = caseInsensitiveMatch || age;
       }
-      
+
       const genderRaw = (row.gender || "").trim();
       let gender = genderRaw ? genderRaw : "Unknown";
       // Try to find case-insensitive match if not found
@@ -1297,7 +1427,7 @@ export const AppProvider = ({ children }) => {
         );
         gender = caseInsensitiveMatch || gender;
       }
-      
+
       const location =
         (row.city || row.location || "").trim() || "Mountain View";
 
@@ -1957,6 +2087,12 @@ export const AppProvider = ({ children }) => {
       next.setHours(0, 0, 0, 0);
       return next;
     }
+    if (item === "jacket") {
+      const next = new Date(last);
+      next.setDate(next.getDate() + 15);
+      next.setHours(0, 0, 0, 0);
+      return next;
+    }
     return null;
   };
   const canGiveItem = (guestId, item) => {
@@ -2034,6 +2170,49 @@ export const AppProvider = ({ children }) => {
   };
 
   const updateGuest = async (id, updates) => {
+    // DATA INTEGRITY: Validate name updates to prevent "Unknown Guest" corruption
+    const validateNameUpdates = (updates, originalGuest) => {
+      const issues = [];
+
+      // Check firstName - if being updated, must not be empty
+      if (updates.firstName !== undefined) {
+        const newFirstName = (updates.firstName || '').trim();
+        if (!newFirstName) {
+          issues.push('firstName cannot be empty');
+        }
+      }
+
+      // Check lastName - if being updated, must not be empty
+      if (updates.lastName !== undefined) {
+        const newLastName = (updates.lastName || '').trim();
+        if (!newLastName) {
+          issues.push('lastName cannot be empty');
+        }
+      }
+
+      // Check name (full name) - if being updated, must not be empty
+      if (updates.name !== undefined) {
+        const newName = (updates.name || '').trim();
+        if (!newName) {
+          issues.push('name (full name) cannot be empty');
+        }
+      }
+
+      // Log if there's a potential issue
+      if (issues.length > 0) {
+        console.error(
+          '[DATA INTEGRITY] Attempted to update guest with empty name field(s):',
+          issues,
+          '\nGuest ID:', id,
+          '\nOriginal guest:', JSON.stringify(originalGuest, null, 2),
+          '\nUpdates:', JSON.stringify(updates, null, 2)
+        );
+        return { isValid: false, issues };
+      }
+
+      return { isValid: true, issues: [] };
+    };
+
     const normalizedUpdates = {
       ...updates,
       bicycleDescription:
@@ -2046,6 +2225,16 @@ export const AppProvider = ({ children }) => {
     }
     const target = guests.find((g) => g.id === id);
     const originalGuest = target ? { ...target } : null;
+
+    // DATA INTEGRITY: Validate name updates before proceeding
+    const nameValidation = validateNameUpdates(normalizedUpdates, originalGuest);
+    if (!nameValidation.isValid) {
+      enhancedToast.error(
+        `Cannot update guest: ${nameValidation.issues.join(', ')}. Name fields cannot be empty.`
+      );
+      return false;
+    }
+
     setGuests((prev) =>
       prev.map((guest) =>
         guest.id === id ? { ...guest, ...normalizedUpdates } : guest,
@@ -2083,6 +2272,28 @@ export const AppProvider = ({ children }) => {
 
       if (Object.keys(payload).length === 0) return true;
 
+      // DATA INTEGRITY: Double-check payload doesn't have empty name fields
+      if (payload.first_name !== undefined && !payload.first_name.trim()) {
+        console.error('[DATA INTEGRITY] Blocking update with empty first_name in payload');
+        enhancedToast.error('Cannot save: first name cannot be empty');
+        if (originalGuest) {
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? originalGuest : guest)),
+          );
+        }
+        return false;
+      }
+      if (payload.full_name !== undefined && !payload.full_name.trim()) {
+        console.error('[DATA INTEGRITY] Blocking update with empty full_name in payload');
+        enhancedToast.error('Cannot save: full name cannot be empty');
+        if (originalGuest) {
+          setGuests((prev) =>
+            prev.map((guest) => (guest.id === id ? originalGuest : guest)),
+          );
+        }
+        return false;
+      }
+
       try {
         const { data, error } = await supabase
           .from("guests")
@@ -2116,7 +2327,16 @@ export const AppProvider = ({ children }) => {
 
   const banGuest = async (
     guestId,
-    { bannedUntil, banReason = "", bannedAt: bannedAtOverride } = {},
+    {
+      bannedUntil,
+      banReason = "",
+      bannedAt: bannedAtOverride,
+      // Program-specific bans - if all false, it's a blanket ban from all services
+      bannedFromBicycle = false,
+      bannedFromMeals = false,
+      bannedFromShower = false,
+      bannedFromLaundry = false,
+    } = {},
   ) => {
     if (!guestId) throw new Error("Guest ID is required.");
 
@@ -2146,6 +2366,10 @@ export const AppProvider = ({ children }) => {
       bannedUntil: normalizedUntil,
       bannedAt: normalizedBannedAt,
       isBanned: true,
+      bannedFromBicycle,
+      bannedFromMeals,
+      bannedFromShower,
+      bannedFromLaundry,
     });
 
     setGuests((prev) =>
@@ -2160,6 +2384,10 @@ export const AppProvider = ({ children }) => {
             ban_reason: sanitizedReason || null,
             banned_until: normalizedUntil,
             banned_at: normalizedBannedAt,
+            banned_from_bicycle: bannedFromBicycle,
+            banned_from_meals: bannedFromMeals,
+            banned_from_shower: bannedFromShower,
+            banned_from_laundry: bannedFromLaundry,
           })
           .eq("id", guestId)
           .select()
@@ -2199,6 +2427,10 @@ export const AppProvider = ({ children }) => {
       bannedUntil: null,
       bannedAt: null,
       isBanned: false,
+      bannedFromBicycle: false,
+      bannedFromMeals: false,
+      bannedFromShower: false,
+      bannedFromLaundry: false,
     };
 
     setGuests((prev) =>
@@ -2213,6 +2445,10 @@ export const AppProvider = ({ children }) => {
             ban_reason: null,
             banned_until: null,
             banned_at: null,
+            banned_from_bicycle: false,
+            banned_from_meals: false,
+            banned_from_shower: false,
+            banned_from_laundry: false,
           })
           .eq("id", guestId)
           .select()
@@ -2238,10 +2474,112 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
+  /**
+   * Transfers ALL service records from one guest to another.
+   * Used when deleting a guest who has history that should be preserved.
+   */
+  const transferAllGuestRecords = async (sourceGuestId, targetGuestId) => {
+    if (!sourceGuestId || !targetGuestId) return false;
+
+    // Tables that have guest_id column and need transferring
+    const serviceTables = [
+      { name: "meal_attendance", stateSetter: setMealRecords, state: mealRecords },
+      { name: "meal_attendance", stateSetter: setExtraMealRecords, state: extraMealRecords },
+      { name: "shower_reservations", stateSetter: setShowerRecords, state: showerRecords },
+      { name: "laundry_bookings", stateSetter: setLaundryRecords, state: laundryRecords },
+      { name: "bicycle_repairs", stateSetter: setBicycleRecords, state: bicycleRecords },
+      { name: "holiday_visits", stateSetter: setHolidayRecords, state: holidayRecords },
+      { name: "haircut_visits", stateSetter: setHaircutRecords, state: haircutRecords },
+      { name: "items_distributed", stateSetter: setItemGivenRecords, state: itemGivenRecords },
+    ];
+
+    if (supabaseEnabled && supabase) {
+      try {
+        for (const table of serviceTables) {
+          // Use a generic update for all service tables in Supabase
+          const { error } = await supabase
+            .from(table.name)
+            .update({ guest_id: targetGuestId })
+            .eq("guest_id", sourceGuestId);
+
+          if (error) {
+            console.error(`Failed to transfer records for ${table.name}:`, error);
+            // We continue with other tables even if one fails, but track error
+          }
+        }
+      } catch (error) {
+        console.error("Error during batch record transfer:", error);
+        return false;
+      }
+    }
+
+    // Update local state for all service types
+    // Note: meal_attendance is shared by multiple state pieces (mealRecords, extraMealRecords, etc.)
+    // but they are already separated in our local state, so we update them individually.
+    serviceTables.forEach(table => {
+      table.stateSetter(prev =>
+        prev.map(r => r.guestId === sourceGuestId ? { ...r, guestId: targetGuestId } : r)
+      );
+    });
+
+    return true;
+  };
+
   const removeGuest = async (id) => {
     const target = guests.find((g) => g.id === id);
-    setGuests(guests.filter((guest) => guest.id !== id));
+
+    // First, remove from local state
+    setGuests((prev) => prev.filter((guest) => guest.id !== id));
+
+    // Cleanup related records in local state that don't make sense to transfer
+    // such as warnings and proxy links
+    const { unlinkGuests, removeGuestWarning } = useGuestsStore.getState();
+
+    // Get all proxy links involving this guest and remove them
+    // This is handled by useGuestsStore's unlinkGuests which updates state
+    const { guestProxies, warnings } = useGuestsStore.getState();
+    const proxiesToRemove = (guestProxies || []).filter(
+      (p) => p.guestId === id || p.proxyId === id,
+    );
+    for (const p of proxiesToRemove) {
+      unlinkGuests(p.guestId, p.proxyId);
+    }
+
+    // Remove warnings for this guest
+    const guestWarnings = (warnings || []).filter((w) => w.guestId === id);
+    for (const w of guestWarnings) {
+      removeGuestWarning(w.id);
+    }
+
     if (supabaseEnabled && supabase && target) {
+      // 1. Cleanup guest_proxies in Supabase
+      await supabase
+        .from("guest_proxies")
+        .delete()
+        .or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+
+      // 2. Cleanup guest_warnings in Supabase
+      await supabase.from("guest_warnings").delete().eq("guest_id", id);
+
+      // 3. Explicitly delete all related service records first to prevent orphans (Cascade Delete)
+      try {
+        await Promise.all([
+          supabase.from("meal_attendance").delete().eq("guest_id", id),
+          supabase.from("shower_reservations").delete().eq("guest_id", id),
+          supabase.from("laundry_bookings").delete().eq("guest_id", id),
+          supabase.from("bicycle_repairs").delete().eq("guest_id", id),
+          supabase.from("holiday_visits").delete().eq("guest_id", id),
+          supabase.from("clothing_giveaways").delete().eq("guest_id", id),
+          supabase.from("inventory_transactions").delete().eq("guest_id", id),
+          supabase.from("haircuts").delete().eq("guest_id", id),
+          supabase.from("donations").delete().eq("donor_id", id), // Assuming donor_id maps to guest
+        ]);
+      } catch (err) {
+        console.error("Error during cascade delete of services:", err);
+        // Continue to try deleting the guest even if some cleanups fail
+      }
+
+      // 4. Finally delete the guest
       const { error } = await supabase.from("guests").delete().eq("id", id);
 
       if (error) {
@@ -2250,7 +2588,8 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const addMealRecord = async (guestId, count, dateOverride = null) => {
+  // pickedUpByGuestId: optional - tracks who physically picked up the meal (for linked/proxy guests)
+  const addMealRecord = async (guestId, count, dateOverride = null, pickedUpByGuestId = null) => {
     const endPerf = performanceMonitor.startMeasurement('addMealRecord');
     try {
       const timestamp = dateOverride || new Date().toISOString();
@@ -2263,101 +2602,110 @@ export const AppProvider = ({ children }) => {
         return null;
       }
 
-    if (guestId) {
-      ensureGuestServiceEligible(guestId, "meal service");
-    }
+      if (guestId) {
+        ensureGuestServiceEligible(guestId, "meal service");
+      }
 
-    if (supabaseEnabled && supabase) {
-      try {
-        const payload = {
-          meal_type: "guest",
-          guest_id: guestId,
-          quantity: count,
-          served_on: timestamp.slice(0, 10),
-          recorded_at: timestamp,
-        };
-
-        // Use offline-aware wrapper
-        const result = await addMealWithOffline(payload, navigator.onLine);
-
-        if (result.queued) {
-          // Operation was queued for later sync
-          const localRecord = {
-            id: `local-${Date.now()}`,
-            guestId,
-            count,
-            date: timestamp,
-            recordedAt: timestamp,
-            servedOn: timestamp.slice(0, 10),
-            createdAt: timestamp,
-            type: "guest",
-            pendingSync: true,
-            queueId: result.queueId,
+      if (supabaseEnabled && supabase) {
+        try {
+          const payload = {
+            meal_type: "guest",
+            guest_id: guestId,
+            quantity: count,
+            served_on: timestamp.slice(0, 10),
+            recorded_at: timestamp,
           };
 
-          setMealRecords((prev) => [...prev, localRecord]);
+          // Add proxy tracking if a different guest picked up the meal
+          if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+            payload.picked_up_by_guest_id = pickedUpByGuestId;
+          }
+
+          // Use offline-aware wrapper
+          const result = await addMealWithOffline(payload, navigator.onLine);
+
+          if (result.queued) {
+            // Operation was queued for later sync
+            const localRecord = {
+              id: `local-${Date.now()}`,
+              guestId,
+              count,
+              date: timestamp,
+              recordedAt: timestamp,
+              servedOn: timestamp.slice(0, 10),
+              createdAt: timestamp,
+              type: "guest",
+              pendingSync: true,
+              queueId: result.queueId,
+              pickedUpByGuestId: pickedUpByGuestId || null,
+              pickedUpByProxyId: pickedUpByGuestId || null,
+            };
+
+            setMealRecords((prev) => [...prev, localRecord]);
+
+            const action = {
+              id: Date.now() + Math.random(),
+              type: "MEAL_ADDED",
+              timestamp,
+              data: { recordId: localRecord.id, guestId, count, pickedUpByGuestId: pickedUpByGuestId || null },
+              description: `Added ${count} meal${count > 1 ? "s" : ""} for guest (pending sync)`,
+            };
+            setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+            toast.success("Meal recorded (will sync when online)");
+            return localRecord;
+          }
+
+          // Operation completed successfully
+          const inserted = mapMealRow(result.result);
+
+          if (!inserted) {
+            throw new Error("Failed to insert meal attendance");
+          }
+
+          setMealRecords((prev) => [...prev, inserted]);
 
           const action = {
             id: Date.now() + Math.random(),
             type: "MEAL_ADDED",
             timestamp,
-            data: { recordId: localRecord.id, guestId, count },
-            description: `Added ${count} meal${count > 1 ? "s" : ""} for guest (pending sync)`,
+            data: { recordId: inserted.id, guestId, count },
+            description: `Added ${count} meal${count > 1 ? "s" : ""} for guest`,
           };
           setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
 
-          toast.success("Meal recorded (will sync when online)");
-          return localRecord;
+          return inserted;
+        } catch (error) {
+          console.error("Failed to add meal record in Supabase:", error);
+          toast.error("Unable to save meal record.");
+          return null;
         }
-
-        // Operation completed successfully
-        const inserted = mapMealRow(result.result);
-
-        if (!inserted) {
-          throw new Error("Failed to insert meal attendance");
-        }
-
-        setMealRecords((prev) => [...prev, inserted]);
-
-        const action = {
-          id: Date.now() + Math.random(),
-          type: "MEAL_ADDED",
-          timestamp,
-          data: { recordId: inserted.id, guestId, count },
-          description: `Added ${count} meal${count > 1 ? "s" : ""} for guest`,
-        };
-        setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
-
-        return inserted;
-      } catch (error) {
-        console.error("Failed to add meal record in Supabase:", error);
-        toast.error("Unable to save meal record.");
-        return null;
       }
-    }
 
-    const record = {
-      id: `local-${Date.now()}`,
-      guestId,
-      count,
-      date: timestamp,
-      recordedAt: timestamp,
-      servedOn: timestamp.slice(0, 10),
-      createdAt: timestamp,
-      type: "guest",
-    };
+      const record = {
+        id: `local-${Date.now()}`,
+        guestId,
+        count,
+        date: timestamp,
+        recordedAt: timestamp,
+        servedOn: timestamp.slice(0, 10),
+        createdAt: timestamp,
+        type: "guest",
+        pickedUpByGuestId: pickedUpByGuestId || null,
+        pickedUpByProxyId: pickedUpByGuestId || null,
+      };
 
-    setMealRecords((prev) => [...prev, record]);
-    const action = {
-      id: Date.now() + Math.random(),
-      type: "MEAL_ADDED",
-      timestamp,
-      data: { recordId: record.id, guestId, count },
-      description: `Added ${count} meal${count > 1 ? "s" : ""} for guest`,
-    };
-    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+      setMealRecords((prev) => [...prev, record]);
+      const action = {
+        id: Date.now() + Math.random(),
+        type: "MEAL_ADDED",
+        timestamp,
+        data: { recordId: record.id, guestId, count },
+        description: `Added ${count} meal${count > 1 ? "s" : ""} for guest`,
+      };
+      setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
 
-    return record;
+      return record;
     } finally {
       endPerf();
     }
@@ -2370,7 +2718,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2467,7 +2821,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2564,7 +2924,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2670,7 +3036,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2774,7 +3146,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      return new Date(`${dateStr}T12:00:00`).toISOString();
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      return new Date(`${dateStr}T${hours}:${minutes}:${seconds}`).toISOString();
     };
     const iso = dateOverride
       ? makeISOForDate(dateOverride)
@@ -2871,7 +3249,13 @@ export const AppProvider = ({ children }) => {
         return dateStr;
       }
       // Otherwise assume YYYY-MM-DD format
-      const d = new Date(`${dateStr}T12:00:00`);
+      // Get current time in Pacific timezone
+      const now = new Date();
+      const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+      const hours = String(pacificTime.getHours()).padStart(2, '0');
+      const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+      const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+      const d = new Date(`${dateStr}T${hours}:${minutes}:${seconds}`);
       return d.toISOString();
     };
     const iso = dateOverride
@@ -2962,6 +3346,228 @@ export const AppProvider = ({ children }) => {
     return record;
   };
 
+  // Delete meal records
+  const deleteMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete meal record."
+      );
+      if (!deleted) return false;
+    }
+    setMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Meal record deleted");
+    return true;
+  };
+
+  const deleteRvMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete RV meal record."
+      );
+      if (!deleted) return false;
+    }
+    setRvMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("RV meal record deleted");
+    return true;
+  };
+
+  const deleteShelterMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete shelter meal record."
+      );
+      if (!deleted) return false;
+    }
+    setShelterMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Shelter meal record deleted");
+    return true;
+  };
+
+  const deleteUnitedEffortMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete United Effort meal record."
+      );
+      if (!deleted) return false;
+    }
+    setUnitedEffortMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("United Effort meal record deleted");
+    return true;
+  };
+
+  const deleteExtraMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete extra meal record."
+      );
+      if (!deleted) return false;
+    }
+    setExtraMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Extra meal record deleted");
+    return true;
+  };
+
+  const deleteDayWorkerMealRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete day worker meal record."
+      );
+      if (!deleted) return false;
+    }
+    setDayWorkerMealRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Day worker meal record deleted");
+    return true;
+  };
+
+  const deleteLunchBagRecord = async (id) => {
+    if (!id) return;
+    if (supabaseEnabled && supabase) {
+      const deleted = await deleteSupabaseRecord(
+        "meal_attendance",
+        id,
+        "Unable to delete lunch bag record."
+      );
+      if (!deleted) return false;
+    }
+    setLunchBagRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Lunch bag record deleted");
+    return true;
+  };
+
+  /**
+   * Add all automatic/preset meal entries for a given date
+   * These are predefined quantities based on day of week
+   * @param {string} dateString - Date in YYYY-MM-DD format
+   * @returns {Promise<{success: boolean, added: number, summary: string}>}
+   */
+  const addAutomaticMealEntries = async (dateString = null) => {
+    const targetDate = dateString || todayPacificDateString();
+    const dateObj = new Date(targetDate + 'T12:00:00');
+    const dayOfWeek = dateObj.getDay();
+
+    if (!hasAutomaticMealsForDay(dayOfWeek)) {
+      toast.error('No automatic meal entries configured for this day');
+      return { success: false, added: 0, summary: 'No entries configured' };
+    }
+
+    // Check if automatic entries already exist for this date
+    // We fetch freshly from Supabase if possible to handle the "2 people logging in at once" case
+    let existingMeals = [];
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('meal_attendance')
+          .select('meal_type, quantity')
+          .eq('served_on', targetDate)
+          .in('meal_type', ['rv', 'day_worker', 'lunch_bag']);
+
+        if (!error && data) {
+          existingMeals = data;
+        }
+      } catch (err) {
+        console.warn('Failed to fetch fresh meal records for deduplication, falling back to local state:', err);
+      }
+    }
+
+    // If fetch failed or offline, use local state for deduplication
+    const isAlreadyAdded = (type, count) => {
+      // Mapping internal type to DB type if they differ
+      const dbTypeMap = {
+        [MEAL_TYPES.RV_MEALS]: 'rv',
+        [MEAL_TYPES.DAY_WORKER]: 'day_worker',
+        [MEAL_TYPES.LUNCH_BAGS]: 'lunch_bag'
+      };
+      const dbType = dbTypeMap[type] || type;
+
+      // Check freshly fetched data first
+      if (existingMeals.length > 0) {
+        return existingMeals.some(m => m.meal_type === dbType && Number(m.quantity) === Number(count));
+      }
+
+      // Fallback to local state
+      if (type === MEAL_TYPES.RV_MEALS) {
+        return rvMealRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      } else if (type === MEAL_TYPES.DAY_WORKER) {
+        return dayWorkerMealRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      } else if (type === MEAL_TYPES.LUNCH_BAGS) {
+        return lunchBagRecords.some(r => pacificDateStringFrom(r.date) === targetDate);
+      }
+      return false;
+    };
+
+    const presetsToProcess = getAutomaticMealsForDay(dayOfWeek).filter(p => !isAlreadyAdded(p.type, p.count));
+
+    if (presetsToProcess.length === 0) {
+      console.log(`Automatic meal entries already exist for ${targetDate}`);
+      return { success: true, added: 0, summary: 'Already added' };
+    }
+
+    const presets = presetsToProcess;
+    let addedCount = 0;
+    const errors = [];
+
+    for (const preset of presets) {
+      try {
+        switch (preset.type) {
+          case MEAL_TYPES.LUNCH_BAGS:
+            await addLunchBagRecord(preset.count, targetDate);
+            break;
+          case MEAL_TYPES.RV_MEALS:
+            await addRvMealRecord(preset.count, targetDate);
+            break;
+          case MEAL_TYPES.DAY_WORKER:
+            await addDayWorkerMealRecord(preset.count, targetDate);
+            break;
+          default:
+            console.warn(`Unknown meal type: ${preset.type}`);
+            continue;
+        }
+        addedCount++;
+      } catch (error) {
+        console.error(`Failed to add ${preset.label}:`, error);
+        errors.push(preset.label);
+      }
+    }
+
+    const summary = getAutomaticMealsSummary(dayOfWeek);
+
+    if (errors.length > 0) {
+      toast.error(`Added ${addedCount} of ${presets.length} preset entries. Failed: ${errors.join(', ')}`);
+    } else {
+      toast.success(`Added ${addedCount} preset meal entries: ${summary}`);
+    }
+
+    // Log to action history
+    const action = {
+      id: Date.now() + Math.random(),
+      type: 'AUTOMATIC_MEALS_ADDED',
+      timestamp: new Date().toISOString(),
+      data: { date: targetDate, count: addedCount, presets },
+      description: `Added automatic meal entries for ${targetDate}: ${summary}`,
+    };
+    setActionHistory((prev) => [action, ...prev.slice(0, 49)]);
+
+    return { success: errors.length === 0, added: addedCount, summary };
+  };
+
   // Create waiver mutations first so we can use guestNeedsWaiverReminder in service callbacks
   const {
     fetchGuestWaivers,
@@ -2977,22 +3583,23 @@ export const AppProvider = ({ children }) => {
         supabaseClient: supabase,
         pushAction,
         toast,
+        incrementWaiverVersion,
       }),
-    [supabaseEnabled, pushAction],
+    [supabaseEnabled, pushAction, incrementWaiverVersion],
   );
 
   // Callback for when a service is marked complete - checks if waiver is needed
   const handleServiceCompleted = useCallback(
     async (guestId, serviceType) => {
       if (!supabaseEnabled) return;
-      
+
       try {
         const needsWaiver = await guestNeedsWaiverReminder(guestId, serviceType);
         if (needsWaiver) {
           const guest = guests.find((g) => g.id === guestId);
           const guestName = guest?.preferredName || guest?.name || "Guest";
           const serviceName = serviceType === "shower" ? "Shower" : "Laundry";
-          
+
           // Show a persistent toast prompting staff to verify waiver
           toast(
             (t) => (
@@ -3035,6 +3642,7 @@ export const AppProvider = ({ children }) => {
     addShowerRecord,
     addShowerWaitlist,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     importShowerAttendanceRecord,
@@ -3061,6 +3669,7 @@ export const AppProvider = ({ children }) => {
       }),
     [
       supabaseEnabled,
+      supabase,
       mapShowerRow,
       ensureGuestServiceEligible,
       showerRecords,
@@ -3073,6 +3682,7 @@ export const AppProvider = ({ children }) => {
   const {
     addLaundryRecord,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     updateLaundryStatus,
     updateLaundryBagNumber,
@@ -3103,6 +3713,7 @@ export const AppProvider = ({ children }) => {
       }),
     [
       supabaseEnabled,
+      supabase,
       mapLaundryRow,
       laundryRecords,
       laundrySlots,
@@ -3112,6 +3723,242 @@ export const AppProvider = ({ children }) => {
       handleServiceCompleted,
     ],
   );
+
+  // Blocked Slots Management - Synced with Supabase for cross-device consistency
+  const BLOCKED_SLOTS_STORAGE_KEY = "hopes-corner-blocked-slots";
+
+  // Load blocked slots from Supabase on mount (with localStorage fallback)
+  useEffect(() => {
+    const loadBlockedSlots = async () => {
+      const today = todayPacificDateString();
+
+      if (supabaseEnabled && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from("blocked_slots")
+            .select("id,service_type,slot_time,date,created_at,created_by")
+            .gte("date", today);
+
+          if (error) {
+            console.error("Error loading blocked slots from Supabase:", error);
+            // Fall back to localStorage
+            loadFromLocalStorage();
+          } else if (data) {
+            const mapped = data.map(mapBlockedSlotRow);
+            setBlockedSlots(mapped);
+            // Also update localStorage as cache
+            localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(mapped));
+          }
+        } catch (e) {
+          console.error("Error loading blocked slots:", e);
+          loadFromLocalStorage();
+        }
+      } else {
+        loadFromLocalStorage();
+      }
+    };
+
+    const loadFromLocalStorage = () => {
+      try {
+        const stored = localStorage.getItem(BLOCKED_SLOTS_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const today = todayPacificDateString();
+          const current = parsed.filter(slot => slot.date >= today);
+          setBlockedSlots(current);
+          if (current.length !== parsed.length) {
+            localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(current));
+          }
+        }
+      } catch (e) {
+        console.error("Error loading blocked slots from localStorage:", e);
+      }
+    };
+
+    loadBlockedSlots();
+  }, [supabaseEnabled, mapBlockedSlotRow]);
+
+  // Persist blocked slots to localStorage as cache
+  useEffect(() => {
+    try {
+      localStorage.setItem(BLOCKED_SLOTS_STORAGE_KEY, JSON.stringify(blockedSlots));
+    } catch (e) {
+      console.error("Error saving blocked slots to localStorage:", e);
+    }
+  }, [blockedSlots]);
+
+  const blockSlot = useCallback(async (serviceType, slotTime, date) => {
+    const newSlot = {
+      id: createLocalId(),
+      serviceType,
+      slotTime,
+      date,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Optimistically update local state
+    setBlockedSlots(prev => [...prev, newSlot]);
+
+    // Persist to Supabase if enabled
+    if (supabaseEnabled && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("blocked_slots")
+          .insert({
+            service_type: serviceType,
+            slot_time: slotTime,
+            date: date,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          // If it's a duplicate, that's okay - slot is already blocked
+          if (error.code !== '23505') {
+            console.error("Error blocking slot in Supabase:", error);
+            // Revert optimistic update on error (except duplicates)
+            setBlockedSlots(prev => prev.filter(s => s.id !== newSlot.id));
+            throw error;
+          }
+        } else if (data) {
+          // Update with actual Supabase ID
+          const mapped = mapBlockedSlotRow(data);
+          setBlockedSlots(prev =>
+            prev.map(s => s.id === newSlot.id ? mapped : s)
+          );
+          return mapped;
+        }
+      } catch (e) {
+        console.error("Error blocking slot:", e);
+        throw e;
+      }
+    }
+
+    return newSlot;
+  }, [supabaseEnabled, mapBlockedSlotRow]);
+
+  const unblockSlot = useCallback(async (serviceType, slotTime, date) => {
+    // Optimistically update local state
+    setBlockedSlots(prev =>
+      prev.filter(slot =>
+        !(slot.serviceType === serviceType && slot.slotTime === slotTime && slot.date === date)
+      )
+    );
+
+    // Delete from Supabase if enabled
+    if (supabaseEnabled && supabase) {
+      try {
+        const { error } = await supabase
+          .from("blocked_slots")
+          .delete()
+          .eq("service_type", serviceType)
+          .eq("slot_time", slotTime)
+          .eq("date", date);
+
+        if (error) {
+          console.error("Error unblocking slot in Supabase:", error);
+          // Note: We don't revert here since the slot might not exist in Supabase
+        }
+      } catch (e) {
+        console.error("Error unblocking slot:", e);
+      }
+    }
+  }, [supabaseEnabled]);
+
+  const isSlotBlocked = useCallback((serviceType, slotTime, date) => {
+    return blockedSlots.some(
+      slot => slot.serviceType === serviceType && slot.slotTime === slotTime && slot.date === date
+    );
+  }, [blockedSlots]);
+
+  /**
+   * Refresh service slot data from the database.
+   * Call this when opening booking modals to ensure users see the latest availability.
+   * This prevents race conditions where two users see the same slot as available.
+   * @param {string} serviceType - "shower" or "laundry"
+   * @returns {Promise<boolean>} - true if refresh succeeded
+   */
+  const refreshServiceSlots = useCallback(async (serviceType) => {
+    if (!supabaseEnabled || !supabase || !navigator.onLine) {
+      return false;
+    }
+
+    const today = todayPacificDateString();
+
+    try {
+      if (serviceType === "shower") {
+        const { data, error } = await supabase
+          .from("shower_reservations")
+          .select("id,guest_id,scheduled_for,scheduled_time,status,created_at,updated_at")
+          .eq("scheduled_for", today)
+          .neq("status", "cancelled");
+
+        if (error) {
+          console.error("Error refreshing shower slots:", error);
+          return false;
+        }
+
+        if (data) {
+          const mapped = data.map(mapShowerRow);
+          // Update only today's records in the state
+          setShowerRecords((prev) => {
+            const otherDays = prev.filter(
+              (r) => pacificDateStringFrom(r.date) !== today
+            );
+            return [...otherDays, ...mapped];
+          });
+          // Update shower slots
+          const newSlots = mapped
+            .filter((r) => r.time && r.status !== "waitlisted" && r.status !== "cancelled")
+            .map((r) => ({ guestId: r.guestId, time: r.time }));
+          setShowerSlots(newSlots);
+          console.log(`[Shower slots refreshed] ${mapped.length} records for today`);
+        }
+        return true;
+      }
+
+      if (serviceType === "laundry") {
+        const { data, error } = await supabase
+          .from("laundry_bookings")
+          .select("id,guest_id,slot_label,laundry_type,bag_number,scheduled_for,status,created_at,updated_at")
+          .eq("scheduled_for", today);
+
+        if (error) {
+          console.error("Error refreshing laundry slots:", error);
+          return false;
+        }
+
+        if (data) {
+          const mapped = data.map(mapLaundryRow);
+          // Update only today's records in the state
+          setLaundryRecords((prev) => {
+            const otherDays = prev.filter(
+              (r) => pacificDateStringFrom(r.date) !== today
+            );
+            return [...otherDays, ...mapped];
+          });
+          // Update laundry slots (only onsite bookings have slot times)
+          const newSlots = mapped
+            .filter((r) => r.laundryType === "onsite" && r.time)
+            .map((r) => ({
+              guestId: r.guestId,
+              time: r.time,
+              laundryType: r.laundryType,
+              bagNumber: r.bagNumber,
+              status: r.status,
+            }));
+          setLaundrySlots(newSlots);
+          console.log(`[Laundry slots refreshed] ${mapped.length} records for today`);
+        }
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error(`Error refreshing ${serviceType} slots:`, error);
+      return false;
+    }
+  }, [supabaseEnabled, mapShowerRow, mapLaundryRow]);
 
   const getTodayMetrics = () => {
     const today = todayPacificDateString();
@@ -3203,7 +4050,9 @@ export const AppProvider = ({ children }) => {
       inRange(r.date),
     );
     const periodLunchBags = lunchBagRecords.filter((r) => inRange(r.date));
-    const periodShowers = showerRecords.filter((r) => inRange(r.date));
+    const periodShowers = showerRecords.filter(
+      (r) => inRange(r.date) && r.status === "done",
+    );
     const periodLaundry = laundryRecords.filter((r) => inRange(r.date));
     const periodHaircuts = haircutRecords.filter((r) => inRange(r.date));
     const periodHolidays = holidayRecords.filter((r) => inRange(r.date));
@@ -3469,7 +4318,7 @@ export const AppProvider = ({ children }) => {
     });
 
     const dailyMetrics = {};
-    
+
     // Track unique guest IDs that participated in services during the date range
     const activeGuestIds = new Set();
 
@@ -3548,7 +4397,9 @@ export const AppProvider = ({ children }) => {
 
     // Process showers if included
     if (programs.includes("showers")) {
-      const periodShowers = showerRecords.filter((r) => inRange(r.date));
+      const periodShowers = showerRecords.filter(
+        (r) => inRange(r.date) && r.status === "done",
+      );
       periodShowers.forEach((record) => {
         const date = pacificDateStringFrom(record.date);
         if (!dailyMetrics[date]) dailyMetrics[date] = initDailyMetric();
@@ -3733,7 +4584,7 @@ export const AppProvider = ({ children }) => {
     // Get Pacific time date
     const pacificTime = new Date(today.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
     const dayOfWeek = pacificTime.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-    
+
     let daysToSubtract;
     switch (dayOfWeek) {
       case 0: // Sunday - previous service day is Saturday (1 day ago)
@@ -3760,15 +4611,15 @@ export const AppProvider = ({ children }) => {
       default:
         daysToSubtract = 1;
     }
-    
+
     const previousDate = new Date(pacificTime);
     previousDate.setDate(previousDate.getDate() - daysToSubtract);
-    
+
     // Format as YYYY-MM-DD
     const year = previousDate.getFullYear();
     const month = String(previousDate.getMonth() + 1).padStart(2, "0");
     const day = String(previousDate.getDate()).padStart(2, "0");
-    
+
     return `${year}-${month}-${day}`;
   }, []);
 
@@ -3886,9 +4737,8 @@ export const AppProvider = ({ children }) => {
     return true;
   };
 
-  const normalizeDonation = (str) => toTitleCase((str || "").trim());
   const isValidDonationType = (type) => DONATION_TYPES.includes(type);
-
+  const normalizeDonation = (str) => toTitleCase((str || "").trim());
   const addDonation = async ({
     type,
     itemName,
@@ -4000,7 +4850,97 @@ export const AppProvider = ({ children }) => {
     return fallback;
   };
 
+  const updateDonation = async (id, updates) => {
+    if (!id) throw new Error("Donation ID is required for update");
+
+    const now = new Date();
+    const actionTimestamp = now.toISOString();
+
+    // Normalize updates if they exist
+    const cleanUpdates = {};
+    if (updates.type !== undefined) {
+      const normalizedType = normalizeDonation(updates.type);
+      if (!isValidDonationType(normalizedType)) {
+        throw new Error(`Invalid donation type. Allowed: ${DONATION_TYPES.join(", ")}`);
+      }
+      cleanUpdates.type = normalizedType;
+    }
+    if (updates.itemName !== undefined) cleanUpdates.itemName = normalizeDonation(updates.itemName);
+    if (updates.trays !== undefined) cleanUpdates.trays = Number(updates.trays) || 0;
+    if (updates.weightLbs !== undefined) cleanUpdates.weightLbs = Number(updates.weightLbs) || 0;
+    if (updates.servings !== undefined) cleanUpdates.servings = Number(updates.servings) || 0;
+    if (updates.temperature !== undefined) cleanUpdates.temperature = updates.temperature ? normalizeDonation(updates.temperature) : null;
+    if (updates.donor !== undefined) cleanUpdates.donor = normalizeDonation(updates.donor);
+    if (updates.date !== undefined) {
+      const { timestamp, dateKey } = resolveDonationDateParts(updates.date);
+      cleanUpdates.date = timestamp;
+      cleanUpdates.dateKey = dateKey;
+    }
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const payload = {};
+        if (cleanUpdates.type !== undefined) payload.donation_type = cleanUpdates.type;
+        if (cleanUpdates.itemName !== undefined) payload.item_name = cleanUpdates.itemName;
+        if (cleanUpdates.trays !== undefined) payload.trays = cleanUpdates.trays;
+        if (cleanUpdates.weightLbs !== undefined) payload.weight_lbs = cleanUpdates.weightLbs;
+        if (cleanUpdates.servings !== undefined) payload.servings = cleanUpdates.servings;
+        if (cleanUpdates.temperature !== undefined) payload.temperature = cleanUpdates.temperature;
+        if (cleanUpdates.donor !== undefined) payload.donor = cleanUpdates.donor;
+        if (cleanUpdates.date !== undefined) payload.donated_at = cleanUpdates.date;
+
+        const { data, error } = await supabase
+          .from("donations")
+          .update(payload)
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const mapped = mapDonationRow(data);
+        setDonationRecords((prev) =>
+          prev.map((r) => (r.id === id ? mapped : r))
+        );
+        setActionHistory((prev) => [
+          {
+            id: Date.now() + Math.random(),
+            type: "DONATION_UPDATED",
+            timestamp: actionTimestamp,
+            data: { recordId: id, updates: cleanUpdates },
+            description: `Updated donation: ${cleanUpdates.itemName || "record"}`,
+          },
+          ...prev.slice(0, 49),
+        ]);
+        toast.success("Donation updated");
+        return mapped;
+      } catch (error) {
+        console.error("Failed to update donation in Supabase:", error);
+        toast.error("Unable to update donation.");
+        throw error;
+      }
+    }
+
+    // Fallback for local update
+    setDonationRecords((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...cleanUpdates } : r))
+    );
+    setActionHistory((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        type: "DONATION_UPDATED",
+        timestamp: actionTimestamp,
+        data: { recordId: id, updates: cleanUpdates },
+        description: `Updated donation: ${cleanUpdates.itemName || "record"}`,
+      },
+      ...prev.slice(0, 49),
+    ]);
+    toast.success("Donation updated locally");
+    return { id, ...cleanUpdates };
+  };
+
   const addLaPlazaDonation = async ({ category, weightLbs = 0, notes = "", receivedAt = null, dateKey = null }) => {
+
     const now = new Date();
     const recordedAt = receivedAt ? new Date(receivedAt).toISOString() : now.toISOString();
     const actionTimestamp = now.toISOString();
@@ -4041,7 +4981,7 @@ export const AppProvider = ({ children }) => {
               data: { recordId: localRecord.id },
               description: `La Plaza donation: ${cleanCategory} (${cleanWeight} lbs) (pending sync)`,
             },
-            ...prev.slice(0,49),
+            ...prev.slice(0, 49),
           ]);
           toast.success("La Plaza donation recorded (will sync when online)");
           return localRecord;
@@ -4057,7 +4997,7 @@ export const AppProvider = ({ children }) => {
             data: { recordId: mapped.id },
             description: `La Plaza donation: ${mapped.category} (${mapped.weightLbs} lbs)`,
           },
-          ...prev.slice(0,49),
+          ...prev.slice(0, 49),
         ]);
         toast.success("La Plaza donation recorded");
         return mapped;
@@ -4078,10 +5018,113 @@ export const AppProvider = ({ children }) => {
         data: { recordId: fallback.id },
         description: `La Plaza donation: ${cleanCategory} (${cleanWeight} lbs)`,
       },
-      ...prev.slice(0,49),
+      ...prev.slice(0, 49),
     ]);
     toast.success("La Plaza donation recorded");
     return fallback;
+  };
+
+  const updateLaPlazaDonation = async (id, updates) => {
+    if (!id) throw new Error("Donation ID is required for update");
+
+    const now = new Date();
+    const actionTimestamp = now.toISOString();
+
+    const cleanUpdates = {};
+    if (updates.category !== undefined) {
+      if (!LA_PLAZA_CATEGORIES.includes(updates.category)) {
+        throw new Error(`Invalid category. Allowed: ${LA_PLAZA_CATEGORIES.join(", ")}`);
+      }
+      cleanUpdates.category = updates.category.trim();
+    }
+    if (updates.weightLbs !== undefined) cleanUpdates.weightLbs = Number(updates.weightLbs) || 0;
+    if (updates.notes !== undefined) cleanUpdates.notes = (updates.notes || "").trim();
+    if (updates.receivedAt !== undefined) cleanUpdates.receivedAt = updates.receivedAt;
+    if (updates.dateKey !== undefined) cleanUpdates.dateKey = updates.dateKey;
+
+    if (supabaseEnabled && supabase) {
+      try {
+        const payload = {};
+        if (cleanUpdates.category !== undefined) payload.category = cleanUpdates.category;
+        if (cleanUpdates.weightLbs !== undefined) payload.weight_lbs = cleanUpdates.weightLbs;
+        if (cleanUpdates.notes !== undefined) payload.notes = cleanUpdates.notes || null;
+        if (cleanUpdates.receivedAt !== undefined) payload.received_at = cleanUpdates.receivedAt;
+        if (cleanUpdates.dateKey !== undefined) payload.date_key = cleanUpdates.dateKey;
+
+        const { data, error } = await supabase
+          .from("la_plaza_donations")
+          .update(payload)
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        const mapped = mapLaPlazaDonationRow(data);
+        setLaPlazaDonations((prev) =>
+          prev.map((r) => (r.id === id ? mapped : r))
+        );
+        setActionHistory((prev) => [
+          {
+            id: Date.now() + Math.random(),
+            type: "LA_PLAZA_DONATION_UPDATED",
+            timestamp: actionTimestamp,
+            data: { recordId: id, updates: cleanUpdates },
+            description: `Updated La Plaza donation: ${cleanUpdates.category || "record"}`,
+          },
+          ...prev.slice(0, 49),
+        ]);
+        toast.success("La Plaza donation updated");
+        return mapped;
+      } catch (error) {
+        console.error("Failed to update La Plaza donation in Supabase:", error);
+        toast.error("Unable to update La Plaza donation.");
+        throw error;
+      }
+    }
+
+    // Fallback for local update
+    setLaPlazaDonations((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...cleanUpdates } : r))
+    );
+    setActionHistory((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        type: "LA_PLAZA_DONATION_UPDATED",
+        timestamp: actionTimestamp,
+        data: { recordId: id, updates: cleanUpdates },
+        description: `Updated La Plaza donation: ${cleanUpdates.category || "record"}`,
+      },
+      ...prev.slice(0, 49),
+    ]);
+    toast.success("La Plaza donation updated locally");
+    return { id, ...cleanUpdates };
+  };
+
+  const deleteDonation = async (id) => {
+    if (!id) return;
+    const deleted = await deleteSupabaseRecord(
+      "donations",
+      id,
+      "Unable to delete donation."
+    );
+    if (!deleted) return false;
+    setDonationRecords((prev) => prev.filter((r) => r.id !== id));
+    toast.success("Donation deleted");
+    return true;
+  };
+
+  const deleteLaPlazaDonation = async (id) => {
+    if (!id) return;
+    const deleted = await deleteSupabaseRecord(
+      "la_plaza_donations",
+      id,
+      "Unable to delete La Plaza donation."
+    );
+    if (!deleted) return false;
+    setLaPlazaDonations((prev) => prev.filter((r) => r.id !== id));
+    toast.success("La Plaza donation deleted");
+    return true;
   };
 
   const getRecentDonations = (limit = 10) => {
@@ -4439,10 +5482,10 @@ export const AppProvider = ({ children }) => {
             prev.map((record) =>
               record.id === recordId
                 ? updatedRecord || {
-                    ...record,
-                    status: "waitlisted",
-                    lastUpdated: timestamp,
-                  }
+                  ...record,
+                  status: "waitlisted",
+                  lastUpdated: timestamp,
+                }
                 : record,
             ),
           );
@@ -4803,7 +5846,7 @@ export const AppProvider = ({ children }) => {
         localStorage.removeItem("hopes-corner-donation-records");
         localStorage.removeItem("hopes-corner-la-plaza-donations");
         localStorage.removeItem("hopes-corner-lunch-bag-records");
-        
+
         // Clear sync timestamps to prevent stale data from being loaded
         if (!keepGuests) {
           localStorage.removeItem("hopes-corner-guests-lastSync");
@@ -4924,6 +5967,7 @@ export const AppProvider = ({ children }) => {
   const value = useMemo(() => ({
     // State
     guests,
+    isDataLoaded,
     mealRecords,
     rvMealRecords,
     shelterMealRecords,
@@ -4942,6 +5986,7 @@ export const AppProvider = ({ children }) => {
     dayWorkerMealRecords,
     lunchBagRecords,
     activeTab,
+    activeServiceSection,
     showerPickerGuest,
     laundryPickerGuest,
     bicyclePickerGuest,
@@ -4957,8 +6002,10 @@ export const AppProvider = ({ children }) => {
 
     allShowerSlots,
     allLaundrySlots,
+    blockedSlots,
 
     setActiveTab,
+    setActiveServiceSection,
     setShowerPickerGuest,
     setLaundryPickerGuest,
     setBicyclePickerGuest,
@@ -4966,6 +6013,7 @@ export const AppProvider = ({ children }) => {
     setMealRecords,
     setItemGivenRecords,
     setDonationRecords,
+    setLaPlazaDonations,
     updateSettings,
 
     addGuest,
@@ -4981,6 +6029,15 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
+    deleteMealRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
+    deleteExtraMealRecord,
+    deleteDayWorkerMealRecord,
+    deleteLunchBagRecord,
+    addAutomaticMealEntries,
+    hasAutomaticMealsForDay,
     removeMealAttendanceRecord,
     addShowerRecord,
     importShowerAttendanceRecord,
@@ -5009,14 +6066,20 @@ export const AppProvider = ({ children }) => {
     getNextAvailabilityDate,
     getDaysUntilAvailable,
     addDonation,
+    updateDonation,
+    deleteDonation,
     addLaPlazaDonation,
+    updateLaPlazaDonation,
+    deleteLaPlazaDonation,
     getRecentDonations,
     getLaPlazaDonationsForDate: (dateKey) => (laPlazaDonations || []).filter((r) => r.dateKey === dateKey),
     getTodayDonationsConsolidated,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     getTodayMetrics,
     getDateRangeMetrics,
@@ -5037,10 +6100,19 @@ export const AppProvider = ({ children }) => {
     // Waiver operations
     fetchGuestWaivers,
     guestNeedsWaiverReminder,
+    waiverVersion,
     dismissWaiver,
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
     getWaiverStatusSummary,
+    // Blocked slots operations
+    blockSlot,
+    unblockSlot,
+    isSlotBlocked,
+    // Slot refresh for real-time availability
+    refreshServiceSlots,
+    // Meal transfer for guest deletion
+    transferAllGuestRecords,
   }), [
     // State dependencies
     guests,
@@ -5062,6 +6134,7 @@ export const AppProvider = ({ children }) => {
     dayWorkerMealRecords,
     lunchBagRecords,
     activeTab,
+    activeServiceSection,
     showerPickerGuest,
     laundryPickerGuest,
     bicyclePickerGuest,
@@ -5073,7 +6146,9 @@ export const AppProvider = ({ children }) => {
     // Computed values
     allShowerSlots,
     allLaundrySlots,
+    blockedSlots,
     // Function dependencies (stable references from useCallback/useMemo)
+    setActiveServiceSection,
     updateSettings,
     addGuest,
     importGuestsFromCSV,
@@ -5088,6 +6163,13 @@ export const AppProvider = ({ children }) => {
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
+    deleteMealRecord,
+    deleteRvMealRecord,
+    deleteShelterMealRecord,
+    deleteUnitedEffortMealRecord,
+    deleteExtraMealRecord,
+    deleteDayWorkerMealRecord,
+    deleteLunchBagRecord,
     removeMealAttendanceRecord,
     addShowerRecord,
     importShowerAttendanceRecord,
@@ -5115,13 +6197,19 @@ export const AppProvider = ({ children }) => {
     getNextAvailabilityDate,
     getDaysUntilAvailable,
     addDonation,
+    updateDonation,
+    deleteDonation,
     addLaPlazaDonation,
+    updateLaPlazaDonation,
+    deleteLaPlazaDonation,
     getRecentDonations,
     getTodayDonationsConsolidated,
     cancelShowerRecord,
+    cancelMultipleShowers,
     rescheduleShower,
     updateShowerStatus,
     cancelLaundryRecord,
+    cancelMultipleLaundry,
     rescheduleLaundry,
     getTodayMetrics,
     getDateRangeMetrics,
@@ -5141,6 +6229,10 @@ export const AppProvider = ({ children }) => {
     hasActiveWaiver,
     fetchGuestsNeedingWaivers,
     getWaiverStatusSummary,
+    blockSlot,
+    unblockSlot,
+    isSlotBlocked,
+    refreshServiceSlots,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -187,18 +187,12 @@ const filterValidAttendanceRecords = (records) => {
 const AttendanceBatchUpload = () => {
   const {
     guests,
-    addMealRecord,
     addRvMealRecord,
     addShelterMealRecord,
     addUnitedEffortMealRecord,
     addExtraMealRecord,
     addDayWorkerMealRecord,
     addLunchBagRecord,
-    importShowerAttendanceRecord,
-    importLaundryAttendanceRecord,
-    addBicycleRecord,
-    addHaircutRecord,
-    addHolidayRecord,
     supabaseEnabled,
     insertMealAttendanceBatch,
     insertShowerReservationsBatch,
@@ -211,7 +205,12 @@ const AttendanceBatchUpload = () => {
     setLaundryRecords,
     setBicycleRecords,
     setHaircutRecords,
+
     setHolidayRecords,
+    mealRecords,
+    showerRecords,
+    laundryRecords,
+    holidayRecords,
     withPersistencePaused = async (fn) => fn(),
   } = useAppContext();
 
@@ -419,7 +418,7 @@ const AttendanceBatchUpload = () => {
     let guestExists = true;
     if (!isSpecialId && guestIdProvided) {
       const guest = guests.find(
-        (g) => String(g.id) === String(guestId) || g.guestId === guestId,
+        (g) => String(g.id) === String(guestId) || g.guestId === guestId || g.external_id === guestId,
       );
       guestExists = guest !== undefined;
     }
@@ -598,16 +597,43 @@ const AttendanceBatchUpload = () => {
           allNewMealRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // Fallback map for duplicate checking: guestId_servedOn
+          const existingKeys = new Set(
+            mealRecords.map((r) => `${r.guestId}_${pacificDateStringFrom(r.date)}`)
+          );
+
+          const localBatch = [];
+
           for (const record of recordsByType.meals) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              const result = await addMealRecord(record.internalGuestId, record.count, dateIso);
-              // addMealRecord returns null for duplicates, which is okay
-              if (result !== null) {
-                successCount++;
+              const servedOn = dateIso.slice(0, 10);
+              const key = `${record.internalGuestId}_${pacificDateStr}`;
+
+              if (existingKeys.has(key)) {
+                // Duplicate
+                continue;
               }
+
+              // Create local record
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                count: record.count,
+                date: dateIso,
+                recordedAt: dateIso,
+                servedOn: servedOn,
+                createdAt: dateIso,
+                type: "guest",
+                pickedUpByGuestId: null,
+                pickedUpByProxyId: null,
+              };
+
+              // Add to batch and mark key as seen to prevent duplicates within the batch itself
+              localBatch.push(localRecord);
+              existingKeys.add(key);
+              successCount++;
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
               errors.push({
@@ -619,6 +645,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewMealRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -649,19 +676,37 @@ const AttendanceBatchUpload = () => {
           allNewShowerRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // Fallback map for duplicate checking: guestId_scheduledFor
+          const existingKeys = new Set(
+            showerRecords.map((r) => `${r.guestId}_${pacificDateStringFrom(r.date)}`)
+          );
+
+          const localBatch = [];
+
           for (const record of recordsByType.showers) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              const imported = importShowerAttendanceRecord(
-                record.internalGuestId,
-                {
-                  dateSubmitted: dateIso,
-                  count: record.count,
-                },
-              );
-              successCount += imported.length;
+              const key = `${record.internalGuestId}_${pacificDateStr}`;
+
+              if (existingKeys.has(key)) {
+                // Duplicate
+                continue;
+              }
+
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                date: dateIso,
+                scheduledFor: dateIso.slice(0, 10), // Assuming date match for key
+                status: "done",
+                attended: true,
+                createdAt: dateIso,
+              };
+
+              localBatch.push(localRecord);
+              existingKeys.add(key);
+              successCount++;
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
               errors.push({
@@ -673,6 +718,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewShowerRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -703,19 +749,38 @@ const AttendanceBatchUpload = () => {
           allNewLaundryRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // Fallback map for duplicate checking: guestId_scheduledFor
+          const existingKeys = new Set(
+            laundryRecords.map((r) => `${r.guestId}_${pacificDateStringFrom(r.date)}`)
+          );
+
+          const localBatch = [];
+
           for (const record of recordsByType.laundry) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              const imported = importLaundryAttendanceRecord(
-                record.internalGuestId,
-                {
-                  dateSubmitted: dateIso,
-                  count: record.count,
-                },
-              );
-              successCount += imported.length;
+              const key = `${record.internalGuestId}_${pacificDateStr}`;
+
+              if (existingKeys.has(key)) {
+                // Duplicate
+                continue;
+              }
+
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                date: dateIso,
+                scheduledFor: dateIso.slice(0, 10),
+                status: "done",
+                laundryType: "offsite",
+                attended: true,
+                createdAt: dateIso,
+              };
+
+              localBatch.push(localRecord);
+              existingKeys.add(key);
+              successCount += 1; // Laundry counts as 1 per booking in this context
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
               errors.push({
@@ -727,6 +792,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewLaundryRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -757,18 +823,31 @@ const AttendanceBatchUpload = () => {
           allNewBicycleRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // No duplicate check for bicycles typically, as multiple repairs can happen
+          // But for import, maybe we should? The original code didn't standardly dedupe unless addBicycleRecord did.
+          // addBicycleRecord doesn't dedupe by date, it adds a new record.
+
+          const localBatch = [];
+
           for (const record of recordsByType.bicycles) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              await addBicycleRecord(record.internalGuestId, {
-                repairType: "Legacy Import",
+
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                date: dateIso,
+                type: "bicycle",
+                repairTypes: ["Legacy Import"],
+                completedRepairs: ["Legacy Import"],
                 notes: "Imported from legacy system",
-                dateOverride: dateIso,
-                statusOverride: BICYCLE_REPAIR_STATUS.DONE,
-                completedAtOverride: dateIso,
-              });
+                status: BICYCLE_REPAIR_STATUS.DONE,
+                priority: 0,
+                doneAt: dateIso,
+              };
+
+              localBatch.push(localRecord);
               successCount++;
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
@@ -781,6 +860,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewBicycleRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -811,12 +891,26 @@ const AttendanceBatchUpload = () => {
           allNewHaircutRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // Fallback map for duplicate checking (if we want to enforce 1/day locally)
+          // But original code: addHaircutRecord doesn't strictly enforce 1/day except maybe in UI? 
+          // Actually addHaircutRecord doesn't seem to check dups in the snippet I saw.
+          // But let's be safe.
+
+          const localBatch = [];
           for (const record of recordsByType.haircuts) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              await addHaircutRecord(record.internalGuestId, dateIso);
+
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                date: dateIso,
+                type: "haircut",
+                servedAt: dateIso, // Some views use servedAt, some use date
+              };
+
+              localBatch.push(localRecord);
               successCount++;
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
@@ -829,6 +923,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewHaircutRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -864,12 +959,34 @@ const AttendanceBatchUpload = () => {
           allNewHolidayRecords.push(...inserted);
           successCount += inserted.length;
         } else {
-          // Fallback to individual inserts if batch not available (local mode)
+          // Fallback map for duplicate checking: guestId_date
+          const existingKeys = new Set(
+            holidayRecords.map((r) => `${r.guestId}_${pacificDateStringFrom(r.date)}`)
+          );
+
+          const localBatch = [];
+
           for (const record of recordsByType.holidays) {
             try {
               const pacificDateStr = pacificDateStringFrom(record.dateSubmitted);
               const dateIso = isoFromPacificDateString(pacificDateStr);
-              await addHolidayRecord(record.internalGuestId, dateIso);
+              const key = `${record.internalGuestId}_${pacificDateStr}`;
+
+              if (existingKeys.has(key)) {
+                // Duplicate holiday
+                continue;
+              }
+
+              const localRecord = {
+                id: `local-${Date.now()}-${Math.random()}`,
+                guestId: record.internalGuestId,
+                date: dateIso,
+                type: "holiday",
+                servedAt: dateIso,
+              };
+
+              localBatch.push(localRecord);
+              existingKeys.add(key);
               successCount++;
             } catch (recordError) {
               const errorMessage = recordError?.message || String(recordError);
@@ -882,6 +999,7 @@ const AttendanceBatchUpload = () => {
               errorCount++;
             }
           }
+          allNewHolidayRecords.push(...localBatch);
         }
       } catch (error) {
         const errorMessage = error?.message || error?.details || error?.hint || String(error);
@@ -958,6 +1076,7 @@ const AttendanceBatchUpload = () => {
         // Validate headers
         const requiredNorm = [
           "attendance_id",
+          "guest_id",
           "count",
           "program",
           "date_submitted",
@@ -1223,8 +1342,8 @@ const AttendanceBatchUpload = () => {
       {uploadResult && (
         <div
           className={`mb-4 p-3 rounded flex items-center gap-2 ${uploadResult.success
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "bg-red-100 text-red-700 border border-red-200"
+            ? "bg-green-100 text-green-700 border border-green-200"
+            : "bg-red-100 text-red-700 border border-red-200"
             }`}
         >
           {uploadResult.success ? (

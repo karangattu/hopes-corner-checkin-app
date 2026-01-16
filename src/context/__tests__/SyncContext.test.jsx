@@ -290,10 +290,6 @@ describe('SyncContext', () => {
   });
 
   describe('Auto-sync behavior', () => {
-    it.skip('should not sync when already syncing', async () => {
-      // Skipped: Complex async timing issue in test environment
-      // Manually tested and working in real app
-    });
 
     it('should not sync when offline', async () => {
       const { syncPendingOperations } = await import('../../utils/offlineQueueManager');

@@ -1,19 +1,60 @@
 import React, { useMemo } from "react";
 import { ShowerHead, WashingMachine, Users, Clock, AlertCircle, CheckCircle } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
+
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return "";
+  const [hoursStr, minutesStr] = String(timeStr).split(":");
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+  const date = new Date();
+  date.setHours(hours);
+  date.setMinutes(minutes, 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatLaundrySlotLabel = (range) => {
+  if (!range) return "";
+  const [startRaw, endRaw] = String(range).split(" - ");
+  const formattedStart = formatTimeLabel(startRaw?.trim());
+  const formattedEnd = formatTimeLabel(endRaw?.trim());
+
+  if (!formattedEnd) {
+    return formattedStart;
+  }
+
+  const [startTime, startPeriod] = formattedStart.split(" ");
+  const [endTime, endPeriod] = formattedEnd.split(" ");
+
+  if (startPeriod && endPeriod && startPeriod === endPeriod) {
+    return `${startTime} - ${endTime} ${startPeriod}`;
+  }
+
+  return `${formattedStart} - ${formattedEnd}`;
+};
 
 /**
  * ServiceStatusOverview - A compact at-a-glance view of today's shower and laundry capacity
  * Designed for check-in users to quickly see availability without searching for a guest
+ * Staff and admin users can click on cards to navigate to the Services tab
  */
-const ServiceStatusOverview = () => {
+const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
   const {
     showerRecords,
     laundryRecords,
     allShowerSlots,
+    allLaundrySlots,
+    blockedSlots,
     settings,
+    LAUNDRY_STATUS,
   } = useAppContext();
+  const { user } = useAuth();
 
   const todayString = todayPacificDateString();
 
@@ -25,7 +66,14 @@ const ServiceStatusOverview = () => {
         record.status !== "waitlisted"
     );
     
-    const totalCapacity = (allShowerSlots?.length || 0) * 2;
+    // Count blocked shower slots for today
+    const blockedShowerSlots = (blockedSlots || []).filter(
+      (slot) => slot.serviceType === "shower" && slot.date === todayString
+    );
+    
+    // Total capacity = slots * 2, minus blocked slots
+    const totalSlots = (allShowerSlots?.length || 0) - blockedShowerSlots.length;
+    const totalCapacity = totalSlots * 2;
     const booked = todaysRecords.length;
     const available = Math.max(totalCapacity - booked, 0);
     const waitlisted = (showerRecords || []).filter(
@@ -44,7 +92,6 @@ const ServiceStatusOverview = () => {
     });
     
     const fullSlots = Object.values(slotCounts).filter(count => count >= 2).length;
-    const totalSlots = allShowerSlots?.length || 0;
     const availableSlots = totalSlots - fullSlots;
     
     return {
@@ -58,7 +105,7 @@ const ServiceStatusOverview = () => {
       isFull: available === 0,
       isNearlyFull: available <= 2 && available > 0,
     };
-  }, [showerRecords, allShowerSlots, todayString]);
+  }, [showerRecords, allShowerSlots, blockedSlots, todayString]);
 
   // Calculate laundry statistics
   const laundryStats = useMemo(() => {
@@ -68,13 +115,21 @@ const ServiceStatusOverview = () => {
       (record) => pacificDateStringFrom(record.date) === todayString
     );
     
+    // Count blocked laundry slots for today
+    const blockedLaundrySlots = (blockedSlots || []).filter(
+      (slot) => slot.serviceType === "laundry" && slot.date === todayString
+    );
+    
+    // Adjust capacity based on blocked slots
+    const availableCapacity = Math.max(maxSlots - blockedLaundrySlots.length, 0);
+    
     // Count all on-site laundry records for today as slots taken
-    // We only process a fixed number (maxSlots) per day regardless of status
+    // We only process a fixed number (availableCapacity) per day regardless of status
     const onsiteSlotsTaken = todaysRecords.filter(
       (record) => (record.laundryType === "onsite" || !record.laundryType)
     ).length;
     
-    const onsiteAvailable = Math.max(maxSlots - onsiteSlotsTaken, 0);
+    const onsiteAvailable = Math.max(availableCapacity - onsiteSlotsTaken, 0);
     const offsiteCount = todaysRecords.filter(r => r.laundryType === "offsite").length;
     
     // Count by status
@@ -92,7 +147,7 @@ const ServiceStatusOverview = () => {
                       (statusCounts["offsite_picked_up"] || 0);
     
     return {
-      totalCapacity: maxSlots,
+      totalCapacity: availableCapacity,
       onsiteBooked: onsiteSlotsTaken,
       onsiteAvailable,
       offsiteCount,
@@ -102,120 +157,170 @@ const ServiceStatusOverview = () => {
       isFull: onsiteAvailable === 0,
       isNearlyFull: onsiteAvailable === 1,
     };
-  }, [laundryRecords, settings, todayString]);
+  }, [laundryRecords, blockedSlots, settings, todayString]);
 
-  const getStatusColor = (isFull, isNearlyFull) => {
-    if (isFull) return "text-red-600 bg-red-50 border-red-200";
-    if (isNearlyFull) return "text-amber-600 bg-amber-50 border-amber-200";
-    return "text-emerald-600 bg-emerald-50 border-emerald-200";
-  };
+  const nextAvailableShowerSlot = useMemo(() => {
+    if (!allShowerSlots?.length || showerStats.available === 0) return null;
 
-  const getStatusIcon = (isFull, isNearlyFull) => {
-    if (isFull) return <AlertCircle size={14} className="text-red-500" />;
-    if (isNearlyFull) return <Clock size={14} className="text-amber-500" />;
-    return <CheckCircle size={14} className="text-emerald-500" />;
-  };
+    const inactiveStatuses = new Set(["waitlisted", "cancelled", "done"]);
+    const todayActiveRecords = (showerRecords || []).filter(
+      (record) =>
+        pacificDateStringFrom(record.date) === todayString &&
+        !inactiveStatuses.has(record.status),
+    );
 
-  const getStatusText = (available, isFull, isNearlyFull) => {
-    if (isFull) return "Full";
-    if (isNearlyFull) return `${available} left`;
-    return `${available} open`;
-  };
+    const blockedShowerSlots = new Set(
+      (blockedSlots || [])
+        .filter((slot) => slot.serviceType === "shower" && slot.date === todayString)
+        .map((slot) => slot.slotTime),
+    );
+
+    const slotCounts = todayActiveRecords.reduce((acc, record) => {
+      if (!record.time) return acc;
+      acc[record.time] = (acc[record.time] || 0) + 1;
+      return acc;
+    }, {});
+
+    for (const slot of allShowerSlots) {
+      if (!slot) continue;
+      if (blockedShowerSlots.has(slot)) continue;
+      if ((slotCounts[slot] || 0) < 2) {
+        return slot;
+      }
+    }
+
+    return null;
+  }, [allShowerSlots, blockedSlots, showerRecords, todayString, showerStats.available]);
+
+  const nextAvailableLaundrySlot = useMemo(() => {
+    if (!allLaundrySlots?.length || laundryStats.onsiteAvailable === 0) return null;
+
+    const activeLaundryStatuses = new Set([
+      LAUNDRY_STATUS?.WAITING,
+      LAUNDRY_STATUS?.WASHER,
+      LAUNDRY_STATUS?.DRYER,
+    ]);
+
+    const todayLaundryRecords = (laundryRecords || []).filter(
+      (record) =>
+        pacificDateStringFrom(record.date) === todayString &&
+        record.laundryType === "onsite" &&
+        activeLaundryStatuses.has(record.status),
+    );
+
+    const bookedLaundrySlots = new Set(
+      todayLaundryRecords.map((record) => record.time).filter(Boolean),
+    );
+
+    const blockedLaundrySlots = new Set(
+      (blockedSlots || [])
+        .filter((slot) => slot.serviceType === "laundry" && slot.date === todayString)
+        .map((slot) => slot.slotTime),
+    );
+
+    for (const slot of allLaundrySlots) {
+      if (!slot) continue;
+      if (blockedLaundrySlots.has(slot)) continue;
+      if (!bookedLaundrySlots.has(slot)) {
+        return slot;
+      }
+    }
+
+    return null;
+  }, [allLaundrySlots, blockedSlots, laundryRecords, todayString, LAUNDRY_STATUS, laundryStats.onsiteAvailable]);
+
+  const nextShowerSlotLabel = nextAvailableShowerSlot
+    ? `Next slot: ${formatTimeLabel(nextAvailableShowerSlot)}`
+    : "Waitlist only";
+
+  const nextLaundrySlotLabel = nextAvailableLaundrySlot
+    ? `Next slot: ${formatLaundrySlotLabel(nextAvailableLaundrySlot)}`
+    : "Fully booked today";
+
+  // Check if user can click cards (staff or admin)
+  const canClickCards = user?.role && ["staff", "admin"].includes(user.role);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-white px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-          <Users size={16} className="text-gray-500" />
-          Today's Service Availability
-        </h3>
-      </div>
-      
       <div className="p-4 grid grid-cols-2 gap-4">
         {/* Shower Status */}
-        <div className={`rounded-lg border p-3 ${getStatusColor(showerStats.isFull, showerStats.isNearlyFull)}`}>
-          <div className="flex items-center justify-between mb-2">
+        <div 
+          onClick={canClickCards ? onShowerClick : undefined}
+          className={`rounded-xl border p-4 ${
+            canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
+          } ${showerStats.isFull ? "bg-red-50/30 border-red-100" : "bg-blue-50/30 border-blue-100"}`}
+          role={canClickCards ? "button" : undefined}
+          tabIndex={canClickCards ? 0 : undefined}
+          onKeyDown={canClickCards ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onShowerClick?.();
+            }
+          } : undefined}
+        >
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <ShowerHead size={18} className="text-blue-600" />
-              <span className="font-semibold text-gray-900 text-sm">Showers</span>
+              <div className={`p-1.5 rounded-lg ${showerStats.isFull ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}>
+                <ShowerHead size={18} />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">Showers</span>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium">
-              {getStatusIcon(showerStats.isFull, showerStats.isNearlyFull)}
-              <span>{getStatusText(showerStats.available, showerStats.isFull, showerStats.isNearlyFull)}</span>
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              showerStats.isFull ? "bg-red-100 text-red-700 border-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+            }`}>
+              {showerStats.isFull ? "FULL" : "OPEN"}
             </div>
           </div>
           
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Capacity</span>
-              <span className="font-medium text-gray-900">
-                {showerStats.booked}/{showerStats.totalCapacity}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  showerStats.isFull ? "bg-red-500" : 
-                  showerStats.isNearlyFull ? "bg-amber-500" : "bg-blue-500"
-                }`}
-                style={{ width: `${Math.min((showerStats.booked / showerStats.totalCapacity) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-gray-500">
-              <span>Slots open: {showerStats.availableSlots}</span>
-              {showerStats.waitlisted > 0 && (
-                <span className="text-amber-600">Waitlist: {showerStats.waitlisted}</span>
-              )}
-            </div>
-            {showerStats.completed > 0 && (
-              <div className="text-emerald-600">
-                ✓ {showerStats.completed} done
-              </div>
-            )}
+          <div className="bg-white/60 rounded-lg p-2.5 border border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+              {showerStats.available > 0 ? "Available" : "Waitlist"}
+            </span>
+            <span className={`text-lg font-black ${
+              showerStats.available > 0 ? "text-blue-600" : "text-amber-600"
+            }`}>
+              {showerStats.available > 0 ? showerStats.available : showerStats.waitlisted}
+            </span>
           </div>
+          <p className="mt-2 text-xs text-gray-500">{nextShowerSlotLabel}</p>
         </div>
 
         {/* Laundry Status */}
-        <div className={`rounded-lg border p-3 ${getStatusColor(laundryStats.isFull, laundryStats.isNearlyFull)}`}>
-          <div className="flex items-center justify-between mb-2">
+        <div 
+          onClick={canClickCards ? onLaundryClick : undefined}
+          className={`rounded-xl border p-4 ${
+            canClickCards ? "cursor-pointer transition-all duration-200 hover:shadow-md active:scale-95" : ""
+          } ${laundryStats.isFull ? "bg-red-50/30 border-red-100" : "bg-purple-50/30 border-purple-100"}`}
+          role={canClickCards ? "button" : undefined}
+          tabIndex={canClickCards ? 0 : undefined}
+          onKeyDown={canClickCards ? (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onLaundryClick?.();
+            }
+          } : undefined}
+        >
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <WashingMachine size={18} className="text-purple-600" />
-              <span className="font-semibold text-gray-900 text-sm">Laundry</span>
+              <div className={`p-1.5 rounded-lg ${laundryStats.isFull ? "bg-red-100 text-red-600" : "bg-purple-100 text-purple-600"}`}>
+                <WashingMachine size={18} />
+              </div>
+              <span className="font-bold text-gray-900 text-sm">Laundry</span>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium">
-              {getStatusIcon(laundryStats.isFull, laundryStats.isNearlyFull)}
-              <span>{getStatusText(laundryStats.onsiteAvailable, laundryStats.isFull, laundryStats.isNearlyFull)}</span>
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+              laundryStats.isFull ? "bg-red-100 text-red-700 border-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+            }`}>
+              {laundryStats.isFull ? "FULL" : "OPEN"}
             </div>
           </div>
           
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-600">On-site slots</span>
-              <span className="font-medium text-gray-900">
-                {laundryStats.onsiteBooked}/{laundryStats.totalCapacity}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full transition-all duration-300 ${
-                  laundryStats.isFull ? "bg-red-500" : 
-                  laundryStats.isNearlyFull ? "bg-amber-500" : "bg-purple-500"
-                }`}
-                style={{ width: `${Math.min((laundryStats.onsiteBooked / laundryStats.totalCapacity) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-gray-500">
-              <span>In progress: {laundryStats.inProgress}</span>
-              {laundryStats.offsiteCount > 0 && (
-                <span className="text-blue-600">Off-site: {laundryStats.offsiteCount}</span>
-              )}
-            </div>
-            {laundryStats.completed > 0 && (
-              <div className="text-emerald-600">
-                ✓ {laundryStats.completed} done
-              </div>
-            )}
+          <div className="bg-white/60 rounded-lg p-2.5 border border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Available</span>
+            <span className={`text-lg font-black ${laundryStats.onsiteAvailable > 0 ? "text-purple-600" : "text-gray-400"}`}>
+              {laundryStats.onsiteAvailable}
+            </span>
           </div>
+          <p className="mt-2 text-xs text-gray-500">{nextLaundrySlotLabel}</p>
         </div>
       </div>
     </div>

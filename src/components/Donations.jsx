@@ -23,6 +23,7 @@ import {
   Package,
   UtensilsCrossed,
   Copy,
+  Pencil,
 } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
 import { sanitizeString, isValidNumber } from "../utils/validation";
@@ -41,9 +42,14 @@ const parseDateKey = (dateKey) => {
   if (!dateKey || !DATE_ONLY_REGEX.test(dateKey)) return null;
   const [year, month, day] = dateKey.split("-").map(Number);
   if ([year, month, day].some((segment) => Number.isNaN(segment))) return null;
-  const utcMidday = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  if (Number.isNaN(utcMidday.getTime())) return null;
-  return utcMidday;
+  const now = new Date();
+  const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const hours = String(pacificTime.getHours()).padStart(2, '0');
+  const minutes = String(pacificTime.getMinutes()).padStart(2, '0');
+  const seconds = String(pacificTime.getSeconds()).padStart(2, '0');
+  const dateWithPacificTime = new Date(`${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${hours}:${minutes}:${seconds}`);
+  if (Number.isNaN(dateWithPacificTime.getTime())) return null;
+  return dateWithPacificTime;
 };
 
 const getDateKeyNDaysBefore = (dateKey, daysBefore) => {
@@ -75,6 +81,8 @@ const Donations = () => {
   const {
     DONATION_TYPES,
     addDonation,
+    updateDonation,
+    deleteDonation,
     getRecentDonations,
     exportDataAsCSV,
     donationRecords,
@@ -94,6 +102,7 @@ const Donations = () => {
     donor: "",
     temperature: "",
   });
+  const [editingRecord, setEditingRecord] = useState(null);
   const isMinimalType = useMemo(() => MINIMAL_TYPES.has(form.type), [form.type]);
   const [loading, setLoading] = useState(false);
   const [copiedBadgeVisible, setCopiedBadgeVisible] = useState(false);
@@ -452,17 +461,34 @@ const Donations = () => {
       });
       const sanitizedTemperature = sanitizeString(form.temperature, { maxLength: 50 });
 
-      await addDonation({
-        type: form.type,
-        itemName: sanitizedItemName,
-        trays,
-        density,
-        weightLbs,
-        servings,
-        temperature: sanitizedTemperature || null,
-        donor: sanitizedDonor || "Anonymous",
-        date: selectedDate,
-      });
+      if (editingRecord) {
+        await updateDonation(editingRecord.id, {
+          type: form.type,
+          itemName: sanitizedItemName,
+          trays,
+          density,
+          weightLbs,
+          servings,
+          temperature: sanitizedTemperature || null,
+          donor: sanitizedDonor || "Anonymous",
+          date: selectedDate,
+        });
+        toast.success("Donation updated successfully!");
+        setEditingRecord(null);
+      } else {
+        await addDonation({
+          type: form.type,
+          itemName: sanitizedItemName,
+          trays,
+          density,
+          weightLbs,
+          servings,
+          temperature: sanitizedTemperature || null,
+          donor: sanitizedDonor || "Anonymous",
+          date: selectedDate,
+        });
+        toast.success("Donation logged successfully!");
+      }
 
       setForm((prev) => ({
         ...prev,
@@ -472,14 +498,40 @@ const Donations = () => {
         density: "medium",
         temperature: "",
       }));
-
-      toast.success("Donation logged successfully!");
     } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Failed to add donation");
+      toast.error(err?.message || "Failed to save donation");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (record) => {
+    setEditingRecord(record);
+    setForm({
+      type: record.type,
+      itemName: record.itemName,
+      trays: record.trays || "",
+      weightLbs: record.weightLbs || "",
+      density: record.density || "medium",
+      donor: record.donor || "",
+      temperature: record.temperature || "",
+    });
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingRecord(null);
+    setForm({
+      type: DONATION_TYPES?.[0] || "Protein",
+      itemName: "",
+      trays: "",
+      weightLbs: "",
+      density: "medium",
+      donor: "",
+      temperature: "",
+    });
   };
 
   const applySuggestion = (suggestion) => {
@@ -903,10 +955,10 @@ const Donations = () => {
               <h2 className="flex items-center gap-2 text-lg sm:text-xl font-bold text-gray-900">
                 <PackagePlus size={20} className="sm:hidden text-emerald-600" />
                 <PackagePlus size={22} className="hidden sm:block text-emerald-600" />
-                Quick Add
+                {editingRecord ? "Edit Donation" : "Quick Add"}
               </h2>
               <p className="mt-1 text-xs sm:text-sm text-gray-600">
-                Log a new donation entry
+                {editingRecord ? "Update the donation details" : "Log a new donation entry"}
               </p>
             </div>
 
@@ -1072,14 +1124,26 @@ const Donations = () => {
                 <p className="mt-1 text-xs text-gray-500">Tip: Click °F button to add the symbol</p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 text-base font-bold text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <Save size={20} />
-                {loading ? "Saving..." : "Add Donation"}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-base font-bold text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70 ${editingRecord ? "flex-1 bg-gradient-to-r from-blue-600 to-indigo-600" : "w-full bg-gradient-to-r from-emerald-600 to-teal-600"
+                    }`}
+                >
+                  {editingRecord ? <Save size={20} /> : <Save size={20} />}
+                  {loading ? "Saving..." : editingRecord ? "Update Donation" : "Add Donation"}
+                </button>
+                {editingRecord && (
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    className="rounded-xl border-2 border-gray-300 bg-white px-6 py-4 text-base font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </form>
 
             {/* Quick Fill Suggestions */}
@@ -1266,28 +1330,32 @@ const Donations = () => {
                                         Entry {entryIdx + 1} •{" "}
                                         {formatRecordTime(entry)}
                                       </span>
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          if (
-                                            !window.confirm(
-                                              "Delete this individual entry?",
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleEdit(entry)}
+                                          className="text-blue-600 hover:text-blue-700"
+                                          title="Edit this entry"
+                                        >
+                                          <Pencil size={12} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            if (
+                                              !window.confirm(
+                                                "Delete this individual entry?",
+                                              )
                                             )
-                                          )
-                                            return;
-                                          setDonationRecords((prev) =>
-                                            prev.filter(
-                                              (donation) =>
-                                                donation.id !== entry.id,
-                                            ),
-                                          );
-                                          toast.success("Entry deleted");
-                                        }}
-                                        className="text-red-600 hover:text-red-700"
-                                        title="Delete this entry"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
+                                              return;
+                                            await deleteDonation(entry.id);
+                                          }}
+                                          className="text-red-600 hover:text-red-700"
+                                          title="Delete this entry"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </div>
                                     </div>
                                     <div className="flex flex-wrap gap-3 text-gray-700">
                                       <span>
@@ -1322,38 +1390,43 @@ const Donations = () => {
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const confirmMessage = isMultipleEntries
-                              ? `Delete all ${consolidated.entries.length} entries of this item?`
-                              : "Delete this donation entry?";
-                            if (!window.confirm(confirmMessage)) return;
-                            const idsToDelete = consolidated.entries.map(
-                              (e) => e.id,
-                            );
-                            setDonationRecords((prev) =>
-                              prev.filter(
-                                (donation) =>
-                                  !idsToDelete.includes(donation.id),
-                              ),
-                            );
-                            toast.success(
+                        <div className="flex flex-col gap-2">
+                          {!isMultipleEntries && (
+                            <button
+                              type="button"
+                              onClick={() => handleEdit(consolidated.entries[0])}
+                              className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-blue-300 bg-blue-50 text-blue-600 shadow-md transition hover:border-blue-500 hover:bg-blue-100"
+                              title="Edit"
+                            >
+                              <Pencil size={18} className="sm:hidden" />
+                              <Pencil size={20} className="hidden sm:block" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmMessage = isMultipleEntries
+                                ? `Delete all ${consolidated.entries.length} entries of this item?`
+                                : "Delete this donation entry?";
+                              if (!window.confirm(confirmMessage)) return;
+                              const idsToDelete = consolidated.entries.map(
+                                (e) => e.id,
+                              );
+                              for (const id of idsToDelete) {
+                                await deleteDonation(id);
+                              }
+                            }}
+                            className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
+                            title={
                               isMultipleEntries
-                                ? `${consolidated.entries.length} entries deleted`
-                                : "Donation deleted",
-                            );
-                          }}
-                          className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-300 bg-red-50 text-red-600 shadow-md transition hover:border-red-500 hover:bg-red-100 hover:text-red-700"
-                          title={
-                            isMultipleEntries
-                              ? "Delete all entries"
-                              : "Delete"
-                          }
-                        >
-                          <Trash2 size={18} className="sm:hidden" />
-                          <Trash2 size={20} className="hidden sm:block" />
-                        </button>
+                                ? "Delete all entries"
+                                : "Delete"
+                            }
+                          >
+                            <Trash2 size={18} className="sm:hidden" />
+                            <Trash2 size={20} className="hidden sm:block" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

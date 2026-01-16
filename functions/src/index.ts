@@ -93,6 +93,7 @@ export const supabaseProxy = onCall(
         const allowedFunctions = [
           "guest_needs_waiver_reminder",
           "dismiss_waiver",
+          "has_active_waiver",
           "reset_waivers_for_new_year",
         ];
 
@@ -111,6 +112,7 @@ export const supabaseProxy = onCall(
       const allowedTables = [
         "guests",
         "guest_proxies",
+        "guest_warnings",
         "meal_attendance",
         "shower_reservations",
         "laundry_bookings",
@@ -122,6 +124,7 @@ export const supabaseProxy = onCall(
         "la_plaza_donations",
         "app_settings",
         "service_waivers",
+        "blocked_slots",
       ];
 
       // For non-RPC operations, table is required
@@ -139,6 +142,52 @@ export const supabaseProxy = onCall(
         );
       }
 
+      // Helper to apply filters to a query
+      const applyFilters = (q: any, filterList: any[]) => {
+        let currentQuery = q;
+        for (const filter of filterList) {
+          const { field, operator, value } = filter;
+          switch (operator) {
+            case "eq":
+              currentQuery = currentQuery.eq(field, value);
+              break;
+            case "neq":
+              currentQuery = currentQuery.neq(field, value);
+              break;
+            case "gt":
+              currentQuery = currentQuery.gt(field, value);
+              break;
+            case "gte":
+              currentQuery = currentQuery.gte(field, value);
+              break;
+            case "lt":
+              currentQuery = currentQuery.lt(field, value);
+              break;
+            case "lte":
+              currentQuery = currentQuery.lte(field, value);
+              break;
+            case "like":
+              currentQuery = currentQuery.like(field, value);
+              break;
+            case "ilike":
+              currentQuery = currentQuery.ilike(field, value);
+              break;
+            case "in":
+              currentQuery = currentQuery.in(field, value);
+              break;
+            case "is":
+              currentQuery = currentQuery.is(field, value);
+              break;
+            default:
+              throw new HttpsError(
+                "invalid-argument",
+                `Operator '${operator}' is not supported`
+              );
+          }
+        }
+        return currentQuery;
+      };
+
       let query: any;
 
       switch (operation) {
@@ -147,46 +196,7 @@ export const supabaseProxy = onCall(
 
           // Apply filters
           if (filters && Array.isArray(filters)) {
-            for (const filter of filters) {
-              const { field, operator, value } = filter;
-              switch (operator) {
-                case "eq":
-                  query = query.eq(field, value);
-                  break;
-                case "neq":
-                  query = query.neq(field, value);
-                  break;
-                case "gt":
-                  query = query.gt(field, value);
-                  break;
-                case "gte":
-                  query = query.gte(field, value);
-                  break;
-                case "lt":
-                  query = query.lt(field, value);
-                  break;
-                case "lte":
-                  query = query.lte(field, value);
-                  break;
-                case "like":
-                  query = query.like(field, value);
-                  break;
-                case "ilike":
-                  query = query.ilike(field, value);
-                  break;
-                case "in":
-                  query = query.in(field, value);
-                  break;
-                case "is":
-                  query = query.is(field, value);
-                  break;
-                default:
-                  throw new HttpsError(
-                    "invalid-argument",
-                    `Operator '${operator}' is not supported`
-                  );
-              }
-            }
+            query = applyFilters(query, filters);
           }
 
           // Apply ordering
@@ -232,9 +242,7 @@ export const supabaseProxy = onCall(
 
           // Apply filters for update
           if (filters && Array.isArray(filters)) {
-            for (const filter of filters) {
-              query = query.eq(filter.field, filter.value);
-            }
+            query = applyFilters(query, filters);
           }
 
           query = query.select();
@@ -253,9 +261,7 @@ export const supabaseProxy = onCall(
 
           // Apply filters for delete
           if (filters && Array.isArray(filters)) {
-            for (const filter of filters) {
-              query = query.eq(filter.field, filter.value);
-            }
+            query = applyFilters(query, filters);
           }
 
           const result = await query;

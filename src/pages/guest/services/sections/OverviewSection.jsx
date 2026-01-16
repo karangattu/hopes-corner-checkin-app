@@ -28,17 +28,17 @@ const OverviewSection = ({
   todayLaundryWithGuests,
   todayBicycleRepairs,
   timelineEvents,
-  selectedGuestMealRecords,
   setActiveSection,
   reportsGenerated = false,
   isGeneratingReports = false,
   onGenerateReports,
   onRefreshReports,
+  onEndShowerDay,
+  onEndLaundryDay,
+  isAdmin = false,
 }) => {
-  const headerSpring = useFadeInUp();
   const overviewSummarySpring = useFadeInUp();
   const overviewHighlightsSpring = useFadeInUp();
-  const overviewSnapshotSpring = useFadeInUp();
   const overviewLinksSpring = useFadeInUp();
 
   const tm = {
@@ -83,11 +83,6 @@ const OverviewSection = ({
   const waitlistCount = todayWaitlisted.length;
   const laundryRecordsToday = todayLaundryWithGuests.length;
   const bicyclesToday = todayBicycleRepairs.length;
-  const currentDateLabel = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
   const timelineEventCount = timelineEvents.length;
   const timelineQueueCount = timelineEvents.filter(
     (event) => event.type === "waitlist",
@@ -115,10 +110,19 @@ const OverviewSection = ({
       id: "meals",
       title: "Meals served today",
       value: tm.mealsServed.toLocaleString(),
-      subtitle: `${selectedGuestMealRecords.length.toLocaleString()} guest meal entries`,
+      subtitle: "Includes seconds & extras",
       Icon: Utensils,
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
+    },
+    {
+      id: "guests_served",
+      title: "Unique guests served",
+      value: (todayMetrics?.activeGuestIds?.length || 0).toLocaleString(),
+      subtitle: `${tm.mealsServed.toLocaleString()} total meals provided`,
+      Icon: Users,
+      iconBg: "bg-indigo-100",
+      iconColor: "text-indigo-600",
     },
     {
       id: "showers",
@@ -263,6 +267,12 @@ const OverviewSection = ({
       Icon: ShowerHead,
       accent: "bg-sky-50 border border-sky-100 text-sky-700",
       onClick: () => setActiveSection("showers"),
+      actions: isAdmin ? [
+        {
+          label: "End Service Day",
+          handler: onEndShowerDay,
+        }
+      ] : null,
     },
     {
       id: "link-laundry",
@@ -271,6 +281,12 @@ const OverviewSection = ({
       Icon: WashingMachine,
       accent: "bg-purple-50 border border-purple-100 text-purple-700",
       onClick: () => setActiveSection("laundry"),
+      actions: isAdmin ? [
+        {
+          label: "End Service Day",
+          handler: onEndLaundryDay,
+        }
+      ] : null,
     },
     {
       id: "link-meals",
@@ -285,80 +301,36 @@ const OverviewSection = ({
   return (
     <div className="space-y-8">
       <Animated.div
-        style={headerSpring}
-        className="bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 text-white rounded-2xl p-6 shadow-sm"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-blue-100 font-semibold">
-              Services management
-            </p>
-            <h2 className="text-2xl font-semibold mt-2">Overview</h2>
-            <p className="text-sm text-blue-100 mt-3 max-w-lg">
-              Track today’s activity at a glance and jump directly into the
-              tools you use most.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[160px]">
-              <div className="text-xs uppercase tracking-wide text-blue-100/80">
-                Today
-              </div>
-              <div className="text-lg font-semibold">{currentDateLabel}</div>
-            </div>
-            <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[160px]">
-              <div className="text-xs uppercase tracking-wide text-blue-100/80">
-                Guests in system
-              </div>
-              <div className="text-lg font-semibold">
-                {guests.length.toLocaleString()}
-              </div>
-            </div>
-            <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 min-w-[160px]">
-              <div className="text-xs uppercase tracking-wide text-blue-100/80">
-                Staff focus
-              </div>
-              <div className="text-lg font-semibold">
-                {waitlistCount > 0
-                  ? `${waitlistCount} waiting for showers`
-                  : "All queues clear"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </Animated.div>
-
-      <Animated.div
         style={overviewSummarySpring}
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6 gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         {summaryCards.map((card) => {
           const Icon = card.Icon;
           return (
             <div
               key={card.id}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3"
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-start gap-4"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex-shrink-0">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center ${card.iconBg}`}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center ${card.iconBg}`}
                 >
-                  <Icon size={20} className={card.iconColor} />
+                  <Icon size={24} className={card.iconColor} />
                 </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
                   {card.title}
                 </p>
-                <p className="text-2xl font-semibold text-gray-900 mt-1">
+                <p className="text-3xl font-bold text-gray-900 mb-1">
                   {card.value}
                 </p>
+                {card.subtitle && (
+                  <p className="text-xs text-gray-600 leading-snug">
+                    {card.subtitle}
+                  </p>
+                )}
               </div>
-              {card.subtitle && (
-                <p className="text-xs text-gray-500 leading-snug">
-                  {card.subtitle}
-                </p>
-              )}
             </div>
           );
         })}
@@ -424,7 +396,6 @@ const OverviewSection = ({
                 <p className="text-gray-600 font-medium mb-1">Reports Not Generated</p>
                 <p className="text-sm text-gray-500">
                   Click "Generate Reports" above to compute monthly and yearly statistics.<br />
-                  This helps prevent slowdowns with large datasets (33k+ records).
                 </p>
               </div>
             ) : (
@@ -493,48 +464,6 @@ const OverviewSection = ({
                 })}
               </div>
             )}
-          </div>
-        </Animated.div>
-
-        <Animated.div
-          style={overviewSnapshotSpring}
-          className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-              <Users size={16} className="text-blue-600" /> Guest snapshot
-            </h3>
-            <span className="text-xs text-gray-400">{currentDateLabel}</span>
-          </div>
-          <p className="text-sm text-gray-500">
-            A quick look at the housing mix across all registered guests.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div className="space-y-3">
-              {housingEntries.slice(0, 4).map(([status, count]) => (
-                <div
-                  key={status}
-                  className="flex items-center justify-between text-sm text-gray-600"
-                >
-                  <span className="font-medium text-gray-700">{status}</span>
-                  <span className="font-semibold text-gray-900">
-                    {count.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              {housingEntries.length === 0 && (
-                <p className="text-xs text-gray-400">
-                  Add guests to populate this view.
-                </p>
-              )}
-            </div>
-            <div className="sm:pl-2">
-              <DonutCardRecharts
-                title="Housing mix"
-                subtitle="Share of registered guests"
-                dataMap={housingStatusCounts}
-              />
-            </div>
           </div>
         </Animated.div>
       </div>

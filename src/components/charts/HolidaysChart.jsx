@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -28,6 +28,63 @@ import { formatDateForDisplay } from "../../utils/date";
  * @param {number} props.target - Optional monthly target
  */
 const HolidaysChart = ({ days = [], target = null }) => {
+  const chartData = days ? days.map((day) => ({
+    date: day.date,
+    dateFormatted: formatDateForDisplay(day.date, {
+      month: "short",
+      day: "numeric",
+    }),
+    holidays: day.holidays || 0,
+  })) : [];
+
+  const totalHolidays = chartData.reduce((sum, d) => sum + d.holidays, 0);
+  const avgPerDay = totalHolidays / (chartData.length || 1);
+  const peakDay = chartData.length > 0 ? chartData.reduce(
+    (max, d) => (d.holidays > max.holidays ? d : max),
+    chartData[0],
+  ) : null;
+
+  // Identify special event days (days with unusually high counts)
+  const eventThreshold = avgPerDay * 2;
+  const eventDays = chartData.filter((d) => d.holidays > eventThreshold);
+
+  const targetProgress = target ? (totalHolidays / target) * 100 : null;
+
+  const CustomTooltip = useCallback(
+    ({ active, payload, label }) => {
+      if (!active || !payload || !payload.length) return null;
+
+      const isEventDay = payload[0].value > eventThreshold;
+
+      return (
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {formatDateForDisplay(label, {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
+          </p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Gift size={14} className="text-pink-600" />
+              <span className="text-sm text-gray-700">Holiday Services:</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {payload[0].value}
+              </span>
+            </div>
+            {isEventDay && (
+              <div className="mt-2 px-2 py-1 bg-pink-100 rounded text-xs text-pink-800">
+                Special Event Day
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [eventThreshold]
+  );
+
   if (!days || days.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8">
@@ -43,60 +100,6 @@ const HolidaysChart = ({ days = [], target = null }) => {
       </div>
     );
   }
-
-  const chartData = days.map((day) => ({
-    date: day.date,
-    dateFormatted: formatDateForDisplay(day.date, {
-      month: "short",
-      day: "numeric",
-    }),
-    holidays: day.holidays || 0,
-  }));
-
-  const totalHolidays = chartData.reduce((sum, d) => sum + d.holidays, 0);
-  const avgPerDay = totalHolidays / (chartData.length || 1);
-  const peakDay = chartData.reduce(
-    (max, d) => (d.holidays > max.holidays ? d : max),
-    chartData[0],
-  );
-
-  // Identify special event days (days with unusually high counts)
-  const eventThreshold = avgPerDay * 2;
-  const eventDays = chartData.filter((d) => d.holidays > eventThreshold);
-
-  const targetProgress = target ? (totalHolidays / target) * 100 : null;
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
-
-    const isEventDay = payload[0].value > eventThreshold;
-
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {formatDateForDisplay(label, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Gift size={14} className="text-pink-600" />
-            <span className="text-sm text-gray-700">Holiday Services:</span>
-            <span className="text-sm font-semibold text-gray-900">
-              {payload[0].value}
-            </span>
-          </div>
-          {isEventDay && (
-            <div className="mt-2 px-2 py-1 bg-pink-100 rounded text-xs text-pink-800">
-              Special Event Day
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

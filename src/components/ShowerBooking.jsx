@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useId } from "react";
+import React, { useEffect, useMemo, useRef, useState, useId, useCallback } from "react";
 import {
   ShowerHead,
   Clock,
@@ -15,6 +15,7 @@ import { useAuth } from "../context/useAuth";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import toast from "react-hot-toast";
 import Modal from "./ui/Modal";
+import { executeWithOptimisticUpdate } from "../utils/optimisticUpdates";
 
 const humanizeStatus = (status) => {
   if (!status) return "Booked";
@@ -57,6 +58,8 @@ const ShowerBooking = () => {
     addShowerWaitlist,
     showerRecords,
     guests,
+    blockedSlots,
+    refreshServiceSlots,
   } = useAppContext();
 
   const { user } = useAuth();
@@ -67,20 +70,59 @@ const ShowerBooking = () => {
 
   const todayString = todayPacificDateString();
 
+  // Refresh slot availability from database when modal opens
+  useEffect(() => {
+    if (showerPickerGuest && refreshServiceSlots) {
+      refreshServiceSlots("shower");
+    }
+  }, [showerPickerGuest, refreshServiceSlots]);
+
   useEffect(() => {
     setError("");
     setSuccess(false);
   }, [showerPickerGuest]);
 
+  // Get blocked shower slots for today
+  const blockedShowerSlots = useMemo(() => {
+    return new Set(
+      (blockedSlots || [])
+        .filter(slot => slot.serviceType === "shower" && slot.date === todayString)
+        .map(slot => slot.slotTime)
+    );
+  }, [blockedSlots, todayString]);
+
+  // Memoize guest lookup map for O(1) access
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach(g => map.set(g.id, g));
+    return map;
+  }, [guests]);
+
+  // Pre-filter records for today to avoid repeated filtering
+  const recordsForToday = useMemo(() => {
+    return (showerRecords || []).filter(
+      (record) => pacificDateStringFrom(record.date) === todayString
+    );
+  }, [showerRecords, todayString]);
+
   const slotsWithDetails = useMemo(() => {
+    // Group records by time for O(1) access
+    const recordsByTime = new Map();
+    recordsForToday.forEach(record => {
+      if (record.status === "waitlisted") return;
+
+      const time = record.time;
+      if (!recordsByTime.has(time)) {
+        recordsByTime.set(time, []);
+      }
+      recordsByTime.get(time).push(record);
+    });
+
     return allShowerSlots
       .map((slotTime) => {
-        const todaysRecords = (showerRecords || []).filter(
-          (record) =>
-            record.time === slotTime &&
-            pacificDateStringFrom(record.date) === todayString &&
-            record.status !== "waitlisted",
-        );
+        const isBlocked = blockedShowerSlots.has(slotTime);
+        const todaysRecords = recordsByTime.get(slotTime) || [];
+
         const count = todaysRecords.length;
         // Sort by createdAt to show guests in registration order (earlier first)
         const sortedRecords = [...todaysRecords].sort((a, b) => {
@@ -88,13 +130,15 @@ const ShowerBooking = () => {
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return aTime - bTime;
         });
+
         const guestsInSlot = sortedRecords.map((record) => {
-          const guest = guests?.find((g) => g.id === record.guestId);
+          const guest = guestMap.get(record.guestId);
           return {
             id: record.id,
             name: guest?.name || "Guest",
           };
         });
+
         const statuses = todaysRecords.map((record) => record.status);
         return {
           slotTime,
@@ -104,24 +148,30 @@ const ShowerBooking = () => {
           statuses,
           isFull: count >= 2,
           isNearlyFull: count === 1,
+          isBlocked,
           sortKey: toMinutes(slotTime),
         };
       })
       .sort((a, b) => {
+        // Blocked slots go to the end
+        if (a.isBlocked !== b.isBlocked) return a.isBlocked ? 1 : -1;
         if (a.isFull !== b.isFull) return a.isFull ? 1 : -1;
         return a.sortKey - b.sortKey; // keep timeline order for remaining capacity
       });
-  }, [allShowerSlots, showerRecords, guests, todayString]);
+  }, [allShowerSlots, recordsForToday, guestMap, blockedShowerSlots]);
 
-  const totalCapacity = allShowerSlots.length * 2;
-  const occupied = slotsWithDetails.reduce((sum, slot) => sum + slot.count, 0);
+  // Calculate capacity excluding blocked slots
+  const availableSlots = slotsWithDetails.filter(slot => !slot.isBlocked);
+  const totalCapacity = availableSlots.length * 2;
+  const occupied = availableSlots.reduce((sum, slot) => sum + slot.count, 0);
   const available = Math.max(totalCapacity - occupied, 0);
   const capacityProgress = Math.min(
     (occupied / Math.max(totalCapacity, 1)) * 100,
     100,
   );
-  const allSlotsFull = slotsWithDetails.every((slot) => slot.isFull);
-  const nextAvailableSlot = slotsWithDetails.find((slot) => !slot.isFull);
+  const allSlotsFull = availableSlots.every((slot) => slot.isFull);
+  const nextAvailableSlot = slotsWithDetails.find((slot) => !slot.isFull && !slot.isBlocked);
+  const blockedCount = slotsWithDetails.filter(slot => slot.isBlocked).length;
 
   const waitlistToday = useMemo(
     () =>
@@ -151,7 +201,7 @@ const ShowerBooking = () => {
     in_progress: "bg-indigo-100 text-indigo-800",
   };
 
-  const handleBookShower = (slotTime) => {
+  const handleBookShower = useCallback(async (slotTime) => {
     if (!showerPickerGuest) return;
 
     console.log(
@@ -161,36 +211,89 @@ const ShowerBooking = () => {
       showerPickerGuest?.id,
     );
 
-    try {
-      addShowerRecord(showerPickerGuest.id, slotTime);
+    // Set up optimistic update and rollback handlers
+    const optimisticUpdate = () => {
+      // UI feedback happens immediately
       setSuccess(true);
-      toast.success(`${showerPickerGuest?.name} booked for ${formatSlotLabel(slotTime)}`);
       setError("");
+    };
 
-      setTimeout(() => {
-        setSuccess(false);
-        setShowerPickerGuest(null);
-      }, 1500);
-    } catch (err) {
-      setError(err.message || "Failed to book shower slot");
+    const mutation = async () => {
+      // Execute the actual booking
+      return await addShowerRecord(showerPickerGuest.id, slotTime);
+    };
+
+    const rollback = () => {
+      // If booking fails, clear success state and show error
       setSuccess(false);
-    }
-  };
+    };
 
-  const handleWaitlist = () => {
-    if (!showerPickerGuest) return;
     try {
-      addShowerWaitlist(showerPickerGuest.id);
-      setSuccess(true);
-      toast.success("Guest added to shower waitlist");
-      setTimeout(() => {
-        setSuccess(false);
-        setShowerPickerGuest(null);
-      }, 1200);
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            toast.success(`${showerPickerGuest?.name} booked for ${formatSlotLabel(slotTime)}`);
+            // Close modal after success
+            setTimeout(() => {
+              setSuccess(false);
+              setShowerPickerGuest(null);
+            }, 1500);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to book shower slot");
+            setSuccess(false);
+          },
+        }
+      );
     } catch (err) {
-      setError(err.message || "Failed to add to waitlist");
+      // Error is already handled in executeWithOptimisticUpdate
+      console.error("Shower booking error:", err);
     }
-  };
+  }, [showerPickerGuest, addShowerRecord, setShowerPickerGuest]);
+
+  const handleWaitlist = useCallback(async () => {
+    if (!showerPickerGuest) return;
+
+    // Optimistic update for waitlist
+    const optimisticUpdate = () => {
+      setSuccess(true);
+      setError("");
+    };
+
+    const mutation = async () => {
+      return await addShowerWaitlist(showerPickerGuest.id);
+    };
+
+    const rollback = () => {
+      setSuccess(false);
+    };
+
+    try {
+      await executeWithOptimisticUpdate(
+        optimisticUpdate,
+        mutation,
+        rollback,
+        {
+          onSuccess: () => {
+            toast.success("Guest added to shower waitlist");
+            setTimeout(() => {
+              setSuccess(false);
+              setShowerPickerGuest(null);
+            }, 1200);
+          },
+          onError: (err) => {
+            setError(err.message || "Failed to add to waitlist");
+            setSuccess(false);
+          },
+        }
+      );
+    } catch (err) {
+      console.error("Waitlist error:", err);
+    }
+  }, [showerPickerGuest, addShowerWaitlist, setShowerPickerGuest]);
 
   const titleId = useId();
   const descriptionId = useId();
@@ -448,23 +551,27 @@ const ShowerBooking = () => {
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               Maximum of 2 guests per time slot
+              {blockedCount > 0 && (
+                <span className="ml-2 text-red-600">
+                  • {blockedCount} slot{blockedCount !== 1 ? "s" : ""} blocked today
+                </span>
+              )}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {slotsWithDetails.map((slot) => (
+              {slotsWithDetails.filter(slot => !slot.isBlocked).map((slot) => (
                 <button
                   key={slot.slotTime}
                   onClick={() =>
                     !slot.isFull && handleBookShower(slot.slotTime)
                   }
                   disabled={slot.isFull}
-                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${
-                    slot.isFull
+                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${slot.isFull
                       ? "bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200"
                       : slot.isNearlyFull
                         ? "bg-yellow-50 hover:bg-yellow-100 hover:shadow-md active:scale-98 border-yellow-300 text-gray-800 shadow-sm"
                         : "bg-white hover:bg-blue-50 hover:shadow-md active:scale-98 text-gray-800 hover:border-blue-500 shadow-sm"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="text-lg sm:text-base font-semibold">

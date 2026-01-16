@@ -1,19 +1,16 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   WashingMachine,
-  ChevronDown,
-  ChevronUp,
   CheckCircle2Icon,
   Clock,
-  Trash2,
-  GripVertical,
   Wind,
   Package,
-  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LAUNDRY_STATUS } from "../../context/constants";
-import { CompactWaiverIndicator } from "../ui/CompactWaiverIndicator";
+import { useGuestsStore } from "../../stores/useGuestsStore";
+
+import LaundryCard from "./LaundryCard";
 
 const LaundryKanban = ({
   laundryRecords,
@@ -23,28 +20,39 @@ const LaundryKanban = ({
   cancelLaundryRecord,
   attemptLaundryStatusChange,
 }) => {
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const [expandedCards, setExpandedCards] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
 
-  const applyStatusUpdate = async (record, newStatus) => {
+  // Use ref to track dragged item for optimistic updates without re-renders
+  const draggedItemRef = useRef(null);
+
+  // Memoize guest lookup map for O(1) access
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach(g => map.set(g.id, g));
+    return map;
+  }, [guests]);
+
+  const applyStatusUpdate = useCallback(async (record, newStatus) => {
     if (!record) return false;
     const success = await updateLaundryStatus(record.id, newStatus);
     if (success) {
       toast.success("Status updated");
     }
     return success;
-  };
+  }, [updateLaundryStatus]);
 
-  const hasBagNumber = (record) =>
-    Boolean(String(record?.bagNumber ?? "").trim().length);
+  const hasBagNumber = useCallback((record) =>
+    Boolean(String(record?.bagNumber ?? "").trim().length), []);
 
-  const requiresBagPrompt = (record, newStatus) =>
-    !record?.offsite &&
+  const requiresBagPrompt = useCallback((record, newStatus) =>
+    record?.laundryType !== "offsite" &&
     record?.status === LAUNDRY_STATUS.WAITING &&
     newStatus !== LAUNDRY_STATUS.WAITING &&
-    !hasBagNumber(record);
+    !hasBagNumber(record), [hasBagNumber]);
 
-  const promptForBagNumber = async (record, newStatus) => {
+  const promptForBagNumber = useCallback(async (record, newStatus) => {
     if (!record) {
       return;
     }
@@ -71,9 +79,9 @@ const LaundryKanban = ({
 
     toast.success("Bag number saved");
     await applyStatusUpdate(record, newStatus);
-  };
+  }, [attemptLaundryStatusChange, updateLaundryBagNumber, applyStatusUpdate]);
 
-  const processStatusChange = async (record, newStatus) => {
+  const processStatusChange = useCallback(async (record, newStatus) => {
     if (!record) {
       return;
     }
@@ -84,10 +92,11 @@ const LaundryKanban = ({
     }
 
     await applyStatusUpdate(record, newStatus);
-  };
+  }, [requiresBagPrompt, promptForBagNumber, applyStatusUpdate]);
 
-  const getGuestNameDetails = (guestId) => {
-    const guest = guests.find((g) => g.id === guestId) || null;
+  // Optimized guest name lookup using memoized map
+  const getGuestNameDetails = useCallback((guestId) => {
+    const guest = guestMap.get(guestId) || null;
     const fallback = "Unknown Guest";
     const legalName =
       guest?.name ||
@@ -110,38 +119,53 @@ const LaundryKanban = ({
       displayName,
       sortKey: legalName.toLowerCase(),
     };
-  };
+  }, [guestMap]);
 
-  const toggleCard = (recordId) => {
+  const toggleCard = useCallback((recordId) => {
     setExpandedCards((prev) => ({
       ...prev,
       [recordId]: !prev[recordId],
     }));
-  };
+  }, []);
 
-  const handleDragStart = (e, record) => {
+  // Optimized drag handlers - use refs to avoid state updates during drag
+  const handleDragStart = useCallback((e, record) => {
+    draggedItemRef.current = record;
     setDraggedItem(record);
     e.dataTransfer.effectAllowed = "move";
-  };
+    // Add drag image effect for smoother visual (only if supported - not available in jsdom)
+    if (typeof e.dataTransfer.setDragImage === 'function') {
+      e.dataTransfer.setDragImage(e.target, 0, 0);
+    }
+  }, []);
 
-  const handleDragOver = (e) => {
+  const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-  };
+  }, []);
 
-  const handleDrop = async (e, newStatus) => {
+  const handleDrop = useCallback(async (e, newStatus) => {
     e.preventDefault();
-    if (draggedItem && draggedItem.status !== newStatus) {
-      await processStatusChange(draggedItem, newStatus);
+    const item = draggedItemRef.current;
+    if (item && item.status !== newStatus) {
+      await processStatusChange(item, newStatus);
     }
+    draggedItemRef.current = null;
     setDraggedItem(null);
-  };
+  }, [processStatusChange]);
 
-  // Separate on-site and off-site records
-  const onsiteRecords = laundryRecords.filter((r) => !r.offsite);
-  const offsiteRecords = laundryRecords.filter((r) => r.offsite);
+  const handleDragEnd = useCallback(() => {
+    draggedItemRef.current = null;
+    setDraggedItem(null);
+  }, []);
 
-  const groupedOnsiteRecords = {
+  // Memoize record filtering to prevent unnecessary recalculation
+  const { onsiteRecords, offsiteRecords } = useMemo(() => ({
+    onsiteRecords: laundryRecords.filter((r) => r.laundryType !== "offsite"),
+    offsiteRecords: laundryRecords.filter((r) => r.laundryType === "offsite"),
+  }), [laundryRecords]);
+
+  const groupedOnsiteRecords = useMemo(() => ({
     [LAUNDRY_STATUS.WAITING]: onsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.WAITING,
     ),
@@ -157,9 +181,9 @@ const LaundryKanban = ({
     [LAUNDRY_STATUS.PICKED_UP]: onsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.PICKED_UP,
     ),
-  };
+  }), [onsiteRecords]);
 
-  const groupedOffsiteRecords = {
+  const groupedOffsiteRecords = useMemo(() => ({
     [LAUNDRY_STATUS.PENDING]: offsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.PENDING,
     ),
@@ -172,7 +196,7 @@ const LaundryKanban = ({
     [LAUNDRY_STATUS.OFFSITE_PICKED_UP]: offsiteRecords.filter(
       (r) => r.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP,
     ),
-  };
+  }), [offsiteRecords]);
 
   const onsiteColumns = [
     {
@@ -279,156 +303,20 @@ const LaundryKanban = ({
     },
   ];
 
-  const renderCard = (record, isOffsite = false) => {
-    const nameDetails = getGuestNameDetails(record.guestId);
-    const isExpanded = expandedCards[record.id];
-    const isCompleted =
-      record.status === LAUNDRY_STATUS.PICKED_UP ||
-      record.status === LAUNDRY_STATUS.OFFSITE_PICKED_UP;
+  const ONSITE_STATUS_OPTIONS = [
+    { value: LAUNDRY_STATUS.WAITING, label: "Waiting" },
+    { value: LAUNDRY_STATUS.WASHER, label: "In Washer" },
+    { value: LAUNDRY_STATUS.DRYER, label: "In Dryer" },
+    { value: LAUNDRY_STATUS.DONE, label: "Done" },
+    { value: LAUNDRY_STATUS.PICKED_UP, label: "Picked Up" },
+  ];
 
-    const statusOptions = isOffsite
-      ? [
-          { value: LAUNDRY_STATUS.PENDING, label: "Pending" },
-          { value: LAUNDRY_STATUS.TRANSPORTED, label: "Transported" },
-          { value: LAUNDRY_STATUS.RETURNED, label: "Returned" },
-          { value: LAUNDRY_STATUS.OFFSITE_PICKED_UP, label: "Picked Up" },
-        ]
-      : [
-          { value: LAUNDRY_STATUS.WAITING, label: "Waiting" },
-          { value: LAUNDRY_STATUS.WASHER, label: "In Washer" },
-          { value: LAUNDRY_STATUS.DRYER, label: "In Dryer" },
-          { value: LAUNDRY_STATUS.DONE, label: "Done" },
-          { value: LAUNDRY_STATUS.PICKED_UP, label: "Picked Up" },
-        ];
-
-    return (
-      <div
-        key={record.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, record)}
-        data-testid={`laundry-card-${record.id}`}
-        className={`bg-white rounded-lg border-2 shadow-sm p-3 cursor-move transition-all hover:shadow-md ${
-          draggedItem?.id === record.id ? "opacity-50" : ""
-        } ${
-          isCompleted
-            ? "border-emerald-200 hover:border-emerald-300"
-            : "border-gray-200 hover:border-gray-300"
-        }`}
-      >
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-start gap-2 flex-1 min-w-0">
-            <GripVertical
-              size={14}
-              className="text-gray-400 flex-shrink-0 mt-0.5"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-xs text-gray-900 leading-tight" title={nameDetails.displayName}>
-                {nameDetails.primaryName}
-              </div>
-              {nameDetails.hasPreferred && (
-                <div className="text-[9px] text-gray-500 truncate">
-                  {nameDetails.legalName}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Show waiver indicator for non-completed records */}
-            {!isCompleted && (
-              <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
-            )}
-            <button
-              type="button"
-              onClick={() => toggleCard(record.id)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label={`${
-                isExpanded ? "Collapse" : "Expand"
-              } laundry details for ${nameDetails.primaryName}`}
-            >
-              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {record.bagNumber && (
-            <div className="flex items-start gap-1.5 text-xs text-gray-600 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
-              <Package
-                size={12}
-                className="text-purple-600 flex-shrink-0 mt-0.5"
-              />
-              <span>Bag #{record.bagNumber}</span>
-            </div>
-          )}
-
-          {isOffsite && (
-            <div className="text-xs bg-blue-50 border border-blue-100 rounded px-2 py-1">
-              <span className="font-semibold text-blue-700">
-                Off-site laundry
-              </span>
-            </div>
-          )}
-
-          {isExpanded && (
-            <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Bag Number
-                </label>
-                <input
-                  type="text"
-                  value={record.bagNumber || ""}
-                  onChange={(e) =>
-                    updateLaundryBagNumber(record.id, e.target.value)
-                  }
-                  placeholder="Enter bag number"
-                  className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                  Status
-                </label>
-                <select
-                  value={record.status}
-                  onChange={(e) =>
-                    processStatusChange(record, e.target.value)
-                  }
-                  className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                  aria-label={`Update laundry status for ${nameDetails.primaryName}`}
-                >
-                  {statusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Cancel laundry booking for ${nameDetails.primaryName}?`,
-                    )
-                  ) {
-                    cancelLaundryRecord(record.id);
-                    toast.success("Laundry booking cancelled");
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
-              >
-                <Trash2 size={12} />
-                Cancel Booking
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const OFFSITE_STATUS_OPTIONS = [
+    { value: LAUNDRY_STATUS.PENDING, label: "Pending" },
+    { value: LAUNDRY_STATUS.TRANSPORTED, label: "Transported" },
+    { value: LAUNDRY_STATUS.RETURNED, label: "Returned" },
+    { value: LAUNDRY_STATUS.OFFSITE_PICKED_UP, label: "Picked Up" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -463,11 +351,10 @@ const LaundryKanban = ({
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, column.id)}
                 data-testid={`onsite-column-${column.id}`}
-                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[180px] ${
-                  draggedItem?.status !== column.id && !draggedItem?.offsite
-                    ? "hover:border-opacity-75"
-                    : ""
-                }`}
+                className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[180px] ${draggedItem?.status !== column.id && !draggedItem?.offsite
+                  ? "hover:border-opacity-75"
+                  : ""
+                  }`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -493,7 +380,24 @@ const LaundryKanban = ({
                       </p>
                     </div>
                   ) : (
-                    records.map((record) => renderCard(record, false))
+                    records.map((record) => (
+                      <LaundryCard
+                        key={record.id}
+                        record={record}
+                        isOffsite={false}
+                        isExpanded={expandedCards[record.id]}
+                        isDragging={draggedItem?.id === record.id}
+                        guestDetails={getGuestNameDetails(record.guestId)}
+                        warnings={getWarningsForGuest(record.guestId) || []}
+                        onToggle={toggleCard}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onUpdateBagNumber={updateLaundryBagNumber}
+                        onUpdateStatus={processStatusChange}
+                        onCancel={cancelLaundryRecord}
+                        statusOptions={ONSITE_STATUS_OPTIONS}
+                      />
+                    ))
                   )}
                 </div>
               </div>
@@ -534,11 +438,10 @@ const LaundryKanban = ({
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, column.id)}
                   data-testid={`offsite-column-${column.id}`}
-                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[200px] ${
-                    draggedItem?.status !== column.id && draggedItem?.offsite
-                      ? "hover:border-opacity-75"
-                      : ""
-                  }`}
+                  className={`${column.bgClass} ${column.borderClass} border-2 rounded-xl p-4 min-h-[400px] transition-colors flex-shrink-0 w-[240px] md:w-[220px] lg:flex-1 lg:min-w-[200px] ${draggedItem?.status !== column.id && draggedItem?.offsite
+                    ? "hover:border-opacity-75"
+                    : ""
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -566,7 +469,24 @@ const LaundryKanban = ({
                         </p>
                       </div>
                     ) : (
-                      records.map((record) => renderCard(record, true))
+                      records.map((record) => (
+                        <LaundryCard
+                          key={record.id}
+                          record={record}
+                          isOffsite={true}
+                          isExpanded={expandedCards[record.id]}
+                          isDragging={draggedItem?.id === record.id}
+                          guestDetails={getGuestNameDetails(record.guestId)}
+                          warnings={getWarningsForGuest(record.guestId) || []}
+                          onToggle={toggleCard}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onUpdateBagNumber={updateLaundryBagNumber}
+                          onUpdateStatus={processStatusChange}
+                          onCancel={cancelLaundryRecord}
+                          statusOptions={OFFSITE_STATUS_OPTIONS}
+                        />
+                      ))
                     )}
                   </div>
                 </div>

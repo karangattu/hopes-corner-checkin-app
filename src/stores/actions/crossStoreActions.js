@@ -471,12 +471,24 @@ export const deleteMealWithHistory = async (recordId) => {
 
 /**
  * Initialize all stores from Supabase
+ *
+ * IMPORTANT: Guest data must load FIRST before services (showers, laundry, meals, donations).
+ * Services reference guests by ID, and if guest data isn't loaded yet, components will
+ * display "Unknown Guest" instead of the actual guest name. This was a race condition
+ * where parallel loading caused services to render before guest lookups were available.
  */
 export const initializeStoresFromSupabase = async () => {
   try {
+    // Phase 1: Load guest data first - this is required for all other stores
+    // to properly resolve guest names in their records
     await Promise.all([
       useGuestsStore.getState().loadFromSupabase(),
       useGuestsStore.getState().loadGuestProxiesFromSupabase(),
+      useGuestsStore.getState().loadGuestWarningsFromSupabase(),
+    ]);
+
+    // Phase 2: Now load service records - guest lookups will work correctly
+    await Promise.all([
       useMealsStore.getState().loadFromSupabase(),
       useServicesStore.getState().loadFromSupabase(),
       useDonationsStore.getState().loadFromSupabase(),

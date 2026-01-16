@@ -3,6 +3,7 @@ export const createWaiverMutations = ({
   supabaseClient,
   pushAction,
   toast,
+  incrementWaiverVersion,
 }) => {
   /**
    * Fetch waivers for a guest
@@ -101,6 +102,11 @@ export const createWaiverMutations = ({
         console.error("Failed to dismiss waiver:", error);
         toast.error(`Unable to dismiss ${serviceType} waiver`);
         return false;
+      }
+
+      // Increment global version to trigger sync across all components
+      if (incrementWaiverVersion) {
+        incrementWaiverVersion();
       }
 
       pushAction({

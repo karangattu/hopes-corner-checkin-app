@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { Download } from "lucide-react";
 import {
   LineChart,
@@ -62,39 +62,42 @@ const DateRangeTrendChart = ({
     }
   };
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload || !payload.length) return null;
+  const CustomTooltip = useCallback(
+    ({ active, payload }) => {
+      if (!active || !payload || !payload.length) return null;
 
-    const data = payload[0].payload;
+      const data = payload[0].payload;
 
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800 mb-2">
-          {new Date(data.fullDate).toLocaleDateString()}
-        </p>
-        <div className="space-y-1 text-sm">
-          {selectedPrograms.includes("meals") && (
-            <p className="text-green-600">Meals: {data.meals}</p>
-          )}
-          {selectedPrograms.includes("showers") && (
-            <p className="text-blue-600">Showers: {data.showers}</p>
-          )}
-          {selectedPrograms.includes("laundry") && (
-            <p className="text-purple-600">Laundry: {data.laundry}</p>
-          )}
-          {selectedPrograms.includes("haircuts") && (
-            <p className="text-rose-600">Haircuts: {data.haircuts || 0}</p>
-          )}
-          {selectedPrograms.includes("holidays") && (
-            <p className="text-amber-600">Holidays: {data.holidays || 0}</p>
-          )}
-          {selectedPrograms.includes("bicycles") && (
-            <p className="text-cyan-600">Bicycles: {data.bicycles || 0}</p>
-          )}
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-semibold text-gray-800 mb-2">
+            {new Date(data.fullDate).toLocaleDateString()}
+          </p>
+          <div className="space-y-1 text-sm">
+            {selectedPrograms.includes("meals") && (
+              <p className="text-green-600">Meals: {data.meals}</p>
+            )}
+            {selectedPrograms.includes("showers") && (
+              <p className="text-blue-600">Showers: {data.showers}</p>
+            )}
+            {selectedPrograms.includes("laundry") && (
+              <p className="text-purple-600">Laundry: {data.laundry}</p>
+            )}
+            {selectedPrograms.includes("haircuts") && (
+              <p className="text-rose-600">Haircuts: {data.haircuts || 0}</p>
+            )}
+            {selectedPrograms.includes("holidays") && (
+              <p className="text-amber-600">Holidays: {data.holidays || 0}</p>
+            )}
+            {selectedPrograms.includes("bicycles") && (
+              <p className="text-cyan-600">Bicycles: {data.bicycles || 0}</p>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  };
+      );
+    },
+    [selectedPrograms]
+  );
 
   return (
     <div
