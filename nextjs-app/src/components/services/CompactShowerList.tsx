@@ -47,6 +47,7 @@ interface CompactShowerListProps {
   guests: Guest[];
   allShowerSlots?: ShowerSlot[];
   laundryRecords?: LaundryRecord[];
+  guestsLoading?: boolean;
 }
 
 function formatTimeLabel(timeStr?: string): string {
@@ -98,6 +99,7 @@ export function CompactShowerList({
   guests,
   allShowerSlots,
   laundryRecords = [],
+  guestsLoading = false,
 }: CompactShowerListProps) {
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
@@ -123,11 +125,17 @@ export function CompactShowerList({
     );
 
     const getGuestName = (guestId: string): string => {
-      const guest = guests?.find((g) => g.id === guestId);
+      if (guestsLoading || !guests || guests.length === 0) {
+        return 'Loading...';
+      }
+      const guest = guests.find((g) => g.id === guestId);
+      if (!guest) {
+        return 'Unknown Guest';
+      }
       return (
-        guest?.name ||
-        guest?.preferredName ||
-        `${guest?.firstName || ''} ${guest?.lastName || ''}`.trim() ||
+        guest.name ||
+        guest.preferredName ||
+        `${guest.firstName || ''} ${guest.lastName || ''}`.trim() ||
         'Guest'
       );
     };
@@ -169,7 +177,7 @@ export function CompactShowerList({
     const totalCapacity = (allShowerSlots?.length || 0) * 2;
 
     return { booked, waitlisted, totalCapacity };
-  }, [showerRecords, guests, allShowerSlots, todayString]);
+  }, [showerRecords, guests, allShowerSlots, todayString, guestsLoading]);
 
   if (showerData.booked.length === 0 && showerData.waitlisted.length === 0) {
     return (
@@ -221,8 +229,8 @@ export function CompactShowerList({
             <div key={booking.id}>
               <div
                 className={`px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${booking.status === 'done'
-                    ? 'bg-emerald-50/50 dark:bg-emerald-900/20'
-                    : ''
+                  ? 'bg-emerald-50/50 dark:bg-emerald-900/20'
+                  : ''
                   }`}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -240,8 +248,8 @@ export function CompactShowerList({
                     type="button"
                     onClick={() => toggleExpand(booking.id)}
                     className={`p-1.5 rounded-lg border transition-all ${isExpanded
-                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
-                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                       }`}
                     title="Essentials & Notes"
                     aria-label="Toggle essentials"

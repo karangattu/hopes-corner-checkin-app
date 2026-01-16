@@ -98,6 +98,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 // Essential items for supplies tracking
 export const ESSENTIAL_ITEMS = {
+  JACKET: 'jacket',
   TSHIRT: 'tshirt',
   SLEEPING_BAG: 'sleeping_bag',
   BACKPACK: 'backpack',
@@ -108,6 +109,7 @@ export const ESSENTIAL_ITEMS = {
 export type EssentialItemKey = (typeof ESSENTIAL_ITEMS)[keyof typeof ESSENTIAL_ITEMS];
 
 export const ESSENTIAL_ITEM_LABELS: Record<EssentialItemKey, string> = {
+  jacket: 'Jacket',
   tshirt: 'T-Shirt',
   sleeping_bag: 'Sleeping Bag',
   backpack: 'Backpack/Duffel Bag',

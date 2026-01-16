@@ -127,7 +127,7 @@ export interface HaircutRecord {
 export interface ItemRecord {
   id: string;
   guestId: string;
-  item: 'tshirt' | 'sleeping_bag' | 'backpack' | 'tent' | 'flip_flops';
+  item: 'jacket' | 'tshirt' | 'sleeping_bag' | 'backpack' | 'tent' | 'flip_flops';
   date: string;
 }
 

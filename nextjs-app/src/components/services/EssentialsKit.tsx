@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Shirt, Bed, Backpack, Tent, Footprints } from 'lucide-react';
+import { Shirt, Bed, Backpack, Tent, Footprints, Sparkle } from 'lucide-react';
 import { useEssentialsStore } from '@/lib/stores/useEssentialsStore';
 import { ESSENTIAL_ITEMS, ESSENTIAL_ITEM_LABELS } from '@/lib/constants';
 import type { EssentialItemKey } from '@/lib/constants';
@@ -12,6 +12,7 @@ interface EssentialsKitProps {
 }
 
 const ITEM_ICONS: Record<EssentialItemKey, React.ElementType> = {
+    jacket: Sparkle,
     tshirt: Shirt,
     sleeping_bag: Bed,
     backpack: Backpack,
@@ -20,6 +21,7 @@ const ITEM_ICONS: Record<EssentialItemKey, React.ElementType> = {
 };
 
 const ITEM_KEYS: EssentialItemKey[] = [
+    ESSENTIAL_ITEMS.JACKET,
     ESSENTIAL_ITEMS.TSHIRT,
     ESSENTIAL_ITEMS.SLEEPING_BAG,
     ESSENTIAL_ITEMS.BACKPACK,
@@ -71,15 +73,15 @@ export function EssentialsKit({ guestId }: EssentialsKitProps) {
                             key={item}
                             data-testid={`essential-item-${item}`}
                             className={`flex items-center justify-between p-3 rounded-xl border transition-all ${canGive
-                                    ? 'bg-white dark:bg-gray-800 border-emerald-100 dark:border-emerald-800 hover:border-emerald-300'
-                                    : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 opacity-75'
+                                ? 'bg-white dark:bg-gray-800 border-emerald-100 dark:border-emerald-800 hover:border-emerald-300'
+                                : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-700 opacity-75'
                                 }`}
                         >
                             <div className="flex items-center gap-3 min-w-0">
                                 <div
                                     className={`p-2 rounded-lg ${canGive
-                                            ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400'
-                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
+                                        ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
                                         }`}
                                 >
                                     <Icon size={18} />
@@ -112,8 +114,8 @@ export function EssentialsKit({ guestId }: EssentialsKitProps) {
                                 onClick={() => handleGiveItem(item)}
                                 data-testid={`give-${item}-btn`}
                                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${canGive
-                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                                     }`}
                             >
                                 Give {label.split('/')[0]}

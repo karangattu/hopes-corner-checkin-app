@@ -38,6 +38,13 @@ function getNextAvailabilityDate(
         return next;
     }
 
+    if (item === 'jacket') {
+        const next = new Date(last);
+        next.setDate(next.getDate() + 15);
+        next.setHours(0, 0, 0, 0);
+        return next;
+    }
+
     if (
         item === 'sleeping_bag' ||
         item === 'backpack' ||

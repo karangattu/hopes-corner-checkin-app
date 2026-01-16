@@ -247,4 +247,114 @@ describe('getNextAvailabilityDate', () => {
             expect(result).toBeInstanceOf(Date);
         });
     });
+
+    describe('Jacket (15-day cooldown)', () => {
+        it('adds 15 days for jacket', () => {
+            const date = '2025-01-15T10:00:00Z';
+            const result = getNextAvailabilityDate('jacket', date);
+            const expected = new Date('2025-01-30');
+            expected.setHours(0, 0, 0, 0);
+            expect(result?.getDate()).toBe(expected.getDate());
+            expect(result?.getMonth()).toBe(expected.getMonth());
+        });
+
+        it('jacket has 15-day validity vs sleeping bag 30-day validity', () => {
+            const baseDate = '2025-01-15T10:00:00Z';
+            const jacketNext = getNextAvailabilityDate('jacket', baseDate);
+            const sleepingBagNext = getNextAvailabilityDate('sleeping_bag', baseDate);
+
+            expect(jacketNext).toBeInstanceOf(Date);
+            expect(sleepingBagNext).toBeInstanceOf(Date);
+
+            // Jacket should be available before sleeping bag
+            expect(jacketNext!.getTime() < sleepingBagNext!.getTime()).toBe(true);
+
+            // Difference should be 15 days
+            const diffMs = sleepingBagNext!.getTime() - jacketNext!.getTime();
+            const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+            expect(diffDays).toBe(15);
+        });
+
+        it('handles leap year dates correctly for jacket', () => {
+            const distributedDate = '2024-02-20T10:00:00Z';
+            const nextAvailable = getNextAvailabilityDate('jacket', distributedDate);
+            expect(nextAvailable).toBeInstanceOf(Date);
+            // Feb 20 + 15 days = Mar 6 (2024 is leap year)
+            expect(nextAvailable?.getMonth()).toBe(2); // March = 2
+            expect(nextAvailable?.getDate()).toBe(6);
+        });
+
+        it('returns null for null/undefined date', () => {
+            expect(getNextAvailabilityDate('jacket', null as unknown as string)).toBeNull();
+            expect(getNextAvailabilityDate('jacket', undefined as unknown as string)).toBeNull();
+        });
+    });
+});
+
+describe('Jacket-specific store operations', () => {
+    beforeEach(() => {
+        useEssentialsStore.setState({
+            itemRecords: [],
+            isLoading: false,
+            error: null,
+        });
+    });
+
+    it('allows giving jacket when guest has never received one', () => {
+        const { canGiveItem } = useEssentialsStore.getState();
+        expect(canGiveItem('guest-123', 'jacket')).toBe(true);
+    });
+
+    it('prevents giving jacket within 15 days of last distribution', () => {
+        const today = new Date().toISOString();
+        useEssentialsStore.setState({
+            itemRecords: [
+                { id: 'item-1', guestId: 'guest-123', item: 'jacket', date: today },
+            ],
+        });
+
+        const { canGiveItem } = useEssentialsStore.getState();
+        expect(canGiveItem('guest-123', 'jacket')).toBe(false);
+    });
+
+    it('prevents giving jacket 7 days after distribution', () => {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        useEssentialsStore.setState({
+            itemRecords: [
+                { id: 'item-1', guestId: 'guest-123', item: 'jacket', date: sevenDaysAgo.toISOString() },
+            ],
+        });
+
+        const { canGiveItem } = useEssentialsStore.getState();
+        expect(canGiveItem('guest-123', 'jacket')).toBe(false);
+    });
+
+    it('allows giving jacket at or after 15 days of distribution', () => {
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 16);
+        useEssentialsStore.setState({
+            itemRecords: [
+                { id: 'item-1', guestId: 'guest-123', item: 'jacket', date: fifteenDaysAgo.toISOString() },
+            ],
+        });
+
+        const { canGiveItem } = useEssentialsStore.getState();
+        expect(canGiveItem('guest-123', 'jacket')).toBe(true);
+    });
+
+    it('returns remaining days for jacket cooldown', () => {
+        const fiveDaysAgo = new Date();
+        fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+        useEssentialsStore.setState({
+            itemRecords: [
+                { id: 'item-1', guestId: 'guest-123', item: 'jacket', date: fiveDaysAgo.toISOString() },
+            ],
+        });
+
+        const { getDaysUntilAvailable } = useEssentialsStore.getState();
+        const days = getDaysUntilAvailable('guest-123', 'jacket');
+        expect(days).toBeGreaterThanOrEqual(9);
+        expect(days).toBeLessThanOrEqual(11);
+    });
 });
