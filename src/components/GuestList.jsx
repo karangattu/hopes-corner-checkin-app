@@ -702,11 +702,14 @@ const GuestList = () => {
       // Pass pickedUpByGuestId to track who physically picked up the meal (for linked guests metrics)
       const rec = addMealRecord(guestId, count, null, pickedUpByGuestId);
       if (rec) {
-        // Auto-add lunch bag for each guest getting a meal
-        try {
-          addLunchBagRecord(1, today);
-        } catch (lunchBagError) {
-          console.warn('Failed to auto-add lunch bag:', lunchBagError);
+        // Auto-add lunch bag for each guest getting a meal (except Fridays - no lunch bags on breakfast days)
+        const dayOfWeek = new Date(today + 'T12:00:00').getDay();
+        if (dayOfWeek !== 5) { // Skip Fridays (day 5)
+          try {
+            addLunchBagRecord(1, today);
+          } catch (lunchBagError) {
+            console.warn('Failed to auto-add lunch bag:', lunchBagError);
+          }
         }
         // Add to recently logged meals for success animation
         setRecentlyLoggedMeals((prev) => {
