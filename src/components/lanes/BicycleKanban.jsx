@@ -24,7 +24,11 @@ const BicycleKanban = ({
   const [draggedItem, setDraggedItem] = useState(null);
 
   const getGuestNameDetails = (guestId) => {
-    const guest = guests.find((g) => g.id === guestId) || null;
+    // Robust lookup: try primary UUID first, then fall back to external_id
+    const guest = 
+      guests.find((g) => g.id === guestId) || 
+      guests.find((g) => g.guestId === guestId) ||
+      null;
     const fallback = "Unknown Guest";
     const legalName =
       guest?.name ||

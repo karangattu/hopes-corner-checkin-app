@@ -173,9 +173,15 @@ const CompactShowerList = memo(({ onGuestClick, viewDate }) => {
   const todayString = viewDate || todayPacificDateString();
 
   // Create a stable guest lookup map for efficient name resolution
+  // Maps both id (UUID) and guestId (external_id) to support different record formats
   const guestMap = useMemo(() => {
     const map = new Map();
-    (guests || []).forEach(g => map.set(g.id, g));
+    (guests || []).forEach(g => {
+      // Map by UUID (primary key)
+      if (g.id) map.set(g.id, g);
+      // Also map by external_id (guestId) for records that may use this format
+      if (g.guestId && g.guestId !== g.id) map.set(g.guestId, g);
+    });
     return map;
   }, [guests]);
 

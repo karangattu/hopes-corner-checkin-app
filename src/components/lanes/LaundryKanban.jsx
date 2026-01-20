@@ -28,9 +28,15 @@ const LaundryKanban = ({
   const draggedItemRef = useRef(null);
 
   // Memoize guest lookup map for O(1) access
+  // Maps both id (UUID) and guestId (external_id) to support different record formats
   const guestMap = useMemo(() => {
     const map = new Map();
-    (guests || []).forEach(g => map.set(g.id, g));
+    (guests || []).forEach(g => {
+      // Map by UUID (primary key)
+      if (g.id) map.set(g.id, g);
+      // Also map by external_id (guestId) for records that may use this format
+      if (g.guestId && g.guestId !== g.id) map.set(g.guestId, g);
+    });
     return map;
   }, [guests]);
 
