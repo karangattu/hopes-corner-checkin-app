@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Users, Search } from "lucide-react";
+import { Users, Search, Globe } from "lucide-react";
 import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
 import MealServiceTimer from "../../components/MealServiceTimer";
@@ -93,6 +93,16 @@ const CheckIn = () => {
             <p className="text-gray-500">
               Find existing guests or register new arrivals
             </p>
+            <a
+              href="https://karangattu.github.io/volunteer-translator/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+              title="Language cheatsheet for communicating with guests"
+            >
+              <Globe size={12} />
+              <span>Translator</span>
+            </a>
             <TodayStats />
           </div>
         </div>
