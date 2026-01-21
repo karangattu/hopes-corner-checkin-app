@@ -55,7 +55,7 @@ interface MealsState {
     deleteRvMealRecord: (recordId: string) => Promise<void>;
     addExtraMealRecord: (guestId: string, quantity?: number) => Promise<Partial<MealRecord>>;
     deleteExtraMealRecord: (recordId: string) => Promise<void>;
-    addBulkMealRecord: (mealType: string, quantity: number, label?: string, deduplicationKey?: string) => Promise<Partial<MealRecord>>;
+    addBulkMealRecord: (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string) => Promise<Partial<MealRecord>>;
     deleteBulkMealRecord: (recordId: string, mealType: string) => Promise<void>;
     addHolidayRecord: (guestId: string) => Promise<HolidayRecord | Partial<HolidayRecord>>;
     deleteHolidayRecord: (recordId: string) => Promise<void>;
@@ -264,16 +264,16 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     // Bulk Meal Actions (Day Worker, Shelter, Lunch Bags, United Effort)
-                    addBulkMealRecord: async (mealType: string, quantity: number, label?: string, deduplicationKey?: string) => {
+                    addBulkMealRecord: async (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string) => {
                         const supabase = createClient();
-                        const todayStr = todayPacificDateString();
+                        const targetDate = date || todayPacificDateString();
 
                         // For bulk entries, we use a system/placeholder guest_id or null if schema allows
                         // Using a special 'system' entry approach with null guest_id
                         const payload = {
                             guest_id: null, // Bulk entries don't have a specific guest
                             quantity,
-                            served_on: todayStr,
+                            served_on: targetDate,
                             meal_type: mealType,
                             recorded_at: new Date().toISOString(),
                             notes: label || null,

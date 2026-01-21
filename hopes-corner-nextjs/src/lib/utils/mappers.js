@@ -146,7 +146,9 @@ export const mapGuestRow = (row) => {
 
 export const mapMealRow = (row) => {
   const recordedAt = row.recorded_at || row.created_at || null;
-  const fallbackDate = row.served_on
+  // Use served_on as the primary date for filtering (this is the date the meal was actually served)
+  // Fall back to recordedAt if served_on is not available
+  const servedOnDate = row.served_on
     ? new Date(`${row.served_on}T12:00:00Z`).toISOString()
     : null;
 
@@ -158,7 +160,7 @@ export const mapMealRow = (row) => {
     pickedUpByGuestId: picked,
     pickedUpByProxyId: picked,
     count: row.quantity || 1,
-    date: recordedAt || fallbackDate,
+    date: servedOnDate || recordedAt,
     recordedAt,
     servedOn: row.served_on,
     createdAt: row.created_at,

@@ -167,8 +167,8 @@ export function MealsSection() {
         setAddingType(mealType);
         try {
             const category = MEAL_CATEGORIES.find(c => c.id === mealType);
-            await addBulkMealRecord(mealType, quantity, category?.label);
-            toast.success(`Added ${quantity} ${category?.label || mealType}`);
+            await addBulkMealRecord(mealType, quantity, category?.label, undefined, selectedDate);
+            toast.success(`Added ${quantity} ${category?.label || mealType}${!isToday ? ` for ${selectedDate}` : ''}`);
             setQuantities(prev => ({ ...prev, [mealType]: 0 }));
         } catch (error) {
             console.error('Failed to add meal record:', error);
@@ -252,42 +252,40 @@ export function MealsSection() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        {!isToday && (
-                            <button
-                                onClick={() => setSelectedDate(todayPacificDateString())}
-                                className="px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
-                            >
-                                Today
-                            </button>
-                        )}
-                        <button
-                            onClick={() => shiftDate(1)}
-                            className="p-2 hover:bg-white rounded-xl transition-all text-gray-400 hover:text-emerald-600 shadow-sm"
-                        >
-                            <ChevronRight size={20} />
-                        </button>
-                    </div>
-                </div>
-
-                {isToday && (
+                        {isToday && (
                     <button
-                        onClick={() => setShowAddPanel(!showAddPanel)}
-                        className={cn(
-                            "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-2",
-                            showAddPanel
-                                ? "bg-gray-200 text-gray-600 shadow-gray-100"
-                                : "bg-gray-900 text-white shadow-gray-200 hover:scale-105 active:scale-95"
-                        )}
+                        onClick={() => setSelectedDate(todayPacificDateString())}
+                        className="px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
                     >
-                        {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
+                        Today
                     </button>
                 )}
+                <button
+                    onClick={() => shiftDate(1)}
+                    className="p-2 hover:bg-white rounded-xl transition-all text-gray-400 hover:text-emerald-600 shadow-sm"
+                >
+                    <ChevronRight size={20} />
+                </button>
             </div>
+        </div>
+
+        <button
+            onClick={() => setShowAddPanel(!showAddPanel)}
+            className={cn(
+                "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-2",
+                showAddPanel
+                    ? "bg-gray-200 text-gray-600 shadow-gray-100"
+                    : "bg-gray-900 text-white shadow-gray-200 hover:scale-105 active:scale-95"
+            )}
+        >
+            {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
+        </button>
+    </div>
 
             {/* Quick Add Panel */}
             <AnimatePresence>
                 {/* ... Panel Content ... */}
-                {showAddPanel && isToday && (
+                {showAddPanel && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -431,7 +429,7 @@ export function MealsSection() {
                                                         <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xs uppercase">Cancel</button>
                                                     </div>
                                                 ) : (
-                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest cursor-pointer hover:text-gray-600" onClick={() => isToday && handleEdit(record)}>
+                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest cursor-pointer hover:text-gray-600" onClick={() => handleEdit(record)}>
                                                         {record.count} Meal{record.count > 1 ? 's' : ''} · {new Date(record.createdAt || record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 )}
@@ -452,7 +450,7 @@ export function MealsSection() {
                                         )}>
                                             {record.type === 'day_worker' ? 'Day Worker' : record.type === 'lunch_bag' ? 'Lunch Bag' : record.type === 'united_effort' ? 'United Effort' : record.type === 'extra' ? 'Extra' : record.type === 'guest' ? 'Guest' : record.type}
                                         </span>
-                                        {isToday && !isEditing && (
+                                        {!isEditing && (
                                             <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {/* Edit Button */}
                                                 <button
