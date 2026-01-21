@@ -205,6 +205,11 @@ create table if not exists public.guests (
   ban_reason text,
   banned_at timestamptz,
   banned_until timestamptz,
+  -- Program-specific ban columns (from migration 010)
+  banned_from_bicycle boolean default false,
+  banned_from_meals boolean default false,
+  banned_from_shower boolean default false,
+  banned_from_laundry boolean default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint guests_ban_window_valid check (
@@ -214,7 +219,10 @@ create table if not exists public.guests (
   )
 );
 
-
+comment on column public.guests.banned_from_bicycle is 'If true, guest is banned from bicycle repair services when banned_until is in the future';
+comment on column public.guests.banned_from_meals is 'If true, guest is banned from meal services when banned_until is in the future';
+comment on column public.guests.banned_from_shower is 'If true, guest is banned from shower services when banned_until is in the future';
+comment on column public.guests.banned_from_laundry is 'If true, guest is banned from laundry services when banned_until is in the future';
 
 drop trigger if exists trg_guests_updated_at on public.guests;
 create trigger trg_guests_updated_at
@@ -311,6 +319,10 @@ create index if not exists guests_banned_until_idx
   on public.guests (banned_until)
   where banned_until is not null;
 
+-- Index for program-specific bans
+create index if not exists guests_program_bans_idx on public.guests (banned_until)
+  where banned_from_bicycle = true or banned_from_meals = true or banned_from_shower = true or banned_from_laundry = true;
+
 -- Performance indexes for large guest tables (100k+ records)
 create index if not exists guests_created_at_idx
   on public.guests (created_at desc);
@@ -394,6 +406,16 @@ create unique index if not exists shower_one_per_day
 create index if not exists shower_slot_idx
   on public.shower_reservations (scheduled_for, scheduled_time);
 
+-- Performance indexes for shower_reservations (from migration 004)
+create index if not exists shower_scheduled_for_idx
+  on public.shower_reservations (scheduled_for desc);
+
+create index if not exists shower_created_at_idx
+  on public.shower_reservations (created_at desc);
+
+create index if not exists shower_guest_id_idx
+  on public.shower_reservations (guest_id);
+
 create table if not exists public.laundry_bookings (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete cascade,
@@ -419,6 +441,16 @@ for each row execute function public.ensure_guest_not_banned('laundry');
 
 create unique index if not exists laundry_one_per_day
   on public.laundry_bookings (guest_id, scheduled_for);
+
+-- Performance indexes for laundry_bookings (from migration 004)
+create index if not exists laundry_scheduled_for_idx
+  on public.laundry_bookings (scheduled_for desc);
+
+create index if not exists laundry_created_at_idx
+  on public.laundry_bookings (created_at desc);
+
+create index if not exists laundry_guest_id_idx
+  on public.laundry_bookings (guest_id);
 
 create table if not exists public.blocked_slots (
   id uuid default gen_random_uuid() primary key,
@@ -474,6 +506,16 @@ create trigger trg_bicycle_repairs_ban_guard
 before insert or update on public.bicycle_repairs
 for each row execute function public.ensure_guest_not_banned('bicycle repairs');
 
+-- Performance indexes for bicycle_repairs (from migration 004)
+create index if not exists bicycle_requested_at_idx
+  on public.bicycle_repairs (requested_at desc);
+
+create index if not exists bicycle_guest_id_idx
+  on public.bicycle_repairs (guest_id);
+
+create index if not exists bicycle_status_idx
+  on public.bicycle_repairs (status);
+
 create table if not exists public.holiday_visits (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete cascade,
@@ -485,6 +527,16 @@ drop trigger if exists trg_holiday_visits_ban_guard on public.holiday_visits;
 create trigger trg_holiday_visits_ban_guard
 before insert or update on public.holiday_visits
 for each row execute function public.ensure_guest_not_banned('holiday');
+
+-- Performance indexes for holiday_visits (from migration 004)
+create index if not exists holiday_served_at_idx
+  on public.holiday_visits (served_at desc);
+
+create index if not exists holiday_created_at_idx
+  on public.holiday_visits (created_at desc);
+
+create index if not exists holiday_guest_id_idx
+  on public.holiday_visits (guest_id);
 
 create table if not exists public.haircut_visits (
   id uuid primary key default gen_random_uuid(),
@@ -498,13 +550,30 @@ create trigger trg_haircut_visits_ban_guard
 before insert or update on public.haircut_visits
 for each row execute function public.ensure_guest_not_banned('haircut');
 
+-- Performance indexes for haircut_visits (from migration 004)
+create index if not exists haircut_served_at_idx
+  on public.haircut_visits (served_at desc);
+
+create index if not exists haircut_created_at_idx
+  on public.haircut_visits (created_at desc);
+
+create index if not exists haircut_guest_id_idx
+  on public.haircut_visits (guest_id);
+
 create table if not exists public.items_distributed (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid references public.guests(id) on delete cascade,
-  item_key text not null,          -- 'tshirt','sleeping_bag','backpack','tent','flip_flops', etc.
+  item_key text not null,          -- 'tshirt','sleeping_bag','backpack','tent','flip_flops','jacket', etc.
   distributed_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+comment on table public.items_distributed is 'Track distribution of items (t-shirt, sleeping_bag, backpack, tent, flip_flops, jacket, etc). 
+Jacket has special 15-day validity - guests can receive another jacket 15+ days after distribution.
+Other items use app logic for frequency limits.';
+
+comment on column public.items_distributed.item_key is 'Item type: tshirt, sleeping_bag, backpack, tent, flip_flops, jacket, etc. 
+Jacket items become available again after 15 days (distributed_at + 15 days).';
 
 drop trigger if exists trg_items_distributed_ban_guard on public.items_distributed;
 create trigger trg_items_distributed_ban_guard
@@ -513,6 +582,11 @@ for each row execute function public.ensure_guest_not_banned('items');
 
 create index if not exists items_distributed_lookup
   on public.items_distributed (guest_id, item_key, distributed_at desc);
+
+-- Jacket-specific index for faster lookups (from migration 007_add_jacket_tracking)
+create index if not exists items_distributed_jacket_lookup
+  on public.items_distributed (guest_id, item_key, distributed_at desc)
+  where item_key = 'jacket';
 
 create table if not exists public.donations (
   id uuid primary key default gen_random_uuid(),
@@ -645,11 +719,11 @@ create table if not exists public.sync_state (
 );
 
 -- 7. Service waivers (from migrations)
--- Track if a guest has an active waiver for shower or laundry
+-- Track if a guest has an active waiver for shower, laundry, or bicycle
 create table if not exists public.service_waivers (
   id uuid primary key default gen_random_uuid(),
   guest_id uuid not null references public.guests(id) on delete cascade,
-  service_type text not null check (service_type in ('shower', 'laundry')),
+  service_type text not null check (service_type in ('shower', 'laundry', 'bicycle')),
   signed_at timestamptz not null default now(),
   dismissed_at timestamptz,
   dismissed_by_user_id uuid,
@@ -657,6 +731,8 @@ create table if not exists public.service_waivers (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+comment on table public.service_waivers is 'Tracks service waivers for shower, laundry, and bicycle programs. Each waiver is valid for one calendar year.';
 
 drop trigger if exists trg_service_waivers_updated_at on public.service_waivers;
 create trigger trg_service_waivers_updated_at
@@ -730,6 +806,33 @@ where
         and sw.service_type = 'laundry'
         and sw.dismissed_at < date_trunc('year', now())::date
     )
+  )
+union all
+select distinct g.id,
+  g.external_id,
+  g.full_name,
+  g.preferred_name,
+  'bicycle' as service_type
+from public.guests g
+where 
+  exists (
+    select 1 from public.bicycle_repairs br
+    where br.guest_id = g.id
+      and br.requested_at >= date_trunc('year', now())
+  )
+  and (
+    not exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = g.id 
+        and sw.service_type = 'bicycle'
+    )
+    or
+    exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = g.id
+        and sw.service_type = 'bicycle'
+        and sw.dismissed_at < date_trunc('year', now())::date
+    )
   );
 
 -- Helper functions for waivers
@@ -794,48 +897,76 @@ declare
   v_year_start date;
 begin
   v_year_start := date_trunc('year', now())::date;
-  case 
-    when p_service_type = 'shower' then
-      -- Check if guest has any shower scheduled this year
-      if not exists (
-        select 1 from public.shower_reservations sr
-        where sr.guest_id = p_guest_id
-          and sr.scheduled_for >= v_year_start
-      ) then
-        return false;
-      end if;
-    when p_service_type = 'laundry' then
-      -- Check if guest has any laundry booked this year
-      if not exists (
-        select 1 from public.laundry_bookings lb
-        where lb.guest_id = p_guest_id
-          and lb.scheduled_for >= v_year_start
-      ) then
-        return false;
-      end if;
-    else
+  
+  -- Check for bicycle service type
+  if p_service_type = 'bicycle' then
+    -- Check if guest has any bicycle repair this year
+    if not exists (
+      select 1 from public.bicycle_repairs br
+      where br.guest_id = p_guest_id
+        and br.requested_at >= v_year_start
+    ) then
       return false;
-  end case;
-  -- Guest has a service this year, check if they need a waiver
-  return (
-    -- No waiver record exists at all
-    not exists (
+    end if;
+    
+    -- Check for existing waiver this year
+    if exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
-        and sw.service_type = p_service_type
-    )
-  )
-  or
-  (
-    -- Waiver was dismissed before this year (needs renewal)
-    exists (
+        and sw.service_type = 'bicycle'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  -- Original logic for shower
+  if p_service_type = 'shower' then
+    if not exists (
+      select 1 from public.shower_reservations sr
+      where sr.guest_id = p_guest_id
+        and sr.scheduled_for >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    if exists (
       select 1 from public.service_waivers sw
       where sw.guest_id = p_guest_id
-        and sw.service_type = p_service_type
-        and sw.dismissed_at is not null
-        and sw.dismissed_at < v_year_start
-    )
-  );
+        and sw.service_type = 'shower'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  -- Original logic for laundry
+  if p_service_type = 'laundry' then
+    if not exists (
+      select 1 from public.laundry_bookings lb
+      where lb.guest_id = p_guest_id
+        and lb.scheduled_for >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    if exists (
+      select 1 from public.service_waivers sw
+      where sw.guest_id = p_guest_id
+        and sw.service_type = 'laundry'
+        and sw.dismissed_at >= v_year_start
+    ) then
+      return false;
+    end if;
+    
+    return true;
+  end if;
+  
+  return false;
 end;
 $$ language plpgsql stable;
 
@@ -869,3 +1000,20 @@ create policy "Authenticated users can manage waivers"
   to authenticated, anon
   using (true)
   with check (true);
+
+-- 8. Blocked slots cleanup function (from migration 009)
+-- Function to clean up old blocked slots (older than 7 days)
+create or replace function public.cleanup_old_blocked_slots()
+returns integer as $$
+declare
+  deleted_count integer;
+begin
+  delete from public.blocked_slots
+  where date::date < current_date - interval '7 days';
+  
+  get diagnostics deleted_count = row_count;
+  return deleted_count;
+end;
+$$ language plpgsql;
+
+comment on function public.cleanup_old_blocked_slots() is 'Removes blocked slots older than 7 days';
