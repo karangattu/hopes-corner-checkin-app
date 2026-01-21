@@ -200,15 +200,19 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().rvMealRecords[0].count).toBe(100);
             });
 
-            it('adds 100 RV meals and 50 Day Worker meals on Saturday', async () => {
+            it('adds 100 Lunch Bags, 100 RV meals and 50 Day Worker meals on Saturday', async () => {
                 vi.useFakeTimers();
                 const saturday = new Date('2025-01-11T12:00:00Z');
                 vi.setSystemTime(saturday);
                 vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-11');
                 vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
 
-                // Expect 2 inserts.
+                // Expect 3 inserts: lunch_bag, rv, day_worker
                 mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb-sat', quantity: 100, meal_type: 'lunch_bag', served_on: '2025-01-11' },
+                        error: null
+                    })
                     .mockResolvedValueOnce({
                         data: { id: 'rv-sat', quantity: 100, meal_type: 'rv', served_on: '2025-01-11' },
                         error: null
@@ -220,7 +224,10 @@ describe('useMealsStore', () => {
 
                 await useMealsStore.getState().checkAndAddAutomaticMeals();
 
-                const { rvMealRecords, dayWorkerMealRecords } = useMealsStore.getState();
+                const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords } = useMealsStore.getState();
+                expect(lunchBagRecords).toHaveLength(1);
+                expect(lunchBagRecords[0].count).toBe(100);
+
                 expect(rvMealRecords).toHaveLength(1);
                 expect(rvMealRecords[0].count).toBe(100);
 
@@ -278,7 +285,7 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().rvMealRecords).toHaveLength(1); // Still 1
             });
 
-            it('does not duplicate Day Worker entries on Saturday', async () => {
+            it('does not duplicate Day Worker or Lunch Bag entries on Saturday', async () => {
                 vi.useFakeTimers();
                 const saturday = new Date('2025-01-11T12:00:00Z');
                 vi.setSystemTime(saturday);
@@ -287,13 +294,57 @@ describe('useMealsStore', () => {
 
                 useMealsStore.setState({
                     rvMealRecords: [createMockMealRecord({ date: '2025-01-11', count: 100 })],
-                    dayWorkerMealRecords: [createMockMealRecord({ date: '2025-01-11', count: 50 })]
+                    dayWorkerMealRecords: [createMockMealRecord({ date: '2025-01-11', count: 50 })],
+                    lunchBagRecords: [createMockMealRecord({ date: '2025-01-11', count: 100 })]
                 });
 
                 await useMealsStore.getState().checkAndAddAutomaticMeals();
 
                 expect(useMealsStore.getState().dayWorkerMealRecords).toHaveLength(1);
                 expect(useMealsStore.getState().rvMealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
+            });
+
+            it('does NOT add automatic meals on Sunday', async () => {
+                vi.useFakeTimers();
+                const sunday = new Date('2025-01-05T12:00:00Z');
+                vi.setSystemTime(sunday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-05');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-05');
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().dayWorkerMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('does NOT add automatic meals on Tuesday', async () => {
+                vi.useFakeTimers();
+                const tuesday = new Date('2025-01-07T12:00:00Z');
+                vi.setSystemTime(tuesday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-07');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-07');
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().dayWorkerMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('does NOT add automatic meals on Friday', async () => {
+                vi.useFakeTimers();
+                const friday = new Date('2025-01-10T12:00:00Z');
+                vi.setSystemTime(friday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-10');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-10');
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().dayWorkerMealRecords).toHaveLength(0);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
         });
 

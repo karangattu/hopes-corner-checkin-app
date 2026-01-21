@@ -505,16 +505,17 @@ export const useMealsStore = create<MealsState>()(
                         const today = new Date();
                         const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                         const todayStr = todayPacificDateString();
-                        const { rvMealRecords, dayWorkerMealRecords, addBulkMealRecord } = get();
+                        const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords, addBulkMealRecord } = get();
 
                         const todaysRv = rvMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
                         const todaysDayWorker = dayWorkerMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
+                        const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
 
-                        // Schedule Logic
+                        // Schedule Logic (from older app's automaticMealEntries.js)
                         // Mon (1): 100 RV
                         // Wed (3): 35 RV
                         // Thu (4): 100 RV
-                        // Sat (6): 100 RV, 50 Day Worker
+                        // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
 
                         if (dayOfWeek === 1) { // Mon
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
@@ -523,6 +524,7 @@ export const useMealsStore = create<MealsState>()(
                         } else if (dayOfWeek === 4) { // Thu
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Thu)', `rv_${todayStr}`);
                         } else if (dayOfWeek === 6) { // Sat
+                            if (todaysLunchBags.length === 0) await addBulkMealRecord('lunch_bag', 100, 'Automatic Entry (Sat)', `lunch_bag_${todayStr}`);
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
                             if (todaysDayWorker.length === 0) await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
                         }

@@ -18,15 +18,28 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Lucide icons
-vi.mock('lucide-react', () => ({
-    ClipboardList: () => <div data-testid="icon-services" />,
-    BarChart3: () => <div data-testid="icon-dashboard" />,
-    UserPlus: () => <div data-testid="icon-checkin" />,
-    HelpCircle: () => <div data-testid="icon-help" />,
-    LogOut: () => <div data-testid="icon-logout" />,
-    Menu: () => <div data-testid="icon-menu" />,
-    X: () => <div data-testid="icon-x" />,
-}));
+vi.mock('lucide-react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('lucide-react')>();
+    return {
+        ...actual,
+        ClipboardList: () => <div data-testid="icon-services" />,
+        BarChart3: () => <div data-testid="icon-dashboard" />,
+        UserPlus: () => <div data-testid="icon-checkin" />,
+        HelpCircle: () => <div data-testid="icon-help" />,
+        LogOut: () => <div data-testid="icon-logout" />,
+        Menu: () => <div data-testid="icon-menu" />,
+        X: () => <div data-testid="icon-x" />,
+        Lightbulb: () => <div data-testid="icon-lightbulb" />,
+        ChevronRight: () => <div data-testid="icon-chevron-right" />,
+        ChevronLeft: () => <div data-testid="icon-chevron-left" />,
+        Clock: () => <div data-testid="icon-clock" />,
+        Users: () => <div data-testid="icon-users" />,
+        Utensils: () => <div data-testid="icon-utensils" />,
+        Gift: () => <div data-testid="icon-gift" />,
+        Droplet: () => <div data-testid="icon-droplet" />,
+        Shirt: () => <div data-testid="icon-shirt" />,
+    };
+});
 
 // Mock AppVersion
 vi.mock('@/components/pwa/AppVersion', () => ({
