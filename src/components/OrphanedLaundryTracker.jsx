@@ -98,7 +98,11 @@ const OrphanedLaundryTracker = () => {
         }
       })
       .map((record) => {
-        const guest = guests?.find((g) => g.id === record.guestId);
+        // Robust lookup: try primary UUID first, then fall back to external_id
+        const guest = 
+          guests?.find((g) => g.id === record.guestId) ||
+          guests?.find((g) => g.guestId === record.guestId) ||
+          null;
         const legalName =
           guest?.name ||
           `${guest?.firstName || ""} ${guest?.lastName || ""}`.trim() ||

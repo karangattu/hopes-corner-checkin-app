@@ -87,30 +87,35 @@ describe('LaundryKanban - Drag Performance Optimizations', () => {
   describe('Memoized Data Processing', () => {
     it('should memoize onsite and offsite record filtering', () => {
       // Verify useMemo for record filtering
-      const hasOnsiteRecordsMemo = kanbanContent.includes('onsiteRecords') && 
+      const hasOnsiteRecordsMemo = kanbanContent.includes('onsiteRecords') &&
         kanbanContent.includes('useMemo');
       expect(hasOnsiteRecordsMemo).toBe(true);
     });
 
     it('should memoize record grouping by status', () => {
       // Verify useMemo for grouping
-      const hasGroupedMemo = kanbanContent.includes('groupedOnsiteRecords') && 
+      const hasGroupedMemo = kanbanContent.includes('groupedOnsiteRecords') &&
         kanbanContent.includes('useMemo');
       expect(hasGroupedMemo).toBe(true);
     });
   });
 
+  // Read LaundryCard.jsx as well, since rendering logic moved there
+  const cardPath = join(__dirname, '../lanes/LaundryCard.jsx');
+  const cardContent = readFileSync(cardPath, 'utf-8');
+
   describe('CSS Optimizations', () => {
     it('should use willChange style for dragged items', () => {
       // willChange hint for GPU acceleration (inline style, camelCase)
-      const hasWillChange = kanbanContent.includes('willChange');
+      // Check in card content since it handles rendering
+      const hasWillChange = cardContent.includes('willChange');
       expect(hasWillChange).toBe(true);
     });
 
     it('should apply transform optimization during drag', () => {
       // willChange: transform, opacity for smooth dragging
-      const hasTransformOptimization = kanbanContent.includes("'transform, opacity'") ||
-        kanbanContent.includes('"transform, opacity"');
+      const hasTransformOptimization = cardContent.includes("'transform, opacity'") ||
+        cardContent.includes('"transform, opacity"');
       expect(hasTransformOptimization).toBe(true);
     });
   });
@@ -118,7 +123,7 @@ describe('LaundryKanban - Drag Performance Optimizations', () => {
   describe('DataTransfer Compatibility', () => {
     it('should have defensive check for setDragImage', () => {
       // setDragImage is not available in all environments
-      const hasSetDragImageCheck = kanbanContent.includes('setDragImage') && 
+      const hasSetDragImageCheck = kanbanContent.includes('setDragImage') &&
         kanbanContent.includes('typeof');
       expect(hasSetDragImageCheck).toBe(true);
     });

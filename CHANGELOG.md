@@ -4,12 +4,13 @@
 
 ### ✨ New Features
 
-- **Automatic Meal Entries**: Meals for RVs and lunch bags will automatically be added after meal service ends. Preset quantities are configured by day:
-  - **Monday**: 120 Lunch Bags, 100 RV Meals
-  - **Wednesday**: 120 Lunch Bags, 35 RV Meals  
+- **Automatic Meal Entries**: Meals for RVs, Day Worker Center, and lunch bags are automatically added after meal service ends. Preset quantities by day:
+  - **Monday**: 100 RV Meals
+  - **Wednesday**: 35 RV Meals  
   - **Thursday**: 100 RV Meals
-  - **Saturday**: 110 + 220 Lunch Bags (2 entries), 100 RV Meals, 50 Day Worker Center Meals
-- Auto-added entries appear in the meals section where staff can modify or delete them as needed.
+  - **Saturday**: 100 Lunch Bags, 100 RV Meals, 50 Day Worker Center Meals
+- **Per-Guest Lunch Bags**: On meal days (except Fridays), 1 lunch bag is added automatically per guest meal (plus 1 extra if picked up by proxy). Fridays are breakfast-only and don't include lunch bags.
+- Auto-added entries appear in the meals section where staff can modify or delete them as needed. Duplicate entries are prevented by checking existing records.
 
 ## 0.0.6 · 2026-01-01
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback, memo } from "react";
-import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye, AlertTriangle } from "lucide-react";
 import { useAppContext } from "../context/useAppContext";
+import { useGuestsStore } from "../stores/useGuestsStore";
 import { todayPacificDateString, pacificDateStringFrom } from "../utils/date";
 import { CompactWaiverIndicator } from "./ui/CompactWaiverIndicator";
 
@@ -93,7 +94,7 @@ const LaundryStatusBadge = memo(({ status, LAUNDRY_STATUS }) => {
 LaundryStatusBadge.displayName = "LaundryStatusBadge";
 
 // Memoized active laundry row
-const ActiveLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
+const ActiveLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS, hasWarning = false }) => {
   const handleClick = useCallback(() => {
     onGuestClick?.(booking.guestId, booking.id);
   }, [onGuestClick, booking.guestId, booking.id]);
@@ -117,6 +118,11 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {hasWarning && (
+          <div className="text-red-600 flex-shrink-0" title="⚠️ Guest has warning">
+            <AlertTriangle size={14} />
+          </div>
+        )}
         <CompactWaiverIndicator guestId={booking.guestId} serviceType="laundry" />
         <LaundryStatusBadge status={booking.status} LAUNDRY_STATUS={LAUNDRY_STATUS} />
       </div>
@@ -126,7 +132,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
 ActiveLaundryRow.displayName = "ActiveLaundryRow";
 
 // Memoized done laundry row
-const DoneLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
+const DoneLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS, hasWarning = false }) => {
   const handleClick = useCallback(() => {
     onGuestClick?.(booking.guestId, booking.id);
   }, [onGuestClick, booking.guestId, booking.id]);
@@ -149,7 +155,10 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, LAUNDRY_STATUS }) => {
           )}
         </div>
       </div>
-      <LaundryStatusBadge status={booking.status} LAUNDRY_STATUS={LAUNDRY_STATUS} />
+      <div className="flex items-center gap-2">
+        {hasWarning && (<div className="text-red-600 flex-shrink-0" title="⚠️ Guest has warning"><AlertTriangle size={14} /></div>)}
+        <LaundryStatusBadge status={booking.status} LAUNDRY_STATUS={LAUNDRY_STATUS} />
+      </div>
     </div>
   );
 });
@@ -216,6 +225,7 @@ OffsiteDoneRow.displayName = "OffsiteDoneRow";
  * @param {Function} onGuestClick - Optional callback when a guest row is clicked, receives (guestId, recordId)
  */
 const CompactLaundryList = memo(({ viewDate = null, onGuestClick }) => {
+  const getWarningsForGuest = useGuestsStore((state) => state.getWarningsForGuest);
   const {
     laundryRecords,
     guests,
@@ -242,9 +252,15 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick }) => {
   }, [completedStatuses]);
 
   // Create a stable guest lookup map for efficient name resolution
+  // Maps both id (UUID) and guestId (external_id) to support different record formats
   const guestMap = useMemo(() => {
     const map = new Map();
-    (guests || []).forEach(g => map.set(g.id, g));
+    (guests || []).forEach(g => {
+      // Map by UUID (primary key)
+      if (g.id) map.set(g.id, g);
+      // Also map by external_id (guestId) for records that may use this format
+      if (g.guestId && g.guestId !== g.id) map.set(g.guestId, g);
+    });
     return map;
   }, [guests]);
 
@@ -383,6 +399,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick }) => {
               booking={booking} 
               onGuestClick={onGuestClick} 
               LAUNDRY_STATUS={LAUNDRY_STATUS}
+              hasWarning={getWarningsForGuest(booking.guestId)?.length > 0}
             />
           ))}
         </div>
@@ -411,6 +428,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick }) => {
                   booking={booking} 
                   onGuestClick={onGuestClick}
                   LAUNDRY_STATUS={LAUNDRY_STATUS}
+                  hasWarning={getWarningsForGuest(booking.guestId)?.length > 0}
                 />
               ))}
             </div>

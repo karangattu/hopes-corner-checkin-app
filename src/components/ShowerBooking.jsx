@@ -91,16 +91,38 @@ const ShowerBooking = () => {
     );
   }, [blockedSlots, todayString]);
 
+  // Memoize guest lookup map for O(1) access
+  const guestMap = useMemo(() => {
+    const map = new Map();
+    (guests || []).forEach(g => map.set(g.id, g));
+    return map;
+  }, [guests]);
+
+  // Pre-filter records for today to avoid repeated filtering
+  const recordsForToday = useMemo(() => {
+    return (showerRecords || []).filter(
+      (record) => pacificDateStringFrom(record.date) === todayString
+    );
+  }, [showerRecords, todayString]);
+
   const slotsWithDetails = useMemo(() => {
+    // Group records by time for O(1) access
+    const recordsByTime = new Map();
+    recordsForToday.forEach(record => {
+      if (record.status === "waitlisted") return;
+
+      const time = record.time;
+      if (!recordsByTime.has(time)) {
+        recordsByTime.set(time, []);
+      }
+      recordsByTime.get(time).push(record);
+    });
+
     return allShowerSlots
       .map((slotTime) => {
         const isBlocked = blockedShowerSlots.has(slotTime);
-        const todaysRecords = (showerRecords || []).filter(
-          (record) =>
-            record.time === slotTime &&
-            pacificDateStringFrom(record.date) === todayString &&
-            record.status !== "waitlisted",
-        );
+        const todaysRecords = recordsByTime.get(slotTime) || [];
+
         const count = todaysRecords.length;
         // Sort by createdAt to show guests in registration order (earlier first)
         const sortedRecords = [...todaysRecords].sort((a, b) => {
@@ -108,13 +130,15 @@ const ShowerBooking = () => {
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return aTime - bTime;
         });
+
         const guestsInSlot = sortedRecords.map((record) => {
-          const guest = guests?.find((g) => g.id === record.guestId);
+          const guest = guestMap.get(record.guestId);
           return {
             id: record.id,
             name: guest?.name || "Guest",
           };
         });
+
         const statuses = todaysRecords.map((record) => record.status);
         return {
           slotTime,
@@ -134,7 +158,7 @@ const ShowerBooking = () => {
         if (a.isFull !== b.isFull) return a.isFull ? 1 : -1;
         return a.sortKey - b.sortKey; // keep timeline order for remaining capacity
       });
-  }, [allShowerSlots, showerRecords, guests, todayString, blockedShowerSlots]);
+  }, [allShowerSlots, recordsForToday, guestMap, blockedShowerSlots]);
 
   // Calculate capacity excluding blocked slots
   const availableSlots = slotsWithDetails.filter(slot => !slot.isBlocked);
@@ -542,13 +566,12 @@ const ShowerBooking = () => {
                     !slot.isFull && handleBookShower(slot.slotTime)
                   }
                   disabled={slot.isFull}
-                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${
-                    slot.isFull
+                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${slot.isFull
                       ? "bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200"
                       : slot.isNearlyFull
                         ? "bg-yellow-50 hover:bg-yellow-100 hover:shadow-md active:scale-98 border-yellow-300 text-gray-800 shadow-sm"
                         : "bg-white hover:bg-blue-50 hover:shadow-md active:scale-98 text-gray-800 hover:border-blue-500 shadow-sm"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="text-lg sm:text-base font-semibold">

@@ -23,6 +23,7 @@ const createDefaultContext = () => ({
     setLaundryPickerGuest: vi.fn(),
     addMealRecord: vi.fn(),
     addExtraMealRecord: vi.fn(),
+    addLunchBagRecord: vi.fn(),
     addGuest: vi.fn(),
     setBicyclePickerGuest: vi.fn(),
     addHaircutRecord: vi.fn(),

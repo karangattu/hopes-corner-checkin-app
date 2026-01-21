@@ -192,6 +192,8 @@ const buildContext = (overrides = {}) => {
     addDayWorkerMealRecord: vi.fn(),
     lunchBagRecords: [],
     addLunchBagRecord: vi.fn(),
+    addAutomaticMealEntries: vi.fn(async () => ({ success: true, added: 0, summary: "" })),
+    hasAutomaticMealsForDay: vi.fn(() => false),
     laundryRecords: [],
     showerRecords: waitlistedShowerRecords,
     haircutRecords: [],

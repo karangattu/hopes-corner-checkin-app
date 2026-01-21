@@ -42,6 +42,7 @@ import {
   UserCheck,
   Loader2,
 } from "lucide-react";
+import GuestListRow from "./GuestListRow";
 import { useAppContext } from "../context/useAppContext";
 import { useGuestsStore } from "../stores/useGuestsStore";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
@@ -72,6 +73,81 @@ const ADAPTIVE_THRESHOLD = 1;
 const MIN_VISIBLE_ROWS = 5;
 const MAX_VISIBLE_ROWS = 12;
 
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return "";
+  const [hoursStr, minutesStr] = String(timeStr).split(":");
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+  const date = new Date();
+  date.setHours(hours);
+  date.setMinutes(minutes, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+};
+
+const formatShowerSlotLabel = (slotTime) => formatTimeLabel(slotTime) || slotTime;
+
+const formatLaundryRangeLabel = (range) => {
+  if (!range) return "Off-site (no slot)";
+  const [start, end] = String(range).split(" - ");
+  const formattedStart = formatTimeLabel(start);
+  const formattedEnd = end ? formatTimeLabel(end) : "";
+  if (!formattedEnd) return formattedStart;
+  const [startTime, startPeriod] = formattedStart.split(" ");
+  const [endTime, endPeriod] = formattedEnd.split(" ");
+  if (startPeriod && endPeriod && startPeriod === endPeriod) {
+    return `${startTime} - ${endTime} ${startPeriod}`;
+  }
+  return `${formattedStart} - ${formattedEnd}`;
+};
+
+const BAY_AREA_CITIES = [
+  "Campbell",
+  "Cupertino",
+  "Gilroy",
+  "Los Altos Hills",
+  "Los Altos",
+  "Los Gatos",
+  "Milpitas",
+  "Monte Sereno",
+  "Morgan Hill",
+  "Mountain View",
+  "Palo Alto",
+  "San Jose",
+  "Santa Clara",
+  "Saratoga",
+  "Sunnyvale",
+];
+
+const formatDateTimeLocal = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const getDefaultBanUntil = () => {
+  const oneWeekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  return formatDateTimeLocal(oneWeekLater);
+};
+
+
+const toTitleCase = (str) => {
+  if (!str || typeof str !== "string") return "";
+  // Preserve single spaces between words (for middle names like "John Michael")
+  // Only collapse multiple consecutive spaces into one
+  return str
+    .replace(/\s+/g, ' ') // Collapse multiple spaces to single space
+    .split(' ')
+    .map((word) => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ')
+    .trim();
+};
+
 const GuestList = () => {
   const {
     guests,
@@ -94,6 +170,7 @@ const GuestList = () => {
     transferAllGuestRecords,
     addLunchBagRecord,
   } = useAppContext();
+
   const { addHaircutRecord, addHolidayRecord } = useAppContext();
   const { updateGuest, removeGuest } = useAppContext();
   const { banGuest, clearGuestBan } = useAppContext();
@@ -226,23 +303,7 @@ const GuestList = () => {
     bicycleDescription: "",
   });
 
-  const BAY_AREA_CITIES = [
-    "Campbell",
-    "Cupertino",
-    "Gilroy",
-    "Los Altos Hills",
-    "Los Altos",
-    "Los Gatos",
-    "Milpitas",
-    "Monte Sereno",
-    "Morgan Hill",
-    "Mountain View",
-    "Palo Alto",
-    "San Jose",
-    "Santa Clara",
-    "Saratoga",
-    "Sunnyvale",
-  ];
+
 
   const guestsList = useMemo(() => guests || [], [guests]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -607,14 +668,14 @@ const GuestList = () => {
     searchTerm.trim().length > 2 &&
     filteredGuests.length === 0;
 
-  const toggleExpanded = (guestId) => {
+  const toggleExpanded = useCallback((guestId) => {
     haptics.selection();
-    setExpandedGuest(expandedGuest === guestId ? null : guestId);
-  };
+    setExpandedGuest((prev) => (prev === guestId ? null : guestId));
+  }, []);
 
 
   // pickedUpByGuestId is optional - used when a linked/proxy guest picks up meals for another
-  const handleMealSelection = (guestId, count, pickedUpByGuestId = null) => {
+  const handleMealSelection = useCallback((guestId, count, pickedUpByGuestId = null) => {
     if (pendingMealGuests.has(guestId)) return;
     const today = todayPacificDateString();
     const alreadyHasMeal = mealRecords.some(
@@ -641,15 +702,14 @@ const GuestList = () => {
       // Pass pickedUpByGuestId to track who physically picked up the meal (for linked guests metrics)
       const rec = addMealRecord(guestId, count, null, pickedUpByGuestId);
       if (rec) {
-        // Auto-add lunch bag for each guest getting a meal
-        try {
-          addLunchBagRecord(1, today);
-          // If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest
-          if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+        // Auto-add lunch bag for each guest getting a meal (except Fridays - no lunch bags on breakfast days)
+        const dayOfWeek = new Date(today + 'T12:00:00').getDay();
+        if (dayOfWeek !== 5) { // Skip Fridays (day 5)
+          try {
             addLunchBagRecord(1, today);
+          } catch (lunchBagError) {
+            console.warn('Failed to auto-add lunch bag:', lunchBagError);
           }
-        } catch (lunchBagError) {
-          console.warn('Failed to auto-add lunch bag:', lunchBagError);
         }
         // Add to recently logged meals for success animation
         setRecentlyLoggedMeals((prev) => {
@@ -676,11 +736,25 @@ const GuestList = () => {
       haptics.error();
       toast.error(`Error logging meals: ${error.message}`);
     }
-  };
+  }, [pendingMealGuests, mealRecords, addMealRecord, addLunchBagRecord]);
 
-  const handleAddExtraMeals = async (guestId, count, guestName = "guest") => {
+  const handleAddExtraMeals = useCallback(async (guestId, count, guestName = "guest") => {
     if (!guestId || pendingExtraMealGuests.has(guestId)) return;
     const friendlyName = guestName || "guest";
+
+    // Check if guest already has a standard meal today
+    const today = todayPacificDateString();
+    const hasStandardMeal = mealRecords.some(
+      (record) =>
+        record.guestId === guestId &&
+        pacificDateStringFrom(record.date) === today
+    );
+
+    if (!hasStandardMeal) {
+      haptics.error();
+      toast.error("Guest must check in for a regular meal first");
+      return;
+    }
 
     try {
       haptics.buttonPress();
@@ -706,22 +780,11 @@ const GuestList = () => {
         return next;
       });
     }
-  };
+  }, [pendingExtraMealGuests, mealRecords, addExtraMealRecord]);
 
-  const formatDateTimeLocal = (value) => {
-    if (!value) return "";
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    const pad = (num) => String(num).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
 
-  const getDefaultBanUntil = () => {
-    const oneWeekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    return formatDateTimeLocal(oneWeekLater);
-  };
 
-  const openBanEditorForGuest = (guest) => {
+  const openBanEditorForGuest = useCallback((guest) => {
     haptics.selection();
     setBanEditor({
       guestId: guest.id,
@@ -735,9 +798,9 @@ const GuestList = () => {
       bannedFromLaundry: guest.bannedFromLaundry || false,
     });
     setBanError("");
-  };
+  }, []);
 
-  const closeBanEditor = () => {
+  const closeBanEditor = useCallback(() => {
     setBanEditor({
       guestId: null,
       until: "",
@@ -748,16 +811,16 @@ const GuestList = () => {
       bannedFromLaundry: false,
     });
     setBanError("");
-  };
+  }, []);
 
-  const handleBanFieldChange = (field, value) => {
+  const handleBanFieldChange = useCallback((field, value) => {
     setBanEditor((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
+  }, []);
 
-  const handleBanSubmit = async (event) => {
+  const handleBanSubmit = useCallback(async (event) => {
     event.preventDefault();
     if (!banEditor.guestId) return;
 
@@ -791,9 +854,9 @@ const GuestList = () => {
     } finally {
       setBanSubmittingId(null);
     }
-  };
+  }, [banEditor, banGuest, closeBanEditor]);
 
-  const handleUnbanGuest = async (guest) => {
+  const handleUnbanGuest = useCallback(async (guest) => {
     if (!guest) return;
     haptics.buttonPress();
     setBanSubmittingId(guest.id);
@@ -812,35 +875,35 @@ const GuestList = () => {
     } finally {
       setBanSubmittingId(null);
     }
-  };
+  }, [banEditor.guestId, clearGuestBan, closeBanEditor]);
 
   // ============ Warning Handlers ============
-  const openWarningForm = (guestId) => {
+  const openWarningForm = useCallback((guestId) => {
     setShowWarningForm(guestId);
     setWarningEditor({
       guestId,
       message: "",
       severity: 1,
     });
-  };
+  }, []);
 
-  const closeWarningForm = () => {
+  const closeWarningForm = useCallback(() => {
     setShowWarningForm(null);
     setWarningEditor({
       guestId: null,
       message: "",
       severity: 1,
     });
-  };
+  }, []);
 
-  const handleWarningFieldChange = (field, value) => {
+  const handleWarningFieldChange = useCallback((field, value) => {
     setWarningEditor((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
+  }, []);
 
-  const handleAddWarning = async (event) => {
+  const handleAddWarning = useCallback(async (event) => {
     event.preventDefault();
     if (!warningEditor.guestId || !warningEditor.message.trim()) {
       toast.error("Please enter a warning message");
@@ -864,9 +927,9 @@ const GuestList = () => {
     } finally {
       setWarningSubmitting(false);
     }
-  };
+  }, [warningEditor, addGuestWarning, closeWarningForm]);
 
-  const handleRemoveWarning = async (warningId) => {
+  const handleRemoveWarning = useCallback(async (warningId) => {
     if (!warningId) return;
     haptics.buttonPress();
     try {
@@ -880,22 +943,9 @@ const GuestList = () => {
       haptics.error();
       toast.error(message);
     }
-  };
+  }, [removeGuestWarning]);
 
-  const toTitleCase = (str) => {
-    if (!str || typeof str !== "string") return "";
-    // Preserve single spaces between words (for middle names like "John Michael")
-    // Only collapse multiple consecutive spaces into one
-    return str
-      .replace(/\s+/g, ' ') // Collapse multiple spaces to single space
-      .split(' ')
-      .map((word) => {
-        if (!word) return '';
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      })
-      .join(' ')
-      .trim();
-  };
+
 
   const dateTimeFormatter = useMemo(
     () =>
@@ -938,41 +988,13 @@ const GuestList = () => {
     return `${years} yr${years === 1 ? "" : "s"} ago`;
   };
 
-  const formatTimeLabel = (timeStr) => {
-    if (!timeStr) return "";
-    const [hoursStr, minutesStr] = String(timeStr).split(":");
-    const hours = Number(hoursStr);
-    const minutes = Number(minutesStr);
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes, 0, 0);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  };
-
-  const formatShowerSlotLabel = (slotTime) => formatTimeLabel(slotTime) || slotTime;
-
-  const formatLaundryRangeLabel = (range) => {
-    if (!range) return "Off-site (no slot)";
-    const [start, end] = String(range).split(" - ");
-    const formattedStart = formatTimeLabel(start);
-    const formattedEnd = end ? formatTimeLabel(end) : "";
-    if (!formattedEnd) return formattedStart;
-    const [startTime, startPeriod] = formattedStart.split(" ");
-    const [endTime, endPeriod] = formattedEnd.split(" ");
-    if (startPeriod && endPeriod && startPeriod === endPeriod) {
-      return `${startTime} - ${endTime} ${startPeriod}`;
-    }
-    return `${formattedStart} - ${formattedEnd}`;
-  };
-
   const todayServicesByGuest = useMemo(() => {
     const today = todayPacificDateString();
     const map = new Map();
 
     // Helper to add service if it's from today
     const addTodayService = (guestId, record, serviceType, icon, iconClass) => {
-      if (!guestId || !record?.date) return;
+      if (!guestId || !record || !record.date) return;
       const recordDate = pacificDateStringFrom(record.date);
       if (recordDate === today) {
         if (!map.has(guestId)) map.set(guestId, []);
@@ -980,7 +1002,7 @@ const GuestList = () => {
       }
     };
 
-    mealRecords.forEach((record) =>
+    (mealRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -989,7 +1011,7 @@ const GuestList = () => {
         "text-green-600",
       ),
     );
-    extraMealRecords.forEach((record) =>
+    (extraMealRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -998,7 +1020,7 @@ const GuestList = () => {
         "text-green-500",
       ),
     );
-    showerRecords.forEach((record) =>
+    (showerRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1007,7 +1029,7 @@ const GuestList = () => {
         "text-emerald-600",
       ),
     );
-    laundryRecords.forEach((record) =>
+    (laundryRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1016,7 +1038,7 @@ const GuestList = () => {
         "text-emerald-700",
       ),
     );
-    holidayRecords.forEach((record) =>
+    (holidayRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1025,7 +1047,7 @@ const GuestList = () => {
         "text-amber-500",
       ),
     );
-    haircutRecords.forEach((record) =>
+    (haircutRecords || []).forEach((record) =>
       addTodayService(
         record.guestId,
         record,
@@ -1034,7 +1056,7 @@ const GuestList = () => {
         "text-pink-500",
       ),
     );
-    bicycleRecords.forEach((record) =>
+    (bicycleRecords || []).forEach((record) =>
       addTodayService(record.guestId, record, "Bicycle", Bike, "text-sky-500"),
     );
 
@@ -1311,7 +1333,7 @@ const GuestList = () => {
     return () => cancelAnimationFrame(focusTimer);
   }, [showCreateForm]);
 
-  const startEditingGuest = (guest) => {
+  const startEditingGuest = useCallback((guest) => {
     setEditingGuestId(guest.id);
     setEditFormData({
       firstName: guest.firstName || "",
@@ -1324,18 +1346,18 @@ const GuestList = () => {
       notes: guest.notes || "",
       bicycleDescription: guest.bicycleDescription || "",
     });
-  };
+  }, []);
 
-  const handleEditChange = (e) => {
+  const handleEditChange = useCallback((e) => {
     const { name, value } = e.target;
     const transformed =
       name === "firstName" || name === "lastName" || name === "preferredName"
         ? toTitleCase(value)
         : value;
     setEditFormData((prev) => ({ ...prev, [name]: transformed }));
-  };
+  }, []);
 
-  const handleEditNameBlur = (e) => {
+  const handleEditNameBlur = useCallback((e) => {
     const { name, value } = e.target;
     if ((name === "firstName" || name === "lastName") && value.trim()) {
       setEditFormData((prev) => ({
@@ -1343,9 +1365,9 @@ const GuestList = () => {
         [name]: toTitleCase(value.trim()),
       }));
     }
-  };
+  }, []);
 
-  const saveEditedGuest = async () => {
+  const saveEditedGuest = useCallback(async () => {
     if (!editFormData.firstName.trim() || !editFormData.lastName.trim()) {
       toast.error("Please enter both first and last name");
       return;
@@ -1367,11 +1389,11 @@ const GuestList = () => {
       toast.success("Guest updated");
       setEditingGuestId(null);
     }
-  };
+  }, [editFormData, editingGuestId, updateGuest]);
 
-  const cancelEditing = () => setEditingGuestId(null);
+  const cancelEditing = useCallback(() => setEditingGuestId(null), []);
 
-  const deleteGuest = (guest) => {
+  const deleteGuest = useCallback((guest) => {
     const guestMealCount = (mealRecords || []).filter(
       (r) => r.guestId === guest.id,
     ).length;
@@ -1423,7 +1445,15 @@ const GuestList = () => {
       showerCount: 0,
       laundryCount: 0,
     });
-  };
+  }, [
+    mealRecords,
+    extraMealRecords,
+    showerRecords,
+    laundryRecords,
+    bicycleRecords,
+    holidayRecords,
+    haircutRecords
+  ]);
 
   const handleTransferMeals = async () => {
     const { sourceGuest, selectedTargetGuest, mealCount } = mealTransferModal;
@@ -1484,23 +1514,9 @@ const GuestList = () => {
     setDeleteConfirmation({ isOpen: false, guest: null });
   };
 
-  const renderGuestCard = (guest, index, options = {}) => {
+  const renderExpandedContent = useCallback((guest) => {
     if (!guest) return null;
 
-    const { style, key: keyOverride, compact = false, adaptive = false } = options;
-    const lastService = latestServiceByGuest.get(String(guest.id));
-    const ServiceIcon = lastService?.icon;
-    const formattedDate = lastService
-      ? dateTimeFormatter.format(lastService.date)
-      : "";
-    const fullDateTooltip = lastService
-      ? lastService.date.toLocaleString()
-      : "";
-    const relativeLabel = lastService
-      ? formatRelativeTime(lastService.date)
-      : "";
-    const todayServices = todayServicesByGuest.get(guest.id) || [];
-    const isSelected = selectedGuestIndex === index;
     const isBanned = Boolean(guest.isBanned);
     const bannedUntilDate =
       isBanned && guest.bannedUntil && !Number.isNaN(new Date(guest.bannedUntil).getTime())
@@ -1509,6 +1525,13 @@ const GuestList = () => {
     const banSummaryLabel = bannedUntilDate
       ? dateTimeFormatter.format(bannedUntilDate)
       : null;
+
+    // Check if guest is banned from specific services
+    const hasProgramSpecificBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
+    const isBannedFromMeals = isBanned && (!hasProgramSpecificBans || guest.bannedFromMeals);
+    const isBannedFromShower = isBanned && (!hasProgramSpecificBans || guest.bannedFromShower);
+    const isBannedFromLaundry = isBanned && (!hasProgramSpecificBans || guest.bannedFromLaundry);
+    const isBannedFromBicycle = isBanned && (!hasProgramSpecificBans || guest.bannedFromBicycle);
 
     // Build program-specific ban tooltip
     const banTooltip = (() => {
@@ -1529,1756 +1552,1289 @@ const GuestList = () => {
       return `${nameLabel} is banned ${programsText}${untilText}.${reasonText}`;
     })();
 
-    // Check if guest is banned from specific services
-    const hasProgramSpecificBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
-    const isBannedFromMeals = isBanned && (!hasProgramSpecificBans || guest.bannedFromMeals);
-    const isBannedFromShower = isBanned && (!hasProgramSpecificBans || guest.bannedFromShower);
-    const isBannedFromLaundry = isBanned && (!hasProgramSpecificBans || guest.bannedFromLaundry);
-    const isBannedFromBicycle = isBanned && (!hasProgramSpecificBans || guest.bannedFromBicycle);
-
     const isBanEditorOpen = banEditor.guestId === guest.id;
     const banFormMinValue = isBanEditorOpen
       ? formatDateTimeLocal(new Date(Date.now() + 5 * 60 * 1000))
       : null;
 
-    const containerClass = `border ${compact ? "rounded-lg" : adaptive ? "rounded-lg" : "rounded-xl"} transition-all duration-300 bg-white hover:bg-white overflow-hidden ${isSelected
-      ? `ring-4 ring-blue-500/30 border-blue-400 shadow-2xl focus-glow bg-blue-50/50 ${compact || adaptive ? "" : "scale-[1.02]"} z-10`
-      : `shadow-sm hover:shadow-xl hover:border-blue-200 ${compact || adaptive ? "" : "hover:-translate-y-0.5"}`
-      } ${expandedGuest === guest.id && !isSelected ? "ring-2 ring-emerald-400/20 border-emerald-300 bg-white shadow-lg" : ""} ${isBanned ? "border-red-200 bg-red-50/30" : ""}`;
-
-    let animationStyle = shouldVirtualize ? {} : trail[index] || {};
-
-    if (shouldVirtualize && style) {
-      const resolvedStyle = { ...style };
-
-      const rawTop = resolvedStyle.top;
-      const numericTop =
-        typeof rawTop === "number"
-          ? rawTop
-          : typeof rawTop === "string"
-            ? parseFloat(rawTop)
-            : 0;
-      if (!Number.isNaN(numericTop)) {
-        const updatedTop = numericTop + ITEM_VERTICAL_GAP / 2;
-        resolvedStyle.top =
-          typeof rawTop === "string" ? `${updatedTop}px` : updatedTop;
-      }
-
-      const rawHeight = resolvedStyle.height;
-      const numericHeight =
-        typeof rawHeight === "number"
-          ? rawHeight
-          : typeof rawHeight === "string"
-            ? parseFloat(rawHeight)
-            : VIRTUAL_ITEM_SIZE;
-      if (!Number.isNaN(numericHeight)) {
-        const adjustedHeight = Math.max(
-          numericHeight - ITEM_VERTICAL_GAP,
-          DEFAULT_ITEM_HEIGHT,
-        );
-        resolvedStyle.height =
-          typeof rawHeight === "string"
-            ? `${adjustedHeight}px`
-            : adjustedHeight;
-      }
-
-      resolvedStyle.width = "100%";
-      animationStyle = resolvedStyle;
-    }
-
-    const storeGuestCardRef = (el) => {
-      if (el) {
-        guestCardRefs.current[guest.id] = el;
-      } else {
-        delete guestCardRefs.current[guest.id];
-      }
-    };
-
-    const handleCardKeyDown = (event) => {
-      if (event.currentTarget !== event.target) {
-        return;
-      }
-      const key = event.key;
-      if (key === "Enter") {
-        event.preventDefault();
-        toggleExpanded(guest.id);
-        return;
-      }
-      if (key === "r" || key === "R") {
-        event.preventDefault();
-        resetCardFocus();
-        return;
-      }
-      if ((key === "ArrowDown" || key === "ArrowUp") && sortedGuests.length) {
-        event.preventDefault();
-        const nextIndex =
-          key === "ArrowDown"
-            ? index + 1 < sortedGuests.length
-              ? index + 1
-              : 0
-            : index > 0
-              ? index - 1
-              : sortedGuests.length - 1;
-        setSelectedGuestIndex(nextIndex);
-        focusGuestCard(sortedGuests[nextIndex].id);
-        return;
-      }
-      const mealKey =
-        key === "1" || key === "Numpad1"
-          ? 1
-          : key === "2" || key === "Numpad2"
-            ? 2
-            : null;
-      if (mealKey) {
-        event.preventDefault();
-        handleMealSelection(guest.id, mealKey);
-      }
-    };
-
     return (
-      <Animated.div
-        key={keyOverride ?? `guest-${guest.id}`}
-        ref={storeGuestCardRef}
-        tabIndex={-1}
-        style={animationStyle}
-        className={containerClass}
-        onFocus={() => setSelectedGuestIndex(index)}
-        onKeyDown={handleCardKeyDown}
-      >
-        {/* Keyboard navigation indicator - left accent bar */}
-        {isSelected && (
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-400 rounded-l-lg" />
-        )}
+      <div className="border-t border-emerald-200 p-4 bg-white">
 
-        {/* Subtle gradient overlay on hover */}
-        <div className="absolute inset-0 bg-transparent group-hover:bg-transparent transition-all duration-300 pointer-events-none" />
-
-        <div
-          className={`${compact ? "px-3 py-2" : isAdaptive ? "px-4 py-3" : "p-4"} cursor-pointer flex flex-row items-center justify-between gap-2 sm:gap-3 group`}
-          onClick={() => toggleExpanded(guest.id)}
-        >
-          <div className={`flex items-center ${compact ? "gap-2" : "gap-3"} flex-1 min-w-0`}>
-            <div className={`bg-blue-50 ${compact ? "p-2 rounded-lg" : "p-3 rounded-xl"} border border-blue-100 shadow-sm group-hover:scale-110 transition-transform`}>
-              <User size={compact ? 18 : 24} className="text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className={`font-bold text-gray-900 flex items-baseline gap-2 ${compact ? "text-sm" : ""}`}>
-                    <span className={`${compact ? "text-sm" : "text-lg"} font-bold text-gray-900`}>
-                      {guest.preferredName || guest.name}
-                    </span>
-                    {guest.preferredName && guest.name !== guest.preferredName && (
-                      <span className={`${compact ? "text-[10px]" : "text-xs"} font-medium text-gray-400 truncate hidden sm:inline`}>
-                        {guest.name}
-                      </span>
-                    )}
-                  </h3>
-                </div>
-                <div className="flex gap-1.5 ml-2 items-center shrink-0">
-                  {(() => {
-                    const isNewGuest =
-                      guest.createdAt &&
-                      pacificDateStringFrom(new Date(guest.createdAt)) ===
-                      todayPacificDateString();
-
-                    return isNewGuest ? (
-                      <span className={`${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-emerald-700 bg-emerald-50 rounded-full border border-emerald-200 shadow-sm animate-pulse`}>
-                        ✨ NEW
-                      </span>
-                    ) : null;
-                  })()}
-                  {/* Linked guests badge - indigo color */}
-                  {(() => {
-                    const linkedCount = getLinkedGuests(guest.id).length;
-                    return linkedCount > 0 ? (
-                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-indigo-700 bg-indigo-50 rounded-full border border-indigo-200 shadow-sm`} title={`${linkedCount} linked guest${linkedCount > 1 ? 's' : ''}`}>
-                        <Link size={compact ? 8 : 10} strokeWidth={2.5} />
-                        {linkedCount}
-                      </span>
-                    ) : null;
-                  })()}
-
-                  {/* Warning badge - amber color (shows count) */}
-                  {(() => {
-                    const warnings = getWarningsForGuest(guest.id) || [];
-                    const count = warnings.length;
-                    if (count === 0) return null;
-                    const latest = warnings[0];
-                    return (
-                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-amber-700 bg-amber-50 rounded-full border border-amber-200 shadow-sm`} title={latest.message}>
-                        <AlertCircle size={compact ? 8 : 10} className="text-amber-700" />
-                        {count}
-                      </span>
-                    );
-                  })()}
-
-                  {/* Recent guest badge - green color (meal in last 7 days) */}
-                  {(() => {
-                    const isRecent = isActiveGuest(guest.id, mealRecords);
-                    if (!isRecent) return null;
-                    const lastMealLabel = getLastMealLabel(guest.id, mealRecords);
-                    return (
-                      <span className={`inline-flex items-center gap-1 ${compact ? "text-[9px] px-1.5 py-0.5" : "text-[10px] px-2.5 py-1"} font-bold text-green-700 bg-green-50 rounded-full border border-green-200 shadow-sm`} title={`Last meal: ${lastMealLabel}`}>
-                        <Utensils size={compact ? 8 : 10} className="text-green-700" />
-                        <span className="hidden sm:inline">RECENT</span>
-                      </span>
-                    );
-                  })()}
-                  {todayServices.length > 0 && (
-                    <div className={`flex flex-wrap ${compact ? "gap-1" : "gap-1.5"} ml-2`}>
-                      {todayServices.map((service, idx) => {
-                        const Icon = service.icon;
-                        const timeLabel =
-                          service.serviceType === "Shower"
-                            ? formatShowerSlotLabel(service.record?.time)
-                            : service.serviceType === "Laundry"
-                              ? formatLaundryRangeLabel(service.record?.time)
-                              : null;
-
-                        // If it's a shower or laundry, show the text label as expected by tests
-                        if (
-                          service.serviceType === "Shower" ||
-                          service.serviceType === "Laundry"
-                        ) {
-                          return (
-                            <div
-                              key={idx}
-                              className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"} rounded-full bg-gray-50 border border-gray-100 font-bold text-gray-600 shadow-sm`}
-                            >
-                              <Icon size={compact ? 10 : 12} className={service.iconClass} />
-                              <span>
-                                {service.serviceType}: {timeLabel || "Done"}
-                              </span>
-                            </div>
-                          );
-                        }
-
-                        const timeStr = new Date(
-                          service.record.date,
-                        ).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
-                        return (
-                          <div
-                            key={idx}
-                            className={`flex items-center justify-center ${compact ? "w-6 h-6" : "w-8 h-8"} rounded-full bg-white border border-gray-100 shadow-sm transition-all hover:scale-125 hover:z-10 hover:shadow-md`}
-                            title={`${service.serviceType}${timeLabel ? ` (${timeLabel})` : ""} at ${timeStr} today`}
-                          >
-                            <Icon size={compact ? 12 : 15} className={service.iconClass} />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Waiver badges for shower and laundry - hidden in compact mode */}
-              {!compact && (
-                <div className="flex flex-wrap gap-2 mt-2 mb-2">
-                  {(() => {
-                    const servicesThatNeedWaivers = [];
-
-                    // Check if guest has shower records
-                    const guestShowerRecords = showerRecords.filter(
-                      (r) => r.guestId === guest.id
-                    );
-                    const hasShower = guestShowerRecords.length > 0;
-
-                    // Check if guest has laundry records
-                    const guestLaundryRecords = laundryRecords.filter(
-                      (r) => r.guestId === guest.id
-                    );
-                    const hasLaundry = guestLaundryRecords.length > 0;
-
-                    // Shower and laundry share a common waiver - only show one badge if either is used
-                    if (hasShower || hasLaundry) {
-                      servicesThatNeedWaivers.push('shower');
-                    }
-
-                    return servicesThatNeedWaivers.map((service) => (
-                      <WaiverBadge
-                        key={`waiver-${guest.id}-${service}`}
-                        guestId={guest.id}
-                        serviceType={service}
-                        onDismissed={() => {
-                          toast.success(`${service} waiver acknowledged`);
-                        }}
-                      />
-                    ));
-                  })()}
-                </div>
+        <div className="flex justify-end gap-2 mb-3">
+          {editingGuestId !== guest.id && (
+            <>
+              <button
+                onClick={() => startEditingGuest(guest)}
+                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+              >
+                Edit
+              </button>
+              {getLinkedGuests(guest.id).length === 0 && (
+                <button
+                  onClick={() => setLinkingGuestId(guest.id)}
+                  className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation inline-flex items-center gap-2"
+                >
+                  <Link size={16} />
+                  Link Guest
+                </button>
               )}
-
-              <div className={`flex items-center flex-wrap gap-2 ${compact ? "mt-1" : "mt-2.5"} ${compact ? "text-[10px]" : "text-xs"} text-gray-600 font-medium`}>
-                <div className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5" : "px-2.5 py-1"} bg-blue-50/60 rounded-md border border-blue-100/50`}>
-                  <Home size={compact ? 10 : 13} className="text-blue-500" />
-                  <span className="text-gray-700">{guest.housingStatus}</span>
-                </div>
-                {guest.location && (
-                  <div className={`flex items-center gap-1 ${compact ? "px-1.5 py-0.5" : "px-2.5 py-1"} bg-amber-50/60 rounded-md border border-amber-100/50`}>
-                    <MapPin size={compact ? 10 : 13} className="text-amber-600" />
-                    <span className="text-gray-700">{guest.location}</span>
-                  </div>
-                )}
-                {/* Gender and age - compact badges for quick identification */}
-                {guest.gender && (
-                  <span className={`${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"} bg-purple-50/60 text-purple-700 rounded-md border border-purple-100/50`}>
-                    {guest.gender.charAt(0)}
-                  </span>
-                )}
-                {guest.age && (
-                  <span className={`${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"} bg-teal-50/60 text-teal-700 rounded-md border border-teal-100/50`}>
-                    {guest.age}
-                  </span>
-                )}
-              </div>
-
-              {/* Last service info - hidden in compact mode */}
-              {!compact && lastService && ServiceIcon && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50/50 text-blue-700 rounded-md border border-blue-100/50 font-semibold uppercase tracking-wider text-[10px]">
-                    <ServiceIcon
-                      size={12}
-                      className={`${lastService.iconClass || "text-blue-500"}`}
-                      strokeWidth={2.5}
-                    />
-                    <span>{lastService.summary}</span>
-                  </span>
-                  {formattedDate && (
-                    <span className="text-gray-400 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-gray-300" />
-                      <span title={fullDateTooltip}>{formattedDate}</span>
-                    </span>
-                  )}
-                  {relativeLabel && (
-                    <span className="text-blue-500 flex items-center gap-1 font-semibold">
-                      <span className="w-1 h-1 rounded-full bg-blue-300" />
-                      <span>{relativeLabel}</span>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className={`flex items-center flex-shrink-0 ${compact ? "gap-1" : "gap-2"}`}>
-            {/* Mobile Quick Add Button - only visible on tablet/mobile */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                haptics.buttonPress();
-                setMobileServiceSheet({ isOpen: true, guest });
-              }}
-              className="mobile-quick-add-btn"
-              title="Quick Add Services"
-              aria-label="Quick add services"
-            >
-              <Plus size={22} strokeWidth={2.5} />
-            </button>
-
-            {/* Desktop Quick Action Buttons - hidden on tablet/mobile */}
-            <div className="quick-actions-desktop items-center gap-1 sm:gap-2">
-              {/* Meal Buttons - Only if not banned from meals */}
-              {!isBannedFromMeals && (
-                <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
-                  {(() => {
-                    const today = todayPacificDateString();
-                    const todayMealRecord = mealRecords.find(
-                      (record) =>
-                        record.guestId === guest.id &&
-                        pacificDateStringFrom(record.date) === today
-                    );
-
-                    // Calculate extra meals for this guest today
-                    const guestExtraMeals = extraMealRecords.filter(
-                      (record) =>
-                        record.guestId === guest.id &&
-                        pacificDateStringFrom(record.date) === today
-                    );
-                    const extraMealsCount = guestExtraMeals.reduce((sum, r) => sum + (r.count || 1), 0);
-
-                    const alreadyHasMeal = !!todayMealRecord;
-                    const baseCount = todayMealRecord?.count || 0;
-                    const totalDisplayedCount = baseCount + extraMealsCount;
-
-                    if (alreadyHasMeal) {
-                      const tooltip = extraMealsCount > 0
-                        ? `Received ${baseCount} regular meal${baseCount > 1 ? "s" : ""} and ${extraMealsCount} extra meal${extraMealsCount !== 1 ? "s" : ""} today`
-                        : `Already received ${baseCount} meal${baseCount > 1 ? "s" : ""} today`;
-                      // Add success animation class if recently logged
-                      const showSuccessAnimation = recentlyLoggedMeals.has(guest.id);
-
-                      return (
-                        <div
-                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default ${showSuccessAnimation ? "animate-success-pulse opacity-100" : "opacity-60"}`}
-                          title={tooltip}
-                          data-testid="meal-status-indicator"
-                        >
-                          <Check
-                            size={compact ? 12 : 14}
-                            className="text-emerald-600"
-                          />
-                          <span>{totalDisplayedCount} Meal{totalDisplayedCount > 1 ? "s" : ""}</span>
-                        </div>
-                      );
-                    }
-                    // Check if there's a pending meal action for this guest
-                    const isPending = pendingMealGuests.has(guest.id);
-                    return [1, 2].map((count) => (
-                      <button
-                        key={count}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMealSelection(guest.id, count);
-                        }}
-                        disabled={isPending}
-                        aria-busy={isPending}
-                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn bg-white border-gray-200 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
-                        title={isPending ? "Logging meal..." : `Quick log ${count} meal${count > 1 ? "s" : ""}`}
-                      >
-                        {isPending ? (
-                          <Loader2
-                            size={compact ? 12 : 14}
-                            className="animate-spin-fast text-emerald-600"
-                          />
-                        ) : (
-                          <Utensils
-                            size={compact ? 12 : 14}
-                            className="group-hover/btn:scale-110 transition-transform"
-                          />
-                        )}
-                        <span>{count}</span>
-                      </button>
-                    ));
-                  })()}
-                </div>
-              )}
-              {/* Quick Action Service Buttons - Shower & Laundry */}
-              {(!isBannedFromShower || !isBannedFromLaundry) && (
-                <div className={`flex items-center ${compact ? "gap-0.5 p-0.5" : "gap-1 p-1"} bg-gray-50/50 ${compact ? "rounded-lg" : "rounded-xl"} border border-gray-100 shadow-inner`}>
-                  {/* Shower Button */}
-                  {!isBannedFromShower && (() => {
-                    const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
-                    if (hasShowerToday) {
-                      return (
-                        <div
-                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default opacity-60`}
-                          title="Shower already booked today"
-                        >
-                          <Check size={compact ? 12 : 14} />
-                          <span className="hidden lg:inline">Shower</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          haptics.buttonPress();
-                          setShowerPickerGuest(guest);
-                        }}
-                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn bg-white border-gray-200 text-sky-600 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 active:scale-95`}
-                        title="Book Shower"
-                      >
-                        <ShowerHead size={compact ? 12 : 14} className="group-hover/btn:scale-110 transition-transform" />
-                        <span className="hidden lg:inline">Shower</span>
-                      </button>
-                    );
-                  })()}
-                  {/* Laundry Button */}
-                  {!isBannedFromLaundry && (() => {
-                    const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
-                    if (hasLaundryToday) {
-                      return (
-                        <div
-                          className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 cursor-default opacity-60 ml-1`}
-                          title="Laundry already booked today"
-                        >
-                          <Check size={compact ? 12 : 14} />
-                          <span className="hidden lg:inline">Laundry</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          haptics.buttonPress();
-                          setLaundryPickerGuest(guest);
-                        }}
-                        className={`flex items-center justify-center gap-1 ${compact ? "h-7 px-2 text-[10px]" : "h-10 px-3 text-xs"} rounded-lg font-bold transition-all shadow-sm group/btn ml-1 bg-white border-gray-200 text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 active:scale-95`}
-                        title="Book Laundry"
-                      >
-                        <WashingMachine size={compact ? 12 : 14} className="group-hover/btn:scale-110 transition-transform" />
-                        <span className="hidden lg:inline">Laundry</span>
-                      </button>
-                    );
-                  })()}
-                </div>
-              )}
-              {/* Complete Check-in Button - Shows if ANY service is done today */}
-              {(() => {
-                const today = todayPacificDateString();
-                const todayMealRecord = mealRecords.find(
-                  (record) =>
-                    record.guestId === guest.id &&
-                    pacificDateStringFrom(record.date) === today
-                );
-                const hasMealToday = !!todayMealRecord;
-                const mealCount = todayMealRecord?.count || 0;
-                // Add extra meals count
-                const guestExtraMeals = extraMealRecords.filter(
-                  (record) =>
-                    record.guestId === guest.id &&
-                    pacificDateStringFrom(record.date) === today
-                );
-                const extraMealsCount = guestExtraMeals.reduce((sum, r) => sum + (r.count || 1), 0);
-                const totalMeals = mealCount + extraMealsCount;
-                const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
-                const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
-                if (hasMealToday || hasShowerToday || hasLaundryToday) {
-                  // Build services summary for toast
-                  const servicesParts = [];
-                  if (totalMeals > 0) servicesParts.push(`${totalMeals} meal${totalMeals > 1 ? "s" : ""}`);
-                  if (hasShowerToday) servicesParts.push("shower");
-                  if (hasLaundryToday) servicesParts.push("laundry");
-                  const servicesSummary = servicesParts.join(" + ");
-
-                  return (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        haptics.buttonPress();
-                        setSearchTerm("");
-                        setExpandedGuest(null);
-                        // Smooth scroll to search bar (if available - not in jsdom tests)
-                        if (typeof searchInputRef.current?.scrollIntoView === 'function') {
-                          searchInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                        searchInputRef.current?.focus();
-                        // Show quick stats toast with services summary
-                        toast.success(`${servicesSummary} ✓`);
-                      }}
-                      className={`flex items-center justify-center ${compact ? "h-8 px-3" : "h-10 px-3"} rounded-lg font-bold transition-all shadow-sm bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95 ml-2`}
-                      title="Complete check-in and search for next guest"
-                      aria-label="Complete check-in"
-                    >
-                      <UserCheck size={compact ? 16 : 20} />
-                    </button>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-            <div className={`${compact ? "p-1.5 rounded-lg" : "p-2 rounded-xl"} bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-blue-500 transition-colors`}>
-              {expandedGuest === guest.id ? (
-                <ChevronUp size={compact ? 16 : 20} strokeWidth={2.5} />
-              ) : (
-                <ChevronDown size={compact ? 16 : 20} strokeWidth={2.5} />
-              )}
-            </div>
-          </div>
+              <button
+                onClick={() => deleteGuest(guest)}
+                className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
+              >
+                Delete
+              </button>
+            </>
+          )}
         </div>
-        {expandedGuest === guest.id && (
-          <div className="border-t border-emerald-200 p-4 bg-white">
+        {guest.isBanned ? (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex gap-3">
+                <AlertCircle
+                  size={20}
+                  className="text-red-500 mt-0.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">
+                    {(() => {
+                      const bannedPrograms = [];
+                      if (guest.bannedFromMeals) bannedPrograms.push("Meals");
+                      if (guest.bannedFromShower) bannedPrograms.push("Showers");
+                      if (guest.bannedFromLaundry) bannedPrograms.push("Laundry");
+                      if (guest.bannedFromBicycle) bannedPrograms.push("Bicycle");
 
-            <div className="flex justify-end gap-2 mb-3">
-              {editingGuestId !== guest.id && (
-                <>
-                  <button
-                    onClick={() => startEditingGuest(guest)}
-                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
-                  >
-                    Edit
-                  </button>
-                  {getLinkedGuests(guest.id).length === 0 && (
-                    <button
-                      onClick={() => setLinkingGuestId(guest.id)}
-                      className="px-4 py-3 min-h-[44px] border border-purple-300 hover:bg-purple-50 rounded-md text-sm font-medium text-purple-600 transition-colors touch-manipulation inline-flex items-center gap-2"
-                    >
-                      <Link size={16} />
-                      Link Guest
-                    </button>
+                      if (bannedPrograms.length === 0) {
+                        return `Guest is banned from all services${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
+                      }
+                      return `Guest is banned from ${bannedPrograms.join(", ")}${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
+                    })()}
+                  </p>
+                  {guest.banReason && (
+                    <p className="mt-1 text-sm text-red-700">
+                      Reason: {guest.banReason}
+                    </p>
                   )}
-                  <button
-                    onClick={() => deleteGuest(guest)}
-                    className="px-4 py-3 min-h-[44px] border border-red-300 hover:bg-red-50 rounded-md text-sm font-medium text-red-600 transition-colors touch-manipulation"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-            </div>
-            {guest.isBanned ? (
-              <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex gap-3">
-                    <AlertCircle
-                      size={20}
-                      className="text-red-500 mt-0.5 shrink-0"
-                      aria-hidden="true"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold text-red-700">
-                        {(() => {
-                          const bannedPrograms = [];
-                          if (guest.bannedFromMeals) bannedPrograms.push("Meals");
-                          if (guest.bannedFromShower) bannedPrograms.push("Showers");
-                          if (guest.bannedFromLaundry) bannedPrograms.push("Laundry");
-                          if (guest.bannedFromBicycle) bannedPrograms.push("Bicycle");
+                  {/* Show which programs are still allowed */}
+                  {(() => {
+                    const hasProgramBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
+                    if (!hasProgramBans) return null;
 
-                          if (bannedPrograms.length === 0) {
-                            return `Guest is banned from all services${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
-                          }
-                          return `Guest is banned from ${bannedPrograms.join(", ")}${banSummaryLabel ? ` until ${banSummaryLabel}` : "."}`;
-                        })()}
+                    const allowedPrograms = [];
+                    if (!guest.bannedFromMeals) allowedPrograms.push("Meals");
+                    if (!guest.bannedFromShower) allowedPrograms.push("Showers");
+                    if (!guest.bannedFromLaundry) allowedPrograms.push("Laundry");
+                    if (!guest.bannedFromBicycle) allowedPrograms.push("Bicycle");
+
+                    if (allowedPrograms.length === 0) return null;
+
+                    return (
+                      <p className="mt-1 text-sm text-green-700">
+                        ✓ Still allowed: {allowedPrograms.join(", ")}
                       </p>
-                      {guest.banReason && (
-                        <p className="mt-1 text-sm text-red-700">
-                          Reason: {guest.banReason}
-                        </p>
-                      )}
-                      {/* Show which programs are still allowed */}
-                      {(() => {
-                        const hasProgramBans = guest.bannedFromMeals || guest.bannedFromShower || guest.bannedFromLaundry || guest.bannedFromBicycle;
-                        if (!hasProgramBans) return null;
-
-                        const allowedPrograms = [];
-                        if (!guest.bannedFromMeals) allowedPrograms.push("Meals");
-                        if (!guest.bannedFromShower) allowedPrograms.push("Showers");
-                        if (!guest.bannedFromLaundry) allowedPrograms.push("Laundry");
-                        if (!guest.bannedFromBicycle) allowedPrograms.push("Bicycle");
-
-                        if (allowedPrograms.length === 0) return null;
-
-                        return (
-                          <p className="mt-1 text-sm text-green-700">
-                            ✓ Still allowed: {allowedPrograms.join(", ")}
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openBanEditorForGuest(guest)}
-                      className="px-4 py-2 rounded-md border border-red-200 bg-white text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
-                      disabled={banSubmittingId === guest.id}
-                    >
-                      Update Ban
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUnbanGuest(guest)}
-                      className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={banSubmittingId === guest.id}
-                    >
-                      Lift Ban
-                    </button>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
-            ) : (
-              <div className="mb-4 rounded-md border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <AlertCircle size={18} className="text-gray-400" aria-hidden="true" />
-                  <span>This guest can receive services.</span>
-                </div>
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => openBanEditorForGuest(guest)}
-                  className="px-4 py-2 rounded-md bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors"
+                  className="px-4 py-2 rounded-md border border-red-200 bg-white text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
                   disabled={banSubmittingId === guest.id}
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <Ban size={16} />
-                    Ban Guest
-                  </span>
+                  Update Ban
                 </button>
-              </div>
-            )}
-            {isBanEditorOpen && (
-              <form
-                onSubmit={handleBanSubmit}
-                className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4 space-y-4"
-              >
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
-                      Ban ends*
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={banEditor.until}
-                      min={banFormMinValue || undefined}
-                      onChange={(event) =>
-                        handleBanFieldChange("until", event.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      required
-                    />
-                    <p className="mt-1 text-xs text-blue-700">
-                      Choose when the guest can return for services.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
-                      Reason (optional)
-                    </label>
-                    <textarea
-                      value={banEditor.reason}
-                      onChange={(event) =>
-                        handleBanFieldChange("reason", event.target.value)
-                      }
-                      className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      rows={3}
-                      placeholder="Provide context staff should know"
-                    />
-                  </div>
-                </div>
-
-                {/* Program-specific ban selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">
-                    Ban from specific programs (optional)
-                  </label>
-                  <p className="text-xs text-blue-700 mb-3">
-                    Select programs to ban from. Leave all unchecked to ban from all services.
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={banEditor.bannedFromMeals}
-                        onChange={(e) => handleBanFieldChange("bannedFromMeals", e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-blue-900">Meals</span>
-                    </label>
-                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={banEditor.bannedFromShower}
-                        onChange={(e) => handleBanFieldChange("bannedFromShower", e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-blue-900">Showers</span>
-                    </label>
-                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={banEditor.bannedFromLaundry}
-                        onChange={(e) => handleBanFieldChange("bannedFromLaundry", e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-blue-900">Laundry</span>
-                    </label>
-                    <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={banEditor.bannedFromBicycle}
-                        onChange={(e) => handleBanFieldChange("bannedFromBicycle", e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-blue-900">Bicycle</span>
-                    </label>
-                  </div>
-                </div>
-
-                {banError && (
-                  <p className="text-sm text-red-600" role="alert">
-                    {banError}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={closeBanEditor}
-                    className="px-4 py-2 rounded-md border border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={banSubmittingId === banEditor.guestId}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={banSubmittingId === banEditor.guestId}
-                  >
-                    {banSubmittingId === banEditor.guestId ? "Saving..." : "Save Ban"}
-                  </button>
-                </div>
-              </form>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {guest.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone size={16} className="text-gray-500" />
-                  <span>{guest.phone}</span>
-                </div>
-              )}
-              {guest.birthdate && (
-                <div className="flex items-center gap-2 text-sm">
-                  <CalendarClock size={16} className="text-gray-500" />
-                  <span>{guest.birthdate}</span>
-                </div>
-              )}
-            </div>
-            {guest.preferredName && editingGuestId !== guest.id && (
-              <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
-                <User size={16} className="text-blue-500" />
-                <span className="font-medium">Preferred:</span>
-                <span className="text-blue-900 font-semibold">
-                  {guest.preferredName}
-                </span>
-                <span className="text-gray-400">•</span>
-                <span className="text-gray-600">Legal: {guest.name}</span>
-              </div>
-            )}
-            {guest.bicycleDescription && editingGuestId !== guest.id && (
-              <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
-                <Bike size={16} className="text-sky-500 mt-0.5" />
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Bicycle on file:
-                  </span>{" "}
-                  <span className="text-gray-700">
-                    {guest.bicycleDescription}
-                  </span>
-                </div>
-              </div>
-            )}
-            {/* Linked Guests Manager - auto-show if has linked guests, or when linking is active */}
-            {(linkingGuestId === guest.id || getLinkedGuests(guest.id).length > 0) && editingGuestId !== guest.id && (
-              <div className="mb-4">
-                <LinkedGuestsManager
-                  guest={guest}
-                  allGuests={guestsList}
-                  linkedGuests={getLinkedGuests(guest.id)}
-                  onLinkGuest={linkGuests}
-                  onUnlinkGuest={unlinkGuests}
-                  onAssignMeals={handleMealSelection}
-                  mealRecords={mealRecords}
-                  actionHistory={actionHistory}
-                  onUndoAction={undoAction}
-                />
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={() => setLinkingGuestId(null)}
-                    className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm font-medium transition-colors"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-            {editingGuestId === guest.id && (
-              <div className="mb-4 bg-white p-4 rounded border border-blue-200 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      First Name*
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={editFormData.firstName}
-                      onChange={handleEditChange}
-                      onBlur={handleEditNameBlur}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Last Name*
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={editFormData.lastName}
-                      onChange={handleEditChange}
-                      onBlur={handleEditNameBlur}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Preferred Name
-                    </label>
-                    <input
-                      type="text"
-                      name="preferredName"
-                      value={editFormData.preferredName}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Housing Status
-                    </label>
-                    <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
-                      <span className="text-blue-500 font-medium">💙</span>
-                      <span>
-                        Please ask: "Where did you sleep last night?" Select the option that best describes their current situation.
-                        <span className="block mt-1 text-[11px] text-gray-600">
-                          Spanish: “¿Dónde durmió anoche?”
-                        </span>
-                        <span className="block mt-0.5 text-[11px] text-gray-600">
-                          Mandarin: “您昨晚睡在哪里？” (Pinyin: Nín zuówǎn shuì zài nǎlǐ?)
-                        </span>
-                      </span>
-                    </p>
-                    <select
-                      name="housingStatus"
-                      value={editFormData.housingStatus}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    >
-                      {HOUSING_STATUSES.map((h) => (
-                        <option key={h} value={h}>
-                          {h}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Age Group*
-                    </label>
-                    <select
-                      name="age"
-                      value={editFormData.age}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    >
-                      <option value="">Select age group</option>
-                      {AGE_GROUPS.map((a) => (
-                        <option key={a} value={a}>
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Gender*
-                    </label>
-                    <select
-                      name="gender"
-                      value={editFormData.gender}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    >
-                      <option value="">Select gender</option>
-                      {GENDERS.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Location*
-                    </label>
-                    <Selectize
-                      options={[
-                        ...BAY_AREA_CITIES.map((c) => ({
-                          value: c,
-                          label: c,
-                        })),
-                        {
-                          value: "Outside Santa Clara County",
-                          label: "Outside Santa Clara County",
-                        },
-                      ]}
-                      value={editFormData.location}
-                      onChange={(val) =>
-                        setEditFormData((prev) => ({
-                          ...prev,
-                          location: val,
-                        }))
-                      }
-                      placeholder="Select location"
-                      size="sm"
-                      className="w-full"
-                      buttonClassName="w-full px-3 py-2 border-2 border-gray-300 rounded text-left text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      searchable
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Notes
-                    </label>
-                    <textarea
-                      name="notes"
-                      value={editFormData.notes}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                      rows="3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
-                      Bicycle Description
-                    </label>
-                    <textarea
-                      name="bicycleDescription"
-                      value={editFormData.bicycleDescription}
-                      onChange={handleEditChange}
-                      className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                      rows="3"
-                    />
-                  </div>
-                </div>
-                <div className="sticky bottom-0 left-0 right-0 flex justify-end gap-2 pt-4 mt-4 border-t border-gray-200 bg-white -m-4 p-4">
-                  <button
-                    onClick={saveEditedGuest}
-                    className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelEditing}
-                    className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-            {guest.notes && editingGuestId !== guest.id && (
-              <div className="mb-4">
-                <h4 className="text-sm font-medium mb-1">Notes:</h4>
-                <p className="text-sm bg-white p-2 rounded border">
-                  {guest.notes}
-                </p>
-              </div>
-            )}
-
-            {/* Warnings Section */}
-            {editingGuestId !== guest.id && (
-              <div className="mb-4">
-                {(() => {
-                  const guestWarnings = getWarningsForGuest(guest.id) || [];
-                  const hasWarnings = guestWarnings.length > 0;
-                  const isFormOpen = showWarningForm === guest.id;
-
-                  return (
-                    <div className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-semibold text-amber-800 flex items-center gap-2">
-                          <AlertTriangle size={16} className="text-amber-600" />
-                          Warnings {hasWarnings && `(${guestWarnings.length})`}
-                        </h4>
-                        {!isFormOpen && (
-                          <button
-                            type="button"
-                            onClick={() => openWarningForm(guest.id)}
-                            className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300"
-                          >
-                            <Plus size={14} />
-                            Add Warning
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Add warning form */}
-                      {isFormOpen && (
-                        <form onSubmit={handleAddWarning} className="mb-4 p-3 bg-white rounded-md border border-amber-200 space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
-                              Warning Message*
-                            </label>
-                            <textarea
-                              value={warningEditor.message}
-                              onChange={(e) => handleWarningFieldChange("message", e.target.value)}
-                              className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
-                              rows={2}
-                              placeholder="Enter warning details..."
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
-                              Severity
-                            </label>
-                            <select
-                              value={warningEditor.severity}
-                              onChange={(e) => handleWarningFieldChange("severity", Number(e.target.value))}
-                              className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
-                            >
-                              <option value={1}>Low</option>
-                              <option value={2}>Medium</option>
-                              <option value={3}>High</option>
-                            </select>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={closeWarningForm}
-                              className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                              disabled={warningSubmitting}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              className="px-3 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                              disabled={warningSubmitting || !warningEditor.message.trim()}
-                            >
-                              {warningSubmitting ? "Saving..." : "Add Warning"}
-                            </button>
-                          </div>
-                        </form>
-                      )}
-
-                      {/* Display existing warnings */}
-                      {hasWarnings ? (
-                        <div className="space-y-2">
-                          {guestWarnings.map((warning) => (
-                            <div
-                              key={warning.id}
-                              className={`p-3 rounded-md border ${warning.severity >= 3
-                                ? "bg-red-50 border-red-200"
-                                : warning.severity === 2
-                                  ? "bg-orange-50 border-orange-200"
-                                  : "bg-yellow-50 border-yellow-200"
-                                }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${warning.severity >= 3
-                                      ? "bg-red-100 text-red-800"
-                                      : warning.severity === 2
-                                        ? "bg-orange-100 text-orange-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                      }`}>
-                                      {warning.severity >= 3 ? "High" : warning.severity === 2 ? "Medium" : "Low"}
-                                    </span>
-                                    {warning.createdAt && (
-                                      <span className="text-xs text-gray-500">
-                                        {new Date(warning.createdAt).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-800">{warning.message}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveWarning(warning.id)}
-                                  className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                  title="Remove warning"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : !isFormOpen && (
-                        <p className="text-sm text-amber-700">No active warnings for this guest.</p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <div>
-                {(() => {
-                  const today = todayPacificDateString();
-                  const todayMealRecord = mealRecords.find(
-                    (record) =>
-                      record.guestId === guest.id &&
-                      pacificDateStringFrom(record.date) === today,
-                  );
-                  const alreadyHasMeal =
-                    pendingMealGuests.has(guest.id) || !!todayMealRecord;
-                  const isPendingMeal = pendingMealGuests.has(guest.id);
-                  const hasPendingExtraMeal = pendingExtraMealGuests.has(guest.id);
-                  const mealCount = todayMealRecord?.count || 0;
-
-                  return (
-                    <div className="flex flex-wrap gap-2">
-                      <div className="space-x-1 relative">
-                        {alreadyHasMeal ? (
-                          <button
-                            disabled={true}
-                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
-                              ? "bg-red-100 text-red-500 cursor-not-allowed"
-                              : "bg-emerald-50 text-emerald-700 cursor-not-allowed border border-emerald-200"
-                              }`}
-                            title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
-                          >
-                            <SpringIcon>
-                              <Check size={16} className="text-emerald-600" />
-                            </SpringIcon>
-                            {mealCount} Meal{mealCount > 1 ? "s" : ""}
-                          </button>
-                        ) : (
-                          [1, 2].map((count) => {
-                            const isDisabled = isBannedFromMeals || isPendingMeal;
-
-                            return (
-                              <button
-                                key={count}
-                                onClick={() =>
-                                  handleMealSelection(guest.id, count)
-                                }
-                                disabled={isDisabled}
-                                className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
-                                  ? "bg-red-100 text-red-500 cursor-not-allowed"
-                                  : isPendingMeal
-                                    ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
-                                    : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
-                                  }`}
-                                title={
-                                  isBannedFromMeals
-                                    ? banTooltip
-                                    : `Give ${count} meal${count > 1 ? "s" : ""}`
-                                }
-                              >
-                                <SpringIcon>
-                                  <Utensils size={16} />
-                                </SpringIcon>
-                                {count} Meal{count > 1 ? "s" : ""}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      {alreadyHasMeal && !isBannedFromMeals && (
-                        <>
-                          {(() => {
-                            const today = todayPacificDateString();
-                            const guestMealAction = actionHistory.find(
-                              (action) =>
-                                action.type === "MEAL_ADDED" &&
-                                action.data?.guestId === guest.id &&
-                                pacificDateStringFrom(
-                                  new Date(action.timestamp),
-                                ) === today,
-                            );
-
-                            if (!guestMealAction) return null;
-
-                            return (
-                              <button
-                                onClick={async () => {
-                                  haptics.undo();
-                                  const success = await undoAction(
-                                    guestMealAction.id,
-                                  );
-                                  if (success) {
-                                    haptics.success();
-                                    toast.success(
-                                      "Check-in undone successfully",
-                                    );
-                                    setPendingMealGuests((prev) => {
-                                      const next = new Set(prev);
-                                      next.delete(guest.id);
-                                      return next;
-                                    });
-                                  } else {
-                                    haptics.error();
-                                  }
-                                }}
-                                className="p-2 rounded-md inline-flex items-center justify-center transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
-                                title="Undo today's check-in"
-                                aria-label="Undo check-in"
-                              >
-                                <SpringIcon>
-                                  <RotateCcw size={18} />
-                                </SpringIcon>
-                              </button>
-                            );
-                          })()}
-
-                          <button
-                            onClick={() => {
-                              haptics.buttonPress();
-                              setSearchTerm("");
-                              setExpandedGuest(null);
-                              searchInputRef.current?.focus();
-                              toast.success("Ready for next guest");
-                            }}
-                            className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95"
-                            title="Complete check-in and search for next guest"
-                          >
-                            <SpringIcon>
-                              <UserPlus size={16} />
-                            </SpringIcon>
-                            <span className="hidden sm:inline">
-                              Complete Check-in
-                            </span>
-                            <span className="sm:hidden">Next</span>
-                          </button>
-                          {!isBannedFromMeals && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {[1, 2].map((extraCount) => (
-                                <button
-                                  key={extraCount}
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    handleAddExtraMeals(
-                                      guest.id,
-                                      extraCount,
-                                      guest.preferredName || guest.name,
-                                    );
-                                  }}
-                                  disabled={hasPendingExtraMeal}
-                                  title={`Add ${extraCount} extra meal${extraCount > 1 ? "s" : ""}`}
-                                  className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${hasPendingExtraMeal
-                                    ? "bg-emerald-200 text-emerald-800 cursor-wait animate-pulse"
-                                    : "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 shadow-sm"
-                                    }`}
-                                >
-                                  <Plus size={14} />
-                                  <span>{extraCount} Extra</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {(() => {
-                  const today = todayPacificDateString();
-                  const haircutAction = actionHistory.find(
-                    (action) =>
-                      action.type === "HAIRCUT_LOGGED" &&
-                      action.data?.guestId === guest.id &&
-                      pacificDateStringFrom(new Date(action.timestamp)) ===
-                      today,
-                  );
-                  const alreadyHasHaircut = !!haircutAction;
-                  const isPendingHaircut = pendingActions.has(`haircut-${guest.id}`);
-
-                  return (
-                    <>
-                      {alreadyHasHaircut ? (
-                        <button
-                          disabled={true}
-                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-pink-50 text-pink-700 cursor-not-allowed border border-pink-200"
-                          title="Haircut already logged today"
-                        >
-                          <Check size={16} className="text-pink-600" />
-                          <span className="hidden sm:inline">Haircut</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            if (isBanned) {
-                              haptics.error();
-                              if (banTooltip) toast.error(banTooltip);
-                              return;
-                            }
-                            const actionKey = `haircut-${guest.id}`;
-                            if (pendingActions.has(actionKey)) return;
-
-                            haptics.buttonPress();
-                            setPendingActions((prev) => new Set(prev).add(actionKey));
-                            try {
-                              const rec = await addHaircutRecord(guest.id);
-                              if (rec) {
-                                haptics.success();
-                                toast.success("Haircut logged");
-                              }
-                            } catch {
-                              haptics.error();
-                            } finally {
-                              setPendingActions((prev) => {
-                                const next = new Set(prev);
-                                next.delete(actionKey);
-                                return next;
-                              });
-                            }
-                          }}
-                          disabled={isBanned || isPendingHaircut}
-                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
-                            ? "bg-red-100 text-red-500 cursor-not-allowed"
-                            : isPendingHaircut
-                              ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
-                              : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
-                            }`}
-                          title={isBanned ? banTooltip : "Log haircut for today"}
-                        >
-                          <Scissors size={16} />
-                          <span className="hidden sm:inline">
-                            {isPendingHaircut
-                              ? "Saving..."
-                              : "Haircut"}
-                          </span>
-                        </button>
-                      )}
-
-                      {alreadyHasHaircut && (
-                        <button
-                          onClick={async () => {
-                            haptics.undo();
-                            const success = await undoAction(haircutAction.id);
-                            if (success) {
-                              haptics.success();
-                              toast.success("Haircut undone");
-                            } else {
-                              haptics.error();
-                            }
-                          }}
-                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                          title="Undo haircut"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {(() => {
-                  const today = todayPacificDateString();
-                  const holidayAction = actionHistory.find(
-                    (action) =>
-                      action.type === "HOLIDAY_LOGGED" &&
-                      action.data?.guestId === guest.id &&
-                      pacificDateStringFrom(new Date(action.timestamp)) ===
-                      today,
-                  );
-                  const alreadyHasHoliday = !!holidayAction;
-
-                  return (
-                    <>
-                      {alreadyHasHoliday ? (
-                        <button
-                          disabled={true}
-                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-amber-50 text-amber-700 cursor-not-allowed border border-amber-200"
-                          title="Holiday already logged today"
-                        >
-                          <Check size={16} className="text-amber-600" />
-                          <span className="hidden sm:inline">Holiday</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (isBanned) {
-                              haptics.error();
-                              if (banTooltip) toast.error(banTooltip);
-                              return;
-                            }
-                            haptics.buttonPress();
-                            const rec = addHolidayRecord(guest.id);
-                            if (rec) {
-                              haptics.success();
-                              toast.success("Holiday logged");
-                            }
-                          }}
-                          disabled={isBanned}
-                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
-                            ? "bg-red-100 text-red-500 cursor-not-allowed"
-                            : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
-                            }`}
-                          title={isBanned ? banTooltip : "Log holiday service for today"}
-                        >
-                          <Gift size={16} />
-                          <span className="hidden sm:inline">Holiday</span>
-                        </button>
-                      )}
-
-                      {alreadyHasHoliday && (
-                        <button
-                          onClick={async () => {
-                            haptics.undo();
-                            const success = await undoAction(holidayAction.id);
-                            if (success) {
-                              haptics.success();
-                              toast.success("Holiday undone");
-                            } else {
-                              haptics.error();
-                            }
-                          }}
-                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                          title="Undo holiday"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {(() => {
-                  const today = todayPacificDateString();
-                  const bicycleAction = actionHistory.find(
-                    (action) =>
-                      action.type === "BICYCLE_LOGGED" &&
-                      action.data?.guestId === guest.id &&
-                      pacificDateStringFrom(new Date(action.timestamp)) ===
-                      today,
-                  );
-                  const alreadyHasBicycle = !!bicycleAction;
-                  const hasBicycleDesc = guest.bicycleDescription?.trim();
-
-                  return (
-                    <>
-                      {alreadyHasBicycle ? (
-                        <button
-                          disabled={true}
-                          className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-sky-50 text-sky-700 cursor-not-allowed border border-sky-200"
-                          title="Bicycle repair already logged today"
-                        >
-                          <Check size={16} className="text-sky-600" />
-                          <span className="hidden sm:inline">Bicycle</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (isBannedFromBicycle) {
-                              haptics.error();
-                              const bicycleBanTooltip = `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`;
-                              if (bicycleBanTooltip) toast.error(bicycleBanTooltip);
-                              return;
-                            }
-                            if (!hasBicycleDesc) {
-                              haptics.warning();
-                              toast.error(
-                                "Please add a bicycle description to this guest's profile before logging repairs.",
-                              );
-                              return;
-                            }
-                            haptics.buttonPress();
-                            setBicyclePickerGuest(guest);
-                          }}
-                          className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromBicycle
-                            ? "bg-red-100 text-red-500 cursor-not-allowed"
-                            : !hasBicycleDesc
-                              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                              : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
-                            }`}
-                          title={
-                            isBannedFromBicycle
-                              ? `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
-                              : !hasBicycleDesc
-                                ? "Add bicycle description to guest profile first"
-                                : "Log bicycle repair for today"
-                          }
-                          disabled={isBannedFromBicycle || !hasBicycleDesc}
-                        >
-                          <Bike size={16} />
-                          <span className="hidden sm:inline">Bicycle</span>
-                        </button>
-                      )}
-
-                      {alreadyHasBicycle && (
-                        <button
-                          onClick={async () => {
-                            haptics.undo();
-                            const success = await undoAction(bicycleAction.id);
-                            if (success) {
-                              haptics.success();
-                              toast.success("Bicycle repair undone");
-                            } else {
-                              haptics.error();
-                            }
-                          }}
-                          className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                          title="Undo bicycle repair"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {(() => {
-                  const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
-                  const isDisabled = isBannedFromShower || hasShowerToday;
-
-                  // Build shower-specific ban tooltip
-                  const showerBanTooltip = isBannedFromShower
-                    ? `${guest.preferredName || guest.name || "Guest"} is banned from Showers${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
-                    : "";
-
-                  const tooltipText = isBannedFromShower
-                    ? showerBanTooltip
-                    : hasShowerToday
-                      ? "Already has a shower booked today"
-                      : "Book a shower";
-
-                  return (
-                    <button
-                      onClick={() => {
-                        if (isDisabled) {
-                          haptics.error();
-                          if (tooltipText) toast.error(tooltipText);
-                          return;
-                        }
-                        haptics.buttonPress();
-                        setShowerPickerGuest(guest);
-                      }}
-                      disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromShower
-                        ? "bg-red-100 text-red-500 cursor-not-allowed"
-                        : hasShowerToday
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                        }`}
-                      title={tooltipText}
-                    >
-                      <SpringIcon>
-                        <ShowerHead size={16} />
-                      </SpringIcon>
-                      <span className="hidden sm:inline">Book </span>
-                      Shower
-                      {hasShowerToday && <span className="ml-1">✓</span>}
-                    </button>
-                  );
-                })()}
-
-                {(() => {
-                  const today = todayPacificDateString();
-                  const showerAction = actionHistory.find(
-                    (action) =>
-                      action.type === "SHOWER_BOOKED" &&
-                      action.data?.guestId === guest.id &&
-                      pacificDateStringFrom(new Date(action.timestamp)) ===
-                      today,
-                  );
-
-                  if (!showerAction) return null;
-
-                  return (
-                    <button
-                      onClick={async () => {
-                        haptics.undo();
-                        const success = await undoAction(showerAction.id);
-                        if (success) {
-                          haptics.success();
-                          toast.success("Shower booking undone");
-                        } else {
-                          haptics.error();
-                        }
-                      }}
-                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                      title="Undo shower booking"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  );
-                })()}
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {(() => {
-                  const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
-                  const isDisabled = isBannedFromLaundry || hasLaundryToday;
-
-                  // Build laundry-specific ban tooltip
-                  const laundryBanTooltip = isBannedFromLaundry
-                    ? `${guest.preferredName || guest.name || "Guest"} is banned from Laundry${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
-                    : "";
-
-                  const tooltipText = isBannedFromLaundry
-                    ? laundryBanTooltip
-                    : hasLaundryToday
-                      ? "Already has laundry booked today"
-                      : "Book laundry";
-
-                  return (
-                    <button
-                      onClick={() => {
-                        if (isDisabled) {
-                          haptics.error();
-                          if (tooltipText) toast.error(tooltipText);
-                          return;
-                        }
-                        haptics.buttonPress();
-                        setLaundryPickerGuest(guest);
-                      }}
-                      disabled={isDisabled}
-                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromLaundry
-                        ? "bg-red-100 text-red-500 cursor-not-allowed"
-                        : hasLaundryToday
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
-                        }`}
-                      title={tooltipText}
-                    >
-                      <SpringIcon>
-                        <WashingMachine size={16} />
-                      </SpringIcon>
-                      <span className="hidden sm:inline">Book </span>
-                      Laundry
-                      {hasLaundryToday && <span className="ml-1">✓</span>}
-                    </button>
-                  );
-                })()}
-
-                {(() => {
-                  const today = todayPacificDateString();
-                  const laundryAction = actionHistory.find(
-                    (action) =>
-                      action.type === "LAUNDRY_BOOKED" &&
-                      action.data?.guestId === guest.id &&
-                      pacificDateStringFrom(new Date(action.timestamp)) ===
-                      today,
-                  );
-
-                  if (!laundryAction) return null;
-
-                  return (
-                    <button
-                      onClick={async () => {
-                        haptics.undo();
-                        const success = await undoAction(laundryAction.id);
-                        if (success) {
-                          haptics.success();
-                          toast.success("Laundry booking undone");
-                        } else {
-                          haptics.error();
-                        }
-                      }}
-                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
-                      title="Undo laundry booking"
-                    >
-                      <RotateCcw size={14} />
-                    </button>
-                  );
-                })()}
+                <button
+                  type="button"
+                  onClick={() => handleUnbanGuest(guest)}
+                  className="px-4 py-2 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={banSubmittingId === guest.id}
+                >
+                  Lift Ban
+                </button>
               </div>
             </div>
           </div>
+        ) : (
+          <div className="mb-4 rounded-md border border-gray-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <AlertCircle size={18} className="text-gray-400" aria-hidden="true" />
+              <span>This guest can receive services.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => openBanEditorForGuest(guest)}
+              className="px-4 py-2 rounded-md bg-red-100 text-red-700 text-sm font-medium hover:bg-red-200 transition-colors"
+              disabled={banSubmittingId === guest.id}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Ban size={16} />
+                Ban Guest
+              </span>
+            </button>
+          </div>
         )}
-      </Animated.div >
+        {isBanEditorOpen && (
+          <form
+            onSubmit={handleBanSubmit}
+            className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4 space-y-4"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                  Ban ends*
+                </label>
+                <input
+                  type="datetime-local"
+                  value={banEditor.until}
+                  min={banFormMinValue || undefined}
+                  onChange={(event) =>
+                    handleBanFieldChange("until", event.target.value)
+                  }
+                  className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required
+                />
+                <p className="mt-1 text-xs text-blue-700">
+                  Choose when the guest can return for services.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-blue-900 mb-1 uppercase tracking-wide">
+                  Reason (optional)
+                </label>
+                <textarea
+                  value={banEditor.reason}
+                  onChange={(event) =>
+                    handleBanFieldChange("reason", event.target.value)
+                  }
+                  className="w-full px-3 py-2 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  rows={3}
+                  placeholder="Provide context staff should know"
+                />
+              </div>
+            </div>
+
+            {/* Program-specific ban selection */}
+            <div>
+              <label className="block text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">
+                Ban from specific programs (optional)
+              </label>
+              <p className="text-xs text-blue-700 mb-3">
+                Select programs to ban from. Leave all unchecked to ban from all services.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={banEditor.bannedFromMeals}
+                    onChange={(e) => handleBanFieldChange("bannedFromMeals", e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-blue-900">Meals</span>
+                </label>
+                <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={banEditor.bannedFromShower}
+                    onChange={(e) => handleBanFieldChange("bannedFromShower", e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-blue-900">Showers</span>
+                </label>
+                <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={banEditor.bannedFromLaundry}
+                    onChange={(e) => handleBanFieldChange("bannedFromLaundry", e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-blue-900">Laundry</span>
+                </label>
+                <label className="flex items-center gap-2 p-2 rounded border border-blue-200 bg-white cursor-pointer hover:bg-blue-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={banEditor.bannedFromBicycle}
+                    onChange={(e) => handleBanFieldChange("bannedFromBicycle", e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-blue-900">Bicycle</span>
+                </label>
+              </div>
+            </div>
+
+            {banError && (
+              <p className="text-sm text-red-600" role="alert">
+                {banError}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={closeBanEditor}
+                className="px-4 py-2 rounded-md border border-blue-200 bg-white text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={banSubmittingId === banEditor.guestId}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={banSubmittingId === banEditor.guestId}
+              >
+                {banSubmittingId === banEditor.guestId ? "Saving..." : "Save Ban"}
+              </button>
+            </div>
+          </form>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {guest.phone && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone size={16} className="text-gray-500" />
+              <span>{guest.phone}</span>
+            </div>
+          )}
+          {guest.birthdate && (
+            <div className="flex items-center gap-2 text-sm">
+              <CalendarClock size={16} className="text-gray-500" />
+              <span>{guest.birthdate}</span>
+            </div>
+          )}
+        </div>
+        {guest.preferredName && editingGuestId !== guest.id && (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 mb-4">
+            <User size={16} className="text-blue-500" />
+            <span className="font-medium">Preferred:</span>
+            <span className="text-blue-900 font-semibold">
+              {guest.preferredName}
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="text-gray-600">Legal: {guest.name}</span>
+          </div>
+        )}
+        {guest.bicycleDescription && editingGuestId !== guest.id && (
+          <div className="mb-4 flex items-start gap-2 text-sm text-sky-700">
+            <Bike size={16} className="text-sky-500 mt-0.5" />
+            <div>
+              <span className="font-medium text-gray-700">
+                Bicycle on file:
+              </span>{" "}
+              <span className="text-gray-700">
+                {guest.bicycleDescription}
+              </span>
+            </div>
+          </div>
+        )}
+        {/* Linked Guests Manager - auto-show if has linked guests, or when linking is active */}
+        {(linkingGuestId === guest.id || getLinkedGuests(guest.id).length > 0) && editingGuestId !== guest.id && (
+          <div className="mb-4">
+            <LinkedGuestsManager
+              guest={guest}
+              allGuests={guestsList}
+              linkedGuests={getLinkedGuests(guest.id)}
+              onLinkGuest={linkGuests}
+              onUnlinkGuest={unlinkGuests}
+              onAssignMeals={handleMealSelection}
+              mealRecords={mealRecords}
+              actionHistory={actionHistory}
+              onUndoAction={undoAction}
+            />
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setLinkingGuestId(null)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm font-medium transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+        {editingGuestId === guest.id && (
+          <div className="mb-4 bg-white p-4 rounded border border-blue-200 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  First Name*
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={editFormData.firstName}
+                  onChange={handleEditChange}
+                  onBlur={handleEditNameBlur}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Last Name*
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={editFormData.lastName}
+                  onChange={handleEditChange}
+                  onBlur={handleEditNameBlur}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Preferred Name
+                </label>
+                <input
+                  type="text"
+                  name="preferredName"
+                  value={editFormData.preferredName}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Housing Status
+                </label>
+                <p className="text-xs text-gray-600 mb-2 flex items-start gap-1.5">
+                  <span className="text-blue-500 font-medium">💙</span>
+                  <span>
+                    Please ask: "Where did you sleep last night?" Select the option that best describes their current situation.
+                    <span className="block mt-1 text-[11px] text-gray-600">
+                      Spanish: “¿Dónde durmió anoche?”
+                    </span>
+                    <span className="block mt-0.5 text-[11px] text-gray-600">
+                      Mandarin: “您昨晚睡在哪里？” (Pinyin: Nín zuówǎn shuì zài nǎlǐ?)
+                    </span>
+                  </span>
+                </p>
+                <select
+                  name="housingStatus"
+                  value={editFormData.housingStatus}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                >
+                  {HOUSING_STATUSES.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Age Group*
+                </label>
+                <select
+                  name="age"
+                  value={editFormData.age}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                >
+                  <option value="">Select age group</option>
+                  {AGE_GROUPS.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Gender*
+                </label>
+                <select
+                  name="gender"
+                  value={editFormData.gender}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                >
+                  <option value="">Select gender</option>
+                  {GENDERS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Location*
+                </label>
+                <Selectize
+                  options={[
+                    ...BAY_AREA_CITIES.map((c) => ({
+                      value: c,
+                      label: c,
+                    })),
+                    {
+                      value: "Outside Santa Clara County",
+                      label: "Outside Santa Clara County",
+                    },
+                  ]}
+                  value={editFormData.location}
+                  onChange={(val) =>
+                    setEditFormData((prev) => ({
+                      ...prev,
+                      location: val,
+                    }))
+                  }
+                  placeholder="Select location"
+                  size="sm"
+                  className="w-full"
+                  buttonClassName="w-full px-3 py-2 border-2 border-gray-300 rounded text-left text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  searchable
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  value={editFormData.notes}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                  rows="3"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-900 mb-1 uppercase tracking-wide">
+                  Bicycle Description
+                </label>
+                <textarea
+                  name="bicycleDescription"
+                  value={editFormData.bicycleDescription}
+                  onChange={handleEditChange}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                  rows="3"
+                />
+              </div>
+            </div>
+            <div className="sticky bottom-0 left-0 right-0 flex justify-end gap-2 pt-4 mt-4 border-t border-gray-200 bg-white -m-4 p-4">
+              <button
+                onClick={saveEditedGuest}
+                className="px-4 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors touch-manipulation"
+              >
+                Save
+              </button>
+              <button
+                onClick={cancelEditing}
+                className="px-4 py-3 min-h-[44px] border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors touch-manipulation"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {guest.notes && editingGuestId !== guest.id && (
+          <div className="mb-4">
+            <h4 className="text-sm font-medium mb-1">Notes:</h4>
+            <p className="text-sm bg-white p-2 rounded border">
+              {guest.notes}
+            </p>
+          </div>
+        )}
+
+        {/* Warnings Section */}
+        {editingGuestId !== guest.id && (
+          <div className="mb-4">
+            {(() => {
+              const guestWarnings = getWarningsForGuest(guest.id) || [];
+              const hasWarnings = guestWarnings.length > 0;
+              const isFormOpen = showWarningForm === guest.id;
+
+              return (
+                <div className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-amber-600" />
+                      Warnings {hasWarnings && `(${guestWarnings.length})`}
+                    </h4>
+                    {!isFormOpen && (
+                      <button
+                        type="button"
+                        onClick={() => openWarningForm(guest.id)}
+                        className="px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300"
+                      >
+                        <Plus size={14} />
+                        Add Warning
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add warning form */}
+                  {isFormOpen && (
+                    <form onSubmit={handleAddWarning} className="mb-4 p-3 bg-white rounded-md border border-amber-200 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
+                          Warning Message*
+                        </label>
+                        <textarea
+                          value={warningEditor.message}
+                          onChange={(e) => handleWarningFieldChange("message", e.target.value)}
+                          className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+                          rows={2}
+                          placeholder="Enter warning details..."
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-amber-900 mb-1 uppercase tracking-wide">
+                          Severity
+                        </label>
+                        <select
+                          value={warningEditor.severity}
+                          onChange={(e) => handleWarningFieldChange("severity", Number(e.target.value))}
+                          className="w-full px-3 py-2 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+                        >
+                          <option value={1}>Low</option>
+                          <option value={2}>Medium</option>
+                          <option value={3}>High</option>
+                        </select>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={closeWarningForm}
+                          className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                          disabled={warningSubmitting}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-3 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          disabled={warningSubmitting || !warningEditor.message.trim()}
+                        >
+                          {warningSubmitting ? "Saving..." : "Add Warning"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Display existing warnings */}
+                  {hasWarnings ? (
+                    <div className="space-y-2">
+                      {guestWarnings.map((warning) => (
+                        <div
+                          key={warning.id}
+                          className={`p-3 rounded-md border ${warning.severity >= 3
+                            ? "bg-red-50 border-red-200"
+                            : warning.severity === 2
+                              ? "bg-orange-50 border-orange-200"
+                              : "bg-yellow-50 border-yellow-200"
+                            }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${warning.severity >= 3
+                                  ? "bg-red-100 text-red-800"
+                                  : warning.severity === 2
+                                    ? "bg-orange-100 text-orange-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                  }`}>
+                                  {warning.severity >= 3 ? "High" : warning.severity === 2 ? "Medium" : "Low"}
+                                </span>
+                                {warning.createdAt && (
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(warning.createdAt).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-800">{warning.message}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveWarning(warning.id)}
+                              className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title="Remove warning"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !isFormOpen && (
+                    <p className="text-sm text-amber-700">No active warnings for this guest.</p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <div>
+            {(() => {
+              const today = todayPacificDateString();
+              const todayMealRecord = mealRecords.find(
+                (record) =>
+                  record.guestId === guest.id &&
+                  pacificDateStringFrom(record.date) === today,
+              );
+              const alreadyHasMeal =
+                pendingMealGuests.has(guest.id) || !!todayMealRecord;
+              const isPendingMeal = pendingMealGuests.has(guest.id);
+              const hasPendingExtraMeal = pendingExtraMealGuests.has(guest.id);
+              const mealCount = todayMealRecord?.count || 0;
+
+              return (
+                <div className="flex flex-wrap gap-2">
+                  <div className="space-x-1 relative">
+                    {alreadyHasMeal ? (
+                      <button
+                        disabled={true}
+                        className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
+                          ? "bg-red-100 text-red-500 cursor-not-allowed"
+                          : "bg-emerald-50 text-emerald-700 cursor-not-allowed border border-emerald-200"
+                          }`}
+                        title={`Already received ${mealCount} meal${mealCount > 1 ? "s" : ""} today`}
+                      >
+                        <SpringIcon>
+                          <Check size={16} className="text-emerald-600" />
+                        </SpringIcon>
+                        {mealCount} Meal{mealCount > 1 ? "s" : ""}
+                      </button>
+                    ) : (
+                      [1, 2].map((count) => {
+                        const isDisabled = isBannedFromMeals || isPendingMeal;
+
+                        return (
+                          <button
+                            key={count}
+                            onClick={() =>
+                              handleMealSelection(guest.id, count)
+                            }
+                            disabled={isDisabled}
+                            className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromMeals
+                              ? "bg-red-100 text-red-500 cursor-not-allowed"
+                              : isPendingMeal
+                                ? "bg-green-200 text-green-700 cursor-wait animate-pulse"
+                                : "bg-green-100 hover:bg-green-200 text-green-800 active:bg-green-300 hover:shadow-sm active:scale-95"
+                              }`}
+                            title={
+                              isBannedFromMeals
+                                ? banTooltip
+                                : `Give ${count} meal${count > 1 ? "s" : ""}`
+                            }
+                          >
+                            <SpringIcon>
+                              <Utensils size={16} />
+                            </SpringIcon>
+                            {count} Meal{count > 1 ? "s" : ""}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {alreadyHasMeal && !isBannedFromMeals && (
+                    <>
+                      {(() => {
+                        const today = todayPacificDateString();
+                        const guestMealAction = actionHistory.find(
+                          (action) =>
+                            action.type === "MEAL_ADDED" &&
+                            action.data?.guestId === guest.id &&
+                            pacificDateStringFrom(
+                              new Date(action.timestamp),
+                            ) === today,
+                        );
+
+                        if (!guestMealAction) return null;
+
+                        return (
+                          <button
+                            onClick={async () => {
+                              haptics.undo();
+                              const success = await undoAction(
+                                guestMealAction.id,
+                              );
+                              if (success) {
+                                haptics.success();
+                                toast.success(
+                                  "Check-in undone successfully",
+                                );
+                                setPendingMealGuests((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(guest.id);
+                                  return next;
+                                });
+                              } else {
+                                haptics.error();
+                              }
+                            }}
+                            className="p-2 rounded-md inline-flex items-center justify-center transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:rotate-12"
+                            title="Undo today's check-in"
+                            aria-label="Undo check-in"
+                          >
+                            <SpringIcon>
+                              <RotateCcw size={18} />
+                            </SpringIcon>
+                          </button>
+                        );
+                      })()}
+
+                      <button
+                        onClick={() => {
+                          haptics.buttonPress();
+                          setSearchTerm("");
+                          setExpandedGuest(null);
+                          searchInputRef.current?.focus();
+                          toast.success("Ready for next guest");
+                        }}
+                        className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-blue-100 hover:bg-blue-200 active:bg-blue-300 text-blue-800 hover:shadow-sm active:scale-95"
+                        title="Complete check-in and search for next guest"
+                      >
+                        <SpringIcon>
+                          <UserPlus size={16} />
+                        </SpringIcon>
+                        <span className="hidden sm:inline">
+                          Complete Check-in
+                        </span>
+                        <span className="sm:hidden">Next</span>
+                      </button>
+                      {!isBannedFromMeals && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {[1, 2].map((extraCount) => (
+                            <button
+                              key={extraCount}
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleAddExtraMeals(
+                                  guest.id,
+                                  extraCount,
+                                  guest.preferredName || guest.name,
+                                );
+                              }}
+                              disabled={hasPendingExtraMeal}
+                              title={`Add ${extraCount} extra meal${extraCount > 1 ? "s" : ""}`}
+                              className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${hasPendingExtraMeal
+                                ? "bg-emerald-200 text-emerald-800 cursor-wait animate-pulse"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 shadow-sm"
+                                }`}
+                            >
+                              <Plus size={14} />
+                              <span>{extraCount} Extra</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {(() => {
+              const today = todayPacificDateString();
+              const haircutAction = actionHistory.find(
+                (action) =>
+                  action.type === "HAIRCUT_LOGGED" &&
+                  action.data?.guestId === guest.id &&
+                  pacificDateStringFrom(new Date(action.timestamp)) ===
+                  today,
+              );
+              const alreadyHasHaircut = !!haircutAction;
+              const isPendingHaircut = pendingActions.has(`haircut-${guest.id}`);
+
+              return (
+                <>
+                  {alreadyHasHaircut ? (
+                    <button
+                      disabled={true}
+                      className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-pink-50 text-pink-700 cursor-not-allowed border border-pink-200"
+                      title="Haircut already logged today"
+                    >
+                      <Check size={16} className="text-pink-600" />
+                      <span className="hidden sm:inline">Haircut</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        if (isBanned) {
+                          haptics.error();
+                          if (banTooltip) toast.error(banTooltip);
+                          return;
+                        }
+                        const actionKey = `haircut-${guest.id}`;
+                        if (pendingActions.has(actionKey)) return;
+
+                        haptics.buttonPress();
+                        setPendingActions((prev) => new Set(prev).add(actionKey));
+                        try {
+                          const rec = await addHaircutRecord(guest.id);
+                          if (rec) {
+                            haptics.success();
+                            toast.success("Haircut logged");
+                          }
+                        } catch {
+                          haptics.error();
+                        } finally {
+                          setPendingActions((prev) => {
+                            const next = new Set(prev);
+                            next.delete(actionKey);
+                            return next;
+                          });
+                        }
+                      }}
+                      disabled={isBanned || isPendingHaircut}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                        : isPendingHaircut
+                          ? "bg-pink-200 text-pink-600 cursor-wait animate-pulse"
+                          : "bg-pink-100 hover:bg-pink-200 active:bg-pink-300 text-pink-800 hover:shadow-sm active:scale-95"
+                        }`}
+                      title={isBanned ? banTooltip : "Log haircut for today"}
+                    >
+                      <Scissors size={16} />
+                      <span className="hidden sm:inline">
+                        {isPendingHaircut
+                          ? "Saving..."
+                          : "Haircut"}
+                      </span>
+                    </button>
+                  )}
+
+                  {alreadyHasHaircut && (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(haircutAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Haircut undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo haircut"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {(() => {
+              const today = todayPacificDateString();
+              const holidayAction = actionHistory.find(
+                (action) =>
+                  action.type === "HOLIDAY_LOGGED" &&
+                  action.data?.guestId === guest.id &&
+                  pacificDateStringFrom(new Date(action.timestamp)) ===
+                  today,
+              );
+              const alreadyHasHoliday = !!holidayAction;
+
+              return (
+                <>
+                  {alreadyHasHoliday ? (
+                    <button
+                      disabled={true}
+                      className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-amber-50 text-amber-700 cursor-not-allowed border border-amber-200"
+                      title="Holiday already logged today"
+                    >
+                      <Check size={16} className="text-amber-600" />
+                      <span className="hidden sm:inline">Holiday</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (isBanned) {
+                          haptics.error();
+                          if (banTooltip) toast.error(banTooltip);
+                          return;
+                        }
+                        haptics.buttonPress();
+                        const rec = addHolidayRecord(guest.id);
+                        if (rec) {
+                          haptics.success();
+                          toast.success("Holiday logged");
+                        }
+                      }}
+                      disabled={isBanned}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBanned
+                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                        : "bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 hover:shadow-sm active:scale-95"
+                        }`}
+                      title={isBanned ? banTooltip : "Log holiday service for today"}
+                    >
+                      <Gift size={16} />
+                      <span className="hidden sm:inline">Holiday</span>
+                    </button>
+                  )}
+
+                  {alreadyHasHoliday && (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(holidayAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Holiday undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo holiday"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {(() => {
+              const today = todayPacificDateString();
+              const bicycleAction = actionHistory.find(
+                (action) =>
+                  action.type === "BICYCLE_LOGGED" &&
+                  action.data?.guestId === guest.id &&
+                  pacificDateStringFrom(new Date(action.timestamp)) ===
+                  today,
+              );
+              const alreadyHasBicycle = !!bicycleAction;
+              const hasBicycleDesc = guest.bicycleDescription?.trim();
+
+              return (
+                <>
+                  {alreadyHasBicycle ? (
+                    <button
+                      disabled={true}
+                      className="px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-sky-50 text-sky-700 cursor-not-allowed border border-sky-200"
+                      title="Bicycle repair already logged today"
+                    >
+                      <Check size={16} className="text-sky-600" />
+                      <span className="hidden sm:inline">Bicycle</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (isBannedFromBicycle) {
+                          haptics.error();
+                          const bicycleBanTooltip = `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`;
+                          if (bicycleBanTooltip) toast.error(bicycleBanTooltip);
+                          return;
+                        }
+                        if (!hasBicycleDesc) {
+                          haptics.warning();
+                          toast.error(
+                            "Please add a bicycle description to this guest's profile before logging repairs.",
+                          );
+                          return;
+                        }
+                        haptics.buttonPress();
+                        setBicyclePickerGuest(guest);
+                      }}
+                      className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromBicycle
+                        ? "bg-red-100 text-red-500 cursor-not-allowed"
+                        : !hasBicycleDesc
+                          ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                          : "bg-sky-100 hover:bg-sky-200 active:bg-sky-300 text-sky-800 hover:shadow-sm active:scale-95"
+                        }`}
+                      title={
+                        isBannedFromBicycle
+                          ? `${guest.preferredName || guest.name || "Guest"} is banned from Bicycle${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
+                          : !hasBicycleDesc
+                            ? "Add bicycle description to guest profile first"
+                            : "Log bicycle repair for today"
+                      }
+                      disabled={isBannedFromBicycle || !hasBicycleDesc}
+                    >
+                      <Bike size={16} />
+                      <span className="hidden sm:inline">Bicycle</span>
+                    </button>
+                  )}
+
+                  {alreadyHasBicycle && (
+                    <button
+                      onClick={async () => {
+                        haptics.undo();
+                        const success = await undoAction(bicycleAction.id);
+                        if (success) {
+                          haptics.success();
+                          toast.success("Bicycle repair undone");
+                        } else {
+                          haptics.error();
+                        }
+                      }}
+                      className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                      title="Undo bicycle repair"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {(() => {
+              const hasShowerToday = guestsWithShowerToday.has(String(guest.id));
+              const isDisabled = isBannedFromShower || hasShowerToday;
+
+              // Build shower-specific ban tooltip
+              const showerBanTooltip = isBannedFromShower
+                ? `${guest.preferredName || guest.name || "Guest"} is banned from Showers${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
+                : "";
+
+              const tooltipText = isBannedFromShower
+                ? showerBanTooltip
+                : hasShowerToday
+                  ? "Already has a shower booked today"
+                  : "Book a shower";
+
+              return (
+                <button
+                  onClick={() => {
+                    if (isDisabled) {
+                      haptics.error();
+                      if (tooltipText) toast.error(tooltipText);
+                      return;
+                    }
+                    haptics.buttonPress();
+                    setShowerPickerGuest(guest);
+                  }}
+                  disabled={isDisabled}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromShower
+                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                    : hasShowerToday
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                    }`}
+                  title={tooltipText}
+                >
+                  <SpringIcon>
+                    <ShowerHead size={16} />
+                  </SpringIcon>
+                  <span className="hidden sm:inline">Book </span>
+                  Shower
+                  {hasShowerToday && <span className="ml-1">✓</span>}
+                </button>
+              );
+            })()}
+
+            {(() => {
+              const today = todayPacificDateString();
+              const showerAction = actionHistory.find(
+                (action) =>
+                  action.type === "SHOWER_BOOKED" &&
+                  action.data?.guestId === guest.id &&
+                  pacificDateStringFrom(new Date(action.timestamp)) ===
+                  today,
+              );
+
+              if (!showerAction) return null;
+
+              return (
+                <button
+                  onClick={async () => {
+                    haptics.undo();
+                    const success = await undoAction(showerAction.id);
+                    if (success) {
+                      haptics.success();
+                      toast.success("Shower booking undone");
+                    } else {
+                      haptics.error();
+                    }
+                  }}
+                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                  title="Undo shower booking"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              );
+            })()}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {(() => {
+              const hasLaundryToday = guestsWithLaundryToday.has(String(guest.id));
+              const isDisabled = isBannedFromLaundry || hasLaundryToday;
+
+              // Build laundry-specific ban tooltip
+              const laundryBanTooltip = isBannedFromLaundry
+                ? `${guest.preferredName || guest.name || "Guest"} is banned from Laundry${banSummaryLabel ? ` until ${banSummaryLabel}` : ""}${guest.banReason ? `. Reason: ${guest.banReason}` : ""}`
+                : "";
+
+              const tooltipText = isBannedFromLaundry
+                ? laundryBanTooltip
+                : hasLaundryToday
+                  ? "Already has laundry booked today"
+                  : "Book laundry";
+
+              return (
+                <button
+                  onClick={() => {
+                    if (isDisabled) {
+                      haptics.error();
+                      if (tooltipText) toast.error(tooltipText);
+                      return;
+                    }
+                    haptics.buttonPress();
+                    setLaundryPickerGuest(guest);
+                  }}
+                  disabled={isDisabled}
+                  className={`px-4 py-3 min-h-[44px] rounded-md text-sm font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation ${isBannedFromLaundry
+                    ? "bg-red-100 text-red-500 cursor-not-allowed"
+                    : hasLaundryToday
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-800 hover:shadow-sm active:scale-95"
+                    }`}
+                  title={tooltipText}
+                >
+                  <SpringIcon>
+                    <WashingMachine size={16} />
+                  </SpringIcon>
+                  <span className="hidden sm:inline">Book </span>
+                  Laundry
+                  {hasLaundryToday && <span className="ml-1">✓</span>}
+                </button>
+              );
+            })()}
+
+            {(() => {
+              const today = todayPacificDateString();
+              const laundryAction = actionHistory.find(
+                (action) =>
+                  action.type === "LAUNDRY_BOOKED" &&
+                  action.data?.guestId === guest.id &&
+                  pacificDateStringFrom(new Date(action.timestamp)) ===
+                  today,
+              );
+
+              if (!laundryAction) return null;
+
+              return (
+                <button
+                  onClick={async () => {
+                    haptics.undo();
+                    const success = await undoAction(laundryAction.id);
+                    if (success) {
+                      haptics.success();
+                      toast.success("Laundry booking undone");
+                    } else {
+                      haptics.error();
+                    }
+                  }}
+                  className="px-3 py-2 min-h-[44px] rounded-md text-xs font-medium inline-flex items-center gap-1 transition-all duration-200 touch-manipulation bg-orange-100 hover:bg-orange-200 active:bg-orange-300 text-orange-800 hover:shadow-sm active:scale-95 hover:-rotate-12"
+                  title="Undo laundry booking"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
     );
-  };
+  }, [
+    dateTimeFormatter,
+    banEditor, editingGuestId, startEditingGuest, getLinkedGuests, setLinkingGuestId, deleteGuest,
+    banSubmittingId, handleUnbanGuest, openBanEditorForGuest, handleBanSubmit, handleBanFieldChange, closeBanEditor, banError,
+    guestsList, linkGuests, unlinkGuests, handleMealSelection, mealRecords, actionHistory, undoAction,
+    editFormData, handleEditChange, handleEditNameBlur, saveEditedGuest, cancelEditing,
+    getWarningsForGuest, showWarningForm, openWarningForm, handleAddWarning, handleWarningFieldChange, warningEditor, warningSubmitting, closeWarningForm, handleRemoveWarning,
+    pendingMealGuests, pendingExtraMealGuests, setPendingMealGuests, setSearchTerm, setExpandedGuest, searchInputRef,
+    handleAddExtraMeals, pendingActions, setPendingActions, addHaircutRecord, addHolidayRecord,
+    setBicyclePickerGuest, guestsWithShowerToday, setShowerPickerGuest, guestsWithLaundryToday, setLaundryPickerGuest,
+    linkingGuestId
+  ]);
+
+  const itemData = React.useMemo(() => ({
+    guests: sortedGuests,
+    latestServiceByGuest,
+    todayServicesByGuest,
+    guestsWithShowerToday,
+    guestsWithLaundryToday,
+    pendingMealGuests,
+    recentlyLoggedMeals,
+    mealRecords,
+    extraMealRecords,
+    showerRecords,
+    laundryRecords,
+    selectedGuestIndex,
+    expandedGuest,
+    editingGuestId,
+    searchTerm,
+    isBanEditorOpenId: banEditor.guestId,
+    // Handlers
+    toggleExpanded,
+    setSelectedGuestIndex,
+    storeGuestCardRef: (el, id) => {
+      if (el) {
+        guestCardRefs.current[id] = el;
+      } else {
+        delete guestCardRefs.current[id];
+      }
+    },
+    handleMealSelection,
+    setShowerPickerGuest,
+    setLaundryPickerGuest,
+    setSearchTerm,
+    setExpandedGuest,
+    setMobileServiceSheet,
+    // Utils
+    dateTimeFormatter,
+    formatRelativeTime,
+    getLinkedGuests,
+    getWarningsForGuest,
+    isActiveGuest,
+    getLastMealLabel,
+    formatShowerSlotLabel,
+    formatLaundryRangeLabel,
+    formatDateTimeLocal,
+    todayPacificDateString,
+    pacificDateStringFrom,
+    searchInputRef,
+    // Animation
+    trail,
+    shouldVirtualize,
+    // Render prop
+    renderExpandedContent,
+    compact: isCompact,
+    adaptive: isAdaptive,
+    resetCardFocus,
+    focusGuestCard
+  }), [
+    sortedGuests, latestServiceByGuest, todayServicesByGuest, guestsWithShowerToday, guestsWithLaundryToday,
+    pendingMealGuests, recentlyLoggedMeals, mealRecords, extraMealRecords, showerRecords, laundryRecords,
+    selectedGuestIndex, expandedGuest, editingGuestId, searchTerm, banEditor.guestId,
+    trail, shouldVirtualize, isCompact, isAdaptive, toggleExpanded, setSelectedGuestIndex, handleMealSelection,
+    setShowerPickerGuest, setLaundryPickerGuest, setSearchTerm, setExpandedGuest, setMobileServiceSheet,
+    // dependencies for utils if any (mostly stable or imported)
+    // ref
+    searchInputRef,
+    // rendering
+    renderExpandedContent, // stable wrapper
+    resetCardFocus, focusGuestCard,
+    // Utils needed for memo safety
+    dateTimeFormatter, getLinkedGuests, getWarningsForGuest
+  ]);
 
   return (
     <div className="space-y-6">
@@ -3850,25 +3406,20 @@ const GuestList = () => {
                     overscanCount={6}
                     width="100%"
                     ref={listRef}
+                    itemData={itemData}
                   >
-                    {({ index, style }) =>
-                      renderGuestCard(sortedGuests[index], index, {
-                        style,
-                        compact: isCompact,
-                        adaptive: isAdaptive,
-                      })
-                    }
+                    {GuestListRow}
                   </List>
                 </div>
               ) : (
-                sortedGuests.map((guest, i) =>
-                  renderGuestCard(guest, i, {
-                    key: `guest-${guest.id}-${searchTerm}`,
-                    style: trail[i],
-                    compact: isCompact,
-                    adaptive: isAdaptive,
-                  }),
-                )
+                sortedGuests.map((guest, i) => (
+                  <GuestListRow
+                    key={`guest-${guest.id}-${searchTerm}`}
+                    index={i}
+                    style={trail[i]}
+                    data={itemData}
+                  />
+                ))
               )}
             </div>
           )}

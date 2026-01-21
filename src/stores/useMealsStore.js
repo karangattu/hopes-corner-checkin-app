@@ -31,6 +31,23 @@ export const useMealsStore = create(
             const todayStr = todayPacificDateString();
 
             if (isSupabaseEnabled() && supabase) {
+              // Validation: Check if guest already has a meal recorded today
+              const { data: existingRecord, error: checkError } = await supabase
+                .from('meal_attendance')
+                .select('id')
+                .eq('guest_id', guestId)
+                .eq('meal_date', todayStr)
+                .maybeSingle();
+
+              if (checkError) {
+                console.error('Error checking existing meal record:', checkError);
+                throw new Error('Failed to validate meal availability');
+              }
+
+              if (existingRecord) {
+                throw new Error('Guest already received a meal today');
+              }
+
               const payload = {
                 guest_id: guestId,
                 quantity,
