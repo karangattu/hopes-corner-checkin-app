@@ -9,6 +9,7 @@ const mockSupabase = {
     delete: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -88,6 +89,7 @@ describe('useServicesStore', () => {
         mockSupabase.update.mockReturnThis();
         mockSupabase.delete.mockReturnThis();
         mockSupabase.eq.mockReturnThis();
+        mockSupabase.in.mockReturnThis();
         mockSupabase.or.mockReturnThis();
         mockSupabase.order.mockReturnThis();
         mockSupabase.limit.mockReturnThis();
@@ -892,6 +894,72 @@ describe('useServicesStore', () => {
             it('returns false when updating bag number of non-existent laundry record', async () => {
                 const success = await useServicesStore.getState().updateLaundryBagNumber('non-existent', '2');
                 expect(success).toBe(false);
+            });
+
+            it('cancels multiple laundry records and uses correct table name', async () => {
+                useServicesStore.setState({
+                    laundryRecords: [
+                        createMockLaundryRecord({ id: 'l1', status: 'waiting' }),
+                        createMockLaundryRecord({ id: 'l2', status: 'washing' }),
+                        createMockLaundryRecord({ id: 'l3', status: 'waiting' }),
+                    ],
+                });
+
+                mockSupabase.in.mockResolvedValueOnce({ error: null });
+
+                const success = await useServicesStore.getState().cancelMultipleLaundry(['l1', 'l2']);
+
+                expect(success).toBe(true);
+                expect(mockSupabase.from).toHaveBeenCalledWith('laundry_bookings');
+                expect(mockSupabase.update).toHaveBeenCalledWith({ status: 'cancelled' });
+                expect(mockSupabase.in).toHaveBeenCalledWith('id', ['l1', 'l2']);
+
+                const { laundryRecords } = useServicesStore.getState();
+                expect(laundryRecords.find((r) => r.id === 'l1')?.status).toBe('cancelled');
+                expect(laundryRecords.find((r) => r.id === 'l2')?.status).toBe('cancelled');
+                expect(laundryRecords.find((r) => r.id === 'l3')?.status).toBe('waiting');
+            });
+
+            it('returns true and does nothing when given empty array', async () => {
+                const success = await useServicesStore.getState().cancelMultipleLaundry([]);
+
+                expect(success).toBe(true);
+                expect(mockSupabase.from).not.toHaveBeenCalled();
+            });
+
+            it('reverts cancelMultipleLaundry on failure', async () => {
+                useServicesStore.setState({
+                    laundryRecords: [
+                        createMockLaundryRecord({ id: 'l1', status: 'waiting' }),
+                        createMockLaundryRecord({ id: 'l2', status: 'washing' }),
+                    ],
+                });
+
+                mockSupabase.in.mockResolvedValueOnce({ error: { message: 'Update failed' } });
+
+                const success = await useServicesStore.getState().cancelMultipleLaundry(['l1', 'l2']);
+
+                expect(success).toBe(false);
+                const { laundryRecords } = useServicesStore.getState();
+                expect(laundryRecords.find((r) => r.id === 'l1')?.status).toBe('waiting');
+                expect(laundryRecords.find((r) => r.id === 'l2')?.status).toBe('washing');
+            });
+
+            it('handles partial record matches in cancelMultipleLaundry', async () => {
+                useServicesStore.setState({
+                    laundryRecords: [
+                        createMockLaundryRecord({ id: 'l1', status: 'waiting' }),
+                    ],
+                });
+
+                mockSupabase.in.mockResolvedValueOnce({ error: null });
+
+                // Passing non-existent id l2, but l1 exists
+                const success = await useServicesStore.getState().cancelMultipleLaundry(['l1', 'l2']);
+
+                expect(success).toBe(true);
+                const { laundryRecords } = useServicesStore.getState();
+                expect(laundryRecords.find((r) => r.id === 'l1')?.status).toBe('cancelled');
             });
         });
 

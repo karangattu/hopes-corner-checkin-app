@@ -439,7 +439,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const supabase = createClient();
                         const { error } = await supabase
-                            .from('laundry_reservations')
+                            .from('laundry_bookings')
                             .update({ status: 'cancelled' })
                             .in('id', recordIds);
 
