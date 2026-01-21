@@ -36,6 +36,7 @@ import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { GuestEditModal } from '@/components/modals/GuestEditModal';
 import { BanManagementModal } from '@/components/modals/BanManagementModal';
 import { WarningManagementModal } from '@/components/modals/WarningManagementModal';
+import { MobileServiceSheet } from '@/components/checkin/MobileServiceSheet';
 import toast from 'react-hot-toast';
 
 interface GuestCardProps {
@@ -58,6 +59,7 @@ export function GuestCard({
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBanModal, setShowBanModal] = useState(false);
     const [showWarningModal, setShowWarningModal] = useState(false);
+    const [showMobileSheet, setShowMobileSheet] = useState(false);
 
     const { mealRecords, addMealRecord, extraMealRecords, addExtraMealRecord } = useMealsStore();
     const {
@@ -414,9 +416,22 @@ export function GuestCard({
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Meal Buttons */}
+                    {/* Mobile Quick Add Button - only visible on small screens */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowMobileSheet(true);
+                        }}
+                        className="flex md:hidden items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform touch-manipulation"
+                        title="Quick Add Services"
+                        aria-label="Quick add services"
+                    >
+                        <Plus size={22} strokeWidth={2.5} />
+                    </button>
+
+                    {/* Meal Buttons - hidden on mobile */}
                     {!isBannedFromMeals && !compact && (
-                        <>
+                        <div className="hidden md:flex">
                             {!todayMeal ? (
                                 <div className="flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
                                     {[1, 2].map((count) => (
@@ -457,12 +472,12 @@ export function GuestCard({
                                     )}
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
 
-                    {/* Quick Service Buttons */}
+                    {/* Quick Service Buttons - hidden on mobile */}
                     {!compact && (
-                        <div className="flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
+                        <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
                             {/* Shower */}
                             {!isBannedFromShower && (
                                 todayShower ? (
@@ -785,6 +800,36 @@ export function GuestCard({
                     <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />
                 )}
             </AnimatePresence>
+
+            {/* Mobile Service Sheet */}
+            <MobileServiceSheet
+                isOpen={showMobileSheet}
+                onClose={() => setShowMobileSheet(false)}
+                guest={guest}
+                onMealSelect={async (guestId, count) => {
+                    if (isPending) return;
+                    setIsPending(true);
+                    try {
+                        const record = await addMealRecord(guestId, count);
+                        addAction('MEAL_ADDED', { recordId: record.id, guestId });
+                        toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
+                    } catch (error: any) {
+                        toast.error(error.message || 'Failed to log meals');
+                    } finally {
+                        setIsPending(false);
+                    }
+                }}
+                hasMealToday={!!todayMeal}
+                mealCount={totalMeals}
+                isPendingMeal={isPending}
+                isBannedFromMeals={isBannedFromMeals}
+                onShowerSelect={(g) => setShowerPickerGuest(g)}
+                hasShowerToday={!!todayShower}
+                isBannedFromShower={isBannedFromShower}
+                onLaundrySelect={(g) => setLaundryPickerGuest(g)}
+                hasLaundryToday={!!todayLaundry}
+                isBannedFromLaundry={isBannedFromLaundry}
+            />
         </motion.div>
     );
 }

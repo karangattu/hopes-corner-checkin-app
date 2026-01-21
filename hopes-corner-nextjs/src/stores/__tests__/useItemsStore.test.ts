@@ -314,6 +314,37 @@ describe('useItemsStore', () => {
             expect(result.daysRemaining).toBe(28);
         });
 
+        it('calculates cooldown for jacket (15 days)', () => {
+            const recently = new Date();
+            recently.setDate(recently.getDate() - 5); // Given 5 days ago
+
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: '1', guestId: 'g1', itemKey: 'jacket', distributedAt: recently.toISOString(), createdAt: recently.toISOString() },
+                ],
+            });
+
+            const { checkAvailability } = useItemsStore.getState();
+            const result = checkAvailability('g1', 'jacket');
+            expect(result.available).toBe(false);
+            expect(result.daysRemaining).toBe(10); // 15 - 5 = 10 days remaining
+        });
+
+        it('allows jacket after cooldown expires', () => {
+            const longAgo = new Date();
+            longAgo.setDate(longAgo.getDate() - 16); // Given 16 days ago (past 15-day cooldown)
+
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: '1', guestId: 'g1', itemKey: 'jacket', distributedAt: longAgo.toISOString(), createdAt: longAgo.toISOString() },
+                ],
+            });
+
+            const { checkAvailability } = useItemsStore.getState();
+            const result = checkAvailability('g1', 'jacket');
+            expect(result.available).toBe(true);
+        });
+
         it('allows item after cooldown expires', () => {
             const longAgo = new Date();
             longAgo.setDate(longAgo.getDate() - 35);
