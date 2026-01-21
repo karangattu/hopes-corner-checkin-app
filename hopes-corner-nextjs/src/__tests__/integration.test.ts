@@ -313,48 +313,6 @@ describe('integration scenarios', () => {
         });
     });
 
-    describe('batch upload flow', () => {
-        it('parses CSV file', () => {
-            const csv = 'firstName,lastName\nJohn,Doe\nJane,Smith';
-            const lines = csv.split('\n');
-            expect(lines.length).toBe(3);
-        });
-
-        it('validates rows', () => {
-            const rows = [
-                { firstName: 'John', lastName: 'Doe' },
-                { firstName: '', lastName: 'Smith' },
-            ];
-            const valid = rows.filter(r => r.firstName && r.lastName);
-            const invalid = rows.filter(r => !r.firstName || !r.lastName);
-            expect(valid.length).toBe(1);
-            expect(invalid.length).toBe(1);
-        });
-
-        it('reports errors', () => {
-            const errors = [
-                { row: 2, message: 'First name is required' },
-            ];
-            expect(errors.length).toBe(1);
-        });
-
-        it('imports valid rows', () => {
-            let importedCount = 0;
-            const rows = [
-                { firstName: 'John', lastName: 'Doe' },
-                { firstName: 'Jane', lastName: 'Smith' },
-            ];
-            rows.forEach(() => importedCount++);
-            expect(importedCount).toBe(2);
-        });
-
-        it('shows completion summary', () => {
-            const summary = { imported: 10, skipped: 2, errors: 1 };
-            expect(summary.imported).toBe(10);
-            expect(summary.skipped + summary.errors).toBe(3);
-        });
-    });
-
     describe('real-time updates', () => {
         it('refreshes data on interval', () => {
             let refreshCount = 0;

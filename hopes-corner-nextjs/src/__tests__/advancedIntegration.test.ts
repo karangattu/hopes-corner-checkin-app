@@ -51,29 +51,6 @@ describe('Advanced Integration Tests', () => {
         });
     });
 
-    describe('Batch Upload Validation + Partial Success Flow', () => {
-        it('identifies partial successes and specifically reports failures', () => {
-            const uploadRows = [
-                { firstName: 'John', lastName: 'Doe' }, // Valid
-                { firstName: '', lastName: 'Smith' },   // Invalid (missing first name)
-                { firstName: 'Jane', lastName: '' },    // Invalid (missing last name)
-            ];
-
-            const results = uploadRows.map(row => {
-                if (!row.firstName || !row.lastName) {
-                    return { status: 'error', error: 'Missing required fields' };
-                }
-                return { status: 'success' };
-            });
-
-            const successCount = results.filter(r => r.status === 'success').length;
-            const errorCount = results.filter(r => r.status === 'error').length;
-
-            expect(successCount).toBe(1);
-            expect(errorCount).toBe(2);
-        });
-    });
-
     describe('Real-time Update Conflict Resolution Flow', () => {
         it('handles optimistic update rollback on server error', () => {
             const localState = { count: 10 };

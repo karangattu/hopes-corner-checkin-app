@@ -27,7 +27,7 @@ const CompactShowerList = memo(({ records, onGuestClick }: Props) => {
     }
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="divide-y divide-gray-100">
                 {records.map((record) => {
                     const guest = guests.find(g => g.id === record.guestId);

@@ -4,7 +4,6 @@ import React from 'react';
 import { AnalyticsSection } from '../AnalyticsSection';
 import { DashboardOverview } from '../DashboardOverview';
 import { DataExportSection } from '../DataExportSection';
-import { BatchUploadSection } from '../BatchUploadSection';
 import { SlotBlockManager } from '../SlotBlockManager';
 import { SlotBlockModal } from '../SlotBlockModal';
 
@@ -102,11 +101,6 @@ describe('Admin Component Rendering', () => {
     it('DataExportSection renders correctly', () => {
         render(<DataExportSection />);
         expect(screen.getByText(/Data Export Center/i)).toBeDefined();
-    });
-
-    it('BatchUploadSection renders correctly', () => {
-        render(<BatchUploadSection />);
-        expect(screen.getByText(/Batch Upload Center/i)).toBeDefined();
     });
 
     it('SlotBlockManager renders correctly', () => {

@@ -7,8 +7,7 @@ import {
     Download,
     Activity,
     Utensils,
-    ClipboardList,
-    Upload
+    ClipboardList
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
@@ -16,7 +15,6 @@ import { AnalyticsSection } from '@/components/admin/AnalyticsSection';
 import { DataExportSection } from '@/components/admin/DataExportSection';
 import { MealReport } from '@/components/admin/reports/MealReport';
 import MonthlySummaryReport from '@/components/admin/reports/MonthlySummaryReport';
-import { BatchUploadSection } from '@/components/admin/BatchUploadSection';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -28,7 +26,6 @@ const DASHBOARD_TABS = [
     { id: 'analytics', label: 'Analytics', icon: Activity, color: 'text-blue-600' },
     { id: 'meal-report', label: 'Meal Report', icon: Utensils, color: 'text-orange-600' },
     { id: 'monthly-summary', label: 'Summary', icon: ClipboardList, color: 'text-emerald-600' },
-    { id: 'batch-upload', label: 'Batch Upload', icon: Upload, color: 'text-violet-600' },
     { id: 'export', label: 'Data Export', icon: Download, color: 'text-purple-600' },
 ];
 
@@ -52,7 +49,6 @@ export default function DashboardPage() {
             case 'analytics': return <AnalyticsSection />;
             case 'meal-report': return <MealReport />;
             case 'monthly-summary': return <MonthlySummaryReport />;
-            case 'batch-upload': return <BatchUploadSection />;
             case 'export': return <DataExportSection />;
             default: return <DashboardOverview />;
         }

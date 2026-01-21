@@ -343,5 +343,50 @@ describe('services component logic', () => {
                 expect(hasEnded).toBe(true);
             });
         });
+
+        describe('unique guests calculation', () => {
+            it('counts unique guests across all services', () => {
+                const mealGuests = ['g1', 'g2', 'g3'];
+                const showerGuests = ['g2', 'g4'];
+                const laundryGuests = ['g1', 'g5'];
+                const bicycleGuests = ['g3', 'g6'];
+                
+                const uniqueGuests = new Set([
+                    ...mealGuests,
+                    ...showerGuests,
+                    ...laundryGuests,
+                    ...bicycleGuests
+                ]);
+                
+                expect(uniqueGuests.size).toBe(6);
+            });
+        });
+
+        describe('bicycle metrics', () => {
+            it('counts pending bicycle repairs', () => {
+                const bicycleRecords = [
+                    { id: '1', status: 'pending' },
+                    { id: '2', status: 'done' },
+                    { id: '3', status: 'in_progress' },
+                    { id: '4', status: 'done' },
+                ];
+                const pending = bicycleRecords.filter(r => r.status !== 'done').length;
+                expect(pending).toBe(2);
+            });
+
+            it('counts bicycles completed this week', () => {
+                const startOfWeek = '2026-01-18';
+                const bicycleRecords = [
+                    { id: '1', date: '2026-01-19', status: 'done' },
+                    { id: '2', date: '2026-01-20', status: 'done' },
+                    { id: '3', date: '2026-01-15', status: 'done' }, // before this week
+                    { id: '4', date: '2026-01-19', status: 'pending' },
+                ];
+                const completedThisWeek = bicycleRecords.filter(r => 
+                    r.date >= startOfWeek && r.status === 'done'
+                ).length;
+                expect(completedThisWeek).toBe(2);
+            });
+        });
     });
 });

@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-    PackagePlus,
     Save,
     Trash2,
     Pencil,
@@ -10,9 +9,7 @@ import {
     ChevronRight,
     Store,
     Utensils,
-    Building2,
-    Copy,
-    Check
+    Copy
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDonationsStore } from '@/stores/useDonationsStore';
@@ -21,8 +18,7 @@ import {
     calculateServings,
     deriveDonationDateKey,
     formatProteinAndCarbsClipboardText,
-    DENSITY_SERVINGS,
-    MINIMAL_TYPES
+    DENSITY_SERVINGS
 } from '@/lib/utils/donationUtils';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
@@ -106,8 +102,6 @@ export const DonationsSection = () => {
         date.setDate(date.getDate() + offset);
         setSelectedDate(pacificDateStringFrom(date));
     };
-
-    const isMinimalType = useMemo(() => MINIMAL_TYPES.has(generalForm.type), [generalForm.type]);
 
     // Handlers
     const handleGeneralSubmit = async (e: React.FormEvent) => {
@@ -349,18 +343,49 @@ export const DonationsSection = () => {
                                         />
                                     </div>
                                 </div>
-                                {!isMinimalType && (
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Donor</label>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Density</label>
+                                    <select
+                                        className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium"
+                                        value={generalForm.density}
+                                        onChange={e => setGeneralForm({ ...generalForm, density: e.target.value as 'light' | 'medium' | 'high' })}
+                                    >
+                                        <option value="light">Light ({DENSITY_SERVINGS.light} servings)</option>
+                                        <option value="medium">Medium ({DENSITY_SERVINGS.medium} servings)</option>
+                                        <option value="high">High ({DENSITY_SERVINGS.high} servings)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Donor / Source</label>
+                                    <input
+                                        type="text"
+                                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        value={generalForm.donor}
+                                        onChange={e => setGeneralForm({ ...generalForm, donor: e.target.value })}
+                                        placeholder="e.g., Waymo, LinkedIn, Anonymous"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Temperature (Optional)</label>
+                                    <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                            value={generalForm.donor}
-                                            onChange={e => setGeneralForm({ ...generalForm, donor: e.target.value })}
-                                            placeholder="Donor name..."
+                                            className="flex-1 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                            value={generalForm.temperature}
+                                            onChange={e => setGeneralForm({ ...generalForm, temperature: e.target.value })}
+                                            placeholder="e.g., 165°F, Hot, Cold, Room temp"
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => setGeneralForm({ ...generalForm, temperature: generalForm.temperature + '°F' })}
+                                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors"
+                                            title="Add °F symbol"
+                                        >
+                                            °F
+                                        </button>
                                     </div>
-                                )}
+                                    <p className="text-xs text-gray-400 mt-1">Tip: Click °F button to add the symbol</p>
+                                </div>
                             </>
                         ) : (
                             <>
@@ -454,6 +479,9 @@ export const DonationsSection = () => {
                                         </div>
                                         {viewMode === 'general' && record.donor && (
                                             <p className="text-xs text-gray-400 mt-1">Donor: {record.donor}</p>
+                                        )}
+                                        {viewMode === 'general' && record.temperature && (
+                                            <p className="text-xs text-gray-400 mt-0.5">Temp: {record.temperature}</p>
                                         )}
                                     </div>
                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

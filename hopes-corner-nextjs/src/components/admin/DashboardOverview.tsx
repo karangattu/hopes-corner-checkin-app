@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     BarChart3,
@@ -88,15 +88,15 @@ export function DashboardOverview() {
     const month = now.getMonth();
     const year = now.getFullYear();
 
-    const isThisMonth = (d: string) => {
+    const isThisMonth = useCallback((d: string) => {
         const date = new Date(d);
         return date.getMonth() === month && date.getFullYear() === year;
-    };
+    }, [month, year]);
 
-    const isThisYear = (d: string) => {
+    const isThisYear = useCallback((d: string) => {
         const date = new Date(d);
         return date.getFullYear() === year;
-    };
+    }, [year]);
 
     const monthMetrics = useMemo(() => ({
         meals: [
@@ -108,7 +108,7 @@ export function DashboardOverview() {
         showers: showerRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
         laundry: laundryRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
         bicycles: bicycleRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
-    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords]);
+    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, isThisMonth]);
 
     const yearMetrics = useMemo(() => ({
         meals: [
@@ -120,7 +120,7 @@ export function DashboardOverview() {
         showers: showerRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
         laundry: laundryRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
         bicycles: bicycleRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
-    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords]);
+    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, isThisYear]);
 
     const handleSave = async () => {
         await updateTargets(editedTargets);
@@ -165,21 +165,44 @@ export function DashboardOverview() {
                     className="bg-white rounded-3xl border-2 border-dashed border-blue-200 p-8 shadow-sm"
                 >
                     <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Financial & Impact Targets</h3>
+                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">Impact Targets</h3>
                         <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest">Save Changes</button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        {(['monthlyMeals', 'monthlyShowers', 'monthlyLaundry', 'monthlyBicycles'] as const).map(key => (
-                            <div key={key} className="space-y-2">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{key.replace('monthly', 'Monthly ')}</label>
-                                <input
-                                    type="number"
-                                    value={editedTargets[key]}
-                                    onChange={e => setEditedTargets({ ...editedTargets, [key]: Number(e.target.value) })}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none"
-                                />
-                            </div>
-                        ))}
+                    
+                    {/* Monthly Targets */}
+                    <div className="mb-8">
+                        <h4 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Monthly Targets</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            {(['monthlyMeals', 'monthlyShowers', 'monthlyLaundry', 'monthlyBicycles'] as const).map(key => (
+                                <div key={key} className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{key.replace('monthly', '')}</label>
+                                    <input
+                                        type="number"
+                                        value={editedTargets[key]}
+                                        onChange={e => setEditedTargets({ ...editedTargets, [key]: Number(e.target.value) })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Yearly Targets */}
+                    <div>
+                        <h4 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Yearly Targets</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            {(['yearlyMeals', 'yearlyShowers', 'yearlyLaundry', 'yearlyBicycles'] as const).map(key => (
+                                <div key={key} className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{key.replace('yearly', '')}</label>
+                                    <input
+                                        type="number"
+                                        value={editedTargets[key]}
+                                        onChange={e => setEditedTargets({ ...editedTargets, [key]: Number(e.target.value) })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all outline-none"
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </motion.div>
             )}

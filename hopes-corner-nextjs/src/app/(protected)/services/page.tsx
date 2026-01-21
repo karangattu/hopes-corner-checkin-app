@@ -51,7 +51,7 @@ export default function ServicesPage() {
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
-    const { loadFromSupabase, showerRecords, laundryRecords } = useServicesStore();
+    const { loadFromSupabase, showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
     const { loadFromSupabase: loadGuests, guests } = useGuestsStore();
     const { loadFromSupabase: loadMeals, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords } = useMealsStore();
     const { loadFromSupabase: loadDonations } = useDonationsStore();
@@ -65,31 +65,57 @@ export default function ServicesPage() {
 
     const today = pacificDateStringFrom(new Date().toISOString());
 
+    // Get the start of this week (Sunday)
+    const getStartOfWeek = () => {
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day;
+        const sunday = new Date(now.setDate(diff));
+        return pacificDateStringFrom(sunday.toISOString());
+    };
+    const startOfWeek = getStartOfWeek();
+
     // Compute metrics for the overview
-    const metrics = useMemo(() => ({
-        totalGuests: guests.length,
-        housingStatusSummary: `${guests.filter(g => g.housingStatus === 'Housed').length} housed · ${guests.filter(g => g.housingStatus === 'Unsheltered').length} unsheltered`,
-        mealsToday: (
+    const metrics = useMemo(() => {
+        const mealsToday = (
             mealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
             rvMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
             extraMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
             unitedEffortMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length
-        ),
-        uniqueGuestsToday: new Set([
+        );
+        
+        const uniqueGuestsToday = new Set([
             ...mealRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
             ...showerRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
-        ]).size,
-        showersDone: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
-        showersActive: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && (r.status === 'booked' || r.status === 'awaiting')).length,
-        showerWaitlist: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'waitlisted').length,
-        laundryTotal: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length,
-        laundryActive: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && ['waiting', 'washer', 'dryer'].includes(r.status)).length,
-        laundryDone: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
-        timelineCount: (
-            showerRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
-            laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length
-        )
-    }), [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, today]);
+            ...laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
+            ...bicycleRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
+        ]).size;
+
+        // Bicycle metrics
+        const bicyclesPending = bicycleRecords.filter(r => r.status !== 'done').length;
+        const bicyclesCompletedThisWeek = bicycleRecords.filter(r => 
+            pacificDateStringFrom(r.date) >= startOfWeek && r.status === 'done'
+        ).length;
+
+        return {
+            totalGuests: guests.length,
+            housingStatusSummary: `${guests.filter(g => g.housingStatus === 'Housed').length} housed · ${guests.filter(g => g.housingStatus === 'Unsheltered').length} unsheltered`,
+            mealsToday,
+            uniqueGuestsToday,
+            showersDone: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
+            showersActive: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && (r.status === 'booked' || r.status === 'awaiting')).length,
+            showerWaitlist: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'waitlisted').length,
+            laundryTotal: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length,
+            laundryActive: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && ['waiting', 'washer', 'dryer'].includes(r.status)).length,
+            laundryDone: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
+            bicyclesPending,
+            bicyclesCompletedThisWeek,
+            timelineCount: (
+                showerRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
+                laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length
+            )
+        };
+    }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);
 
     const renderContent = () => {
         switch (activeTab) {

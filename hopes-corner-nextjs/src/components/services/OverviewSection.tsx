@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import {
     Users,
     Utensils,
@@ -8,11 +7,7 @@ import {
     WashingMachine,
     Clock,
     Bike,
-    Calendar,
-    BarChart3,
-    History,
-    TrendingUp,
-    Sparkles
+    History
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -135,72 +130,6 @@ export function OverviewSection({
                 />
             </div>
 
-            {/* Reports and Highlights */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <BarChart3 size={14} /> Performance Snapshot
-                            </h3>
-                            <p className="text-sm text-gray-500 font-medium mt-1">Real-time recording relative to targets.</p>
-                        </div>
-                        <button className="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-xs font-black shadow-sm border border-gray-100 hover:bg-white transition-all">
-                            FULL ANALYTICS
-                        </button>
-                    </div>
-
-                    <div className="flex items-center justify-center p-12 bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100">
-                        <div className="text-center">
-                            <Sparkles size={48} className="mx-auto text-gray-300 mb-4" />
-                            <p className="text-gray-900 font-black">Live Stats Coming Soon</p>
-                            <p className="text-sm text-gray-400 font-medium mt-1 max-w-xs mx-auto">
-                                Enhanced aggregate reporting will allow you to see weekly and monthly trends directly here.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-100">
-                        <h3 className="text-sm font-black uppercase tracking-widest opacity-80 mb-4">Daily Goal</h3>
-                        <div className="flex items-end justify-between mb-4">
-                            <span className="text-4xl font-black">74%</span>
-                            <div className="p-2 rounded-lg bg-white/20">
-                                <TrendingUp size={24} />
-                            </div>
-                        </div>
-                        <p className="text-sm font-medium leading-relaxed opacity-90">
-                            We&apos;ve served <span className="font-bold">142</span> guests today. Keep up the great work!
-                        </p>
-                    </div>
-
-                    <div className="p-6 rounded-2xl border border-gray-100 bg-white">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Quick Navigation</h4>
-                        <div className="grid grid-cols-1 gap-2">
-                            <button
-                                onClick={() => setActiveTab('timeline')}
-                                className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all group"
-                            >
-                                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm text-blue-500 group-hover:scale-110 transition-transform">
-                                    <History size={16} />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Service Timeline</span>
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('bicycles')}
-                                className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all group"
-                            >
-                                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm text-amber-500 group-hover:scale-110 transition-transform">
-                                    <Bike size={16} />
-                                </div>
-                                <span className="text-sm font-bold text-gray-700">Bicycle Repairs</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             {/* Large Quick Access Blocks */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <QuickLink
@@ -219,7 +148,7 @@ export function OverviewSection({
                 />
                 <QuickLink
                     title="Bicycle Queue"
-                    description="3 pending repairs · 12 completed this week"
+                    description={`${metrics.bicyclesPending} pending repairs · ${metrics.bicyclesCompletedThisWeek} completed this week`}
                     icon={Bike}
                     color="bg-amber-50 border-amber-100 text-amber-700"
                     onClick={() => setActiveTab('bicycles')}

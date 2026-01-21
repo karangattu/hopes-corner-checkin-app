@@ -72,4 +72,76 @@ describe('Donations logic', () => {
             expect(total).toBe(15);
         });
     });
+
+    describe('Temperature tracking', () => {
+        it('records temperature for food donations', () => {
+            const donation = {
+                type: 'Protein',
+                itemName: 'Chicken tikka masala',
+                temperature: '165°F'
+            };
+            expect(donation.temperature).toBe('165°F');
+        });
+
+        it('allows descriptive temperature values', () => {
+            const donation = {
+                type: 'Protein',
+                itemName: 'Cold cuts',
+                temperature: 'Cold'
+            };
+            expect(donation.temperature).toBe('Cold');
+        });
+
+        it('handles empty temperature', () => {
+            const donation = {
+                type: 'Pastries',
+                itemName: 'Muffins',
+                temperature: ''
+            };
+            expect(donation.temperature).toBe('');
+        });
+
+        it('appends °F symbol correctly', () => {
+            let temp = '165';
+            temp = temp + '°F';
+            expect(temp).toBe('165°F');
+        });
+
+        it('validates common temperature formats', () => {
+            const validTemps = ['165°F', 'Hot', 'Cold', 'Room temp', '40°F', 'Frozen'];
+            validTemps.forEach(temp => {
+                expect(typeof temp).toBe('string');
+                expect(temp.length).toBeGreaterThan(0);
+            });
+        });
+    });
+
+    describe('Density and servings calculation', () => {
+        const DENSITY_SERVINGS = {
+            light: 10,
+            medium: 20,
+            high: 30
+        };
+
+        it('calculates servings based on density', () => {
+            const trays = 3;
+            const density = 'medium';
+            const servings = trays * DENSITY_SERVINGS[density];
+            expect(servings).toBe(60);
+        });
+
+        it('calculates servings for light density', () => {
+            const trays = 5;
+            const density = 'light';
+            const servings = trays * DENSITY_SERVINGS[density];
+            expect(servings).toBe(50);
+        });
+
+        it('calculates servings for high density', () => {
+            const trays = 2;
+            const density = 'high';
+            const servings = trays * DENSITY_SERVINGS[density];
+            expect(servings).toBe(60);
+        });
+    });
 });

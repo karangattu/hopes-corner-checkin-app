@@ -226,7 +226,7 @@ function ShowerListItem({ record, guest, onClick }: { record: any, guest: any, o
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className={cn(
-                "bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden",
+                "bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative",
                 onClick ? "cursor-pointer hover:border-sky-100" : ""
             )}
             onClick={(e) => {

@@ -25,11 +25,12 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
+import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import toast from 'react-hot-toast';
 
 // Meal category configurations
 const MEAL_CATEGORIES = [
-    { id: 'rv', label: 'RV Meals', icon: Truck, color: 'purple', description: 'RV park deliveries' },
+    { id: 'rv', label: 'RV Meals', icon: Truck, color: 'purple', description: 'RV deliveries' },
     { id: 'day_worker', label: 'Day Worker', icon: Building2, color: 'blue', description: 'Day worker center' },
     { id: 'shelter', label: 'Shelter', icon: Home, color: 'amber', description: 'Shelter meals' },
     { id: 'lunch_bag', label: 'Lunch Bags', icon: Package, color: 'emerald', description: 'To-go lunch bags' },
@@ -233,6 +234,9 @@ export function MealsSection() {
                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Service Distribution Tracker</p>
                     </div>
                 </div>
+
+                {/* Meal Service Timer - subtle indicator for volunteers */}
+                <MealServiceTimer />
 
                 <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
                     <button
