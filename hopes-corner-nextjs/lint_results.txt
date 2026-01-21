@@ -1,0 +1,701 @@
+
+> hopes-corner-nextjs@0.1.0 lint
+> eslint
+
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/coverage/block-navigation.js
+  1:1  warning  Unused eslint-disable directive (no problems were reported)
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/__tests__/RealtimeRollbackFlow.test.ts
+  5:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  6:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/__tests__/advancedIntegration.test.ts
+  11:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/__tests__/edgeCases.test.ts
+  38:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/__tests__/integration.test.ts
+   19:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   25:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   68:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  177:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  209:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  235:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  368:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/__tests__/middleware.test.ts
+  50:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  58:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  69:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  85:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/admin/DashboardOverview.tsx
+  111:9  warning  React Hook useMemo has a missing dependency: 'isThisMonth'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  123:9  warning  React Hook useMemo has a missing dependency: 'isThisYear'. Either include it or remove the dependency array   react-hooks/exhaustive-deps
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/admin/__tests__/AnalyticsLogicAdvanced.test.ts
+  36:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/admin/__tests__/ReportsLogic.test.ts
+  43:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/admin/reports/MealReport.tsx
+   33:10  warning  'todayPacificDateString' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  183:58  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  192:41  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  227:53  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  227:81  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/admin/reports/MonthlySummaryReport.tsx
+   12:10  warning  'useGuestsStore' is defined but never used. Allowed unused vars must match /^_/u                                                                                                       @typescript-eslint/no-unused-vars
+   13:10  warning  'pacificDateStringFrom' is defined but never used. Allowed unused vars must match /^_/u                                                                                                @typescript-eslint/no-unused-vars
+  264:33  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  265:28  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  266:31  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  278:11  warning  'getDayOfWeek' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                @typescript-eslint/no-unused-vars
+  290:49  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  309:37  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  393:8   warning  React Hook useMemo has missing dependencies: 'dayWorkerMealRecords', 'filterRecords', 'lunchBagRecords', and 'shelterMealRecords'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  397:17  warning  'showerRecords' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                               @typescript-eslint/no-unused-vars
+  397:32  warning  'laundryRecords' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                              @typescript-eslint/no-unused-vars
+  400:76  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  413:46  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  459:70  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  471:71  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  481:74  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  482:75  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  484:60  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  485:61  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  504:61  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  515:62  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  527:66  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+  528:67  warning  Unexpected any. Specify a different type                                                                                                                                               @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/MealServiceTimer.tsx
+  13:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/MealServiceTimer.tsx:13:9
+  11 |     useEffect(() => {
+  12 |         // Initial set
+> 13 |         setStatus(getMealServiceStatus());
+     |         ^^^^^^^^^ Avoid calling setState() directly within an effect
+  14 |
+  15 |         // Update every minute (or 30s)
+  16 |         const interval = setInterval(() => {  react-hooks/set-state-in-effect
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx
+   20:41  warning  'onShowerClick' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   20:56  warning  'onLaundryClick' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   51:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+   63:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+   70:40  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+   98:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  103:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  126:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  132:45  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  159:22  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  166:46  warning  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-explicit-any
+  265:22  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:265:22
+  263 |                         }`}
+  264 |                 >
+> 265 |                     <ShowerCardContent />
+      |                      ^^^^^^^^^^^^^^^^^ This component is created during render
+  266 |                 </Link>
+  267 |             ) : (
+  268 |                 <div
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:195:31
+  193 |     const canNavigate = role === 'admin' || role === 'staff';
+  194 |
+> 195 |     const ShowerCardContent = () => (
+      |                               ^^^^^^^
+> 196 |         <>
+      | ^^^^^^^^^^
+> 197 |             <div className="flex items-center justify-between mb-3">
+      …
+      | ^^^^^^^^^^
+> 222 |         </>
+      | ^^^^^^^^^^
+> 223 |     );
+      | ^^^^^^ The component is created during render here
+  224 |
+  225 |     const LaundryCardContent = () => (
+  226 |         <>                                         react-hooks/static-components
+  274:22  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:274:22
+  272 |                         }`}
+  273 |                 >
+> 274 |                     <ShowerCardContent />
+      |                      ^^^^^^^^^^^^^^^^^ This component is created during render
+  275 |                 </div>
+  276 |             )}
+  277 |
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:195:31
+  193 |     const canNavigate = role === 'admin' || role === 'staff';
+  194 |
+> 195 |     const ShowerCardContent = () => (
+      |                               ^^^^^^^
+> 196 |         <>
+      | ^^^^^^^^^^
+> 197 |             <div className="flex items-center justify-between mb-3">
+      …
+      | ^^^^^^^^^^
+> 222 |         </>
+      | ^^^^^^^^^^
+> 223 |     );
+      | ^^^^^^ The component is created during render here
+  224 |
+  225 |     const LaundryCardContent = () => (
+  226 |         <>                                                                  react-hooks/static-components
+  287:22  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:287:22
+  285 |                         }`}
+  286 |                 >
+> 287 |                     <LaundryCardContent />
+      |                      ^^^^^^^^^^^^^^^^^^ This component is created during render
+  288 |                 </Link>
+  289 |             ) : (
+  290 |                 <div
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:225:32
+  223 |     );
+  224 |
+> 225 |     const LaundryCardContent = () => (
+      |                                ^^^^^^^
+> 226 |         <>
+      | ^^^^^^^^^^
+> 227 |             <div className="flex items-center justify-between mb-3">
+      …
+      | ^^^^^^^^^^
+> 249 |         </>
+      | ^^^^^^^^^^
+> 250 |     );
+      | ^^^^^^ The component is created during render here
+  251 |
+  252 |     const cardBaseClasses = "block w-full rounded-xl border p-4 transition-all duration-200 hover:shadow-md active:scale-[0.98] text-left";
+  253 |  react-hooks/static-components
+  296:22  error    Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:296:22
+  294 |                         }`}
+  295 |                 >
+> 296 |                     <LaundryCardContent />
+      |                      ^^^^^^^^^^^^^^^^^^ This component is created during render
+  297 |                 </div>
+  298 |             )}
+  299 |         </div>
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/ServiceStatusOverview.tsx:225:32
+  223 |     );
+  224 |
+> 225 |     const LaundryCardContent = () => (
+      |                                ^^^^^^^
+> 226 |         <>
+      | ^^^^^^^^^^
+> 227 |             <div className="flex items-center justify-between mb-3">
+      …
+      | ^^^^^^^^^^
+> 249 |         </>
+      | ^^^^^^^^^^
+> 250 |     );
+      | ^^^^^^ The component is created during render here
+  251 |
+  252 |     const cardBaseClasses = "block w-full rounded-xl border p-4 transition-all duration-200 hover:shadow-md active:scale-[0.98] text-left";
+  253 |            react-hooks/static-components
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/CheckinFlowLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/GuestCardLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/GuestSearchLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/KeyboardShortcutsBar.test.tsx
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/MealServiceTimer.test.tsx
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/checkin/__tests__/TodayStats.test.tsx
+    1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+    1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   16:26  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   45:28  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   80:28  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  138:26  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/guests/GuestCard.tsx
+   42:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  192:18  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  210:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  228:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  666:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/guests/GuestCreateModal.tsx
+   5:52  warning  'Users' is defined but never used. Allowed unused vars must match /^_/u                                      @typescript-eslint/no-unused-vars
+  70:8   warning  React Hook useEffect has a missing dependency: 'formData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  81:25  warning  Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/guests/LinkedGuestsList.tsx
+   7:10  warning  'UserRole' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   9:24  warning  'Utensils' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   9:45  warning  'Loader2' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  19:19  warning  'session' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  48:18  warning  'error' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  61:18  warning  'error' is defined but never used                                                   @typescript-eslint/no-unused-vars
+  73:25  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/layouts/MainLayout.tsx
+  42:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/layouts/MainLayout.tsx:42:9
+  40 |     // Close mobile menu on route change
+  41 |     useEffect(() => {
+> 42 |         setMobileMenuOpen(false);
+     |         ^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  43 |     }, [pathname]);
+  44 |
+  45 |     // Handle touch detection                                                                                                                                                                                                                                              react-hooks/set-state-in-effect
+  52:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/layouts/MainLayout.tsx:52:9
+  50 |         if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+  51 |         const mediaQuery = window.matchMedia('(pointer: coarse)');
+> 52 |         setIsTouch(mediaQuery.matches);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  53 |         const handle = (e: MediaQueryListEvent) => setIsTouch(e.matches);
+  54 |         mediaQuery.addEventListener('change', handle);
+  55 |         return () => mediaQuery.removeEventListener('change', handle);  react-hooks/set-state-in-effect
+  99:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @next/next/no-img-element
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/BanManagementModal.tsx
+  11:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  53:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  66:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/BicycleRepairBookingModal.tsx
+  81:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/GuestEditModal.tsx
+  10:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/LaundryBookingModal.tsx
+   54:8   warning  React Hook useMemo has a missing dependency: 'today'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   72:25  warning  Unexpected any. Specify a different type                                                                @typescript-eslint/no-explicit-any
+  342:10  warning  'Plus' is defined but never used. Allowed unused vars must match /^_/u                                  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/ShowerBookingModal.tsx
+   86:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/WarningManagementModal.tsx
+   11:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   42:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/WhatsNewModal.tsx
+  6:58  warning  'ChangelogItem' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/__tests__/DeleteConfirmationModal.test.tsx
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/__tests__/ModalContainer.test.tsx
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/modals/__tests__/modalLogic.test.ts
+    1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+  332:23  warning  'description' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/pwa/AppVersion.tsx
+  13:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/pwa/AppVersion.tsx:13:9
+  11 |
+  12 |     useEffect(() => {
+> 13 |         setHasUpdates(hasUnseenUpdates());
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  14 |     }, []);
+  15 |
+  16 |     const handleOpenModal = () => {  react-hooks/set-state-in-effect
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/BicycleSection.tsx
+   66:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:59  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  364:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  397:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/CompactLaundryList.tsx
+  65:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/CompactShowerList.tsx
+   4:23  warning  'CheckCircle' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   4:49  warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  11:14  warning  Unexpected any. Specify a different type                                       @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/DonationsSection.tsx
+    3:36  warning  'useEffect' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+    5:5   warning  'PackagePlus' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+   13:5   warning  'Building2' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+   15:5   warning  'Check' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+   24:5   warning  'DENSITY_SERVINGS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   39:35  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+  201:18  warning  'err' is defined but never used                                                     @typescript-eslint/no-unused-vars
+  206:33  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+  238:18  warning  'err' is defined but never used                                                     @typescript-eslint/no-unused-vars
+  432:59  warning  Unexpected any. Specify a different type                                            @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/LaundrySection.tsx
+    5:69  warning  'User' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+    5:82  warning  'Edit3' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   79:52  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+   80:35  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+   94:47  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+   98:52  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  115:59  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  144:70  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  385:13  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  386:28  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/MealsSection.tsx
+    7:5   warning  'Users' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   13:5   warning  'Filter' is defined but never used. Allowed unused vars must match /^_/u                       @typescript-eslint/no-unused-vars
+   15:5   warning  'Heart' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   22:5   warning  'Check' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   54:9   warning  'deleteRvMealRecord' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   76:40  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+   86:32  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+  116:33  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+  121:43  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+  140:41  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+  186:37  warning  Unexpected any. Specify a different type                                                       @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/OverviewSection.tsx
+   3:10  warning  'motion' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  11:5   warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  23:11  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  54:11  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  81:14  warning  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/ShowerDetailModal.tsx
+   4:47  warning  'AlertCircle' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   5:18  warning  'AnimatePresence' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+   8:10  warning  'formatTimeElapsed' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  15:13  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  16:12  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  51:18  warning  'error' is defined but never used                                                    @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/ShowersSection.tsx
+    5:51  warning  'ChevronRight' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+    5:71  warning  'AlertCircle' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+   24:58  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  160:63  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  160:75  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  170:18  warning  'error' is defined but never used                                               @typescript-eslint/no-unused-vars
+  182:18  warning  'error' is defined but never used                                               @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/TimelineSection.tsx
+  10:5  warning  'CheckCircle' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  11:5  warning  'AlertCircle' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  13:5  warning  'Calendar' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  14:5  warning  'User' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  15:5  warning  'Package' is defined but never used. Allowed unused vars must match /^_/u      @typescript-eslint/no-unused-vars
+  16:5  warning  'ArrowRight' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/BicycleLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/DonationsLogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  18:30  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/LaundryLogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                    @typescript-eslint/no-unused-vars
+  36:15  warning  'totalDryers' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  76:17  error    'record' is never reassigned. Use 'const' instead                                       prefer-const
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/MealsLogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+  31:38  warning  Unexpected any. Specify a different type                                                 @typescript-eslint/no-explicit-any
+  81:15  warning  'linkedGuests' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/ShowerLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/services/__tests__/servicesLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/components/ui/WaiverBadge.tsx
+  7:10  warning  'cn' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/__tests__/SupabaseChainedFilters.test.ts
+  34:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  47:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  48:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/auth/__tests__/NavigationGuardLogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+  12:15  warning  'staffRoutes' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  13:15  warning  'boardRoutes' is assigned a value but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+  14:15  warning  'checkinRoutes' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/auth/config.ts
+  26:11  warning  'ExtendedJWT' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/constants/__tests__/constants.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/AppVersionLogic.test.ts
+  25:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/DeduplicationLogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  28:43  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  28:52  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/LegacyJSUtilitiesExhaustive.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  32:43  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  32:52  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/PWALogic.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   5:44  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  53:44  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/SchemaPropertyLogic.test.ts
+  13:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/ServiceMetricExhaustive.test.ts
+  25:77  warning  'isOffsite' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/ValidationExhaustive.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   5:30  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  38:30  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  61:30  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/accessibilityLogic.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/csv.test.ts
+   9:9   warning  'mockCreateObjectURL' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  37:29  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  40:34  warning  Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/csvExportFlow.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  29:34  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  63:60  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/deepValidation.test.ts
+   1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   5:39  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  35:37  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/flexibleNameSearch.test.ts
+    1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+  267:19  warning  'query' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/mappers.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/mealServiceTime.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  1:36  warning  'beforeEach' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  1:48  warning  'afterEach' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/normalizers.test.ts
+  1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/__tests__/pagination.test.ts
+    1:32  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   88:34  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  100:25  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  101:34  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  109:34  warning  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/csv.ts
+  1:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/date.ts
+  15:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/donationUtils.ts
+  10:60  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  10:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  10:90  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:74  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  91:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/serviceSlots.ts
+   9:13  error  'start' is never reassigned. Use 'const' instead  prefer-const
+  10:13  error  'end' is never reassigned. Use 'const' instead    prefer-const
+  19:13  error  'start' is never reassigned. Use 'const' instead  prefer-const
+  20:13  error  'end' is never reassigned. Use 'const' instead    prefer-const
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/lib/utils/supabasePagination.ts
+   9:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  13:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/__tests__/useDonationsStore.test.ts
+  385:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/__tests__/useMealsStore.test.ts
+   33:29  warning  'd' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  468:64  warning  Unexpected any. Specify a different type                             @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/__tests__/useServicesStore.test.ts
+  584:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useActionHistoryStore.ts
+  25:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useDonationsStore.ts
+   22:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useGuestsStore.ts
+   12:5   warning  'computeIsGuestBanned' is defined but never used. Allowed unused vars must match /^_/u              @typescript-eslint/no-unused-vars
+   21:5   warning  'HOUSING_STATUSES' is defined but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+   22:5   warning  'AGE_GROUPS' is defined but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+   23:5   warning  'GENDERS' is defined but never used. Allowed unused vars must match /^_/u                           @typescript-eslint/no-unused-vars
+   27:7   warning  'GUEST_IMPORT_CHUNK_SIZE' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   28:7   warning  'MAX_LINKED_GUESTS' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   80:23  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+   81:40  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+   83:42  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+   90:49  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  199:53  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  202:38  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  213:36  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  257:61  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  328:61  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  362:61  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  381:71  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  384:36  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  405:70  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  422:88  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  464:58  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  466:38  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  523:59  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+  525:38  warning  Unexpected any. Specify a different type                                                            @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useItemsStore.ts
+    4:10  warning  'persist' is defined but never used. Allowed unused vars must match /^_/u                 @typescript-eslint/no-unused-vars
+    7:10  warning  'todayPacificDateString' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   70:31  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  108:31  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useMealsStore.ts
+  109:40  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  210:33  warning  'rvMealRecords' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  349:31  warning  'todayStr' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  370:65  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  401:31  warning  'todayStr' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  422:65  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  461:48  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  562:79  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  563:79  warning  Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useModalStore.ts
+   6:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   7:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   8:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  10:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/src/stores/useServicesStore.ts
+   89:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  144:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  232:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  261:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  380:78  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  416:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  421:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  514:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  566:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  642:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  643:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  644:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  645:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  646:79  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/karangathani/Documents/GitHub/hopes-corner-checkin-app/hopes-corner-nextjs/vitest.setup.ts
+  49:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 343 problems (13 errors, 330 warnings)
+  5 errors and 1 warning potentially fixable with the `--fix` option.
+
