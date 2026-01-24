@@ -747,3 +747,21 @@ create policy "Authenticated users can manage waivers"
   to authenticated, anon
   using (true)
   with check (true);
+
+-- 8. Guest reminders (staff must dismiss before providing services)
+-- Unlike warnings which are informational, reminders require explicit acknowledgment
+create table if not exists public.guest_reminders (
+  id uuid primary key default gen_random_uuid(),
+  guest_id uuid references public.guests(id) on delete cascade,
+  message text not null,
+  created_by text, -- staff name who created the reminder
+  created_at timestamptz not null default now(),
+  dismissed_by text, -- staff name who dismissed the reminder (null = not dismissed)
+  dismissed_at timestamptz, -- when the reminder was dismissed (null = not dismissed)
+  active boolean not null default true -- false when dismissed
+);
+
+-- Indexes for guest_reminders
+create index if not exists guest_reminders_guest_id_idx on public.guest_reminders (guest_id);
+create index if not exists guest_reminders_active_idx on public.guest_reminders (active) where active = true;
+create index if not exists guest_reminders_created_at_idx on public.guest_reminders (created_at desc);

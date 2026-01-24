@@ -1,8 +1,10 @@
-import { Bike, X, Star } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { Bike, X, Star, Bell } from "lucide-react";
+import { useId, useRef, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useAppContext } from "../context/useAppContext";
+import { useRemindersStore } from "../stores/useRemindersStore";
 import Modal from "./ui/Modal";
+import ReminderDismissalModal from "./guest/ReminderDismissalModal";
 
 const repairTypes = [
   "New Bicycle",
@@ -31,9 +33,20 @@ const BicycleRepairBooking = () => {
   const [selectedRepairTypes, setSelectedRepairTypes] = useState([]);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reminderModalOpen, setReminderModalOpen] = useState(false);
   const titleId = useId();
   const descriptionId = useId();
   const closeButtonRef = useRef(null);
+
+  // Get reminders for the guest - select raw array and memoize filtered result
+  const reminders = useRemindersStore((state) => state.reminders);
+  const activeReminders = useMemo(
+    () => bicyclePickerGuest 
+      ? (reminders || []).filter((r) => r.guestId === bicyclePickerGuest.id && r.active)
+      : [],
+    [reminders, bicyclePickerGuest]
+  );
+  const hasReminders = activeReminders.length > 0;
 
   const handleClose = () => setBicyclePickerGuest(null);
 
@@ -87,6 +100,7 @@ const BicycleRepairBooking = () => {
   };
 
   return (
+    <>
     <Modal
       isOpen={Boolean(bicyclePickerGuest)}
       onClose={handleClose}
@@ -96,13 +110,26 @@ const BicycleRepairBooking = () => {
     >
       <div className="w-full rounded-2xl border border-gray-100 bg-white p-5 shadow-xl sm:max-w-lg md:max-w-2xl lg:max-w-3xl">
         <div className="flex items-start justify-between border-b border-gray-100 pb-4">
-          <h2
-            className="flex items-center gap-2 text-lg font-semibold text-gray-900"
-            id={titleId}
-          >
-            <Bike aria-hidden="true" /> Log Bicycle Repair for{" "}
-            {bicyclePickerGuest.name}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2
+              className="flex items-center gap-2 text-lg font-semibold text-gray-900"
+              id={titleId}
+            >
+              <Bike aria-hidden="true" /> Log Bicycle Repair for{" "}
+              {bicyclePickerGuest.name}
+            </h2>
+            {hasReminders && (
+              <button
+                type="button"
+                onClick={() => setReminderModalOpen(true)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold uppercase tracking-wide rounded-md bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 hover:border-amber-300 transition-colors"
+                title={`${activeReminders.length} active reminder${activeReminders.length > 1 ? 's' : ''} - click to view`}
+              >
+                <Bell size={12} />
+                {activeReminders.length}
+              </button>
+            )}
+          </div>
           <button
             ref={closeButtonRef}
             type="button"
@@ -114,6 +141,25 @@ const BicycleRepairBooking = () => {
           </button>
         </div>
         <div className="space-y-4 pt-4" id={descriptionId}>
+          {/* Reminder Alert Banner */}
+          {hasReminders && (
+            <button
+              type="button"
+              onClick={() => setReminderModalOpen(true)}
+              className="w-full text-left text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 hover:bg-amber-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Bell size={16} className="text-amber-600 flex-shrink-0" />
+                <div>
+                  <span className="font-semibold">
+                    {activeReminders.length} Reminder{activeReminders.length > 1 ? 's' : ''} 
+                  </span>
+                  <span className="text-amber-700"> — Click to view and dismiss before proceeding</span>
+                </div>
+              </div>
+            </button>
+          )}
+          
           {bikeDescription ? (
             <div className="text-sm text-gray-600 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2">
               <span className="font-semibold text-sky-700">
@@ -239,6 +285,17 @@ const BicycleRepairBooking = () => {
         </div>
       </div>
     </Modal>
+
+    {/* Reminder Dismissal Modal */}
+    {bicyclePickerGuest && (
+      <ReminderDismissalModal
+        isOpen={reminderModalOpen}
+        onClose={() => setReminderModalOpen(false)}
+        guestId={bicyclePickerGuest.id}
+        guestName={bicyclePickerGuest.name}
+      />
+    )}
+    </>
   );
 };
 

@@ -113,6 +113,7 @@ export const supabaseProxy = onCall(
         "guests",
         "guest_proxies",
         "guest_warnings",
+        "guest_reminders",
         "meal_attendance",
         "shower_reservations",
         "laundry_bookings",

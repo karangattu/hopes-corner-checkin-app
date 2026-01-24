@@ -50,6 +50,7 @@ import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../context/constants";
 import Selectize from "./Selectize";
 import GuestCreateForm from "./guest/GuestCreateForm";
 import LinkedGuestsManager from "./guest/LinkedGuestsManager";
+import GuestRemindersSection from "./guest/GuestRemindersSection";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import { findFuzzySuggestions, formatSuggestionDisplay } from "../utils/fuzzyMatch";
 import { flexibleNameSearch } from "../utils/flexibleNameSearch";
@@ -2171,6 +2172,13 @@ const GuestList = () => {
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* Reminders Section */}
+        {editingGuestId !== guest.id && (
+          <div className="mb-4">
+            <GuestRemindersSection guestId={guest.id} guestName={guest.name || `${guest.firstName} ${guest.lastName}`} />
           </div>
         )}
 

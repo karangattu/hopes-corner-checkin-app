@@ -8,6 +8,7 @@ import { useMealsStore } from '../useMealsStore';
 import { useServicesStore } from '../useServicesStore';
 import { useDonationsStore } from '../useDonationsStore';
 import { useHistoryStore, ACTION_TYPES, createAction } from '../useHistoryStore';
+import { useRemindersStore } from '../useRemindersStore';
 import enhancedToast from '../../utils/toast';
 
 /**
@@ -485,6 +486,7 @@ export const initializeStoresFromSupabase = async () => {
       useGuestsStore.getState().loadFromSupabase(),
       useGuestsStore.getState().loadGuestProxiesFromSupabase(),
       useGuestsStore.getState().loadGuestWarningsFromSupabase(),
+      useRemindersStore.getState().fetchReminders(),
     ]);
 
     // Phase 2: Now load service records - guest lookups will work correctly

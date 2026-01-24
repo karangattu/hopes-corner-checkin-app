@@ -22,6 +22,7 @@ import { animated as Animated } from "../utils/animations";
 import { WaiverBadge } from "./ui/WaiverBadge";
 import Selectize from "./Selectize";
 import toast from "react-hot-toast";
+import ReminderBadge from "./guest/ReminderBadge";
 
 const CompactShowerCard = memo(({
     record,
@@ -262,6 +263,12 @@ const CompactShowerCard = memo(({
                                         Priority
                                     </span>
                                 )}
+                                {/* Reminder Badge - must be dismissed before service */}
+                                <ReminderBadge 
+                                    guestId={record.guestId} 
+                                    guestName={nameDetails.primaryName}
+                                    size="sm"
+                                />
                                 {(() => {
                                     const warnings = getWarningsForGuest ? getWarningsForGuest(record.guestId) : [];
                                     return warnings.length > 0 ? (

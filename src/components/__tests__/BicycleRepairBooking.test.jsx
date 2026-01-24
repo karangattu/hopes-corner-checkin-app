@@ -15,6 +15,17 @@ vi.mock("../../context/useAppContext", () => ({
   useAppContext: () => mockContextValue,
 }));
 
+// Mock the reminders store - component selects state.reminders and filters by guestId
+vi.mock("../../stores/useRemindersStore", () => ({
+  useRemindersStore: (selector) => {
+    const state = {
+      reminders: [], // Empty array = no reminders
+      dismissReminder: vi.fn(),
+    };
+    return selector(state);
+  },
+}));
+
 describe("BicycleRepairBooking", () => {
   beforeEach(() => {
     mockContextValue = createDefaultContext();
