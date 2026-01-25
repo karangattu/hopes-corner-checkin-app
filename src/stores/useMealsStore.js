@@ -10,6 +10,10 @@ import {
   mapHaircutRow,
 } from '../context/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
+import { getRealtimeClient, isRealtimeAvailable } from '../hooks/useRealtimeSubscription';
+
+// Store active realtime subscriptions for cleanup
+let mealsRealtimeChannels = [];
 
 export const useMealsStore = create(
   devtools(
@@ -391,6 +395,150 @@ export const useMealsStore = create(
             return get().haircutRecords.filter(
               (r) => pacificDateStringFrom(r.date) === today
             );
+          },
+
+          // Realtime subscription methods
+          subscribeToRealtime: () => {
+            if (!isSupabaseEnabled() || !isRealtimeAvailable()) {
+              console.log('[Meals] Realtime not available, skipping subscription');
+              return () => {};
+            }
+
+            const client = getRealtimeClient();
+            if (!client) return () => {};
+
+            // Clean up any existing subscriptions
+            get().unsubscribeFromRealtime();
+
+            const handleMealChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapMealRow(newRecord);
+                  const exists = state.mealRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.mealRecords.push(mapped);
+                    console.log('[Realtime] Meal INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapMealRow(newRecord);
+                  const idx = state.mealRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.mealRecords[idx] = mapped;
+                    console.log('[Realtime] Meal UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.mealRecords = state.mealRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Meal DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            const handleHolidayChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapHolidayRow(newRecord);
+                  const exists = state.holidayRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.holidayRecords.push(mapped);
+                    console.log('[Realtime] Holiday INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapHolidayRow(newRecord);
+                  const idx = state.holidayRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.holidayRecords[idx] = mapped;
+                    console.log('[Realtime] Holiday UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.holidayRecords = state.holidayRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Holiday DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            const handleHaircutChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapHaircutRow(newRecord);
+                  const exists = state.haircutRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.haircutRecords.push(mapped);
+                    console.log('[Realtime] Haircut INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapHaircutRow(newRecord);
+                  const idx = state.haircutRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.haircutRecords[idx] = mapped;
+                    console.log('[Realtime] Haircut UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.haircutRecords = state.haircutRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Haircut DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            // Subscribe to meal_attendance
+            const mealChannel = client
+              .channel('meals-attendance')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'meal_attendance' }, (payload) => {
+                handleMealChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Meals] Subscribed to meal_attendance realtime');
+                }
+              });
+
+            // Subscribe to holiday_visits
+            const holidayChannel = client
+              .channel('meals-holidays')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'holiday_visits' }, (payload) => {
+                handleHolidayChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Meals] Subscribed to holiday_visits realtime');
+                }
+              });
+
+            // Subscribe to haircut_visits
+            const haircutChannel = client
+              .channel('meals-haircuts')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'haircut_visits' }, (payload) => {
+                handleHaircutChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Meals] Subscribed to haircut_visits realtime');
+                }
+              });
+
+            mealsRealtimeChannels = [mealChannel, holidayChannel, haircutChannel];
+
+            // Return cleanup function
+            return () => get().unsubscribeFromRealtime();
+          },
+
+          unsubscribeFromRealtime: () => {
+            const client = getRealtimeClient();
+            if (client && mealsRealtimeChannels.length > 0) {
+              mealsRealtimeChannels.forEach((channel) => {
+                client.removeChannel(channel);
+              });
+              mealsRealtimeChannels = [];
+              console.log('[Meals] Unsubscribed from realtime');
+            }
           },
         })),
         createPersistConfig('hopes-corner-meals')

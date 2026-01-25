@@ -1,6 +1,7 @@
 import { AppProvider } from "./context/AppContext";
 import { AuthProvider } from "./context/AuthContext";
 import { SyncProvider } from "./context/SyncContext";
+import { RealtimeProvider } from "./context/RealtimeProvider";
 import { useAuth } from "./context/useAuth";
 import { useAppContext } from "./context/useAppContext";
 import MainLayout from "./layouts/MainLayout";
@@ -114,7 +115,9 @@ export default function App() {
     <AuthProvider>
       <AppProvider>
         <SyncProvider executeFunctions={EXECUTE_FUNCTIONS}>
-          <AppContent />
+          <RealtimeProvider>
+            <AppContent />
+          </RealtimeProvider>
         </SyncProvider>
       </AppProvider>
     </AuthProvider>

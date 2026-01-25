@@ -10,6 +10,10 @@ import {
   mapBicycleRow,
 } from '../context/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
+import { getRealtimeClient, isRealtimeAvailable } from '../hooks/useRealtimeSubscription';
+
+// Store active realtime subscriptions for cleanup
+let realtimeChannels = [];
 
 export const useServicesStore = create(
   devtools(
@@ -455,7 +459,150 @@ export const useServicesStore = create(
               (r) => pacificDateStringFrom(r.date) === today
             );
           },
-        })),
+
+          // Realtime subscription methods
+          subscribeToRealtime: () => {
+            if (!isSupabaseEnabled() || !isRealtimeAvailable()) {
+              console.log('[Services] Realtime not available, skipping subscription');
+              return () => {};
+            }
+
+            const client = getRealtimeClient();
+            if (!client) return () => {};
+
+            // Clean up any existing subscriptions
+            get().unsubscribeFromRealtime();
+
+            const handleShowerChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapShowerRow(newRecord);
+                  const exists = state.showerRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.showerRecords.push(mapped);
+                    console.log('[Realtime] Shower INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapShowerRow(newRecord);
+                  const idx = state.showerRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.showerRecords[idx] = mapped;
+                    console.log('[Realtime] Shower UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.showerRecords = state.showerRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Shower DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            const handleLaundryChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapLaundryRow(newRecord);
+                  const exists = state.laundryRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.laundryRecords.push(mapped);
+                    console.log('[Realtime] Laundry INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapLaundryRow(newRecord);
+                  const idx = state.laundryRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.laundryRecords[idx] = mapped;
+                    console.log('[Realtime] Laundry UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.laundryRecords = state.laundryRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Laundry DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            const handleBicycleChange = (eventType, payload) => {
+              const { new: newRecord, old: oldRecord } = payload;
+              set((state) => {
+                if (eventType === 'INSERT' && newRecord) {
+                  const mapped = mapBicycleRow(newRecord);
+                  const exists = state.bicycleRecords.some((r) => r.id === mapped.id);
+                  if (!exists) {
+                    state.bicycleRecords.push(mapped);
+                    console.log('[Realtime] Bicycle INSERT:', mapped.id);
+                  }
+                } else if (eventType === 'UPDATE' && newRecord) {
+                  const mapped = mapBicycleRow(newRecord);
+                  const idx = state.bicycleRecords.findIndex((r) => r.id === mapped.id);
+                  if (idx >= 0) {
+                    state.bicycleRecords[idx] = mapped;
+                    console.log('[Realtime] Bicycle UPDATE:', mapped.id);
+                  }
+                } else if (eventType === 'DELETE' && oldRecord) {
+                  state.bicycleRecords = state.bicycleRecords.filter(
+                    (r) => r.id !== oldRecord.id
+                  );
+                  console.log('[Realtime] Bicycle DELETE:', oldRecord.id);
+                }
+              });
+            };
+
+            // Subscribe to shower_reservations
+            const showerChannel = client
+              .channel('services-showers')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'shower_reservations' }, (payload) => {
+                handleShowerChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Services] Subscribed to shower_reservations realtime');
+                }
+              });
+
+            // Subscribe to laundry_bookings
+            const laundryChannel = client
+              .channel('services-laundry')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'laundry_bookings' }, (payload) => {
+                handleLaundryChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Services] Subscribed to laundry_bookings realtime');
+                }
+              });
+
+            // Subscribe to bicycle_repairs
+            const bicycleChannel = client
+              .channel('services-bicycles')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'bicycle_repairs' }, (payload) => {
+                handleBicycleChange(payload.eventType, payload);
+              })
+              .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                  console.log('[Services] Subscribed to bicycle_repairs realtime');
+                }
+              });
+
+            realtimeChannels = [showerChannel, laundryChannel, bicycleChannel];
+
+            // Return cleanup function
+            return () => get().unsubscribeFromRealtime();
+          },
+
+          unsubscribeFromRealtime: () => {
+            const client = getRealtimeClient();
+            if (client && realtimeChannels.length > 0) {
+              realtimeChannels.forEach((channel) => {
+                client.removeChannel(channel);
+              });
+              realtimeChannels = [];
+              console.log('[Services] Unsubscribed from realtime');
+            }
+          },        })),
         createPersistConfig('hopes-corner-services')
       )
     ),

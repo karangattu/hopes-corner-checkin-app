@@ -1,5 +1,5 @@
 import React from "react";
-import { UserPlus, X, AlertCircle } from "lucide-react";
+import { UserPlus, X, AlertCircle, AlertTriangle } from "lucide-react";
 import Selectize from "../Selectize";
 import {
   HOUSING_STATUSES,
@@ -14,6 +14,9 @@ const GuestCreateForm = ({
   isCreating,
   createError,
   duplicateWarning,
+  duplicateMatches = [],
+  duplicateConfirmed = false,
+  onDuplicateConfirm,
   onChange,
   onNameBlur,
   onSubmit,
@@ -21,13 +24,19 @@ const GuestCreateForm = ({
   onLocationChange,
   firstNameRef,
 }) => {
+  // Determine if we should block submission due to unconfirmed duplicates
+  const hasDuplicates = duplicateWarning && duplicateMatches.length > 0;
+  const canSubmit = !hasDuplicates || duplicateConfirmed;
+
   // Keyboard shortcuts handler
   React.useEffect(() => {
     const handleKeyDown = (e) => {
       // Cmd/Ctrl + Enter to submit from anywhere
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        onSubmit(e);
+        if (canSubmit) {
+          onSubmit(e);
+        }
         return;
       }
 
@@ -65,7 +74,7 @@ const GuestCreateForm = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onChange, onSubmit, formData]);
+  }, [onChange, onSubmit, formData, canSubmit]);
 
   return (
     <div
@@ -248,20 +257,57 @@ const GuestCreateForm = ({
         </div>
 
 
-        {duplicateWarning && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs">
-            <AlertCircle size={16} className="text-amber-600" />
-            <span className="text-amber-800 font-medium">{duplicateWarning}</span>
+        {/* Enhanced Duplicate Warning */}
+        {hasDuplicates && !duplicateConfirmed && (
+          <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-amber-800 font-semibold text-sm mb-2">Similar Guest(s) Found</p>
+                <ul className="text-amber-700 text-xs mb-3 space-y-1">
+                  {duplicateMatches.slice(0, 5).map((match) => (
+                    <li key={match.id} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                      <span className="font-medium">{match.name}</span>
+                      {match.location && <span className="text-amber-600">({match.location})</span>}
+                    </li>
+                  ))}
+                  {duplicateMatches.length > 5 && (
+                    <li className="text-amber-600 italic">...and {duplicateMatches.length - 5} more</li>
+                  )}
+                </ul>
+                <button
+                  type="button"
+                  onClick={onDuplicateConfirm}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                >
+                  This is a different person — Create Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmed duplicate - show green checkmark */}
+        {hasDuplicates && duplicateConfirmed && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-xs">
+            <span className="text-green-600">✓</span>
+            <span className="text-green-800 font-medium">Confirmed: This is a new guest, not one of the similar names listed.</span>
           </div>
         )}
 
         <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              disabled={isCreating}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              disabled={isCreating || !canSubmit}
+              className={`flex-1 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 ${
+                canSubmit
+                  ? "bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white shadow-blue-200"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed shadow-gray-100"
+              }`}
+              title={!canSubmit ? "Please confirm this is a different person first" : ""}
             >
-              {isCreating ? "Saving..." : "Save Guest [Cmd/Ctrl+Enter]"}
+              {isCreating ? "Saving..." : canSubmit ? "Save Guest [Cmd/Ctrl+Enter]" : "Confirm Above First"}
             </button>
           <button
             type="button"

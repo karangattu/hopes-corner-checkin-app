@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, devtools } from 'zustand/middleware';
+import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { fetchAllPaginated } from '../utils/supabasePagination';
@@ -20,19 +20,24 @@ import {
   GENDERS,
 } from '../context/constants';
 import { clearSearchIndexCache } from '../utils/flexibleNameSearch';
+import { getRealtimeClient, isRealtimeAvailable } from '../hooks/useRealtimeSubscription';
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 const MAX_LINKED_GUESTS = 3;
 
+// Store active realtime subscriptions for cleanup
+let guestsRealtimeChannels = [];
+
 export const useGuestsStore = create(
   devtools(
-    persist(
-      immer((set, get) => ({
-        // State
-        guests: [],
-        guestProxies: [], // Linked guest relationships
-        // Guest warnings persisted in Supabase
-        warnings: [],
+    subscribeWithSelector(
+      persist(
+        immer((set, get) => ({
+          // State
+          guests: [],
+          guestProxies: [], // Linked guest relationships
+          // Guest warnings persisted in Supabase
+          warnings: [],
 
         // Sync guests from external source (AppContext)
         // This resolves conflicts when running locally where AppContext owns the data
@@ -1377,8 +1382,152 @@ export const useGuestsStore = create(
             state.guestProxies = [];
           });
         },
+
+        // Realtime subscription methods
+        subscribeToRealtime: () => {
+          if (!isSupabaseEnabled() || !isRealtimeAvailable()) {
+            console.log('[Guests] Realtime not available, skipping subscription');
+            return () => {};
+          }
+
+          const client = getRealtimeClient();
+          if (!client) return () => {};
+
+          // Clean up any existing subscriptions
+          get().unsubscribeFromRealtime();
+
+          const handleGuestChange = (eventType, payload) => {
+            const { new: newRecord, old: oldRecord } = payload;
+            set((state) => {
+              if (eventType === 'INSERT' && newRecord) {
+                const mapped = mapGuestRow(newRecord);
+                const exists = state.guests.some((g) => g.id === mapped.id);
+                if (!exists) {
+                  state.guests.push(mapped);
+                  clearSearchIndexCache();
+                  console.log('[Realtime] Guest INSERT:', mapped.id, mapped.name);
+                }
+              } else if (eventType === 'UPDATE' && newRecord) {
+                const mapped = mapGuestRow(newRecord);
+                const idx = state.guests.findIndex((g) => g.id === mapped.id);
+                if (idx >= 0) {
+                  state.guests[idx] = mapped;
+                  clearSearchIndexCache();
+                  console.log('[Realtime] Guest UPDATE:', mapped.id, mapped.name);
+                }
+              } else if (eventType === 'DELETE' && oldRecord) {
+                state.guests = state.guests.filter((g) => g.id !== oldRecord.id);
+                clearSearchIndexCache();
+                console.log('[Realtime] Guest DELETE:', oldRecord.id);
+              }
+            });
+          };
+
+          const handleProxyChange = (eventType, payload) => {
+            const { new: newRecord, old: oldRecord } = payload;
+            set((state) => {
+              if (eventType === 'INSERT' && newRecord) {
+                const mapped = mapGuestProxyRow(newRecord);
+                const exists = state.guestProxies.some((p) => p.id === mapped.id);
+                if (!exists) {
+                  state.guestProxies.push(mapped);
+                  console.log('[Realtime] Proxy INSERT:', mapped.id);
+                }
+              } else if (eventType === 'UPDATE' && newRecord) {
+                const mapped = mapGuestProxyRow(newRecord);
+                const idx = state.guestProxies.findIndex((p) => p.id === mapped.id);
+                if (idx >= 0) {
+                  state.guestProxies[idx] = mapped;
+                  console.log('[Realtime] Proxy UPDATE:', mapped.id);
+                }
+              } else if (eventType === 'DELETE' && oldRecord) {
+                state.guestProxies = state.guestProxies.filter(
+                  (p) => p.id !== oldRecord.id
+                );
+                console.log('[Realtime] Proxy DELETE:', oldRecord.id);
+              }
+            });
+          };
+
+          const handleWarningChange = (eventType, payload) => {
+            const { new: newRecord, old: oldRecord } = payload;
+            set((state) => {
+              if (eventType === 'INSERT' && newRecord) {
+                const mapped = mapGuestWarningRow(newRecord);
+                const exists = state.warnings.some((w) => w.id === mapped.id);
+                if (!exists) {
+                  state.warnings.push(mapped);
+                  console.log('[Realtime] Warning INSERT:', mapped.id);
+                }
+              } else if (eventType === 'UPDATE' && newRecord) {
+                const mapped = mapGuestWarningRow(newRecord);
+                const idx = state.warnings.findIndex((w) => w.id === mapped.id);
+                if (idx >= 0) {
+                  state.warnings[idx] = mapped;
+                  console.log('[Realtime] Warning UPDATE:', mapped.id);
+                }
+              } else if (eventType === 'DELETE' && oldRecord) {
+                state.warnings = state.warnings.filter((w) => w.id !== oldRecord.id);
+                console.log('[Realtime] Warning DELETE:', oldRecord.id);
+              }
+            });
+          };
+
+          // Subscribe to guests table
+          const guestsChannel = client
+            .channel('guests-main')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'guests' }, (payload) => {
+              handleGuestChange(payload.eventType, payload);
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('[Guests] Subscribed to guests realtime');
+              }
+            });
+
+          // Subscribe to guest_proxies table
+          const proxiesChannel = client
+            .channel('guests-proxies')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_proxies' }, (payload) => {
+              handleProxyChange(payload.eventType, payload);
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('[Guests] Subscribed to guest_proxies realtime');
+              }
+            });
+
+          // Subscribe to guest_warnings table
+          const warningsChannel = client
+            .channel('guests-warnings')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_warnings' }, (payload) => {
+              handleWarningChange(payload.eventType, payload);
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('[Guests] Subscribed to guest_warnings realtime');
+              }
+            });
+
+          guestsRealtimeChannels = [guestsChannel, proxiesChannel, warningsChannel];
+
+          // Return cleanup function
+          return () => get().unsubscribeFromRealtime();
+        },
+
+        unsubscribeFromRealtime: () => {
+          const client = getRealtimeClient();
+          if (client && guestsRealtimeChannels.length > 0) {
+            guestsRealtimeChannels.forEach((channel) => {
+              client.removeChannel(channel);
+            });
+            guestsRealtimeChannels = [];
+            console.log('[Guests] Unsubscribed from realtime');
+          }
+        },
       })),
       createPersistConfig('hopes-corner-guests-v2')
+    )
     ),
     { name: 'GuestsStore' }
   )

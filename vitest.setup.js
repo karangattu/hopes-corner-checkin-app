@@ -2,6 +2,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
 import "fake-indexeddb/auto";
 
+// Set up test environment variables for Supabase realtime tests
+if (typeof import.meta !== 'undefined' && import.meta.env) {
+  import.meta.env.VITE_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://test.supabase.co';
+  import.meta.env.VITE_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'test-anon-key';
+}
+
 // Cleanup DOM after each test
 afterEach(() => {
   document.body.innerHTML = "";

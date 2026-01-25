@@ -27,6 +27,14 @@ vi.mock("../../supabaseClient", () => ({
   isSupabaseEnabled: () => mockIsSupabaseEnabled(),
 }));
 
+// Mock useAuth to return authenticated user
+vi.mock("../../context/useAuth", () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 'test-user', email: 'test@example.com' },
+    authLoading: false,
+  })),
+}));
+
 // Import hook after mocks are set up
 import { useStoreInitialization } from "../useStoreInitialization";
 

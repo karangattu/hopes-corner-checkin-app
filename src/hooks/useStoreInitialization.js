@@ -5,10 +5,11 @@ import {
   initializeStoresFromSupabase,
 } from '../stores';
 import { isSupabaseEnabled } from '../supabaseClient';
+import { useAuth } from '../context/useAuth';
 
 /**
  * Hook to initialize all Zustand stores on app startup
- * Loads data from Supabase if enabled
+ * Loads data from Supabase if enabled AND user is authenticated
  * 
  * On first-time login (no persisted cache), waits for data to load
  * On subsequent loads, shows cached data immediately while syncing
@@ -17,8 +18,18 @@ export const useStoreInitialization = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState(null);
   const initStartedRef = useRef(false);
+  const { user, authLoading } = useAuth();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    // If not authenticated, mark as initialized (show login screen)
+    if (!user) {
+      setIsInitialized(true);
+      return;
+    }
+    
     // Prevent double initialization in React 18 Strict Mode
     if (initStartedRef.current) return;
     initStartedRef.current = true;
@@ -68,7 +79,7 @@ export const useStoreInitialization = () => {
     };
 
     initStores();
-  }, []);
+  }, [user, authLoading]);
 
   return { isInitialized, error };
 };

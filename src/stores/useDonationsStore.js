@@ -1,18 +1,23 @@
 import { create } from 'zustand';
-import { persist, devtools } from 'zustand/middleware';
+import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { createPersistConfig } from './middleware/persistentStorage';
 import { mapDonationRow, mapItemRow } from '../context/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '../utils/date';
+import { getRealtimeClient, isRealtimeAvailable } from '../hooks/useRealtimeSubscription';
+
+// Store active realtime subscriptions for cleanup
+let donationsRealtimeChannels = [];
 
 export const useDonationsStore = create(
   devtools(
-    persist(
-      immer((set, get) => ({
-        // State
-        donationRecords: [],
-        itemRecords: [],
+    subscribeWithSelector(
+      persist(
+        immer((set, get) => ({
+          // State
+          donationRecords: [],
+          itemRecords: [],
 
         // Donation Actions
         addDonation: async ({ guestId, type, amount, description }) => {
@@ -276,8 +281,115 @@ export const useDonationsStore = create(
         getItemsByName: (itemName) => {
           return get().itemRecords.filter((r) => r.item === itemName);
         },
+
+        // Realtime subscription methods
+        subscribeToRealtime: () => {
+          if (!isSupabaseEnabled() || !isRealtimeAvailable()) {
+            console.log('[Donations] Realtime not available, skipping subscription');
+            return () => {};
+          }
+
+          const client = getRealtimeClient();
+          if (!client) return () => {};
+
+          // Clean up any existing subscriptions
+          get().unsubscribeFromRealtime();
+
+          const handleDonationChange = (eventType, payload) => {
+            const { new: newRecord, old: oldRecord } = payload;
+            set((state) => {
+              if (eventType === 'INSERT' && newRecord) {
+                const mapped = mapDonationRow(newRecord);
+                const exists = state.donationRecords.some((r) => r.id === mapped.id);
+                if (!exists) {
+                  state.donationRecords.push(mapped);
+                  console.log('[Realtime] Donation INSERT:', mapped.id);
+                }
+              } else if (eventType === 'UPDATE' && newRecord) {
+                const mapped = mapDonationRow(newRecord);
+                const idx = state.donationRecords.findIndex((r) => r.id === mapped.id);
+                if (idx >= 0) {
+                  state.donationRecords[idx] = mapped;
+                  console.log('[Realtime] Donation UPDATE:', mapped.id);
+                }
+              } else if (eventType === 'DELETE' && oldRecord) {
+                state.donationRecords = state.donationRecords.filter(
+                  (r) => r.id !== oldRecord.id
+                );
+                console.log('[Realtime] Donation DELETE:', oldRecord.id);
+              }
+            });
+          };
+
+          const handleItemChange = (eventType, payload) => {
+            const { new: newRecord, old: oldRecord } = payload;
+            set((state) => {
+              if (eventType === 'INSERT' && newRecord) {
+                const mapped = mapItemRow(newRecord);
+                const exists = state.itemRecords.some((r) => r.id === mapped.id);
+                if (!exists) {
+                  state.itemRecords.push(mapped);
+                  console.log('[Realtime] Item INSERT:', mapped.id);
+                }
+              } else if (eventType === 'UPDATE' && newRecord) {
+                const mapped = mapItemRow(newRecord);
+                const idx = state.itemRecords.findIndex((r) => r.id === mapped.id);
+                if (idx >= 0) {
+                  state.itemRecords[idx] = mapped;
+                  console.log('[Realtime] Item UPDATE:', mapped.id);
+                }
+              } else if (eventType === 'DELETE' && oldRecord) {
+                state.itemRecords = state.itemRecords.filter(
+                  (r) => r.id !== oldRecord.id
+                );
+                console.log('[Realtime] Item DELETE:', oldRecord.id);
+              }
+            });
+          };
+
+          // Subscribe to donations table
+          const donationsChannel = client
+            .channel('donations-main')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'donations' }, (payload) => {
+              handleDonationChange(payload.eventType, payload);
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('[Donations] Subscribed to donations realtime');
+              }
+            });
+
+          // Subscribe to items_distributed table
+          const itemsChannel = client
+            .channel('donations-items')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'items_distributed' }, (payload) => {
+              handleItemChange(payload.eventType, payload);
+            })
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('[Donations] Subscribed to items_distributed realtime');
+              }
+            });
+
+          donationsRealtimeChannels = [donationsChannel, itemsChannel];
+
+          // Return cleanup function
+          return () => get().unsubscribeFromRealtime();
+        },
+
+        unsubscribeFromRealtime: () => {
+          const client = getRealtimeClient();
+          if (client && donationsRealtimeChannels.length > 0) {
+            donationsRealtimeChannels.forEach((channel) => {
+              client.removeChannel(channel);
+            });
+            donationsRealtimeChannels = [];
+            console.log('[Donations] Unsubscribed from realtime');
+          }
+        },
       })),
       createPersistConfig('hopes-corner-donations')
+    )
     ),
     { name: 'DonationsStore' }
   )

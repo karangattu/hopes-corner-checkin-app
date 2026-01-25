@@ -256,6 +256,8 @@ const GuestList = () => {
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [duplicateWarning, setDuplicateWarning] = useState("");
+  const [duplicateMatches, setDuplicateMatches] = useState([]); // Store all potential duplicates
+  const [duplicateConfirmed, setDuplicateConfirmed] = useState(false); // User confirmed to create anyway
 
   const [pendingMealGuests, setPendingMealGuests] = useState(new Set());
   const [pendingExtraMealGuests, setPendingExtraMealGuests] = useState(new Set());
@@ -1236,20 +1238,30 @@ const GuestList = () => {
         name === "lastName" ? value.trim() : createFormData.lastName;
 
       if (firstName && lastName) {
-        const fullName = `${firstName} ${lastName}`.toLowerCase();
-        const possibleDuplicate = guests.find(
-          (guest) =>
-            guest.name?.toLowerCase() === fullName ||
-            (guest.firstName?.toLowerCase() === firstName.toLowerCase() &&
-              guest.lastName?.toLowerCase() === lastName.toLowerCase()),
+        const duplicates = findPotentialDuplicates(
+          firstName,
+          lastName,
+          guests,
         );
 
-        if (possibleDuplicate) {
+        if (duplicates.length > 0) {
+          const matchNames = duplicates
+            .slice(0, 3)
+            .map((d) => d.name)
+            .join(", ");
+          const moreText =
+            duplicates.length > 3
+              ? ` and ${duplicates.length - 3} more`
+              : "";
           setDuplicateWarning(
-            `A guest named "${possibleDuplicate.name}" already exists. Please verify this is a different person.`,
+            `Similar name(s) found: ${matchNames}${moreText}. If this is a new guest, click "Create Anyway".`,
           );
+          setDuplicateMatches(duplicates);
+          setDuplicateConfirmed(false); // Reset confirmation when matches change
         } else {
           setDuplicateWarning("");
+          setDuplicateMatches([]);
+          setDuplicateConfirmed(false);
         }
       }
     }
@@ -1295,6 +1307,9 @@ const GuestList = () => {
         bicycleDescription: "",
       });
       setShowCreateForm(false);
+      setDuplicateWarning("");
+      setDuplicateMatches([]);
+      setDuplicateConfirmed(false);
       setSearchTerm(
         newGuest.preferredName ||
         newGuest.name ||
@@ -1324,6 +1339,8 @@ const GuestList = () => {
     setCreateError("");
     setFieldErrors({});
     setDuplicateWarning("");
+    setDuplicateMatches([]);
+    setDuplicateConfirmed(false);
   };
 
   useEffect(() => {
@@ -3222,6 +3239,9 @@ const GuestList = () => {
           isCreating={isCreating}
           createError={createError}
           duplicateWarning={duplicateWarning}
+          duplicateMatches={duplicateMatches}
+          duplicateConfirmed={duplicateConfirmed}
+          onDuplicateConfirm={() => setDuplicateConfirmed(true)}
           onChange={handleCreateFormChange}
           onNameBlur={handleNameBlur}
           onSubmit={handleCreateGuest}
@@ -3366,12 +3386,25 @@ const GuestList = () => {
                         </p>
                       </div>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-full">
-                      <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">↑↓</kbd>
-                      <span>Navigate</span>
-                      <span className="text-emerald-400">•</span>
-                      <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">Enter</kbd>
-                      <span>Expand</span>
+                    <div className="flex items-center gap-3">
+                      {/* Create New button when valid name entered but matches exist */}
+                      {hasMinimumNameParts && (
+                        <button
+                          onClick={handleShowCreateForm}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+                          title="Create a new guest with this name"
+                        >
+                          <UserPlus size={14} />
+                          <span>Create New</span>
+                        </button>
+                      )}
+                      <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/50 px-3 py-1.5 rounded-full">
+                        <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">↑↓</kbd>
+                        <span>Navigate</span>
+                        <span className="text-emerald-400">•</span>
+                        <kbd className="px-1.5 py-0.5 bg-white rounded text-emerald-800 font-mono border border-emerald-200">Enter</kbd>
+                        <span>Expand</span>
+                      </div>
                     </div>
                   </div>
 

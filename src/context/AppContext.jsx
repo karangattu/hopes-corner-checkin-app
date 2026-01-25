@@ -78,6 +78,7 @@ import {
 } from "./utils/mappers";
 import { persistentStore } from "../utils/persistentStore";
 import { useGuestsStore } from "../stores/useGuestsStore";
+import { useStoreToContextSync } from "../hooks/useStoreToContextSync";
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 
@@ -141,6 +142,19 @@ export const AppProvider = ({ children }) => {
   const incrementWaiverVersion = useCallback(() => {
     setWaiverVersion((v) => v + 1);
   }, []);
+
+  // Sync Zustand store updates to AppContext for realtime updates
+  useStoreToContextSync({
+    setShowerRecords,
+    setLaundryRecords,
+    setBicycleRecords,
+    setMealRecords,
+    setHolidayRecords,
+    setHaircutRecords,
+    setDonationRecords,
+    setItemGivenRecords,
+    setGuests,
+  });
 
   const pushAction = useCallback((action) => {
     if (!action) return;

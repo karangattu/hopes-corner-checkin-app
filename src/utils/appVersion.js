@@ -10,6 +10,17 @@ export const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSIO
 // Changelog entries - add new entries at the top
 export const CHANGELOG = [
   {
+    version: "0.0.8",
+    date: "January 25, 2026",
+    highlights: [
+      {
+        type: "feature",
+        title: "Real-Time Sync Across Devices",
+        description: "Multiple staff members can now work simultaneously and see each other's changes instantly. Shower bookings, laundry updates, meal records, and all other data sync in real-time without needing to refresh the page.",
+      },
+    ],
+  },
+  {
     version: "0.0.7",
     date: "January 4, 2026",
     highlights: [

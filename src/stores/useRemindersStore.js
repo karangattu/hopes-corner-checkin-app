@@ -4,6 +4,10 @@ import { immer } from 'zustand/middleware/immer';
 import { supabase, isSupabaseEnabled } from '../supabaseClient';
 import { fetchAllPaginated } from '../utils/supabasePagination';
 import enhancedToast from '../utils/toast';
+import { getRealtimeClient, isRealtimeAvailable } from '../hooks/useRealtimeSubscription';
+
+// Store active realtime subscriptions for cleanup
+let remindersRealtimeChannels = [];
 
 /**
  * Maps a database reminder row to the application's reminder object format.
@@ -232,6 +236,72 @@ export const useRemindersStore = create(
         set((state) => {
           state.reminders = [];
         });
+      },
+
+      // Realtime subscription methods
+      subscribeToRealtime: () => {
+        if (!isSupabaseEnabled() || !isRealtimeAvailable()) {
+          console.log('[Reminders] Realtime not available, skipping subscription');
+          return () => {};
+        }
+
+        const client = getRealtimeClient();
+        if (!client) return () => {};
+
+        // Clean up any existing subscriptions
+        get().unsubscribeFromRealtime();
+
+        const handleReminderChange = (eventType, payload) => {
+          const { new: newRecord, old: oldRecord } = payload;
+          set((state) => {
+            if (eventType === 'INSERT' && newRecord) {
+              const mapped = mapReminderRow(newRecord);
+              const exists = state.reminders.some((r) => r.id === mapped.id);
+              if (!exists) {
+                state.reminders = [mapped, ...state.reminders];
+                console.log('[Realtime] Reminder INSERT:', mapped.id);
+              }
+            } else if (eventType === 'UPDATE' && newRecord) {
+              const mapped = mapReminderRow(newRecord);
+              const idx = state.reminders.findIndex((r) => r.id === mapped.id);
+              if (idx >= 0) {
+                state.reminders[idx] = mapped;
+                console.log('[Realtime] Reminder UPDATE:', mapped.id);
+              }
+            } else if (eventType === 'DELETE' && oldRecord) {
+              state.reminders = state.reminders.filter((r) => r.id !== oldRecord.id);
+              console.log('[Realtime] Reminder DELETE:', oldRecord.id);
+            }
+          });
+        };
+
+        // Subscribe to guest_reminders table
+        const remindersChannel = client
+          .channel('reminders-main')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_reminders' }, (payload) => {
+            handleReminderChange(payload.eventType, payload);
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('[Reminders] Subscribed to guest_reminders realtime');
+            }
+          });
+
+        remindersRealtimeChannels = [remindersChannel];
+
+        // Return cleanup function
+        return () => get().unsubscribeFromRealtime();
+      },
+
+      unsubscribeFromRealtime: () => {
+        const client = getRealtimeClient();
+        if (client && remindersRealtimeChannels.length > 0) {
+          remindersRealtimeChannels.forEach((channel) => {
+            client.removeChannel(channel);
+          });
+          remindersRealtimeChannels = [];
+          console.log('[Reminders] Unsubscribed from realtime');
+        }
       },
     })),
     { name: 'reminders-store' }

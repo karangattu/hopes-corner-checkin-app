@@ -765,3 +765,76 @@ create table if not exists public.guest_reminders (
 create index if not exists guest_reminders_guest_id_idx on public.guest_reminders (guest_id);
 create index if not exists guest_reminders_active_idx on public.guest_reminders (active) where active = true;
 create index if not exists guest_reminders_created_at_idx on public.guest_reminders (created_at desc);
+
+-- 9. Enable Supabase Realtime for tables that need live updates
+-- This allows multiple users to see changes in real-time without manual refresh
+
+-- Add tables to supabase_realtime publication
+-- Note: This may fail if tables are already in the publication, which is fine
+DO $$
+BEGIN
+  -- Services tables
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE shower_reservations;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE laundry_bookings;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE bicycle_repairs;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  -- Meals tables
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE meal_attendance;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE holiday_visits;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE haircut_visits;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  -- Guests tables
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE guests;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE guest_proxies;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE guest_warnings;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  -- Donations tables
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE donations;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE items_distributed;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  -- Reminders table
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE guest_reminders;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END$$;
