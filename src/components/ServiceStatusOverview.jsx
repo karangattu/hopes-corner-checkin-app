@@ -181,6 +181,13 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
       return acc;
     }, {});
 
+    // Debug: Log slot counts to help diagnose realtime update issues
+    console.log('[ServiceStatusOverview] Calculating next available shower slot:', {
+      totalRecords: showerRecords?.length,
+      todayActiveRecords: todayActiveRecords.length,
+      slotCounts,
+    });
+
     for (const slot of allShowerSlots) {
       if (!slot) continue;
       if (blockedShowerSlots.has(slot)) continue;

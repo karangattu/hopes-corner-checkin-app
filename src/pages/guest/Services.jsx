@@ -3587,6 +3587,14 @@ const Services = () => {
       (detail) => detail.count === 1,
     ).length;
     const fullSlots = slotDetails.filter((detail) => detail.isFull).length;
+
+    // Debug: Log slot details to help diagnose realtime update issues
+    console.log('[Services] renderShowersSection called:', {
+      todayBookedShowersCount: todayBookedShowers.length,
+      nextSlotLabel,
+      slotCounts: Object.fromEntries(slotDetails.map(d => [d.slotTime, d.count])),
+    });
+
     const showerSlotOptions = (allShowerSlots || []).map((slot) => ({
       value: slot,
       label: formatShowerSlotLabel(slot),
