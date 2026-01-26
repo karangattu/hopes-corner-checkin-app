@@ -415,6 +415,11 @@ export const useMealsStore = create(
               set((state) => {
                 if (eventType === 'INSERT' && newRecord) {
                   const mapped = mapMealRow(newRecord);
+                  // Only add to mealRecords if meal_type is 'guest' - other types go to their own arrays
+                  if (newRecord.meal_type !== 'guest') {
+                    console.log('[Realtime] Skipping non-guest meal INSERT:', mapped.id, 'type:', newRecord.meal_type);
+                    return;
+                  }
                   const exists = state.mealRecords.some((r) => r.id === mapped.id);
                   if (!exists) {
                     state.mealRecords.push(mapped);
@@ -422,6 +427,11 @@ export const useMealsStore = create(
                   }
                 } else if (eventType === 'UPDATE' && newRecord) {
                   const mapped = mapMealRow(newRecord);
+                  // Only update mealRecords if meal_type is 'guest'
+                  if (newRecord.meal_type !== 'guest') {
+                    console.log('[Realtime] Skipping non-guest meal UPDATE:', mapped.id, 'type:', newRecord.meal_type);
+                    return;
+                  }
                   const idx = state.mealRecords.findIndex((r) => r.id === mapped.id);
                   if (idx >= 0) {
                     state.mealRecords[idx] = mapped;
@@ -541,7 +551,29 @@ export const useMealsStore = create(
             }
           },
         })),
-        createPersistConfig('hopes-corner-meals')
+        {
+          ...createPersistConfig('hopes-corner-meals'),
+          // Migration to clean up corrupted data where non-guest meal types
+          // were incorrectly added to mealRecords (e.g., lunch_bag records)
+          version: 1,
+          migrate: (persistedState, version) => {
+            if (version === 0 || !version) {
+              // Filter mealRecords to only include records with valid guestId
+              // This fixes the bug where lunch_bag records (no guestId) were
+              // incorrectly added to mealRecords via realtime subscription
+              const cleanedMealRecords = (persistedState.mealRecords || []).filter(
+                (record) => record.guestId && record.type === 'guest'
+              );
+              console.log('[MealsStore] Migration v1: Cleaned mealRecords from', 
+                persistedState.mealRecords?.length || 0, 'to', cleanedMealRecords.length);
+              return {
+                ...persistedState,
+                mealRecords: cleanedMealRecords,
+              };
+            }
+            return persistedState;
+          },
+        }
       )
     ),
     { name: 'MealsStore' }

@@ -70,8 +70,15 @@ export const useStoreToContextSync = ({
       (state) => state.mealRecords,
       (mealRecords) => {
         if (mealRecords && setMealRecords) {
-          console.log('[StoreSync] Syncing mealRecords to AppContext:', mealRecords.length);
-          setMealRecords(mealRecords);
+          // Filter to ensure only valid guest meal records are synced
+          // This prevents corrupted data (e.g., lunch_bag records without guestId)
+          // from being synced to AppContext
+          const validMealRecords = mealRecords.filter(
+            (r) => r.guestId && (r.type === 'guest' || !r.type)
+          );
+          console.log('[StoreSync] Syncing mealRecords to AppContext:', validMealRecords.length, 
+            '(filtered from', mealRecords.length, ')');
+          setMealRecords(validMealRecords);
         }
       }
     );
