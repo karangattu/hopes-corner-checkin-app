@@ -7,8 +7,10 @@ vi.mock('../supabaseClient', () => ({
   isSupabaseEnabled: vi.fn(() => true),
 }));
 
-// Create shared mock functions
-const mockRemoveChannel = vi.fn();
+// Create shared mock functions using vi.hoisted to ensure they're available during mock factory execution
+const { mockRemoveChannel } = vi.hoisted(() => ({
+  mockRemoveChannel: vi.fn(),
+}));
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
