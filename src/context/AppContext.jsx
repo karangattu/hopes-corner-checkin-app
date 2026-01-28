@@ -1155,7 +1155,7 @@ export const AppProvider = ({ children }) => {
         // 30 minute slots
         const hours = Math.floor(t / 60);
         const minutes = t % 60;
-        slots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
+        slots.push(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`);
       }
       return slots;
     }
@@ -1168,7 +1168,7 @@ export const AppProvider = ({ children }) => {
         // 30 minute slots
         const hours = Math.floor(t / 60);
         const minutes = t % 60;
-        slots.push(`${hours}:${minutes.toString().padStart(2, "0")}`);
+        slots.push(`${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`);
       }
       return slots;
     }

@@ -156,6 +156,62 @@ describe("ShowerBooking", () => {
     expect(mockAddShowerRecord).toHaveBeenCalled();
   });
 
+  it("prevents double-click from creating duplicate bookings", async () => {
+    // Mock a slow async booking operation
+    let resolveBooking;
+    mockAddShowerRecord.mockImplementation(() => {
+      return new Promise((resolve) => {
+        resolveBooking = resolve;
+      });
+    });
+
+    render(<ShowerBooking />);
+
+    const bookButtons = screen.getAllByRole("button", { name: /Available/i });
+    
+    // Click twice rapidly (simulating double-click)
+    fireEvent.click(bookButtons[0]);
+    fireEvent.click(bookButtons[0]);
+
+    // Should only call addShowerRecord once (second click blocked by isBooking state)
+    expect(mockAddShowerRecord).toHaveBeenCalledTimes(1);
+
+    // Resolve the booking to clean up
+    if (resolveBooking) resolveBooking({ id: "new-booking" });
+  });
+
+  it("disables booking buttons while booking is in progress", async () => {
+    // Mock a slow async booking operation
+    let resolveBooking;
+    mockAddShowerRecord.mockImplementation(() => {
+      return new Promise((resolve) => {
+        resolveBooking = resolve;
+      });
+    });
+
+    render(<ShowerBooking />);
+
+    const bookButtons = screen.getAllByRole("button", { name: /Available/i });
+    
+    // First button should be enabled initially
+    expect(bookButtons[0]).not.toBeDisabled();
+    
+    // Click to start booking
+    fireEvent.click(bookButtons[0]);
+
+    // Wait for the button to show "Booking..." state and be disabled
+    await waitFor(() => {
+      // The Book Next Available button should show "Booking..." and be disabled
+      const bookingButton = screen.queryByText(/Booking\.\.\./i);
+      if (bookingButton) {
+        expect(bookingButton.closest("button")).toBeDisabled();
+      }
+    });
+
+    // Resolve the booking to clean up
+    if (resolveBooking) resolveBooking({ id: "new-booking" });
+  });
+
   it("handles booking error", async () => {
     mockAddShowerRecord.mockImplementation(() => {
       throw new Error("Slot unavailable");

@@ -37,13 +37,13 @@ describe('automaticMealEntries', () => {
             expect(rvMeals.count).toBe(100);
         });
 
-        it('returns Wednesday presets (day 3): 35 RV meals only', () => {
+        it('returns Wednesday presets (day 3): 40 RV meals only', () => {
             const meals = getAutomaticMealsForDay(3);
             // Lunch bags are now added per-guest at meal recording time, not as presets
             expect(meals).toHaveLength(1);
 
             const rvMeals = meals.find(m => m.type === MEAL_TYPES.RV_MEALS);
-            expect(rvMeals.count).toBe(35);
+            expect(rvMeals.count).toBe(40);
         });
 
         it('returns Thursday presets (day 4): 100 RV meals only', () => {

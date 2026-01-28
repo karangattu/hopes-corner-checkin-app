@@ -131,7 +131,17 @@ export const createShowerMutations = ({
             queueId: result.queueId,
           };
 
-          setShowerRecords((prev) => [...prev, localRecord]);
+          setShowerRecords((prev) => {
+            // Prevent duplicate: check if record with same guestId and time already exists for today
+            const isDuplicate = prev.some(
+              (r) => r.guestId === guestId && r.time === time && pacificDateStringFrom(r.date) === scheduledFor
+            );
+            if (isDuplicate) {
+              console.log('[ShowerMutation] Duplicate queued record detected, skipping:', localRecord.id);
+              return prev;
+            }
+            return [...prev, localRecord];
+          });
           setShowerSlots((prev) => [...prev, { guestId, time }]);
 
           pushAction({
@@ -148,7 +158,15 @@ export const createShowerMutations = ({
 
         // Operation completed successfully
         const mapped = mapShowerRow(result.result);
-        setShowerRecords((prev) => [...prev, mapped]);
+        setShowerRecords((prev) => {
+          // Prevent duplicate: realtime sync may have already added this record
+          const exists = prev.some((r) => r.id === mapped.id);
+          if (exists) {
+            console.log('[ShowerMutation] Record already exists, skipping duplicate add:', mapped.id);
+            return prev;
+          }
+          return [...prev, mapped];
+        });
         setShowerSlots((prev) => [...prev, { guestId, time }]);
         pushAction({
           id: Date.now() + Math.random(),
@@ -178,7 +196,17 @@ export const createShowerMutations = ({
       lastUpdated: timestamp,
     };
 
-    setShowerRecords((prev) => [...prev, record]);
+    setShowerRecords((prev) => {
+      // Prevent duplicate: check if record with same guestId and time already exists for today
+      const isDuplicate = prev.some(
+        (r) => r.guestId === guestId && r.time === time && pacificDateStringFrom(r.date) === scheduledFor
+      );
+      if (isDuplicate) {
+        console.log('[ShowerMutation] Duplicate local record detected, skipping:', record.id);
+        return prev;
+      }
+      return [...prev, record];
+    });
     setShowerSlots((prev) => [...prev, { guestId, time }]);
 
     pushAction({
@@ -230,7 +258,15 @@ export const createShowerMutations = ({
           .single();
         if (error) throw error;
         const mapped = mapShowerRow(data);
-        setShowerRecords((prev) => [...prev, mapped]);
+        setShowerRecords((prev) => {
+          // Prevent duplicate: realtime sync may have already added this record
+          const exists = prev.some((r) => r.id === mapped.id);
+          if (exists) {
+            console.log('[ShowerMutation] Waitlist record already exists, skipping duplicate add:', mapped.id);
+            return prev;
+          }
+          return [...prev, mapped];
+        });
         pushAction({
           id: Date.now() + Math.random(),
           type: "SHOWER_WAITLISTED",
@@ -247,7 +283,17 @@ export const createShowerMutations = ({
     }
 
     const record = { ...baseRecord, id: `local-${baseRecord.id}` };
-    setShowerRecords((prev) => [...prev, record]);
+    setShowerRecords((prev) => {
+      // Prevent duplicate: check if waitlist entry for this guest already exists today
+      const isDuplicate = prev.some(
+        (r) => r.guestId === guestId && r.status === "waitlisted" && pacificDateStringFrom(r.date) === today
+      );
+      if (isDuplicate) {
+        console.log('[ShowerMutation] Duplicate waitlist record detected, skipping:', record.id);
+        return prev;
+      }
+      return [...prev, record];
+    });
     pushAction({
       id: Date.now() + Math.random(),
       type: "SHOWER_WAITLISTED",

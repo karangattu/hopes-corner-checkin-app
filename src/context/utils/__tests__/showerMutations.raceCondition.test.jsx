@@ -244,6 +244,113 @@ describe("Shower Mutations - Race Condition Prevention", () => {
       expect(mockSupabaseClient.from).toHaveBeenCalledWith("shower_reservations");
     });
   });
+
+  describe("deduplication on state updates", () => {
+    it("should not add duplicate record if record with same ID already exists", async () => {
+      // Simulate scenario where realtime sync added the record before mutation completes
+      const existingRecord = {
+        id: "existing-uuid-123",
+        guestId: "guest-1",
+        time: "08:00",
+        date: "2025-01-15T08:00:00.000Z",
+        scheduledFor: "2025-01-15",
+        status: "booked",
+        createdAt: "2025-01-15T07:00:00.000Z",
+      };
+
+      // Create mutations with pre-existing record (simulating realtime sync beat us)
+      const setRecordsMock = vi.fn((updater) => {
+        const prev = [existingRecord];
+        const result = typeof updater === 'function' ? updater(prev) : updater;
+        return result;
+      });
+
+      const mutationsWithExisting = createShowerMutations({
+        supabaseEnabled: false, // Test local path
+        supabaseClient: null,
+        mapShowerRow: (row) => row,
+        ensureGuestServiceEligible: vi.fn(),
+        showerRecords: [existingRecord],
+        setShowerRecords: setRecordsMock,
+        showerSlots: [],
+        setShowerSlots: vi.fn(),
+        pacificDateStringFrom: (date) => {
+          if (!date) return null;
+          if (typeof date === "string" && date.includes("T")) {
+            return date.split("T")[0];
+          }
+          return date;
+        },
+        todayPacificDateString: () => "2025-01-15",
+        combineDateAndTimeISO: (date, time) => `${date}T${time}:00.000Z`,
+        createLocalId: () => "local-new-record",
+        pushAction: vi.fn(),
+        toast: mockToast,
+        enhancedToast: mockEnhancedToast,
+        normalizeDateInputToISO: (date) => date,
+      });
+
+      // Try to book same guest at same time (should detect duplicate)
+      await expect(
+        mutationsWithExisting.addShowerRecord("guest-1", "08:00")
+      ).rejects.toThrow("already has a shower booking");
+    });
+
+    it("should call setShowerRecords with deduplication logic that prevents adding existing record", async () => {
+      let capturedUpdater = null;
+      const setRecordsMock = vi.fn((updater) => {
+        capturedUpdater = updater;
+      });
+
+      const mutations = createShowerMutations({
+        supabaseEnabled: false,
+        supabaseClient: null,
+        mapShowerRow: (row) => row,
+        ensureGuestServiceEligible: vi.fn(),
+        showerRecords: [],
+        setShowerRecords: setRecordsMock,
+        showerSlots: [],
+        setShowerSlots: vi.fn(),
+        pacificDateStringFrom: (date) => {
+          if (!date) return null;
+          if (typeof date === "string" && date.includes("T")) {
+            return date.split("T")[0];
+          }
+          return date;
+        },
+        todayPacificDateString: () => "2025-01-15",
+        combineDateAndTimeISO: (date, time) => `${date}T${time}:00.000Z`,
+        createLocalId: () => "local-test-id",
+        pushAction: vi.fn(),
+        toast: mockToast,
+        enhancedToast: mockEnhancedToast,
+        normalizeDateInputToISO: (date) => date,
+      });
+
+      // Book
+      await mutations.addShowerRecord("guest-1", "08:00");
+      expect(setRecordsMock).toHaveBeenCalled();
+
+      // Simulate scenario where realtime already added the same record
+      const existingRecord = {
+        id: "different-id",
+        guestId: "guest-1",
+        time: "08:00",
+        date: "2025-01-15T08:00:00.000Z",
+        scheduledFor: "2025-01-15",
+        status: "booked",
+      };
+
+      // Apply the updater to a state that already has a matching record
+      const prevWithExisting = [existingRecord];
+      const result = capturedUpdater(prevWithExisting);
+
+      // The deduplication should prevent adding a duplicate
+      expect(result.length).toBe(1);
+      expect(result[0].id).toBe("different-id"); // Should keep existing, not add new
+
+    });
+  });
 });
 
 // Helper function to test validateSlotAvailability in isolation

@@ -162,7 +162,7 @@ const ServiceStatusOverview = ({ onShowerClick, onLaundryClick }) => {
   const nextAvailableShowerSlot = useMemo(() => {
     if (!allShowerSlots?.length || showerStats.available === 0) return null;
 
-    const inactiveStatuses = new Set(["waitlisted", "cancelled", "done"]);
+    const inactiveStatuses = new Set(["waitlisted"]);
     const todayActiveRecords = (showerRecords || []).filter(
       (record) =>
         pacificDateStringFrom(record.date) === todayString &&

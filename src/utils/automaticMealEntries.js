@@ -6,7 +6,7 @@
  *
  * Schedule:
  * - Monday: 100 RV meals
- * - Wednesday: 35 RV meals
+ * - Wednesday: 40 RV meals
  * - Thursday: 100 RV meals
  * - Saturday: 100 Lunch Bags, 100 RV meals, 50 Day Worker Center meals
  *
@@ -46,7 +46,7 @@ export const AUTOMATIC_MEAL_CONFIG = {
     // Wednesday
     3: [
         // Lunch bags are now added automatically per-guest when meals are recorded
-        { type: MEAL_TYPES.RV_MEALS, count: 35, label: '35 RV Meals' },
+        { type: MEAL_TYPES.RV_MEALS, count: 40, label: '40 RV Meals' },
     ],
 
     // Thursday

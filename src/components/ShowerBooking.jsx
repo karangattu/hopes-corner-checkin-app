@@ -67,6 +67,7 @@ const ShowerBooking = () => {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
 
   const todayString = todayPacificDateString();
 
@@ -80,6 +81,7 @@ const ShowerBooking = () => {
   useEffect(() => {
     setError("");
     setSuccess(false);
+    setIsBooking(false);
   }, [showerPickerGuest]);
 
   // Get blocked shower slots for today
@@ -203,6 +205,12 @@ const ShowerBooking = () => {
 
   const handleBookShower = useCallback(async (slotTime) => {
     if (!showerPickerGuest) return;
+    
+    // Prevent double-clicks / rapid submissions
+    if (isBooking) {
+      console.log("Booking already in progress, ignoring duplicate click");
+      return;
+    }
 
     console.log(
       "handleBookShower called",
@@ -210,6 +218,9 @@ const ShowerBooking = () => {
       "guest:",
       showerPickerGuest?.id,
     );
+
+    // Lock immediately to prevent race conditions
+    setIsBooking(true);
 
     // Set up optimistic update and rollback handlers
     const optimisticUpdate = () => {
@@ -239,23 +250,34 @@ const ShowerBooking = () => {
             // Close modal after success
             setTimeout(() => {
               setSuccess(false);
+              setIsBooking(false);
               setShowerPickerGuest(null);
             }, 1500);
           },
           onError: (err) => {
             setError(err.message || "Failed to book shower slot");
             setSuccess(false);
+            setIsBooking(false);
           },
         }
       );
     } catch (err) {
       // Error is already handled in executeWithOptimisticUpdate
       console.error("Shower booking error:", err);
+      setIsBooking(false);
     }
-  }, [showerPickerGuest, addShowerRecord, setShowerPickerGuest]);
+  }, [showerPickerGuest, addShowerRecord, setShowerPickerGuest, isBooking]);
 
   const handleWaitlist = useCallback(async () => {
     if (!showerPickerGuest) return;
+    
+    // Prevent double-clicks / rapid submissions
+    if (isBooking) {
+      console.log("Booking already in progress, ignoring duplicate click");
+      return;
+    }
+    
+    setIsBooking(true);
 
     // Optimistic update for waitlist
     const optimisticUpdate = () => {
@@ -281,19 +303,22 @@ const ShowerBooking = () => {
             toast.success("Guest added to shower waitlist");
             setTimeout(() => {
               setSuccess(false);
+              setIsBooking(false);
               setShowerPickerGuest(null);
             }, 1200);
           },
           onError: (err) => {
             setError(err.message || "Failed to add to waitlist");
             setSuccess(false);
+            setIsBooking(false);
           },
         }
       );
     } catch (err) {
       console.error("Waitlist error:", err);
+      setIsBooking(false);
     }
-  }, [showerPickerGuest, addShowerWaitlist, setShowerPickerGuest]);
+  }, [showerPickerGuest, addShowerWaitlist, setShowerPickerGuest, isBooking]);
 
   const titleId = useId();
   const descriptionId = useId();
@@ -370,10 +395,11 @@ const ShowerBooking = () => {
                 <button
                   type="button"
                   onClick={() => handleBookShower(nextAvailableSlot.slotTime)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm"
+                  disabled={isBooking}
+                  className={`w-full font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm ${isBooking ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"} text-white`}
                   data-testid="book-next-available-btn"
                 >
-                  Book {nextAvailableSlot.label}
+                  {isBooking ? "Booking..." : `Book ${nextAvailableSlot.label}`}
                 </button>
               </div>
             ) : (
@@ -389,9 +415,10 @@ const ShowerBooking = () => {
                 </div>
                 <button
                   onClick={handleWaitlist}
-                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm"
+                  disabled={isBooking}
+                  className={`w-full font-semibold px-3 py-2 rounded-lg transition-colors shadow-sm text-sm ${isBooking ? "bg-yellow-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700"} text-white`}
                 >
-                  Add to Waitlist
+                  {isBooking ? "Adding..." : "Add to Waitlist"}
                 </button>
               </div>
             )}
@@ -502,10 +529,11 @@ const ShowerBooking = () => {
                 <button
                   type="button"
                   onClick={() => handleBookShower(nextAvailableSlot.slotTime)}
-                  className="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  disabled={isBooking}
+                  className={`mt-3 w-full text-xs font-medium px-3 py-2 rounded-lg transition-colors ${isBooking ? "bg-blue-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"} text-white`}
                   data-testid="book-next-available-btn"
                 >
-                  Book {nextAvailableSlot.label}
+                  {isBooking ? "Booking..." : `Book ${nextAvailableSlot.label}`}
                 </button>
               )}
             </div>
@@ -563,10 +591,10 @@ const ShowerBooking = () => {
                 <button
                   key={slot.slotTime}
                   onClick={() =>
-                    !slot.isFull && handleBookShower(slot.slotTime)
+                    !slot.isFull && !isBooking && handleBookShower(slot.slotTime)
                   }
-                  disabled={slot.isFull}
-                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${slot.isFull
+                  disabled={slot.isFull || isBooking}
+                  className={`flex flex-col items-start gap-3 p-4 border rounded-lg transition-all duration-200 text-sm w-full min-h-[100px] ${slot.isFull || isBooking
                       ? "bg-gray-100 cursor-not-allowed text-gray-500 border-gray-200"
                       : slot.isNearlyFull
                         ? "bg-yellow-50 hover:bg-yellow-100 hover:shadow-md active:scale-98 border-yellow-300 text-gray-800 shadow-sm"
@@ -614,9 +642,10 @@ const ShowerBooking = () => {
               </div>
               <button
                 onClick={handleWaitlist}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded"
+                disabled={isBooking}
+                className={`px-4 py-2 rounded ${isBooking ? "bg-yellow-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700"} text-white`}
               >
-                Add to Waitlist
+                {isBooking ? "Adding..." : "Add to Waitlist"}
               </button>
             </div>
           )}

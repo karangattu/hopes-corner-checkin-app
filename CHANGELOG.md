@@ -6,7 +6,7 @@
 
 - **Automatic Meal Entries**: Meals for RVs, Day Worker Center, and lunch bags are automatically added after meal service ends. Preset quantities by day:
   - **Monday**: 100 RV Meals
-  - **Wednesday**: 35 RV Meals  
+  - **Wednesday**: 40 RV Meals  
   - **Thursday**: 100 RV Meals
   - **Saturday**: 100 Lunch Bags, 100 RV Meals, 50 Day Worker Center Meals
 - **Per-Guest Lunch Bags**: On meal days (except Fridays), 1 lunch bag is added automatically per guest meal (plus 1 extra if picked up by proxy). Fridays are breakfast-only and don't include lunch bags.
