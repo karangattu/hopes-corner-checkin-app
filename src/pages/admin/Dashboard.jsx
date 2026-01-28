@@ -29,6 +29,7 @@ import AttendanceBatchUpload from "../../components/AttendanceBatchUpload";
 import OverviewDashboard from "../../components/admin/OverviewDashboard";
 import MealReport from "../../components/admin/MealReport";
 import MonthlySummaryReport from "../../components/admin/MonthlySummaryReport";
+import MonthlyReport from "../../components/admin/MonthlyReport";
 import Analytics from "./Analytics";
 import SupabaseSyncToggle from "../../components/SupabaseSyncToggle";
 import FailedOperationsPanel from "../../components/FailedOperationsPanel";
@@ -632,18 +633,26 @@ const Dashboard = () => {
   const baseSections = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "monthly-report", label: "Monthly Report", icon: FileText },
     { id: "meal-report", label: "Meal Report", icon: Utensils },
     { id: "monthly-summary", label: "Monthly Summary", icon: ClipboardList },
     { id: "batch-upload", label: "Batch Upload", icon: Upload },
     { id: "export", label: "Data Export", icon: Download },
   ];
 
+  const isStaff = role === "staff";
+  const isCheckin = role === "checkin";
+
   const sections = baseSections.filter((s) => {
     // Admin sees everything
     if (isAdmin) return true;
     // Board users get only the admin dashboard sections (read-only reports & exports)
     if (isBoard) return s.id !== "batch-upload";
-    // Default staff/checkin: no admin sections; fall back to showing overview & reports only
+    // Staff: same as board
+    if (isStaff) return s.id !== "batch-upload";
+    // Checkin users: no monthly-report or batch-upload (limited access)
+    if (isCheckin) return ["overview", "analytics", "meal-report", "monthly-summary", "export"].includes(s.id);
+    // Default fallback
     return ["overview", "analytics", "meal-report", "monthly-summary", "export"].includes(s.id);
   });
 
@@ -656,6 +665,8 @@ const Dashboard = () => {
         return renderOverviewSection();
       case "analytics":
         return renderAnalyticsSection();
+      case "monthly-report":
+        return renderMonthlyReportSection();
       case "meal-report":
         return renderMealReportSection();
       case "monthly-summary":
@@ -672,6 +683,12 @@ const Dashboard = () => {
   const renderAnalyticsSection = () => (
     <div className="space-y-6">
       <Analytics />
+    </div>
+  );
+
+  const renderMonthlyReportSection = () => (
+    <div className="space-y-6">
+      <MonthlyReport />
     </div>
   );
 
