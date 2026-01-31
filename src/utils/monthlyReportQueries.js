@@ -1,6 +1,11 @@
 import { supabase, assertSupabase } from "../supabaseClient";
 
 /**
+ * Default page size for paginated queries
+ */
+const PAGE_SIZE = 1000;
+
+/**
  * Get the start and end dates for a given month
  * @param {number} year - Full year (e.g., 2024)
  * @param {number} month - Month (1-12)
@@ -28,23 +33,13 @@ export const getYTDDateRange = (year, month) => {
 
 /**
  * Fetch meal counts by type for a date range
+ * Uses pagination to ensure all records are fetched (Supabase default limit is 1000)
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<{ guest: number, rv: number, lunchBag: number, dayWorker: number, total: number }>}
  */
 export const fetchMealCounts = async (startDate, endDate) => {
   assertSupabase();
-
-  const { data, error } = await supabase
-    .from("meal_attendance")
-    .select("meal_type, quantity")
-    .gte("served_on", startDate)
-    .lte("served_on", endDate);
-
-  if (error) {
-    console.error("Error fetching meal counts:", error);
-    throw error;
-  }
 
   const counts = {
     guest: 0,
@@ -54,40 +49,62 @@ export const fetchMealCounts = async (startDate, endDate) => {
     total: 0,
   };
 
-  (data || []).forEach((record) => {
-    const qty = record.quantity || 1;
-    counts.total += qty;
+  let offset = 0;
+  let hasMore = true;
 
-    switch (record.meal_type) {
-      case "guest":
-        counts.guest += qty;
-        break;
-      case "rv":
-        counts.rv += qty;
-        break;
-      case "lunch_bag":
-        counts.lunchBag += qty;
-        break;
-      case "day_worker":
-        counts.dayWorker += qty;
-        break;
-      // Extra, shelter, united_effort are grouped into guest for reporting
-      case "extra":
-      case "shelter":
-      case "united_effort":
-        counts.guest += qty;
-        break;
-      default:
-        counts.guest += qty;
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("meal_attendance")
+      .select("meal_type, quantity")
+      .gte("served_on", startDate)
+      .lte("served_on", endDate)
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Error fetching meal counts:", error);
+      throw error;
     }
-  });
+
+    const rows = data || [];
+
+    rows.forEach((record) => {
+      const qty = record.quantity || 1;
+      counts.total += qty;
+
+      switch (record.meal_type) {
+        case "guest":
+          counts.guest += qty;
+          break;
+        case "rv":
+          counts.rv += qty;
+          break;
+        case "lunch_bag":
+          counts.lunchBag += qty;
+          break;
+        case "day_worker":
+          counts.dayWorker += qty;
+          break;
+        // Extra, shelter, united_effort are grouped into guest for reporting
+        case "extra":
+        case "shelter":
+        case "united_effort":
+          counts.guest += qty;
+          break;
+        default:
+          counts.guest += qty;
+      }
+    });
+
+    offset += PAGE_SIZE;
+    hasMore = rows.length === PAGE_SIZE;
+  }
 
   return counts;
 };
 
 /**
  * Fetch shower count for a date range
- * Uses scheduled_for column (date type) and status 'done' for completed showers
+ * Uses scheduled_for column (date type) and status 'done' or 'attended' for completed showers
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<number>}
@@ -100,7 +117,7 @@ export const fetchShowerCount = async (startDate, endDate) => {
     .select("*", { count: "exact", head: true })
     .gte("scheduled_for", startDate)
     .lte("scheduled_for", endDate)
-    .eq("status", "done");
+    .in("status", ["done", "attended"]);
 
   if (error) {
     console.error("Error fetching shower count:", error);
@@ -113,6 +130,7 @@ export const fetchShowerCount = async (startDate, endDate) => {
 /**
  * Fetch laundry count for a date range
  * Uses scheduled_for column (date type)
+ * Includes completed statuses: done, picked_up, returned, offsite_picked_up, attended
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<number>}
@@ -125,7 +143,7 @@ export const fetchLaundryCount = async (startDate, endDate) => {
     .select("*", { count: "exact", head: true })
     .gte("scheduled_for", startDate)
     .lte("scheduled_for", endDate)
-    .in("status", ["done", "picked_up", "offsite_picked_up"]);
+    .in("status", ["done", "picked_up", "returned", "offsite_picked_up", "attended"]);
 
   if (error) {
     console.error("Error fetching laundry count:", error);
@@ -198,6 +216,7 @@ export const fetchHaircutCount = async (startDate, endDate) => {
 
 /**
  * Fetch guest IDs who received meals in a date range (for demographics)
+ * Uses pagination to ensure all records are fetched
  * Filter out null guest_ids in JavaScript since .not() may not work with proxy
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
@@ -206,24 +225,40 @@ export const fetchHaircutCount = async (startDate, endDate) => {
 export const fetchActiveGuestIds = async (startDate, endDate) => {
   assertSupabase();
 
-  const { data, error } = await supabase
-    .from("meal_attendance")
-    .select("guest_id")
-    .gte("served_on", startDate)
-    .lte("served_on", endDate);
+  const allGuestIds = new Set();
+  let offset = 0;
+  let hasMore = true;
 
-  if (error) {
-    console.error("Error fetching active guest IDs:", error);
-    throw error;
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("meal_attendance")
+      .select("guest_id")
+      .gte("served_on", startDate)
+      .lte("served_on", endDate)
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Error fetching active guest IDs:", error);
+      throw error;
+    }
+
+    const rows = data || [];
+    rows.forEach((r) => {
+      if (r.guest_id != null) {
+        allGuestIds.add(r.guest_id);
+      }
+    });
+
+    offset += PAGE_SIZE;
+    hasMore = rows.length === PAGE_SIZE;
   }
 
-  // Filter out null guest_ids and return unique IDs
-  const uniqueIds = [...new Set((data || []).filter((r) => r.guest_id != null).map((r) => r.guest_id))];
-  return uniqueIds;
+  return [...allGuestIds];
 };
 
 /**
  * Fetch demographics for a set of guest IDs
+ * Batches queries to handle large guest lists (Supabase IN clause has limits)
  * @param {string[]} guestIds - Array of guest IDs
  * @returns {Promise<{ housingStatus: Object, locations: Object, ageGroups: Object }>}
  */
@@ -239,39 +274,48 @@ export const fetchGuestDemographics = async (guestIds) => {
     };
   }
 
-  const { data, error } = await supabase
-    .from("guests")
-    .select("housing_status, location, age_group")
-    .in("id", guestIds);
-
-  if (error) {
-    console.error("Error fetching guest demographics:", error);
-    throw error;
-  }
-
   const housingStatus = {};
   const locations = {};
   const ageGroups = {};
+  let totalGuests = 0;
 
-  (data || []).forEach((guest) => {
-    // Housing status
-    const housing = guest.housing_status || "Unknown";
-    housingStatus[housing] = (housingStatus[housing] || 0) + 1;
+  // Batch guest IDs to avoid IN clause limits (typically 500-1000 items)
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < guestIds.length; i += BATCH_SIZE) {
+    const batch = guestIds.slice(i, i + BATCH_SIZE);
 
-    // Location
-    const location = guest.location || "Unknown";
-    locations[location] = (locations[location] || 0) + 1;
+    const { data, error } = await supabase
+      .from("guests")
+      .select("housing_status, location, age_group")
+      .in("id", batch);
 
-    // Age group
-    const ageGroup = guest.age_group || "Unknown";
-    ageGroups[ageGroup] = (ageGroups[ageGroup] || 0) + 1;
-  });
+    if (error) {
+      console.error("Error fetching guest demographics:", error);
+      throw error;
+    }
+
+    (data || []).forEach((guest) => {
+      totalGuests += 1;
+
+      // Housing status
+      const housing = guest.housing_status || "Unknown";
+      housingStatus[housing] = (housingStatus[housing] || 0) + 1;
+
+      // Location
+      const location = guest.location || "Unknown";
+      locations[location] = (locations[location] || 0) + 1;
+
+      // Age group
+      const ageGroup = guest.age_group || "Unknown";
+      ageGroups[ageGroup] = (ageGroups[ageGroup] || 0) + 1;
+    });
+  }
 
   return {
     housingStatus,
     locations,
     ageGroups,
-    totalGuests: data?.length || 0,
+    totalGuests,
   };
 };
 
