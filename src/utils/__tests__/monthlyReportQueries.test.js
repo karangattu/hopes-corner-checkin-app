@@ -43,7 +43,7 @@ const createMockQueryBuilder = (dataOrPages, options = {}) => {
     lte: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
-    range: vi.fn((start, end) => {
+    range: vi.fn((start) => {
       currentRangeStart = start;
       return builder;
     }),
@@ -208,14 +208,14 @@ describe('monthlyReportQueries', () => {
   });
 
   describe('fetchShowerCount', () => {
-    it('queries with both done and attended statuses', async () => {
+    it('queries with done status for completed showers', async () => {
       const mockBuilder = createMockQueryBuilder(null, { useCount: true, countValue: 42 });
       mockSupabase.from.mockReturnValue(mockBuilder);
 
       const result = await fetchShowerCount('2025-01-01', '2025-01-31');
 
       expect(result).toBe(42);
-      expect(mockBuilder.in).toHaveBeenCalledWith('status', ['done', 'attended']);
+      expect(mockBuilder.eq).toHaveBeenCalledWith('status', 'done');
     });
 
     it('returns 0 when no showers found', async () => {
@@ -240,23 +240,24 @@ describe('monthlyReportQueries', () => {
   });
 
   describe('fetchLaundryCount', () => {
-    it('queries with all completed statuses including returned and attended', async () => {
-      const mockBuilder = createMockQueryBuilder(null, { useCount: true, countValue: 35 });
-      mockSupabase.from.mockReturnValue(mockBuilder);
+    it('counts completed laundry statuses from records', async () => {
+      const mockData = [
+        { status: 'done' },
+        { status: 'picked_up' },
+        { status: 'returned' },
+        { status: 'offsite_picked_up' },
+        { status: 'waiting' },
+        { status: null },
+      ];
+      mockSupabase.from.mockReturnValue(createMockQueryBuilder(mockData));
 
       const result = await fetchLaundryCount('2025-01-01', '2025-01-31');
 
-      expect(result).toBe(35);
-      expect(mockBuilder.in).toHaveBeenCalledWith(
-        'status',
-        ['done', 'picked_up', 'returned', 'offsite_picked_up', 'attended']
-      );
+      expect(result).toBe(4);
     });
 
     it('returns 0 when no laundry found', async () => {
-      mockSupabase.from.mockReturnValue(
-        createMockQueryBuilder(null, { useCount: true, countValue: 0 })
-      );
+      mockSupabase.from.mockReturnValue(createMockQueryBuilder([]));
 
       const result = await fetchLaundryCount('2025-01-01', '2025-01-31');
 
@@ -388,6 +389,7 @@ describe('monthlyReportQueries', () => {
         then: vi.fn((resolve) => {
           callCount++;
           if (callCount === 1) return Promise.resolve(resolve({ data: page1, error: null }));
+          if (callCount === 2) return Promise.resolve(resolve({ data: page2, error: null }));
           return Promise.resolve(resolve({ data: [], error: null })); // Empty page stops pagination
         }),
       };
@@ -554,9 +556,9 @@ describe('monthlyReportQueries', () => {
         select: vi.fn().mockReturnThis(),
         gte: vi.fn().mockReturnThis(),
         lte: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
+        range: vi.fn().mockReturnThis(),
         then: vi.fn((resolve) => 
-          Promise.resolve(resolve({ count: null, error: new Error('Database error') }))
+          Promise.resolve(resolve({ data: null, error: new Error('Database error') }))
         ),
       };
       mockSupabase.from.mockReturnValue(mockBuilder);

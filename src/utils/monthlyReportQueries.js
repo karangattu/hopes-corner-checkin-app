@@ -1,4 +1,5 @@
 import { supabase, assertSupabase } from "../supabaseClient";
+import { LAUNDRY_STATUS } from "../context/constants";
 
 /**
  * Default page size for paginated queries
@@ -104,7 +105,7 @@ export const fetchMealCounts = async (startDate, endDate) => {
 
 /**
  * Fetch shower count for a date range
- * Uses scheduled_for column (date type) and status 'done' or 'attended' for completed showers
+ * Uses scheduled_for column (date type) and status 'done' for completed showers
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<number>}
@@ -117,7 +118,7 @@ export const fetchShowerCount = async (startDate, endDate) => {
     .select("*", { count: "exact", head: true })
     .gte("scheduled_for", startDate)
     .lte("scheduled_for", endDate)
-    .in("status", ["done", "attended"]);
+    .eq("status", "done");
 
   if (error) {
     console.error("Error fetching shower count:", error);
@@ -130,7 +131,7 @@ export const fetchShowerCount = async (startDate, endDate) => {
 /**
  * Fetch laundry count for a date range
  * Uses scheduled_for column (date type)
- * Includes completed statuses: done, picked_up, returned, offsite_picked_up, attended
+ * Includes completed statuses: done, picked_up, returned, offsite_picked_up
  * @param {string} startDate - Start date (YYYY-MM-DD)
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<number>}
@@ -138,19 +139,48 @@ export const fetchShowerCount = async (startDate, endDate) => {
 export const fetchLaundryCount = async (startDate, endDate) => {
   assertSupabase();
 
-  const { count, error } = await supabase
-    .from("laundry_bookings")
-    .select("*", { count: "exact", head: true })
-    .gte("scheduled_for", startDate)
-    .lte("scheduled_for", endDate)
-    .in("status", ["done", "picked_up", "returned", "offsite_picked_up", "attended"]);
+  const completedLaundryStatuses = new Set(
+    [
+      LAUNDRY_STATUS?.DONE,
+      LAUNDRY_STATUS?.PICKED_UP,
+      LAUNDRY_STATUS?.RETURNED,
+      LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
+    ]
+      .filter(Boolean)
+      .map((value) => value.toString().toLowerCase()),
+  );
 
-  if (error) {
-    console.error("Error fetching laundry count:", error);
-    throw error;
+  let offset = 0;
+  let hasMore = true;
+  let total = 0;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("laundry_bookings")
+      .select("status")
+      .gte("scheduled_for", startDate)
+      .lte("scheduled_for", endDate)
+      .range(offset, offset + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error("Error fetching laundry count:", error);
+      throw error;
+    }
+
+    const rows = data || [];
+
+    rows.forEach((record) => {
+      const status = (record?.status || "").toString().toLowerCase();
+      if (completedLaundryStatuses.has(status)) {
+        total += 1;
+      }
+    });
+
+    offset += PAGE_SIZE;
+    hasMore = rows.length === PAGE_SIZE;
   }
 
-  return count || 0;
+  return total;
 };
 
 /**

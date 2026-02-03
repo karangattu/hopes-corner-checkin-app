@@ -62,8 +62,8 @@ interface SupabaseQueryRequest {
 export const supabaseProxy = onCall(
   {
     secrets: [supabaseUrl, supabaseAnonKey],
-    timeoutSeconds: 60,
-    memory: "256MiB",
+    timeoutSeconds: 120,
+    memory: "512MiB",
   },
   async (request) => {
     // Verify authentication

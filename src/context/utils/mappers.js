@@ -194,10 +194,14 @@ export const mapLaundryRow = (row) => {
     row.scheduled_for,
     slotStart,
   );
+  // For offsite laundry (no slot_label), scheduledTimestamp will be null.
+  // We should use the scheduled_for date as the primary date, NOT updated_at.
+  // This ensures that picking up old offsite laundry doesn't change its date to today,
+  // which would incorrectly block guests from booking new laundry for today.
   const fallbackTimestamp =
-    row.updated_at ||
-    row.created_at ||
     fallbackIsoFromDateOnly(row.scheduled_for) ||
+    row.created_at ||
+    row.updated_at ||
     new Date().toISOString();
   return {
     id: row.id,

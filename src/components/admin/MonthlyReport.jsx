@@ -252,7 +252,7 @@ const MonthlyReport = () => {
 
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Month Selector */}
-            <div className="relative">
+            <div className="relative flex items-center">
               <select
                 value={`${selectedMonth.year}-${selectedMonth.month}`}
                 onChange={(e) => {
@@ -260,7 +260,7 @@ const MonthlyReport = () => {
                   setSelectedMonth({ year, month, label: `${MONTH_NAMES[month - 1]} ${year}` });
                   setReportData(null); // Clear previous report when month changes
                 }}
-                className="appearance-none pl-10 pr-8 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="appearance-none h-10 pl-9 pr-9 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
                 {availableMonths.map((m) => (
                   <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`}>
@@ -268,7 +268,7 @@ const MonthlyReport = () => {
                   </option>
                 ))}
               </select>
-              <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
 
             {/* Generate Button */}

@@ -803,7 +803,6 @@ const MonthlySummaryReport = () => {
         LAUNDRY_STATUS?.PICKED_UP,
         LAUNDRY_STATUS?.RETURNED,
         LAUNDRY_STATUS?.OFFSITE_PICKED_UP,
-        "attended",
       ]
         .filter(Boolean)
         .map((value) => value.toString().toLowerCase()),
@@ -817,7 +816,7 @@ const MonthlySummaryReport = () => {
           return acc;
         }
         const status = (record.status || "").toString().toLowerCase();
-        if (status !== "done" && status !== "attended") return acc;
+        if (status !== "done") return acc;
         acc.push({
           guestId: record.guestId != null ? String(record.guestId) : null,
           date,
