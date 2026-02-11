@@ -1,5 +1,6 @@
-import React, { useRef } from "react";
-import { Download, ShowerHead, WashingMachine } from "lucide-react";
+import React, { useRef, useMemo } from "react";
+import { Download, ShowerHead, WashingMachine, FileText } from "lucide-react";
+import { useDailyNotesStore } from "../../stores/useDailyNotesStore";
 import {
   LineChart,
   Line,
@@ -16,6 +17,33 @@ import { formatDateForDisplay } from "../../utils/date";
 
 const ShowerLaundryChart = ({ days = [] }) => {
   const chartRef = useRef(null);
+  const { getNotesForDateRange } = useDailyNotesStore();
+
+  // Get date range from days data
+  const dateRange = useMemo(() => {
+    if (!days || days.length === 0) return { start: null, end: null };
+    const dates = days.map(d => d.date).sort();
+    return { start: dates[0], end: dates[dates.length - 1] };
+  }, [days]);
+
+  // Get shower and laundry notes for this date range
+  const serviceNotes = useMemo(() => {
+    if (!dateRange.start || !dateRange.end) return [];
+    const allNotes = getNotesForDateRange(dateRange.start, dateRange.end);
+    return allNotes.filter(note => note.serviceType === 'showers' || note.serviceType === 'laundry');
+  }, [dateRange, getNotesForDateRange]);
+
+  // Create a map of notes by date for quick lookup
+  const notesByDate = useMemo(() => {
+    const map = {};
+    serviceNotes.forEach(note => {
+      if (!map[note.noteDate]) {
+        map[note.noteDate] = [];
+      }
+      map[note.noteDate].push(note);
+    });
+    return map;
+  }, [serviceNotes]);
 
   if (!days || days.length === 0) {
     return (
@@ -76,9 +104,10 @@ const ShowerLaundryChart = ({ days = [] }) => {
     if (!active || !payload || !payload.length) return null;
 
     const data = payload[0].payload;
+    const notesForThisDate = notesByDate[data.fullDate] || [];
 
     return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
         <p className="font-semibold text-gray-800 mb-2">
           {formatDateForDisplay(data.fullDate)}
         </p>
@@ -92,6 +121,24 @@ const ShowerLaundryChart = ({ days = [] }) => {
             Laundry: {data.laundry}
           </p>
         </div>
+        {notesForThisDate.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-amber-200 bg-amber-50 -m-3 mt-2 p-2 rounded-b-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <FileText size={12} className="text-amber-700" />
+              <span className="text-xs font-semibold text-amber-900">Notes:</span>
+            </div>
+            {notesForThisDate.map((note, idx) => (
+              <div key={idx} className="text-xs text-amber-800 leading-relaxed mb-1 flex items-start gap-1">
+                {note.serviceType === 'showers' ? (
+                  <ShowerHead size={12} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <WashingMachine size={12} className="text-purple-600 flex-shrink-0 mt-0.5" />
+                )}
+                <span>{note.noteText}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -107,6 +154,12 @@ const ShowerLaundryChart = ({ days = [] }) => {
           <h3 className="text-lg font-semibold text-gray-800">
             Showers & Laundry
           </h3>
+          {serviceNotes.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200 flex items-center gap-1">
+              <FileText size={12} />
+              {serviceNotes.length} {serviceNotes.length === 1 ? 'note' : 'notes'}
+            </span>
+          )}
         </div>
         <button
           onClick={handleExportChart}

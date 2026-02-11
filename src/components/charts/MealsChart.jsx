@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useCallback } from "react";
-import { Download, Utensils } from "lucide-react";
+import { Download, Utensils, FileText } from "lucide-react";
+import { useDailyNotesStore } from "../../stores/useDailyNotesStore";
 import {
   AreaChart,
   Area,
@@ -38,6 +39,33 @@ const MEAL_TYPE_LABELS = {
 
 const MealsChart = ({ days, selectedMealTypes = [] }) => {
   const chartRef = useRef(null);
+  const { getNotesForDateRange } = useDailyNotesStore();
+
+  // Get date range from days data
+  const dateRange = useMemo(() => {
+    if (!days || days.length === 0) return { start: null, end: null };
+    const dates = days.map(d => d.date).sort();
+    return { start: dates[0], end: dates[dates.length - 1] };
+  }, [days]);
+
+  // Get meal notes for this date range
+  const mealNotes = useMemo(() => {
+    if (!dateRange.start || !dateRange.end) return [];
+    const allNotes = getNotesForDateRange(dateRange.start, dateRange.end);
+    return allNotes.filter(note => note.serviceType === 'meals');
+  }, [dateRange, getNotesForDateRange]);
+
+  // Create a map of notes by date for quick lookup
+  const notesByDate = useMemo(() => {
+    const map = {};
+    mealNotes.forEach(note => {
+      if (!map[note.noteDate]) {
+        map[note.noteDate] = [];
+      }
+      map[note.noteDate].push(note);
+    });
+    return map;
+  }, [mealNotes]);
 
   // Filter data to only include days with activity
   const filteredDays = useMemo(() => {
@@ -99,9 +127,10 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
       if (!active || !payload || !payload.length) return null;
 
       const data = payload[0].payload;
+      const notesForThisDate = notesByDate[data.fullDate] || [];
 
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
           <p className="font-semibold text-gray-800 mb-2">
             {formatDateForDisplay(data.fullDate)}
           </p>
@@ -116,10 +145,23 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
               </p>
             ))}
           </div>
+          {notesForThisDate.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-amber-200 bg-amber-50 -m-3 mt-2 p-2 rounded-b-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <FileText size={12} className="text-amber-700" />
+                <span className="text-xs font-semibold text-amber-900">Note:</span>
+              </div>
+              {notesForThisDate.map((note, idx) => (
+                <p key={idx} className="text-xs text-amber-800 leading-relaxed">
+                  {note.noteText}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       );
     },
-    [selectedMealTypes]
+    [selectedMealTypes, notesByDate]
   );
 
   if (!days || days.length === 0) {
@@ -146,6 +188,12 @@ const MealsChart = ({ days, selectedMealTypes = [] }) => {
         <div className="flex items-center gap-2">
           <Utensils size={20} className="text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-800">Meals Served</h3>
+          {mealNotes.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200 flex items-center gap-1">
+              <FileText size={12} />
+              {mealNotes.length} {mealNotes.length === 1 ? 'note' : 'notes'}
+            </span>
+          )}
         </div>
         <button
           onClick={handleExportChart}

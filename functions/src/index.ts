@@ -126,6 +126,7 @@ export const supabaseProxy = onCall(
         "app_settings",
         "service_waivers",
         "blocked_slots",
+        "daily_notes",
       ];
 
       // For non-RPC operations, table is required

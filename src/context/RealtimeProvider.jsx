@@ -6,6 +6,7 @@ import { useMealsStore } from '../stores/useMealsStore';
 import { useGuestsStore } from '../stores/useGuestsStore';
 import { useDonationsStore } from '../stores/useDonationsStore';
 import { useRemindersStore } from '../stores/useRemindersStore';
+import { useDailyNotesStore } from '../stores/useDailyNotesStore';
 import { RealtimeContext } from './realtimeContext';
 import { useAuth } from './useAuth';
 
@@ -31,6 +32,7 @@ export const RealtimeProvider = ({ children }) => {
   const subscribeGuests = useGuestsStore((state) => state.subscribeToRealtime);
   const subscribeDonations = useDonationsStore((state) => state.subscribeToRealtime);
   const subscribeReminders = useRemindersStore((state) => state.subscribeToRealtime);
+  const subscribeDailyNotes = useDailyNotesStore((state) => state.subscribeToRealtime);
 
   // Get unsubscribe functions from stores
   const unsubscribeServices = useServicesStore((state) => state.unsubscribeFromRealtime);
@@ -38,6 +40,7 @@ export const RealtimeProvider = ({ children }) => {
   const unsubscribeGuests = useGuestsStore((state) => state.unsubscribeFromRealtime);
   const unsubscribeDonations = useDonationsStore((state) => state.unsubscribeFromRealtime);
   const unsubscribeReminders = useRemindersStore((state) => state.unsubscribeFromRealtime);
+  const unsubscribeDailyNotes = useDailyNotesStore((state) => state.unsubscribeFromRealtime);
 
   const subscribeAll = useCallback(() => {
     if (!isRealtimeEnabled) {
@@ -85,6 +88,12 @@ export const RealtimeProvider = ({ children }) => {
         stores.push('reminders');
       }
 
+      const dailyNotesCleanup = subscribeDailyNotes();
+      if (dailyNotesCleanup) {
+        cleanupFnsRef.current.push(dailyNotesCleanup);
+        stores.push('dailyNotes');
+      }
+
       setSubscribedStores(stores);
       setIsConnected(stores.length > 0);
       
@@ -100,6 +109,7 @@ export const RealtimeProvider = ({ children }) => {
     subscribeGuests,
     subscribeDonations,
     subscribeReminders,
+    subscribeDailyNotes,
   ]);
 
   const unsubscribeAll = useCallback(() => {
@@ -120,6 +130,7 @@ export const RealtimeProvider = ({ children }) => {
     unsubscribeGuests?.();
     unsubscribeDonations?.();
     unsubscribeReminders?.();
+    unsubscribeDailyNotes?.();
 
     setSubscribedStores([]);
     setIsConnected(false);
@@ -129,6 +140,7 @@ export const RealtimeProvider = ({ children }) => {
     unsubscribeGuests,
     unsubscribeDonations,
     unsubscribeReminders,
+    unsubscribeDailyNotes,
   ]);
 
   const reconnectAll = useCallback(() => {

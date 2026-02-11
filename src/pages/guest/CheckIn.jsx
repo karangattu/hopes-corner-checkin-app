@@ -4,10 +4,13 @@ import GuestList from "../../components/GuestList";
 import ServiceStatusOverview from "../../components/ServiceStatusOverview";
 import MealServiceTimer from "../../components/MealServiceTimer";
 import TodayStats from "../../components/TodayStats";
+import DailyNotesSection from "../../components/DailyNotesSection";
 import { useAppContext } from "../../context/useAppContext";
+import { useAuth } from "../../context/useAuth";
 
 const CheckIn = () => {
   const { setActiveTab, setActiveServiceSection } = useAppContext();
+  const { user } = useAuth();
 
   // Auto-refresh service slots every 2 minutes when page is in focus
   useEffect(() => {
@@ -112,6 +115,9 @@ const CheckIn = () => {
 
       {/* Service Status Overview - At-a-glance availability */}
       <ServiceStatusOverview onShowerClick={handleShowerClick} onLaundryClick={handleLaundryClick} />
+
+      {/* Daily Notes - Add context for today's operations */}
+      <DailyNotesSection userId={user?.email} />
 
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

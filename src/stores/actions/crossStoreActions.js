@@ -9,6 +9,7 @@ import { useServicesStore } from '../useServicesStore';
 import { useDonationsStore } from '../useDonationsStore';
 import { useHistoryStore, ACTION_TYPES, createAction } from '../useHistoryStore';
 import { useRemindersStore } from '../useRemindersStore';
+import { useDailyNotesStore } from '../useDailyNotesStore';
 import enhancedToast from '../../utils/toast';
 
 /**
@@ -494,6 +495,7 @@ export const initializeStoresFromSupabase = async () => {
       useMealsStore.getState().loadFromSupabase(),
       useServicesStore.getState().loadFromSupabase(),
       useDonationsStore.getState().loadFromSupabase(),
+      useDailyNotesStore.getState().fetchNotes(),
     ]);
 
     useHistoryStore.getState().pushAction(

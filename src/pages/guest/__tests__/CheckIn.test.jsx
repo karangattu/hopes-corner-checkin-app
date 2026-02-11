@@ -30,6 +30,14 @@ vi.mock("../../../context/useAppContext", () => ({
   useAppContext: () => mockContext,
 }));
 
+vi.mock("../../../context/useAuth", () => ({
+  useAuth: () => ({ user: { email: 'test@example.com' }, authLoading: false }),
+}));
+
+vi.mock("../../../components/DailyNotesSection", () => ({
+  default: () => <div data-testid="daily-notes-section">Daily Notes Mock</div>,
+}));
+
 import CheckIn from "../CheckIn";
 
 describe("CheckIn", () => {

@@ -12,8 +12,10 @@ import {
 } from "lucide-react";
 import { Scissors, Gift, Bike } from "lucide-react";
 import { useAppContext } from "../../context/useAppContext";
+import { useAuth } from "../../context/useAuth";
 import { animated as Animated } from "@react-spring/web";
 import { SpringIcon } from "../../utils/animations";
+import DailyNotesSection from "../DailyNotesSection";
 import {
   getBicycleServiceCount,
   isBicycleStatusCountable,
@@ -203,6 +205,7 @@ const OverviewDashboard = ({
     haircutRecords,
     holidayRecords,
   } = useAppContext();
+  const { user } = useAuth();
 
   const [isEditingTargets, setIsEditingTargets] = useState(false);
   const [tempTargets, setTempTargets] = useState(() =>
@@ -451,6 +454,9 @@ const OverviewDashboard = ({
           </button>
         </div>
       </div>
+
+      {/* Daily Notes - Compact view for admin dashboard */}
+      <DailyNotesSection userId={user?.email} compact />
 
       {/* Inline Target Editor */}
       {isEditingTargets && (

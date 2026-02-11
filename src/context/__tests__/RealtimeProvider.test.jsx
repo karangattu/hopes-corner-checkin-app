@@ -8,12 +8,14 @@ const mockSubscribeMeals = vi.fn(() => vi.fn());
 const mockSubscribeGuests = vi.fn(() => vi.fn());
 const mockSubscribeDonations = vi.fn(() => vi.fn());
 const mockSubscribeReminders = vi.fn(() => vi.fn());
+const mockSubscribeDailyNotes = vi.fn(() => vi.fn());
 
 const mockUnsubscribeServices = vi.fn();
 const mockUnsubscribeMeals = vi.fn();
 const mockUnsubscribeGuests = vi.fn();
 const mockUnsubscribeDonations = vi.fn();
 const mockUnsubscribeReminders = vi.fn();
+const mockUnsubscribeDailyNotes = vi.fn();
 
 vi.mock('../../stores/useServicesStore', () => ({
   useServicesStore: vi.fn((selector) => {
@@ -65,6 +67,16 @@ vi.mock('../../stores/useRemindersStore', () => ({
   }),
 }));
 
+vi.mock('../../stores/useDailyNotesStore', () => ({
+  useDailyNotesStore: vi.fn((selector) => {
+    const state = {
+      subscribeToRealtime: mockSubscribeDailyNotes,
+      unsubscribeFromRealtime: mockUnsubscribeDailyNotes,
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 // Mock supabase client
 vi.mock('../../supabaseClient', () => ({
   isSupabaseEnabled: vi.fn(() => true),
@@ -73,6 +85,7 @@ vi.mock('../../supabaseClient', () => ({
 // Mock realtime hook
 vi.mock('../../hooks/useRealtimeSubscription', () => ({
   isRealtimeAvailable: vi.fn(() => true),
+  getRealtimeClient: vi.fn(() => null),
 }));
 
 // Mock useAuth to return authenticated user

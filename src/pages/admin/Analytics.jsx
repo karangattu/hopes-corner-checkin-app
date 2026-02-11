@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useAppContext } from "../../context/useAppContext";
 import TimeRangeFilter from "../../components/analytics/TimeRangeFilter";
+import DateRangeNotes from "../../components/analytics/DateRangeNotes";
 import TimeSeriesChart from "../../components/charts/TimeSeriesChart";
 import MealsChart from "../../components/charts/MealsChart";
 import ShowerLaundryChart from "../../components/charts/ShowerLaundryChart";
@@ -9,6 +10,7 @@ import HaircutsChart from "../../components/charts/HaircutsChart";
 import HolidaysChart from "../../components/charts/HolidaysChart";
 import DonationsChart from "../../components/charts/DonationsChart";
 import StackedBarCardRecharts from "../../components/charts/StackedBarCardRecharts";
+import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from "../../context/constants";
 import {
   BarChart3,
   Utensils,
@@ -22,6 +24,10 @@ import {
   Zap,
   Settings,
   TrendingUp,
+  Filter,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { todayPacificDateString } from "../../utils/date";
 
@@ -105,6 +111,17 @@ const Analytics = () => {
     "lunchBags",
   ]);
 
+  // Demographic filters state
+  const [demographicFilters, setDemographicFilters] = useState({
+    housingStatus: [],
+    ageGroups: [],
+    gender: [],
+    location: [],
+  });
+  
+  // Whether filters panel is expanded
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+
   // Handle time filter changes
   const handleTimeFilterChange = useCallback((filter) => {
     setTimeFilter(filter);
@@ -145,9 +162,31 @@ const Analytics = () => {
     const activeGuestIdSet = new Set(metrics.activeGuestIds || []);
     
     // Filter guests to only those who participated in selected programs during the date range
-    const filteredGuests = activeGuestIdSet.size > 0
+    let filteredGuests = activeGuestIdSet.size > 0
       ? guests.filter((guest) => activeGuestIdSet.has(guest.id))
       : [];
+    
+    // Apply demographic filters
+    if (demographicFilters.housingStatus.length > 0) {
+      filteredGuests = filteredGuests.filter((guest) =>
+        demographicFilters.housingStatus.includes(guest.housingStatus || "Unknown")
+      );
+    }
+    if (demographicFilters.ageGroups.length > 0) {
+      filteredGuests = filteredGuests.filter((guest) =>
+        demographicFilters.ageGroups.includes(guest.age || "Unknown")
+      );
+    }
+    if (demographicFilters.gender.length > 0) {
+      filteredGuests = filteredGuests.filter((guest) =>
+        demographicFilters.gender.includes(guest.gender || "Unknown")
+      );
+    }
+    if (demographicFilters.location.length > 0) {
+      filteredGuests = filteredGuests.filter((guest) =>
+        demographicFilters.location.includes(guest.location || "Unknown")
+      );
+    }
 
     filteredGuests.forEach((guest) => {
       const housing = guest.housingStatus || "Unknown";
@@ -168,7 +207,59 @@ const Analytics = () => {
       locationCounts,
       totalActiveGuests: filteredGuests.length,
     };
+  }, [guests, metrics.activeGuestIds, demographicFilters]);
+
+  // Get unique locations from all active guests for the filter options
+  const availableLocations = useMemo(() => {
+    const activeGuestIdSet = new Set(metrics.activeGuestIds || []);
+    const activeGuests = activeGuestIdSet.size > 0
+      ? guests.filter((guest) => activeGuestIdSet.has(guest.id))
+      : [];
+    
+    const locations = new Set();
+    activeGuests.forEach((guest) => {
+      const loc = guest.location || "Unknown";
+      locations.add(loc);
+    });
+    
+    return Array.from(locations).sort((a, b) => {
+      // Put "Unknown" at the end
+      if (a === "Unknown") return 1;
+      if (b === "Unknown") return -1;
+      return a.localeCompare(b);
+    });
   }, [guests, metrics.activeGuestIds]);
+
+  // Toggle a demographic filter value
+  const toggleDemographicFilter = useCallback((category, value) => {
+    setDemographicFilters((prev) => {
+      const currentValues = prev[category];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter((v) => v !== value)
+        : [...currentValues, value];
+      return { ...prev, [category]: newValues };
+    });
+  }, []);
+
+  // Clear all demographic filters
+  const clearDemographicFilters = useCallback(() => {
+    setDemographicFilters({
+      housingStatus: [],
+      ageGroups: [],
+      gender: [],
+      location: [],
+    });
+  }, []);
+
+  // Check if any demographic filters are active
+  const hasActiveDemographicFilters = useMemo(() => {
+    return (
+      demographicFilters.housingStatus.length > 0 ||
+      demographicFilters.ageGroups.length > 0 ||
+      demographicFilters.gender.length > 0 ||
+      demographicFilters.location.length > 0
+    );
+  }, [demographicFilters]);
 
   // Program list configuration
   const programs = [
@@ -219,6 +310,12 @@ const Analytics = () => {
   // Render overview view
   const renderOverview = () => (
     <div className="space-y-6">
+      {/* Daily Notes for this period */}
+      <DateRangeNotes 
+        startDate={timeFilter.startDate} 
+        endDate={timeFilter.endDate}
+      />
+      
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {selectedPrograms.includes("meals") && (
@@ -366,6 +463,12 @@ const Analytics = () => {
   // Render trends view
   const renderTrends = () => (
     <div className="space-y-6">
+      {/* Daily Notes for this period */}
+      <DateRangeNotes 
+        startDate={timeFilter.startDate} 
+        endDate={timeFilter.endDate}
+      />
+      
       {selectedPrograms.includes("meals") && (
         <MealsChart
           days={metrics.dailyBreakdown}
@@ -405,9 +508,151 @@ const Analytics = () => {
     </div>
   );
 
+  // Render demographic filter pill
+  const renderFilterPill = (category, value, label) => {
+    const isActive = demographicFilters[category].includes(value);
+    return (
+      <button
+        key={`${category}-${value}`}
+        onClick={() => toggleDemographicFilter(category, value)}
+        className={`px-3 py-1.5 text-sm rounded-full border transition-all ${
+          isActive
+            ? "bg-blue-600 text-white border-blue-600"
+            : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+        }`}
+      >
+        {label || value}
+      </button>
+    );
+  };
+
   // Render demographics view
   const renderDemographics = () => (
     <div className="space-y-6">
+      {/* Demographic Filters Panel */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <button
+          onClick={() => setFiltersExpanded(!filtersExpanded)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Filter size={18} className="text-gray-600" />
+            <span className="font-medium text-gray-900">Demographic Filters</span>
+            {hasActiveDemographicFilters && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                {demographicFilters.housingStatus.length +
+                  demographicFilters.ageGroups.length +
+                  demographicFilters.gender.length +
+                  demographicFilters.location.length}{" "}
+                active
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {hasActiveDemographicFilters && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearDemographicFilters();
+                }}
+                className="px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded flex items-center gap-1"
+              >
+                <X size={14} />
+                Clear all
+              </button>
+            )}
+            {filtersExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </div>
+        </button>
+
+        {filtersExpanded && (
+          <div className="px-4 pb-4 pt-2 border-t border-gray-100 space-y-4">
+            {/* Housing Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Housing Status
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {HOUSING_STATUSES.map((status) => renderFilterPill("housingStatus", status, status))}
+                {renderFilterPill("housingStatus", "Unknown", "Unknown")}
+              </div>
+            </div>
+
+            {/* Age Groups Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Age Groups
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {AGE_GROUPS.map((age) => renderFilterPill("ageGroups", age, age))}
+                {renderFilterPill("ageGroups", "Unknown", "Unknown")}
+              </div>
+            </div>
+
+            {/* Gender Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {GENDERS.map((gender) => renderFilterPill("gender", gender, gender))}
+              </div>
+            </div>
+
+            {/* Location Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location ({availableLocations.length} available)
+              </label>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                {availableLocations.map((location) => renderFilterPill("location", location, location))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Active Filters Summary (when collapsed) */}
+      {!filtersExpanded && hasActiveDemographicFilters && (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-blue-800 font-medium">Filtering by:</span>
+            {demographicFilters.housingStatus.map((v) => (
+              <span key={`active-housing-${v}`} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs flex items-center gap-1">
+                {v}
+                <button onClick={() => toggleDemographicFilter("housingStatus", v)} className="hover:text-blue-900">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+            {demographicFilters.ageGroups.map((v) => (
+              <span key={`active-age-${v}`} className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center gap-1">
+                {v}
+                <button onClick={() => toggleDemographicFilter("ageGroups", v)} className="hover:text-green-900">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+            {demographicFilters.gender.map((v) => (
+              <span key={`active-gender-${v}`} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs flex items-center gap-1">
+                {v}
+                <button onClick={() => toggleDemographicFilter("gender", v)} className="hover:text-purple-900">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+            {demographicFilters.location.map((v) => (
+              <span key={`active-location-${v}`} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs flex items-center gap-1">
+                {v}
+                <button onClick={() => toggleDemographicFilter("location", v)} className="hover:text-yellow-900">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Users size={20} />
@@ -432,28 +677,49 @@ const Analytics = () => {
           <span className="font-medium">
             {new Date(timeFilter.endDate).toLocaleDateString()}
           </span>
+          {hasActiveDemographicFilters && (
+            <span className="text-blue-600 font-medium"> (filtered)</span>
+          )}
         </p>
 
         {demographics.totalActiveGuests === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Users size={48} className="mx-auto mb-4 text-gray-300" />
             <p>No guests found for the selected filters.</p>
-            <p className="text-sm mt-2">Try expanding the date range or selecting more programs.</p>
+            <p className="text-sm mt-2">
+              {hasActiveDemographicFilters 
+                ? "Try adjusting your demographic filters or expanding the date range."
+                : "Try expanding the date range or selecting more programs."}
+            </p>
+            {hasActiveDemographicFilters && (
+              <button
+                onClick={clearDemographicFilters}
+                className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                Clear demographic filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Simple tables for easy copying */}
             {[
-              { title: "Housing Status", data: demographics.housingCounts },
-              { title: "Age Groups", data: demographics.ageCounts },
-              { title: "Gender", data: demographics.genderCounts },
-              { title: "Location", data: demographics.locationCounts },
-            ].map(({ title, data }) => {
+              { title: "Housing Status", data: demographics.housingCounts, filterKey: "housingStatus" },
+              { title: "Age Groups", data: demographics.ageCounts, filterKey: "ageGroups" },
+              { title: "Gender", data: demographics.genderCounts, filterKey: "gender" },
+              { title: "Location", data: demographics.locationCounts, filterKey: "location" },
+            ].map(({ title, data, filterKey }) => {
               const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]);
               const total = entries.reduce((sum, [, count]) => sum + count, 0);
+              const isFiltered = demographicFilters[filterKey].length > 0;
               return (
-                <div key={title} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <h4 className="font-semibold text-gray-900 mb-3">{title}</h4>
+                <div key={title} className={`rounded-lg p-4 border ${isFiltered ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"}`}>
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center justify-between">
+                    <span className={isFiltered ? "text-blue-900" : ""}>{title}</span>
+                    {isFiltered && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">filtered</span>
+                    )}
+                  </h4>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-300">

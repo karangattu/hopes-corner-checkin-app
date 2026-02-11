@@ -8,6 +8,16 @@ import { useAppContext } from "../../../context/useAppContext";
 // Mock the useAppContext hook
 vi.mock("../../../context/useAppContext");
 
+// Mock useAuth hook
+vi.mock("../../../context/useAuth", () => ({
+  useAuth: () => ({ user: { email: 'test@example.com' }, authLoading: false }),
+}));
+
+// Mock DailyNotesSection
+vi.mock("../../DailyNotesSection", () => ({
+  default: () => <div data-testid="daily-notes-section">Daily Notes Mock</div>,
+}));
+
 // Mock react-spring
 vi.mock("@react-spring/web", () => ({
   animated: {

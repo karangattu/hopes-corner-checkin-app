@@ -40,7 +40,8 @@ export const useMealsStore = create(
                 .from('meal_attendance')
                 .select('id')
                 .eq('guest_id', guestId)
-                .eq('meal_date', todayStr)
+                .eq('served_on', todayStr)
+                .eq('meal_type', 'guest')
                 .maybeSingle();
 
               if (checkError) {
@@ -52,14 +53,17 @@ export const useMealsStore = create(
                 throw new Error('Guest already received a meal today');
               }
 
+              const nowIso = new Date().toISOString();
+
               const payload = {
+                meal_type: 'guest',
                 guest_id: guestId,
                 quantity,
-                meal_date: todayStr,
-                picked_up_by_guest_id: pickedUpByGuestId || null,
+                served_on: todayStr,
+                recorded_at: nowIso,
               };
-              
-              // Add proxy tracking if a different guest picked up the meal
+
+              // Add proxy tracking only if a different guest picked up the meal
               if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
                 payload.picked_up_by_guest_id = pickedUpByGuestId;
               }
@@ -316,7 +320,7 @@ export const useMealsStore = create(
                 fetchAllPaginated(supabase, {
                   table: 'meal_attendance',
                   select:
-                    'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at',
+                    'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at,picked_up_by_guest_id',
                   orderBy: 'created_at',
                   ascending: false,
                   pageSize: 1000,

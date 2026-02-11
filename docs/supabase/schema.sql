@@ -766,6 +766,54 @@ create index if not exists guest_reminders_guest_id_idx on public.guest_reminder
 create index if not exists guest_reminders_active_idx on public.guest_reminders (active) where active = true;
 create index if not exists guest_reminders_created_at_idx on public.guest_reminders (created_at desc);
 
+-- Daily notes for operational context (weather, staffing, events)
+create table if not exists public.daily_notes (
+  id uuid primary key default gen_random_uuid(),
+  note_date date not null,
+  service_type text not null check (service_type in ('meals', 'showers', 'laundry', 'general')),
+  note_text text not null,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  
+  constraint daily_notes_unique_per_day unique (note_date, service_type)
+);
+
+-- Auto-update timestamp trigger for daily_notes
+drop trigger if exists trg_daily_notes_updated_at on public.daily_notes;
+create trigger trg_daily_notes_updated_at
+before update on public.daily_notes
+for each row execute function public.touch_updated_at();
+
+-- Indexes for daily_notes
+create index if not exists daily_notes_date_idx on public.daily_notes (note_date desc);
+create index if not exists daily_notes_service_date_idx on public.daily_notes (service_type, note_date desc);
+
+-- RLS for daily_notes
+alter table public.daily_notes enable row level security;
+
+create policy "Authenticated users can view daily notes"
+  on public.daily_notes for select
+  to authenticated, anon
+  using (true);
+
+create policy "Authenticated users can insert daily notes"
+  on public.daily_notes for insert
+  to authenticated, anon
+  with check (true);
+
+create policy "Authenticated users can update daily notes"
+  on public.daily_notes for update
+  to authenticated, anon
+  using (true)
+  with check (true);
+
+create policy "Authenticated users can delete daily notes"
+  on public.daily_notes for delete
+  to authenticated, anon
+  using (true);
+
 -- 9. Enable Supabase Realtime for tables that need live updates
 -- This allows multiple users to see changes in real-time without manual refresh
 
@@ -835,6 +883,12 @@ BEGIN
   -- Reminders table
   BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE guest_reminders;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  -- Daily notes table
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE daily_notes;
   EXCEPTION WHEN duplicate_object THEN NULL;
   END;
 END$$;
