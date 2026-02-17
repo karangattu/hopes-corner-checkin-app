@@ -17,6 +17,7 @@ import { InitializationLoader } from "./components/InitializationLoader";
 import { EXECUTE_FUNCTIONS } from "./utils/offlineOperations";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useStoreInitialization } from "./hooks/useStoreInitialization";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import "./utils/performanceDiagnostics"; // Load performance diagnostics in dev mode
 
 const NEW_APP_URL = "https://hopes-corner-app.vercel.app";
@@ -38,14 +39,18 @@ const PageLoadingFallback = () => (
 const DeprecationBanner = () => (
   <div className="fixed inset-x-0 top-0 z-[9999] border-b-4 border-red-900 bg-red-700 text-white shadow-lg">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2 px-3 py-3 text-center text-sm font-bold sm:text-base">
-      <span>⚠️ This app is deprecated. Do not use this app.</span>
+      <span className="inline-flex items-center gap-2">
+        <AlertTriangle size={18} aria-hidden="true" />
+        This app is deprecated. Do not use this app.
+      </span>
       <a
         href={NEW_APP_URL}
         target="_blank"
         rel="noreferrer"
-        className="underline decoration-2 underline-offset-2"
+        className="inline-flex items-center gap-1 underline decoration-2 underline-offset-2"
       >
-        Use the new app: hopes-corner-app.vercel.app
+        See the new app
+        <ExternalLink size={16} aria-hidden="true" />
       </a>
     </div>
   </div>
