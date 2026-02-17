@@ -22,4 +22,10 @@
   
   <!-- Heart symbol for "Hope" -->
   <path d="M16 13.5 C14.5 11.5 12 11.5 12 13.5 C12 15.5 16 19 16 19 S20 15.5 20 13.5 C20 11.5 17.5 11.5 16 13.5 Z" fill="#ef4444"/>
+
+  <!-- Deprecation cross overlay -->
+  <line x1="6" y1="6" x2="26" y2="26" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <line x1="26" y1="6" x2="6" y2="26" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <line x1="6" y1="6" x2="26" y2="26" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+  <line x1="26" y1="6" x2="6" y2="26" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
 </svg>

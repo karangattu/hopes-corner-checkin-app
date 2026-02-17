@@ -1,5 +1,7 @@
 import { addLaundryWithOffline } from '../../utils/offlineOperations';
 import { globalSyncManager } from '../SupabaseSync';
+import { useServicesStore } from '../../stores/useServicesStore';
+import { broadcastChange } from '../../utils/crossTabSync';
 
 export const createLaundryMutations = ({
   supabaseEnabled,
@@ -239,6 +241,9 @@ export const createLaundryMutations = ({
             },
           ]);
         }
+        // Sync to Zustand store so realtime bridge stays consistent
+        useServicesStore.getState().syncLaundryFromMutation('add', mapped);
+        broadcastChange('laundry', 'add', mapped);
         pushAction({
           id: Date.now() + Math.random(),
           type: "LAUNDRY_BOOKED",
@@ -322,6 +327,10 @@ export const createLaundryMutations = ({
         if (error) throw error;
       }
 
+      // Sync cancellation to Zustand store
+      useServicesStore.getState().syncLaundryFromMutation('remove', record);
+      broadcastChange('laundry', 'remove', record);
+
       pushAction({
         id: Date.now() + Math.random(),
         type: "LAUNDRY_CANCELLED",
@@ -389,6 +398,10 @@ export const createLaundryMutations = ({
           if (error) throw error;
         }
       }
+
+      // Sync bulk cancel to Zustand store
+      useServicesStore.getState().syncLaundryFromMutation('bulkRemove', recordsToCancel);
+      broadcastChange('laundry', 'bulkRemove', recordsToCancel);
 
       pushAction({
         id: Date.now() + Math.random(),
@@ -542,6 +555,10 @@ export const createLaundryMutations = ({
       return originalRecord;
     }
 
+    // Sync rescheduled record to Zustand store
+    useServicesStore.getState().syncLaundryFromMutation('update', updatedRecord);
+    broadcastChange('laundry', 'update', updatedRecord);
+
     pushAction({
       id: Date.now() + Math.random(),
       type: "LAUNDRY_RESCHEDULED",
@@ -623,6 +640,13 @@ export const createLaundryMutations = ({
     const completedStatuses = [LAUNDRY_STATUS.DONE, LAUNDRY_STATUS.PICKED_UP, LAUNDRY_STATUS.OFFSITE_PICKED_UP];
     if (completedStatuses.includes(newStatus) && onServiceCompleted) {
       onServiceCompleted(originalRecord.guestId, "laundry");
+    }
+
+    // Sync status update to Zustand store so realtime bridge stays consistent
+    const currentRecord = laundryRecords.find((r) => r.id === recordId);
+    if (currentRecord) {
+      useServicesStore.getState().syncLaundryFromMutation('update', { ...currentRecord, status: newStatus });
+      broadcastChange('laundry', 'update', { ...currentRecord, status: newStatus });
     }
 
     // Trigger sync so other users see the status update immediately

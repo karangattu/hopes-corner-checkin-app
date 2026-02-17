@@ -160,10 +160,10 @@ export const RealtimeProvider = ({ children }) => {
       return;
     }
     
-    // Delay subscription to allow app to initialize
+    // Delay subscription slightly to allow app to initialize
     const initTimeout = setTimeout(() => {
       subscribeAll();
-    }, 1000);
+    }, 100);
 
     return () => {
       clearTimeout(initTimeout);
@@ -171,17 +171,34 @@ export const RealtimeProvider = ({ children }) => {
     };
   }, [subscribeAll, unsubscribeAll, authLoading, user]);
 
+  // Refresh all stores from Supabase to catch missed events
+  const refreshAllStores = useCallback(async () => {
+    console.log('[RealtimeProvider] Refreshing all stores from Supabase...');
+    try {
+      await Promise.allSettled([
+        useServicesStore.getState().loadFromSupabase?.(),
+        useMealsStore.getState().loadFromSupabase?.(),
+        useGuestsStore.getState().loadFromSupabase?.(),
+        useDonationsStore.getState().loadFromSupabase?.(),
+      ]);
+      console.log('[RealtimeProvider] Store refresh complete');
+    } catch (err) {
+      console.error('[RealtimeProvider] Store refresh failed:', err);
+    }
+  }, []);
+
   // Handle visibility changes - reconnect when tab becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isRealtimeEnabled) {
-        console.log('[RealtimeProvider] Tab became visible, checking connection...');
-        // Reconnect after a short delay to ensure stability
+        console.log('[RealtimeProvider] Tab became visible, refreshing data...');
+        // Refresh data to catch any missed events while tab was hidden
         reconnectTimeoutRef.current = setTimeout(() => {
+          refreshAllStores();
           if (!isConnected) {
             subscribeAll();
           }
-        }, 2000);
+        }, 500);
       }
     };
 
@@ -189,15 +206,17 @@ export const RealtimeProvider = ({ children }) => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isRealtimeEnabled, isConnected, subscribeAll]);
+  }, [isRealtimeEnabled, isConnected, subscribeAll, refreshAllStores]);
 
   // Handle online/offline events
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[RealtimeProvider] Network came online, reconnecting...');
+      console.log('[RealtimeProvider] Network came online, reconnecting and refreshing...');
       reconnectTimeoutRef.current = setTimeout(() => {
         subscribeAll();
-      }, 1000);
+        // Refresh data to catch events missed during offline period
+        refreshAllStores();
+      }, 500);
     };
 
     const handleOffline = () => {
@@ -212,7 +231,7 @@ export const RealtimeProvider = ({ children }) => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [subscribeAll]);
+  }, [subscribeAll, refreshAllStores]);
 
   const contextValue = {
     isConnected,

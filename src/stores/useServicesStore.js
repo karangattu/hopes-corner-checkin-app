@@ -416,6 +416,65 @@ export const useServicesStore = create(
             });
           },
 
+          /**
+           * Sync methods for AppContext mutations to push changes back to the store.
+           * This prevents useStoreToContextSync from overwriting AppContext with stale store data.
+           * Called by showerMutations.js / laundryMutations.js after successful writes.
+           */
+          syncShowerFromMutation: (action, record) => {
+            set((state) => {
+              if (action === 'add') {
+                const exists = state.showerRecords.some((r) => r.id === record.id);
+                if (!exists) {
+                  state.showerRecords.push(record);
+                  console.log('[StoreSync] Shower added from mutation:', record.id);
+                }
+              } else if (action === 'update') {
+                const idx = state.showerRecords.findIndex((r) => r.id === record.id);
+                if (idx >= 0) {
+                  state.showerRecords[idx] = record;
+                } else {
+                  state.showerRecords.push(record);
+                }
+                console.log('[StoreSync] Shower updated from mutation:', record.id);
+              } else if (action === 'remove') {
+                state.showerRecords = state.showerRecords.filter((r) => r.id !== record.id);
+                console.log('[StoreSync] Shower removed from mutation:', record.id);
+              } else if (action === 'bulkRemove' && Array.isArray(record)) {
+                const idsToRemove = new Set(record.map((r) => r.id || r));
+                state.showerRecords = state.showerRecords.filter((r) => !idsToRemove.has(r.id));
+                console.log('[StoreSync] Showers bulk removed from mutation:', record.length);
+              }
+            });
+          },
+
+          syncLaundryFromMutation: (action, record) => {
+            set((state) => {
+              if (action === 'add') {
+                const exists = state.laundryRecords.some((r) => r.id === record.id);
+                if (!exists) {
+                  state.laundryRecords.push(record);
+                  console.log('[StoreSync] Laundry added from mutation:', record.id);
+                }
+              } else if (action === 'update') {
+                const idx = state.laundryRecords.findIndex((r) => r.id === record.id);
+                if (idx >= 0) {
+                  state.laundryRecords[idx] = record;
+                } else {
+                  state.laundryRecords.push(record);
+                }
+                console.log('[StoreSync] Laundry updated from mutation:', record.id);
+              } else if (action === 'remove') {
+                state.laundryRecords = state.laundryRecords.filter((r) => r.id !== record.id);
+                console.log('[StoreSync] Laundry removed from mutation:', record.id);
+              } else if (action === 'bulkRemove' && Array.isArray(record)) {
+                const idsToRemove = new Set(record.map((r) => r.id || r));
+                state.laundryRecords = state.laundryRecords.filter((r) => !idsToRemove.has(r.id));
+                console.log('[StoreSync] Laundry bulk removed from mutation:', record.length);
+              }
+            });
+          },
+
           // Selectors
           getTodayShowers: () => {
             const today = todayPacificDateString();

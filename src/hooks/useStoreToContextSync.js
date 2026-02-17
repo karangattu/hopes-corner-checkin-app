@@ -3,11 +3,15 @@ import { useServicesStore } from '../stores/useServicesStore';
 import { useMealsStore } from '../stores/useMealsStore';
 import { useGuestsStore } from '../stores/useGuestsStore';
 import { useDonationsStore } from '../stores/useDonationsStore';
+import { onCrossTabChange } from '../utils/crossTabSync';
 
 /**
  * Hook to sync Zustand store updates to AppContext setters.
  * This enables realtime updates to flow from Zustand stores (which receive
  * Supabase realtime events) to the legacy AppContext (which components use).
+ * 
+ * Also listens for cross-tab BroadcastChannel messages to update stores
+ * when mutations happen in other tabs on the same browser.
  * 
  * @param {Object} setters - Object containing AppContext state setters
  */
@@ -154,4 +158,24 @@ export const useStoreToContextSync = ({
       unsubGuests();
     };
   }, [setGuests]);
+
+  // Listen for cross-tab changes via BroadcastChannel
+  // When another tab on the same browser makes a mutation, update the Zustand stores
+  // which will then flow to AppContext via the subscriptions above
+  useEffect(() => {
+    const unsubShowersCrossTab = onCrossTabChange('showers', (action, data) => {
+      if (!data) return;
+      useServicesStore.getState().syncShowerFromMutation(action, data);
+    });
+
+    const unsubLaundryCrossTab = onCrossTabChange('laundry', (action, data) => {
+      if (!data) return;
+      useServicesStore.getState().syncLaundryFromMutation(action, data);
+    });
+
+    return () => {
+      unsubShowersCrossTab();
+      unsubLaundryCrossTab();
+    };
+  }, []);
 };

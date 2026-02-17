@@ -19,6 +19,8 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { useStoreInitialization } from "./hooks/useStoreInitialization";
 import "./utils/performanceDiagnostics"; // Load performance diagnostics in dev mode
 
+const NEW_APP_URL = "https://hopes-corner-app.vercel.app";
+
 // Lazy load heavy pages for faster initial load
 const Services = lazy(() => import("./pages/guest/Services"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -29,6 +31,22 @@ const PageLoadingFallback = () => (
     <div className="text-center">
       <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mb-4" />
       <p className="text-emerald-700 font-medium">Loading page...</p>
+    </div>
+  </div>
+);
+
+const DeprecationBanner = () => (
+  <div className="fixed inset-x-0 top-0 z-[9999] border-b-4 border-red-900 bg-red-700 text-white shadow-lg">
+    <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2 px-3 py-3 text-center text-sm font-bold sm:text-base">
+      <span>⚠️ This app is deprecated. Do not use this app.</span>
+      <a
+        href={NEW_APP_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="underline decoration-2 underline-offset-2"
+      >
+        Use the new app: hopes-corner-app.vercel.app
+      </a>
     </div>
   </div>
 );
@@ -112,14 +130,19 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppProvider>
-        <SyncProvider executeFunctions={EXECUTE_FUNCTIONS}>
-          <RealtimeProvider>
-            <AppContent />
-          </RealtimeProvider>
-        </SyncProvider>
-      </AppProvider>
-    </AuthProvider>
+    <>
+      <DeprecationBanner />
+      <div className="pt-20">
+        <AuthProvider>
+          <AppProvider>
+            <SyncProvider executeFunctions={EXECUTE_FUNCTIONS}>
+              <RealtimeProvider>
+                <AppContent />
+              </RealtimeProvider>
+            </SyncProvider>
+          </AppProvider>
+        </AuthProvider>
+      </div>
+    </>
   );
 }

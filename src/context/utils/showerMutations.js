@@ -1,6 +1,8 @@
 import { addShowerWithOffline } from '../../utils/offlineOperations';
 import { mapShowerStatusToDb } from './mappers';
 import { globalSyncManager } from '../SupabaseSync';
+import { useServicesStore } from '../../stores/useServicesStore';
+import { broadcastChange } from '../../utils/crossTabSync';
 
 export const createShowerMutations = ({
   supabaseEnabled,
@@ -168,6 +170,9 @@ export const createShowerMutations = ({
           return [...prev, mapped];
         });
         setShowerSlots((prev) => [...prev, { guestId, time }]);
+        // Sync to Zustand store so realtime bridge stays consistent
+        useServicesStore.getState().syncShowerFromMutation('add', mapped);
+        broadcastChange('showers', 'add', mapped);
         pushAction({
           id: Date.now() + Math.random(),
           type: "SHOWER_BOOKED",
@@ -267,6 +272,9 @@ export const createShowerMutations = ({
           }
           return [...prev, mapped];
         });
+        // Sync to Zustand store so realtime bridge stays consistent
+        useServicesStore.getState().syncShowerFromMutation('add', mapped);
+        broadcastChange('showers', 'add', mapped);
         pushAction({
           id: Date.now() + Math.random(),
           type: "SHOWER_WAITLISTED",
@@ -337,6 +345,11 @@ export const createShowerMutations = ({
         if (error) throw error;
       }
 
+      // Sync cancelled status to Zustand store
+      const cancelledRecord = { ...record, status: 'cancelled' };
+      useServicesStore.getState().syncShowerFromMutation('update', cancelledRecord);
+      broadcastChange('showers', 'update', cancelledRecord);
+
       pushAction({
         id: Date.now() + Math.random(),
         type: "SHOWER_CANCELLED",
@@ -403,6 +416,13 @@ export const createShowerMutations = ({
           if (error) throw error;
         }
       }
+
+      // Sync bulk cancel to Zustand store
+      const cancelledRecords = recordsToCancel.map((r) => ({ ...r, status: 'cancelled' }));
+      cancelledRecords.forEach((r) => {
+        useServicesStore.getState().syncShowerFromMutation('update', r);
+      });
+      broadcastChange('showers', 'bulkUpdate', cancelledRecords);
 
       pushAction({
         id: Date.now() + Math.random(),
@@ -501,6 +521,10 @@ export const createShowerMutations = ({
       return originalRecord;
     }
 
+    // Sync rescheduled record to Zustand store
+    useServicesStore.getState().syncShowerFromMutation('update', updatedRecord);
+    broadcastChange('showers', 'update', updatedRecord);
+
     pushAction({
       id: Date.now() + Math.random(),
       type: "SHOWER_RESCHEDULED",
@@ -587,6 +611,13 @@ export const createShowerMutations = ({
     // Notify when shower is marked complete (for waiver check)
     if (newStatus === "done" && onServiceCompleted) {
       onServiceCompleted(previousRecord.guestId, "shower");
+    }
+
+    // Sync status update to Zustand store so realtime bridge stays consistent
+    const currentRecord = showerRecords.find((r) => r.id === recordId);
+    if (currentRecord) {
+      useServicesStore.getState().syncShowerFromMutation('update', { ...currentRecord, status: newStatus });
+      broadcastChange('showers', 'update', { ...currentRecord, status: newStatus });
     }
 
     // Trigger sync so other users see the status update immediately
